@@ -474,14 +474,19 @@ function Logo({ url, name }: { url?: string; name: string }) {
   const [failed, setFailed] = useState(false);
   const initials = name.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div className="relative animate-pop">
-      <Star8 filled={false} stroke={0.25} className="absolute -inset-9 size-[11.5rem] text-brand opacity-55 animate-spin-slow" />
-      <Star8 filled={false} stroke={0.25} className="absolute -inset-9 size-[11.5rem] text-brand opacity-20 rotate-[22.5deg]" />
-      <div className="relative size-28 rounded-full bg-surface ring-brand-soft grid place-items-center overflow-hidden">
-        {url && !failed
-          ? <img src={url} alt="" className="w-full h-full object-contain p-1" onError={() => setFailed(true)} />
-          : <span className="font-display text-3xl font-semibold text-brand">{initials || '•'}</span>}
-      </div>
+    <div className="relative grid place-items-center size-44 animate-pop">
+      {/* soft glow + star emblem behind; the logo itself is shown whole, whatever its shape */}
+      <div className="absolute inset-6 rounded-full bg-brand/15 blur-2xl" aria-hidden />
+      <Star8 filled={false} stroke={0.22} className="absolute inset-0 size-full text-brand opacity-45 animate-spin-slow" />
+      <Star8 filled={false} stroke={0.22} className="absolute inset-0 size-full text-brand opacity-15 rotate-[22.5deg]" />
+      {url && !failed ? (
+        <img src={url} alt="" onError={() => setFailed(true)}
+          className="relative max-h-32 max-w-36 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,.45)]" />
+      ) : (
+        <div className="relative size-24 rounded-full bg-surface ring-brand-soft grid place-items-center">
+          <span className="font-display text-3xl font-semibold text-brand">{initials || '•'}</span>
+        </div>
+      )}
     </div>
   );
 }
