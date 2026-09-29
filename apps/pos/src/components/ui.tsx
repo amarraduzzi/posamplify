@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { t } from '../lib/i18n';
 
 export function Modal({ title, onClose, children, footer, wide }: {
   title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean;
@@ -14,7 +15,7 @@ export function Modal({ title, onClose, children, footer, wide }: {
       <div role="dialog" className={`pop panel flex max-h-full w-full flex-col overflow-hidden rounded-3xl shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-md'}`}>
         <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
           <h2 className="font-display text-xl font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label={t('Fermer')} className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <div className="scroll-thin flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && <div className="border-t border-line/[0.07] bg-bg/40 px-6 py-4">{footer}</div>}

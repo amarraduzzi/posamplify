@@ -187,7 +187,9 @@ export function reportTicket(r: Restaurant, rep: DayReport, title: string): Tick
   return out;
 }
 
-export const orderLabel = (o: Pick<Order, 'order_type' | 'customer_name' | 'source' | 'external_ref'>, tableLabel?: string | null) =>
-  tableLabel ? `Table ${tableLabel}`
+/** "Table 5", "À emporter - Karim"... French for tickets; pass t() to get the screen language. */
+export const orderLabel = (o: Pick<Order, 'order_type' | 'customer_name' | 'source' | 'external_ref'>, tableLabel?: string | null,
+  tr: (fr: string, vars?: Record<string, string | number>) => string = (fr, v) => fr.replace(/\{(\w+)\}/g, (_, k: string) => String(v?.[k] ?? ''))) =>
+  tableLabel ? tr('Table {n}', { n: tableLabel })
     : o.source === 'glovo' ? `Glovo${o.external_ref ? ' ' + o.external_ref : ''}`
-    : `${TYPE[o.order_type] ?? o.order_type}${o.customer_name ? ' - ' + o.customer_name : ''}`;
+    : `${tr(TYPE[o.order_type] ?? o.order_type)}${o.customer_name ? ' - ' + o.customer_name : ''}`;

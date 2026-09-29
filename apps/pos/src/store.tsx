@@ -7,6 +7,7 @@ import { chime } from './lib/sound';
 import { errorMessage } from './lib/errors';
 import { uid } from './lib/format';
 import { readCache, writeCache } from './lib/cache';
+import { applyLang, t, type Lang } from './lib/i18n';
 import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type Queued } from './lib/outbox';
 import type { Category, DraftLine, FiscalDoc, Item, Line, Order, Restaurant, Staff, Table } from './lib/types';
 
@@ -44,6 +45,27 @@ function usePosState() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // ---- language: chosen on the till, remembered per staff member -----------
+  const [lang, setLangState] = useState<Lang>(() => {
+    const l = readCache<Lang>('pos-lang') === 'ar' ? 'ar' : 'fr';
+    applyLang(l);
+    return l;
+  });
+  const staffIdRef = useRef<string | null>(null);
+  const setLang = useCallback((l: Lang) => {
+    applyLang(l);
+    setLangState(l);
+    writeCache('pos-lang', l);
+    if (staffIdRef.current) writeCache(`pos-lang-staff:${staffIdRef.current}`, l);
+  }, []);
+  useEffect(() => {
+    staffIdRef.current = staff?.id ?? null;
+    if (!staff) return;
+    const mine = readCache<Lang>(`pos-lang-staff:${staff.id}`);
+    if (mine && mine !== lang) { applyLang(mine); setLangState(mine); writeCache('pos-lang', mine); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staff]);
+
   const toast = useCallback((text: string, tone: Toast['tone'] = 'info') => {
     const id = Date.now() + Math.random();
     setToasts(t => [...t.slice(-2), { id, text, tone }]);
@@ -78,7 +100,7 @@ function usePosState() {
       if (call !== membershipCall.current) return;
       // no internet: start from what this till knew last time
       if (isNetworkError(e)) { setOnline(false); ms = readCache(cacheKey); }
-      if (!ms) { setLoadError(isNetworkError(e) ? 'Pas de connexion internet, et ce poste n\'a encore rien enregistré. Reconnectez-le une première fois.' : errorMessage(e)); return; }
+      if (!ms) { setLoadError(isNetworkError(e) ? t('Pas de connexion internet, et ce poste n\'a encore rien enregistré. Reconnectez-le une première fois.') : errorMessage(e)); return; }
     }
     setLoadError(null);
     setMemberships(ms);
@@ -111,7 +133,7 @@ function usePosState() {
       if (s) { setStaffList(s.staff); setTables(s.tables); setCategories(s.categories); setItems(s.items); }
       const d = readCache<{ business_date: string; closed: boolean }>(`pos-day:${rid}`);
       if (d) { setBusinessDate(d.business_date); setDayClosed(d.closed); }
-      if (!s) setLoadError('Pas de connexion internet, et le menu n\'est pas encore enregistré sur ce poste.');
+      if (!s) setLoadError(t('Pas de connexion internet, et le menu n\'est pas encore enregistré sur ce poste.'));
     }
   }, [rid]);
 
@@ -162,7 +184,7 @@ function usePosState() {
           changed = true;
           setOnline(true);
           if (next.op.kind === 'pay' && result && !interactive.current.has(next.seq)) {
-            toast(`Ticket ${result.doc_number} émis (${next.op.req.label}, payé hors ligne)`, 'ok');
+            toast(t('Ticket {n} émis ({label}, payé hors ligne)', { n: result.doc_number, label: next.op.req.label }), 'ok');
           }
         } catch (e) {
           if (e instanceof OfflineError) { setOnline(false); break; }
@@ -248,7 +270,9 @@ function usePosState() {
   const staffById = useMemo(() => new Map(staffList.map(s => [s.id, s])), [staffList]);
   const itemById = useMemo(() => new Map(items.map(i => [i.id, i])), [items]);
   const pendingQr = useMemo(() => orders.filter(o => o.source === 'qr' && o.status === 'new'), [orders]);
-  const labelOf = useCallback((o: Order) => P.orderLabel(o, o.table_id ? tableById.get(o.table_id)?.label : null), [tableById]);
+  const labelOf = useCallback((o: Order) => P.orderLabel(o, o.table_id ? tableById.get(o.table_id)?.label : null, t), [tableById]);
+  /** Same label in French, for printed tickets. */
+  const printLabel = useCallback((o: Order) => P.orderLabel(o, o.table_id ? tableById.get(o.table_id)?.label : null), [tableById]);
   const pendingCount = queue.filter(q => q.state === 'pending').length;
   const failedOps = useMemo(() => queue.filter(q => q.state === 'failed'), [queue]);
 
@@ -276,13 +300,13 @@ function usePosState() {
     if (printerOk) {
       for (const [station, ls] of byStation) {
         try {
-          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, station, ls, labelOf(o), restaurant.timezone, staff?.name));
+          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, station, ls, printLabel(o), restaurant.timezone, staff?.name));
         } catch (e) { printed = false; fail(e); }
       }
     }
     enqueue([{ kind: 'markSent', ids: unsent.map(l => l.id), at: now() }]);
-    if (printerOk && printed) toast('Bon envoyé en cuisine', 'ok');
-  }, [restaurant, printerOk, settings, labelOf, staff, fail, toast, enqueue]);
+    if (printerOk && printed) toast(t('Bon envoyé en cuisine'), 'ok');
+  }, [restaurant, printerOk, settings, printLabel, staff, fail, toast, enqueue]);
 
   /** Saves draft lines (creating the order if needed) and sends them to the kitchen. Works offline. */
   const commitDraft = useCallback(async (target: { order: Order | null; tableId: string | null; orderType: string; source: string;
@@ -310,7 +334,7 @@ function usePosState() {
     // online: give the server a moment, so the kitchen bon carries the real ticket number
     await settle(4000);
     const order = current().find(o => o.id === orderId);
-    if (!order) throw new Error('Commande introuvable.');
+    if (!order) throw new Error(t('Commande introuvable.'));
     if (opts.send) {
       const ids = new Set(lines.map(l => l.id));
       await sendToKitchen(order, order.order_lines.filter(l => ids.has(l.id)));
@@ -331,7 +355,7 @@ function usePosState() {
       enqueue([{ kind: 'updateOrder', id: target.id, patch: { status: 'preparing' } }]);
       await sendToKitchen(target, o.order_lines);
       await reloadOrders();
-      toast(`Commande ${P.ticketRef(o)} acceptée`, 'ok');
+      toast(t('Commande {ref} acceptée', { ref: P.ticketRef(o) }), 'ok');
     } catch (e) { fail(e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enqueue, sendToKitchen, reloadOrders, toast, fail]);
@@ -345,6 +369,7 @@ function usePosState() {
     buyer: { name: string; ice: string } | null, changeCents: number): Promise<PayResult | null> => {
     if (!restaurant) return null;
     const label = labelOf(o);
+    const plabel = printLabel(o);
     const ops: Op[] = [];
     if (o.status === 'new') ops.push({ kind: 'updateOrder', id: o.id, patch: { status: 'served' } });
     ops.push({ kind: 'pay', req: { order_id: o.id, payments, staff_id: staff?.id ?? null, buyer, label, paid_at: now(), total_cents: Number(o.total_cents) } });
@@ -365,7 +390,7 @@ function usePosState() {
       if (printerOk) {
         try {
           await P.print(P.receiptPrinter(settings), `Ticket ${q.result.doc_number}`,
-            P.fiscalTicket(restaurant, q.result, { label, staff: staff?.name, change_cents: changeCents }), { drawer });
+            P.fiscalTicket(restaurant, q.result, { label: plabel, staff: staff?.name, change_cents: changeCents }), { drawer });
         } catch (e) { fail(e); }
       }
       return { doc: q.result };
@@ -374,21 +399,21 @@ function usePosState() {
     if (printerOk) {
       try {
         await P.print(P.receiptPrinter(settings), 'Recu provisoire',
-          P.provisionalTicket(restaurant, o, { label, staff: staff?.name, payments, change_cents: changeCents, tz: restaurant.timezone }), { drawer });
+          P.provisionalTicket(restaurant, o, { label: plabel, staff: staff?.name, payments, change_cents: changeCents, tz: restaurant.timezone }), { drawer });
       } catch (e) { fail(e); }
     }
     return { provisional: P.ticketRef(o) };
-  }, [restaurant, staff, printerOk, settings, labelOf, enqueue, settle, changeQueue, fail]);
+  }, [restaurant, staff, printerOk, settings, labelOf, printLabel, enqueue, settle, changeQueue, fail]);
 
   const printBill = useCallback(async (o: Order) => {
     if (!restaurant) return;
-    try { await P.print(P.receiptPrinter(settings), 'Addition', P.billTicket(restaurant, o, labelOf(o), restaurant.timezone)); toast('Addition imprimée', 'ok'); }
+    try { await P.print(P.receiptPrinter(settings), 'Addition', P.billTicket(restaurant, o, printLabel(o), restaurant.timezone)); toast(t('Addition imprimée'), 'ok'); }
     catch (e) { fail(e); }
-  }, [restaurant, settings, labelOf, toast, fail]);
+  }, [restaurant, settings, printLabel, toast, fail]);
 
   const reprintDoc = useCallback(async (d: FiscalDoc, label?: string, copy = true) => {
     if (!restaurant) return;
-    try { await P.print(P.receiptPrinter(settings), `${copy ? 'Duplicata' : 'Document'} ${d.doc_number}`, P.fiscalTicket(restaurant, d, { label, staff: d.staff_id ? staffById.get(d.staff_id)?.name : undefined, copy })); if (copy) toast('Duplicata imprimé', 'ok'); }
+    try { await P.print(P.receiptPrinter(settings), `${copy ? 'Duplicata' : 'Document'} ${d.doc_number}`, P.fiscalTicket(restaurant, d, { label, staff: d.staff_id ? staffById.get(d.staff_id)?.name : undefined, copy })); if (copy) toast(t('Duplicata imprimé'), 'ok'); }
     catch (e) { fail(e); }
   }, [restaurant, settings, staffById, toast, fail]);
 
@@ -399,12 +424,12 @@ function usePosState() {
   /** Guard for actions that need the server (manager PIN, reports, credit notes). */
   const requireOnline = useCallback(() => {
     if (onlineRef.current) return true;
-    toast('Connexion internet requise pour cette action.', 'error');
+    toast(t('Connexion internet requise pour cette action.'), 'error');
     return false;
   }, [toast]);
 
   return {
-    session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
+    lang, setLang, session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
     staffList, tables, categories, items, orders, staff, setStaff,
     live, online, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,

@@ -1,6 +1,10 @@
+import { getLang, t } from './i18n';
+
+/** Screen amounts. Western digits in both languages (as used in Morocco). */
 export const mad = (cents: number) => {
   const n = Number(cents) / 100;
-  return `${n.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })} MAD`;
+  const v = n.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+  return getLang() === 'ar' ? `${v} درهم` : `${v} MAD`;
 };
 /** For printed tickets: always 2 decimals, dot separator, no currency. */
 export const amount = (cents: number) => (Number(cents) / 100).toFixed(2);
@@ -13,9 +17,14 @@ export const time = (iso: string, tz: string) =>
 export const dateTime = (iso: string, tz: string) =>
   new Date(iso).toLocaleString('fr-FR', { timeZone: tz, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export const minutesSince = (iso: string, now = Date.now()) => Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
+// French labels (also used on printed tickets). On screen, wrap them in t().
+// i18n:values
 export const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', other: 'Autre' };
 export const TYPE: Record<string, string> = { dine_in: 'Sur place', takeaway: 'À emporter', delivery: 'Livraison' };
 export const STATUS: Record<string, string> = { new: 'Nouvelle', preparing: 'En préparation', ready: 'Prête', served: 'Servie', cancelled: 'Annulée' };
+// i18n:end
+export const methodLabel = (m: string) => t(METHOD[m] ?? m);
+export const statusLabel = (s: string) => t(STATUS[s] ?? s);
 export const uid = () => {
   const c = globalThis.crypto;
   if (c?.randomUUID) return c.randomUUID();

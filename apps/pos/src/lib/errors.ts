@@ -1,4 +1,6 @@
-// Database error codes (see supabase/migrations) to French messages for staff.
+// Database error codes (see supabase/migrations) to messages for staff (French key, translated by t()).
+import { t } from './i18n';
+// i18n:values
 const M: Record<string, string> = {
   not_allowed: "Action non autorisée pour ce compte.",
   'not allowed': "Action non autorisée pour ce compte.",
@@ -20,15 +22,22 @@ const M: Record<string, string> = {
   invalid_login: "E-mail ou mot de passe incorrect.",
   network: "Pas de connexion internet. Réessayez.",
 };
+// i18n:end
 export function errorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
-  if (/Invalid login credentials/i.test(msg)) return M.invalid_login;
-  if (/fetch|network|Failed to fetch|NetworkError|timeout/i.test(msg)) return M.network;
+  if (/Invalid login credentials/i.test(msg)) return t(M.invalid_login);
+  if (/fetch|network|Failed to fetch|NetworkError|timeout/i.test(msg)) return t(M.network);
   const key = Object.keys(M).find(k => msg === k || msg.startsWith(k));
-  return key ? M[key] : `Erreur : ${msg}`;
+  return key ? t(M[key]) : t('Erreur : {m}', { m: msg });
 }
-export const PIN_ERRORS: Record<string, string> = {
+// i18n:values
+const PIN_FR: Record<string, string> = {
   invalid: 'Code incorrect.',
   locked: 'Trop d\'essais. Réessayez dans 5 minutes.',
   not_manager: 'Un code manager est nécessaire.',
 };
+// i18n:end
+/** PIN error messages in the till's language. */
+export const PIN_ERRORS: Record<string, string> = new Proxy(PIN_FR, {
+  get: (o, k) => (typeof k === 'string' && o[k] ? t(o[k]) : undefined),
+});

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Delete } from 'lucide-react';
+import { t } from '../lib/i18n';
 
 /** Numeric keypad for PINs and amounts; also works with the physical keyboard. */
-export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submitLabel = 'Valider', allowDecimal = false, value: controlled, onChange }: {
+export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submitLabel, allowDecimal = false, value: controlled, onChange }: {
   onSubmit: (v: string) => void; busy?: boolean; error?: string | null; masked?: boolean; maxLen?: number;
   submitLabel?: string; allowDecimal?: boolean; value?: string; onChange?: (v: string) => void;
 }) {
@@ -32,7 +33,7 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
   return (
     <div className="mx-auto w-full max-w-xs">
       {masked ? (
-        <div key={error ?? 'ok'} className={`mb-4 flex h-12 items-center justify-center gap-3 ${error ? 'shake' : ''}`} aria-label={`${v.length} chiffres`}>
+        <div key={error ?? 'ok'} className={`mb-4 flex h-12 items-center justify-center gap-3 ${error ? 'shake' : ''}`} aria-label={t('{n} chiffres', { n: v.length })}>
           {Array.from({ length: Math.max(4, v.length) }).map((_, i) => (
             <span key={i} className={`h-3.5 w-3.5 rounded-full transition-all duration-150 ${i < v.length ? 'scale-110 bg-brand shadow-[0_0_12px_rgb(var(--brand)/.7)]' : 'bg-surface-3'}`} />
           ))}
@@ -43,7 +44,7 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
         </div>
       )}
       {error && <p className="mb-3 text-center text-sm font-semibold text-danger">{error}</p>}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5" dir="ltr">
         {keys.map(k => (
           <button key={k} type="button" onClick={() => press(k)} disabled={busy}
             className={`h-16 rounded-2xl text-2xl font-semibold transition active:scale-95 ${
@@ -54,7 +55,7 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
       </div>
       {allowDecimal && (
         <button type="button" onClick={() => press('ok')} disabled={busy || !v}
-          className="gold-fill mt-2.5 h-14 w-full rounded-2xl text-lg font-bold text-brand-ink disabled:opacity-40">{submitLabel}</button>
+          className="gold-fill mt-2.5 h-14 w-full rounded-2xl text-lg font-bold text-brand-ink disabled:opacity-40">{submitLabel ?? t('Valider')}</button>
       )}
     </div>
   );

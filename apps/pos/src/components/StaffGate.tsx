@@ -8,6 +8,8 @@ import { PinPad } from './PinPad';
 import { isNetworkError } from '../lib/supabase';
 import { checkPinOffline, forgetPinIfStale, rememberPin } from '../lib/pins';
 import { AmplifyLogo, PatternBackdrop, initials } from './Brand';
+import { getLang, t } from '../lib/i18n';
+import { LangSwitch } from './LangSwitch';
 
 /** Staff pick their name and type their PIN. Shown at start and after the idle lock. */
 export function StaffGate() {
@@ -25,8 +27,8 @@ export function StaffGate() {
       // no internet: unlock with the PIN this till remembered at the last online login
       const res = await checkPinOffline(r.id, who.id, pin);
       if (res === 'ok') pos.setStaff(who);
-      else if (res === 'unknown') setError(`Première connexion de ${who.name} sur ce poste : une connexion internet est nécessaire.`);
-      else setError(PIN_ERRORS[res] ?? 'Code incorrect.');
+      else if (res === 'unknown') setError(t('Première connexion de {name} sur ce poste : une connexion internet est nécessaire.', { name: who.name }));
+      else setError(PIN_ERRORS[res] ?? t('Code incorrect.'));
     };
     try {
       if (!pos.online) await offline();
@@ -35,7 +37,7 @@ export function StaffGate() {
         if (res.ok && res.staff) { pos.setStaff({ ...who, ...res.staff }); void rememberPin(r.id, who.id, pin); }
         else {
           if (res.error === 'invalid') void forgetPinIfStale(r.id, who.id, pin);
-          setError(PIN_ERRORS[res.error ?? 'invalid'] ?? 'Code incorrect.');
+          setError(PIN_ERRORS[res.error ?? 'invalid'] ?? t('Code incorrect.'));
         }
       }
     } catch (e) {
@@ -47,12 +49,15 @@ export function StaffGate() {
   return (
     <div className="ambient relative flex h-full flex-col items-center justify-center gap-8 overflow-hidden p-6">
       <PatternBackdrop />
-      <AmplifyLogo size="sm" className="absolute left-6 top-5 opacity-90" />
+      <div className="absolute start-6 top-5 flex items-center gap-4">
+        <AmplifyLogo size="sm" className="opacity-90" />
+        <LangSwitch />
+      </div>
       <Clock tz={r.timezone} />
       <div className="rise relative text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{who ? 'Code personnel' : 'Bienvenue'}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{who ? t('Code personnel') : t('Bienvenue')}</p>
         <h1 className="mt-2 font-display text-5xl font-semibold">{r.name}</h1>
-        <p className="mt-2 text-lg text-muted">{who ? `Code de ${who.name}` : 'Qui êtes-vous ?'}</p>
+        <p className="mt-2 text-lg text-muted">{who ? t('Code de {name}', { name: who.name }) : t('Qui êtes-vous ?')}</p>
       </div>
       {!who ? (
         <div className="relative grid w-full max-w-3xl grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
@@ -64,10 +69,10 @@ export function StaffGate() {
                 {initials(s.name)}
               </span>
               <span className="text-lg font-bold leading-tight">{s.name}</span>
-              {s.role === 'manager' && <span className="-mt-2 text-[11px] font-bold uppercase tracking-widest text-brand">Manager</span>}
+              {s.role === 'manager' && <span className="-mt-2 text-[11px] font-bold uppercase tracking-widest text-brand">{t('Manager')}</span>}
             </button>
           ))}
-          {!pos.staffList.length && <p className="col-span-full text-center text-muted">Aucun employé. Ajoutez le personnel dans l'espace gérant.</p>}
+          {!pos.staffList.length && <p className="col-span-full text-center text-muted">{t("Aucun employé. Ajoutez le personnel dans l'espace gérant.")}</p>}
         </div>
       ) : (
         <div className="rise panel relative w-full max-w-sm rounded-3xl p-6">
@@ -76,22 +81,22 @@ export function StaffGate() {
             <span className="text-xl font-bold">{who.name}</span>
           </div>
           <PinPad onSubmit={submit} busy={busy} error={error} />
-          <button onClick={() => setWho(null)} className="mx-auto mt-5 flex items-center gap-1 text-sm text-muted hover:text-ink"><ArrowLeft className="h-4 w-4" /> Changer d'employé</button>
+          <button onClick={() => setWho(null)} className="mx-auto mt-5 flex items-center gap-1 text-sm text-muted hover:text-ink"><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("Changer d'employé")}</button>
         </div>
       )}
-      <button onClick={pos.logout} className="relative text-xs text-muted/60 hover:text-ink">Déconnecter ce poste</button>
+      <button onClick={pos.logout} className="relative text-xs text-muted/60 hover:text-ink">{t('Déconnecter ce poste')}</button>
     </div>
   );
 }
 
 function Clock({ tz }: { tz: string }) {
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 10000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { const i = window.setInterval(() => setNow(Date.now()), 10000); return () => window.clearInterval(i); }, []);
   const d = new Date(now);
   return (
-    <div className="absolute right-6 top-5 text-right">
+    <div className="absolute end-6 top-5 text-end">
       <p className="font-display text-3xl font-semibold tabular leading-none">{d.toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit' })}</p>
-      <p className="mt-1 text-xs capitalize text-muted">{d.toLocaleDateString('fr-FR', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <p className="mt-1 text-xs capitalize text-muted">{d.toLocaleDateString(getLang() === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })}</p>
     </div>
   );
 }
@@ -101,7 +106,7 @@ export function ManagerApproval({ onApprove, busy, error }: { onApprove: (manage
   const pos = usePos();
   const managers = pos.staffList.filter(s => s.role === 'manager');
   const [who, setWho] = useState<string>(pos.staff?.role === 'manager' ? pos.staff.id : managers[0]?.id ?? '');
-  if (!managers.length) return <p className="text-danger">Aucun manager défini pour ce restaurant.</p>;
+  if (!managers.length) return <p className="text-danger">{t('Aucun manager défini pour ce restaurant.')}</p>;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap justify-center gap-2">

@@ -15,6 +15,7 @@ import { supabase, isNetworkError } from './supabase';
 import { check } from './data';
 import { readCache, writeCache } from './cache';
 import type { FiscalDoc, Line, Order } from './types';
+import { t } from './i18n';
 
 export interface NewOrder {
   id: string; restaurant_id: string; client_id: string; source: string; order_type: string;
@@ -216,12 +217,12 @@ export async function send(op: Op): Promise<FiscalDoc | undefined> {
 /** Human description of an operation, for the sync panel. */
 export function describe(op: Op, labelOf: (orderId: string) => string): string {
   switch (op.kind) {
-    case 'createOrder': return `Nouvelle commande ${op.order.local_ref}`;
-    case 'addLines': return `${op.lines.reduce((n, l) => n + l.quantity, 0)} article(s) · ${labelOf(op.order_id)}`;
-    case 'markSent': return `Bon cuisine (${op.ids.length} ligne(s))`;
-    case 'updateOrder': return `Mise à jour · ${labelOf(op.id)}`;
-    case 'updateLine': return 'Modification d\'article';
-    case 'deleteLine': return 'Article retiré';
-    case 'pay': return `Encaissement ${op.req.label}`;
+    case 'createOrder': return t('Nouvelle commande {ref}', { ref: op.order.local_ref });
+    case 'addLines': return `${t('{n} article(s)', { n: op.lines.reduce((n, l) => n + l.quantity, 0) })} · ${labelOf(op.order_id)}`;
+    case 'markSent': return t('Bon cuisine ({n} ligne(s))', { n: op.ids.length });
+    case 'updateOrder': return `${t('Mise à jour')} · ${labelOf(op.id)}`;
+    case 'updateLine': return t("Modification d'article");
+    case 'deleteLine': return t('Article retiré');
+    case 'pay': return `${t('Encaissement')} ${op.req.label}`;
   }
 }

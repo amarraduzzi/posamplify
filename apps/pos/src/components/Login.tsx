@@ -6,12 +6,16 @@ import { errorMessage } from '../lib/errors';
 import { usePos } from '../store';
 import { Btn, Field, inputCls } from './ui';
 import { AmplifyLogo, PatternBackdrop } from './Brand';
+import { t } from '../lib/i18n';
+import { LangSwitch } from './LangSwitch';
 
+// i18n:values
 const CODE_ERRORS: Record<string, string> = {
-  invalid_code: 'Code invalide ou expiré. Demandez un nouveau code dans l\'espace gérant.',
+  invalid_code: "Code invalide ou expiré. Demandez un nouveau code dans l'espace gérant.",
   already_member: 'Ce compte gère déjà ce restaurant.',
   ordering_unavailable: 'Abonnement du restaurant suspendu.',
 };
+// i18n:end
 
 /**
  * Connects this till to a restaurant. Default: a one-time code created by the
@@ -39,7 +43,7 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
       await pos.refreshMemberships();
     } catch (err) {
       const m = (err as Error).message;
-      setError(CODE_ERRORS[m] ?? (/anonymous/i.test(m) ? "La connexion par code n'est pas activée (Supabase : Allow anonymous sign-ins)." : errorMessage(err)));
+      setError(CODE_ERRORS[m] ? t(CODE_ERRORS[m]) : (/anonymous/i.test(m) ? t("La connexion par code n'est pas activée (Supabase : Allow anonymous sign-ins).") : errorMessage(err)));
     }
     setBusy(false);
   };
@@ -55,31 +59,32 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
       <PatternBackdrop />
       <div className="rise relative w-full max-w-md">
         <AmplifyLogo size="lg" className="mb-8 justify-center" />
+        <LangSwitch className="absolute end-0 top-0" />
         <div className="panel rounded-3xl p-8">
-          <h1 className="font-display text-3xl font-semibold">Caisse</h1>
-          <p className="mb-6 mt-1 text-sm text-muted">{disconnected ? 'Ce poste n\'est relié à aucun restaurant.' : 'Relier ce poste à votre restaurant (une seule fois).'}</p>
+          <h1 className="font-display text-3xl font-semibold">{t('Caisse')}</h1>
+          <p className="mb-6 mt-1 text-sm text-muted">{disconnected ? t("Ce poste n'est relié à aucun restaurant.") : t('Relier ce poste à votre restaurant (une seule fois).')}</p>
           {mode === 'code' ? (
             <form onSubmit={pair} className="space-y-4">
-              <Field label="Code de connexion">
+              <Field label={t('Code de connexion')}>
                 <input autoFocus className={`${inputCls} h-16 text-center font-display text-3xl font-semibold uppercase tracking-[0.35em]`} maxLength={9} value={code}
                   onChange={e => setCode(e.target.value.toUpperCase())} placeholder="XXXXXXXX" autoComplete="off" />
               </Field>
-              <p className="text-xs leading-relaxed text-muted">Le code se crée dans l'espace gérant, rubrique « Caisses ». Il est valable 30 minutes.</p>
+              <p className="text-xs leading-relaxed text-muted">{t("Le code se crée dans l'espace gérant, rubrique « Caisses ». Il est valable 30 minutes.")}</p>
               {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
-              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy || code.replace(/\s|-/g, '').length !== 8}><KeyRound className="h-5 w-5" /> {busy ? 'Connexion…' : 'Relier ce poste'}</Btn>
+              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy || code.replace(/\s|-/g, '').length !== 8}><KeyRound className="h-5 w-5" /> {busy ? t('Connexion…') : t('Relier ce poste')}</Btn>
             </form>
           ) : (
             <form onSubmit={login} className="space-y-4">
-              <Field label="E-mail du poste"><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
-              <Field label="Mot de passe"><input className={inputCls} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></Field>
+              <Field label={t('E-mail du poste')}><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
+              <Field label={t('Mot de passe')}><input className={inputCls} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></Field>
               {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
-              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy}>{busy ? 'Connexion…' : 'Se connecter'}</Btn>
+              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy}>{busy ? t('Connexion…') : t('Se connecter')}</Btn>
             </form>
           )}
           <button onClick={() => { setMode(mode === 'code' ? 'email' : 'code'); setError(null); }} className="mx-auto mt-5 flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-            {mode === 'code' ? <><Mail className="h-4 w-4" /> Se connecter avec un e-mail</> : <><KeyRound className="h-4 w-4" /> Utiliser un code de connexion</>}
+            {mode === 'code' ? <><Mail className="h-4 w-4" /> {t('Se connecter avec un e-mail')}</> : <><KeyRound className="h-4 w-4" /> {t('Utiliser un code de connexion')}</>}
           </button>
-          {disconnected && <button onClick={pos.logout} className="mx-auto mt-2 block text-xs text-muted/70 hover:text-ink">Se déconnecter</button>}
+          {disconnected && <button onClick={pos.logout} className="mx-auto mt-2 block text-xs text-muted/70 hover:text-ink">{t('Se déconnecter')}</button>}
         </div>
       </div>
     </div>
