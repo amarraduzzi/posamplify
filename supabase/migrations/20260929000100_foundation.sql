@@ -113,7 +113,7 @@ create table public.restaurants (
   is_demo         boolean not null default false,
 
   -- localisation
-  timezone        text not null default 'Africa/Casablanca',
+  timezone        text not null default 'Africa/Casablanca', -- changed to 'UTC' in 0008
   currency        text not null default 'MAD' check (currency ~ '^[A-Z]{3}$'),
   languages       text[] not null default '{fr,en,ar}'
                   check (cardinality(languages) between 1 and 5),
