@@ -19,6 +19,7 @@ Dit is **fase 1: de fundering**. Zie het architectuurplan voor de volledige rout
 | Kassa-app (`apps/pos`): tafels, bestellen, QR-bestellingen live, afrekenen, korting, annuleren, creditnota, X/Z-rapport, kasgeld, printen via printhost.exe | klaar, end-to-end getest |
 | Beheer-app (`apps/admin`): menu-editor (3 talen, varianten, foto's), personeel met PIN, tafels en QR-codes printen, restaurantinstellingen, verkopen met CSV-export, platformbeheer (restaurants aanmaken, activeren, pauzeren) | klaar, end-to-end getest |
 | Onboarding: restaurant maakt zelf een account, startwizard (menu-sjabloon, tafels, eigen PIN), kassa koppelen met eenmalige code, kassa's ontkoppelen | klaar, end-to-end getest |
+| Offline kassa: bestellen, bonnen, afrekenen en pincode zonder internet, automatisch doorsturen bij herstel (`apps/pos/src/lib/outbox.ts`) | klaar, end-to-end getest |
 | Online abonnementsbetaling | later |
 
 ## Mappen
@@ -116,6 +117,7 @@ node scripts/local/e2e-pos.mjs                  # volledige kassadag, van login 
 (cd apps/admin && VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_ANON_KEY=$(cat ../../.localstack/anon.key) npx vite) &
 node scripts/local/e2e-admin.mjs                # menu, personeel, tafels/QR, instellingen, platform
 node scripts/local/e2e-onboarding.mjs           # nieuw restaurant: aanmelden, wizard, kassa koppelen, eerste verkoop
+node scripts/local/e2e-offline.mjs              # internet valt weg: bestellen, bon, afrekenen, herladen, daarna alles gesynchroniseerd
 ```
 
 De tests bewijzen onder meer:

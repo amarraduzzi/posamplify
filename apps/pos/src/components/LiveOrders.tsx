@@ -1,9 +1,9 @@
 import { QrCode, Check, ChefHat, BellRing, UtensilsCrossed } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
-import { updateOrder } from '../lib/data';
 import { mad, minutesSince, STATUS, time } from '../lib/format';
 import type { Order, OrderStatus } from '../lib/types';
 import { Btn } from './ui';
+import { ticketRef } from '../lib/print';
 import { Star8 } from './Brand';
 
 const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string; Icon: typeof Check }>> = {
@@ -15,9 +15,7 @@ const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string; Icon: 
 export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const pos = usePos();
   const tz = pos.restaurant!.timezone;
-  const setStatus = async (o: Order, s: OrderStatus) => {
-    try { await updateOrder(o.id, { status: s }); await pos.reloadOrders(); } catch (e) { pos.fail(e); }
-  };
+  const setStatus = (o: Order, s: OrderStatus) => { pos.updateOrder(o.id, { status: s }); };
   if (!pos.orders.length) return (
     <div className="py-24 text-center text-muted">
       <Star8 filled={false} stroke={0.6} className="mx-auto h-16 w-16 text-brand/40" />
@@ -36,7 +34,7 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
             <button onClick={() => onOpen({ kind: 'order', orderId: o.id })} className="flex items-start justify-between gap-2 px-4 pt-3.5 text-left">
               <div>
                 <p className="flex items-center gap-1.5 text-lg font-bold">{o.source === 'qr' && <QrCode className="h-4 w-4 text-qr" />}{pos.labelOf(o)}</p>
-                <p className="text-xs text-muted">#{o.ticket_number} · {time(o.created_at, tz)} · {STATUS[o.status]}</p>
+                <p className="text-xs text-muted">{ticketRef(o)} · {time(o.created_at, tz)} · {STATUS[o.status]}</p>
               </div>
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold tabular ${m >= 20 ? 'bg-danger/20 text-danger' : m >= 10 ? 'bg-warn/20 text-warn' : 'bg-surface-2 text-muted'}`}>{m} min</span>
             </button>

@@ -117,7 +117,9 @@ function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void
     <Modal title="Clôturer la journée (rapport Z)" onClose={onClose}>
       <p className="mb-2">Chiffre d'affaires : <b className="tabular">{mad(rep.revenue_ttc_cents)}</b> · Espèces attendues : <b className="tabular">{mad(rep.expected_cash_cents)}</b></p>
       <p className="mb-4 text-sm text-warn">Définitif : après la clôture, plus aucune vente n'est possible sur cette journée.</p>
-      {rep.open_orders > 0
+      {pos.queue.some(q => q.state !== 'done')
+        ? <p className="font-semibold text-danger">Des opérations de ce poste ne sont pas encore envoyées (voir Synchronisation). Attendez qu'elles partent avant de clôturer.</p>
+        : rep.open_orders > 0
         ? <p className="font-semibold text-danger">{rep.open_orders} commande(s) encore ouverte(s). Encaissez-les ou annulez-les d'abord.</p>
         : <ManagerApproval onApprove={approve} busy={busy} error={error} />}
     </Modal>

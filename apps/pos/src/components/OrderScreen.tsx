@@ -4,6 +4,7 @@ import { tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
 import { mad, time, uid } from '../lib/format';
+import { ticketRef } from '../lib/print';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
 import type { DraftLine, Item, Line, Order } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
@@ -100,10 +101,10 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const back = () => (draft.length ? setDialog('leave') : onClose());
 
   const mergeAll = () => run(async () => {
-    if (!order) return;
+    if (!order || !pos.requireOnline()) return;
     await db.rpc('pos_merge_orders', { p_target: order.id, p_sources: extraOrders.map(o => o.id) });
     for (const x of extraOrders) if (x.source === 'qr' && x.status === 'new') await pos.sendToKitchen(order, x.order_lines);
-    if (extraOrders.some(x => x.status === 'new') && order.status === 'new') await db.updateOrder(order.id, { status: 'preparing' });
+    if (extraOrders.some(x => x.status === 'new') && order.status === 'new') pos.updateOrder(order.id, { status: 'preparing' });
     await pos.reloadOrders();
   });
 
@@ -122,7 +123,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <div className="flex items-center gap-3 border-b border-line/[0.07] bg-surface px-4 py-3">
           <Btn onClick={back} className="px-3"><ArrowLeft className="h-5 w-5" /> Retour</Btn>
           <h1 className="truncate font-display text-2xl font-semibold">{label}</h1>
-          {order && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted">#{order.ticket_number} · {time(order.created_at, r.timezone)}</span>}
+          {order && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted">{ticketRef(order)} · {time(order.created_at, r.timezone)}</span>}
           <div className="relative ml-auto w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un article" className={`${inputCls} py-2 pl-9`} />
@@ -255,11 +256,11 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5" /> Envoyer</Btn>
           <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> Encaisser</Btn>
           <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> Addition</Btn>
-          <Btn disabled={busy || !order} onClick={() => setDialog('discount')}><Percent className="h-4 w-4" /> Remise</Btn>
+          <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> Remise</Btn>
           <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> Note</Btn>
           <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> Renvoyer bon</Btn>
           {order?.table_id && <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> Changer table</Btn>}
-          <Btn tone="danger" disabled={busy || !order} onClick={() => setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> Annuler</Btn>
+          <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> Annuler</Btn>
         </div>
       </aside>
 
@@ -352,7 +353,7 @@ function CancelDialog({ order, onClose, onDone }: { order: Order; onClose: () =>
     setBusy(false);
   };
   return (
-    <Modal title={`Annuler la commande #${order.ticket_number}`} onClose={onClose}>
+    <Modal title={`Annuler la commande ${ticketRef(order)}`} onClose={onClose}>
       {empty ? (
         <div className="space-y-4"><p>Cette commande est vide.</p><Btn tone="danger" className="w-full" disabled={busy} onClick={() => doCancel(null, null)}>Annuler la commande</Btn></div>
       ) : (
@@ -375,9 +376,12 @@ function MoveDialog({ order, onClose, onMoved }: { order: Order; onClose: () => 
     setBusy(true);
     try {
       const there = pos.orders.find(o => o.table_id === tableId && o.id !== order.id);
-      if (there) await db.rpc('pos_merge_orders', { p_target: there.id, p_sources: [order.id] });
-      else await db.updateOrder(order.id, { table_id: tableId });
-      await pos.reloadOrders();
+      if (there) {
+        // merging two bills is done by the server
+        if (!pos.requireOnline()) { setBusy(false); return; }
+        await db.rpc('pos_merge_orders', { p_target: there.id, p_sources: [order.id] });
+        await pos.reloadOrders();
+      } else pos.updateOrder(order.id, { table_id: tableId });
       pos.toast(there ? 'Commandes regroupées' : 'Table changée', 'ok');
       onMoved(tableId);
     } catch (e) { pos.fail(e); }
@@ -400,7 +404,7 @@ function NoteDialog({ order, onClose }: { order: Order; onClose: () => void }) {
   const pos = usePos();
   const [note, setNote] = useState(order.note ?? '');
   const save = async () => {
-    try { await db.updateOrder(order.id, { note: note.trim() || null }); await pos.reloadOrders(); onClose(); } catch (e) { pos.fail(e); }
+    pos.updateOrder(order.id, { note: note.trim() || null }); onClose();
   };
   return (
     <Modal title="Note de commande" onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={save}>Enregistrer</Btn></div>}>
@@ -426,7 +430,7 @@ function VoidDialog({ line, onClose }: { line: Line; onClose: () => void }) {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const remove = async () => { await db.deleteLine(line.id); await pos.reloadOrders(); pos.toast('Article retiré', 'ok'); onClose(); };
+  const remove = async () => { pos.deleteLine(line.id); pos.toast('Article retiré', 'ok'); onClose(); };
   const approve = async (managerId: string, pin: string) => {
     setBusy(true); setError(null);
     try {
@@ -439,10 +443,10 @@ function VoidDialog({ line, onClose }: { line: Line; onClose: () => void }) {
   };
   return (
     <Modal title={`Retirer « ${line.name} »`} onClose={onClose}>
-      {line.kitchen_sent_at ? <>
+      {line.kitchen_sent_at ? (pos.online ? <>
         <p className="mb-3 text-center text-sm text-muted">Déjà envoyé en cuisine : validation manager nécessaire.</p>
         <ManagerApproval onApprove={approve} busy={busy} error={error} />
-      </> : <Btn tone="danger" className="w-full" onClick={() => remove().catch(pos.fail)}>Retirer</Btn>}
+      </> : <p className="text-center text-sm text-muted">Déjà envoyé en cuisine : la validation manager demande une connexion internet.</p>) : <Btn tone="danger" className="w-full" onClick={() => remove().catch(pos.fail)}>Retirer</Btn>}
     </Modal>
   );
 }

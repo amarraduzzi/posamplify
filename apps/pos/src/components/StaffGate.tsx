@@ -5,6 +5,8 @@ import { rpc } from '../lib/data';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
 import type { Staff } from '../lib/types';
 import { PinPad } from './PinPad';
+import { isNetworkError } from '../lib/supabase';
+import { checkPinOffline, forgetPinIfStale, rememberPin } from '../lib/pins';
 import { AmplifyLogo, PatternBackdrop, initials } from './Brand';
 
 /** Staff pick their name and type their PIN. Shown at start and after the idle lock. */
@@ -14,14 +16,32 @@ export function StaffGate() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const r = pos.restaurant!;
+  // nobody is working: a good moment to switch to a new app version, if one is waiting
+  useEffect(() => { if (!import.meta.env.PROD) return; import('../lib/sw').then(m => m.applyUpdateIfWaiting()).catch(() => {}); }, []);
   const submit = async (pin: string) => {
     if (!who) return;
     setBusy(true); setError(null);
+    const offline = async () => {
+      // no internet: unlock with the PIN this till remembered at the last online login
+      const res = await checkPinOffline(r.id, who.id, pin);
+      if (res === 'ok') pos.setStaff(who);
+      else if (res === 'unknown') setError(`Première connexion de ${who.name} sur ce poste : une connexion internet est nécessaire.`);
+      else setError(PIN_ERRORS[res] ?? 'Code incorrect.');
+    };
     try {
-      const res = await rpc<{ ok: boolean; error?: string; staff?: Staff }>('verify_staff_pin', { p_restaurant_id: r.id, p_staff_id: who.id, p_pin: pin });
-      if (res.ok && res.staff) pos.setStaff({ ...who, ...res.staff });
-      else setError(PIN_ERRORS[res.error ?? 'invalid'] ?? 'Code incorrect.');
-    } catch (e) { setError(errorMessage(e)); }
+      if (!pos.online) await offline();
+      else {
+        const res = await rpc<{ ok: boolean; error?: string; staff?: Staff }>('verify_staff_pin', { p_restaurant_id: r.id, p_staff_id: who.id, p_pin: pin });
+        if (res.ok && res.staff) { pos.setStaff({ ...who, ...res.staff }); void rememberPin(r.id, who.id, pin); }
+        else {
+          if (res.error === 'invalid') void forgetPinIfStale(r.id, who.id, pin);
+          setError(PIN_ERRORS[res.error ?? 'invalid'] ?? 'Code incorrect.');
+        }
+      }
+    } catch (e) {
+      if (isNetworkError(e)) await offline();
+      else setError(errorMessage(e));
+    }
     setBusy(false);
   };
   return (

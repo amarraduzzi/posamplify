@@ -42,6 +42,8 @@ export interface Order {
   external_ref: string | null; note: string | null; staff_id: string | null;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
+  /** Set on the till for orders taken offline, until the server gives a ticket number. */
+  local_ref?: string;
 }
 
 export interface FiscalDoc {

@@ -2,19 +2,19 @@ import { supabase } from './supabase';
 import type { CashMovement, Category, DayReport, FiscalDoc, Item, Order, Restaurant, Staff, Table, Variant } from './types';
 
 /** Raises the database error message (our machine readable codes). */
-function check<T>(r: { data: T | null; error: { message: string; details?: string | null } | null }): T {
+export function check<T>(r: { data: T | null; error: { message: string; details?: string | null; code?: string } | null; status?: number }): T {
   if (r.error) {
-    const e = new Error(r.error.message) as Error & { details?: string | null };
+    const e = new Error(r.error.message) as Error & { details?: string | null; status?: number; code?: string };
     e.details = r.error.details;
+    e.status = r.status;
+    e.code = r.error.code;
     throw e;
   }
   return r.data as T;
 }
 
-export async function myRestaurants(): Promise<{ restaurant: Restaurant; role: string }[]> {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return [];
-  const ms = check(await supabase.from('memberships').select('role, restaurant_id').eq('user_id', u.user.id));
+export async function myRestaurants(userId: string): Promise<{ restaurant: Restaurant; role: string }[]> {
+  const ms = check(await supabase.from('memberships').select('role, restaurant_id').eq('user_id', userId));
   if (!ms.length) return [];
   const rs = check(await supabase.from('restaurants').select('*').in('id', ms.map(m => m.restaurant_id)));
   return rs.map(r => ({ restaurant: r as Restaurant, role: ms.find(m => m.restaurant_id === r.id)!.role }));

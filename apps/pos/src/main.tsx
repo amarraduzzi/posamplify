@@ -18,6 +18,8 @@ if (!url || !key) {
   );
 } else {
   document.addEventListener('pointerdown', unlockAudio, { passive: true });
+  // keep the till app on this PC so it opens without internet (not in dev: it would cache stale code)
+  if (import.meta.env.PROD) import('./lib/sw').then(m => m.startServiceWorker()).catch(() => {});
   const Root = lazy(async () => {
     const [{ default: App }, { PosProvider }] = await Promise.all([import('./App'), import('./store')]);
     return { default: () => <PosProvider><App /></PosProvider> };

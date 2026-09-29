@@ -11,6 +11,7 @@ import { HistoryView } from './components/History';
 import { ReportsView } from './components/Reports';
 import { SettingsModal } from './components/SettingsModal';
 import { Star8, initials } from './components/Brand';
+import { SyncPanel } from './components/SyncPanel';
 
 type Tab = 'tables' | 'live' | 'history' | 'reports';
 
@@ -26,6 +27,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('tables');
   const [target, setTarget] = useState<OrderTarget | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSync, setShowSync] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(t); }, []);
@@ -109,11 +111,7 @@ export default function App() {
             className="flex items-center gap-1.5 rounded-xl border border-brand/40 bg-brand/10 px-3.5 py-2.5 text-sm font-bold text-brand transition hover:bg-brand/20"><ShoppingBag className="h-4 w-4" /><span className="hidden xl:inline">Emporter</span></button>
           <button aria-label="Livraison" title="Livraison (téléphone)" onClick={() => setTarget({ kind: 'new', orderType: 'delivery', source: 'phone' })}
             className="flex items-center gap-1.5 rounded-xl border border-line/[0.12] px-3.5 py-2.5 text-sm font-bold text-muted transition hover:bg-surface-2 hover:text-ink"><Bike className="h-4 w-4" /><span className="hidden xl:inline">Livraison</span></button>
-          <span title={pos.live && !stale ? 'Connecté, mises à jour en direct' : 'Connexion instable : actualisation toutes les 10 s'}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${pos.live && !stale ? 'bg-ok/10 text-ok' : stale ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>
-            {stale ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}<span className="hidden 2xl:inline">{stale ? 'Hors ligne' : pos.live ? 'En direct' : 'En ligne'}</span>
-            <span className={`h-2 w-2 rounded-full ${pos.live && !stale ? 'bg-ok shadow-[0_0_8px_rgb(var(--ok))]' : stale ? 'bg-danger' : 'bg-warn'}`} />
-          </span>
+          <ConnectionPill stale={stale} onClick={() => setShowSync(true)} />
           <span title={pos.printerOk ? 'Impression automatique active' : "Programme d'impression non détecté sur ce PC"}
             className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold ${pos.printerOk ? 'bg-ok/10 text-ok' : 'bg-surface-2 text-muted'}`}>
             <Printer className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">{pos.printerOk ? 'Impr.' : 'Sans impr.'}</span>
@@ -124,19 +122,62 @@ export default function App() {
         </div>
       </header>
 
+      {!pos.online && (
+        <button onClick={() => setShowSync(true)} className="flex items-center justify-center gap-2 bg-warn/15 py-2 text-sm font-semibold text-warn">
+          <WifiOff className="h-4 w-4" /> Hors ligne : commandes, bons et encaissements continuent sur ce poste et partent automatiquement au retour d'internet.
+          {pos.pendingCount > 0 && <span className="rounded-full bg-warn px-2 py-0.5 text-xs font-bold text-black">{pos.pendingCount} en attente</span>}
+        </button>
+      )}
+      {pos.online && pos.failedOps.length > 0 && (
+        <button onClick={() => setShowSync(true)} className="bg-danger/15 py-2 text-center text-sm font-semibold text-danger">
+          {pos.failedOps.length} opération(s) refusée(s) par le serveur : touchez pour vérifier.
+        </button>
+      )}
       {pos.dayClosed && <p className="bg-warn/15 py-1.5 text-center text-sm font-semibold text-warn">Journée clôturée (Z) : les ventes reprennent à la prochaine journée.</p>}
       {r.status === 'paused' && <p className="bg-danger/15 py-1.5 text-center text-sm font-semibold text-danger">Abonnement suspendu : la caisse est en lecture seule.</p>}
 
       <main className="scroll-thin flex-1 overflow-y-auto p-5">
         {tab === 'tables' && <TablesView onOpen={setTarget} />}
         {tab === 'live' && <LiveOrders onOpen={setTarget} />}
-        {tab === 'history' && <HistoryView />}
-        {tab === 'reports' && <ReportsView />}
+        {tab === 'history' && (pos.online ? <HistoryView /> : <OfflineNotice what="L'historique des tickets" />)}
+        {tab === 'reports' && (pos.online ? <ReportsView /> : <OfflineNotice what="Les rapports et la caisse" />)}
       </main>
 
       {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
       <Toasts />
+    </div>
+  );
+}
+
+function ConnectionPill({ stale, onClick }: { stale: boolean; onClick: () => void }) {
+  const pos = usePos();
+  const failed = pos.failedOps.length;
+  const [tone, text, title] = !pos.online ? ['danger', 'Hors ligne', 'Pas de connexion : la caisse continue sur ce poste']
+    : failed ? ['danger', `${failed} à vérifier`, 'Des opérations ont été refusées par le serveur']
+    : pos.pendingCount ? ['warn', 'Envoi…', 'Envoi des opérations en attente']
+    : pos.live && !stale ? ['ok', 'En direct', 'Connecté, mises à jour en direct']
+    : ['warn', 'En ligne', 'Connexion instable : actualisation toutes les 10 s'];
+  const cls = tone === 'ok' ? 'bg-ok/10 text-ok' : tone === 'warn' ? 'bg-warn/15 text-warn' : 'bg-danger/15 text-danger';
+  const dot = tone === 'ok' ? 'bg-ok shadow-[0_0_8px_rgb(var(--ok))]' : tone === 'warn' ? 'bg-warn' : 'bg-danger';
+  return (
+    <button onClick={onClick} title={title} aria-label={`Connexion : ${text}`}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${cls}`}>
+      {pos.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+      <span className="hidden 2xl:inline">{text}</span>
+      {pos.pendingCount > 0 && <span className="rounded-full bg-black/20 px-1.5 tabular">{pos.pendingCount}</span>}
+      <span className={`h-2 w-2 rounded-full ${dot}`} />
+    </button>
+  );
+}
+
+function OfflineNotice({ what }: { what: string }) {
+  return (
+    <div className="mx-auto max-w-md py-20 text-center">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-warn/10 text-warn"><WifiOff className="h-8 w-8" /></span>
+      <p className="mt-4 font-display text-2xl font-semibold">Connexion requise</p>
+      <p className="mt-2 text-muted">{what} viennent du serveur. Ils reviennent dès que la connexion est rétablie. Les commandes et encaissements, eux, continuent normalement.</p>
     </div>
   );
 }

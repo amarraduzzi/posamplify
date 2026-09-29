@@ -110,5 +110,5 @@ try {
   console.log('ONBOARDING E2E OK:', doc.doc_number);
 } catch (e) {
   await shot(admin, 'FAIL-admin').catch(() => {}); await shot(till, 'FAIL-till').catch(() => {});
-  console.error('FAILED:', e.message.split('\n')[0]); process.exitCode = 1;
+  console.error('FAILED:', e.message.split('\n').slice(0,3).join(' | '), e.stack.split('\n').find(l => l.includes('e2e-onboarding'))); process.exitCode = 1;
 } finally { await browser.close(); await db.end(); }

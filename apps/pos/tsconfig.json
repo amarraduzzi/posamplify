@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020", "module": "ESNext", "moduleResolution": "Bundler",
     "jsx": "react-jsx", "strict": true, "noEmit": true, "skipLibCheck": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client", "vite-plugin-pwa/client"],
     "noUnusedLocals": true, "noUnusedParameters": true
   },
   "include": ["src", "../../packages/shared/src"]

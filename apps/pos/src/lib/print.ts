@@ -77,7 +77,7 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
   const out: TicketLine[] = [
     { text: station.toUpperCase(), bold: true, large: true, center: true },
     rule('='),
-    { text: `${label}  #${o.ticket_number}`, bold: true, large: true },
+    { text: `${label}  ${ticketRef(o)}`, bold: true, large: true },
     { text: `${dateTime(new Date().toISOString(), tz)}${staff ? '  ' + staff : ''}` },
     rule(),
   ];
@@ -93,12 +93,38 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
 /** Provisional bill ("addition"), clearly not a fiscal document. */
 export function billTicket(r: Restaurant, o: Order, label: string, tz: string): TicketLine[] {
   const out = header(r);
-  out.push(rule(), { text: `${label}  #${o.ticket_number}`, bold: true }, { text: dateTime(new Date().toISOString(), tz) }, rule());
+  out.push(rule(), { text: `${label}  ${ticketRef(o)}`, bold: true }, { text: dateTime(new Date().toISOString(), tz) }, rule());
   for (const l of o.order_lines) out.push(...rows(`${l.quantity} ${l.name}`, amount(l.line_total_cents)));
   out.push(rule());
   if (o.discount_cents > 0) out.push(...rows('Remise', '-' + amount(o.discount_cents)));
   out.push(...rows('TOTAL', `${amount(o.total_cents)} MAD`, { bold: true, large: true }));
   out.push(rule(), { text: 'ADDITION - document non fiscal', center: true, bold: true });
+  return out;
+}
+
+/** "#12" once the server numbered the order, "H3" for an order taken offline and not sent yet. */
+export const ticketRef = (o: Pick<Order, 'ticket_number' | 'local_ref'>) =>
+  o.ticket_number ? `#${o.ticket_number}` : o.local_ref ?? '#-';
+
+/** Receipt printed when paying without internet. The fiscal ticket follows automatically on reconnection. */
+export function provisionalTicket(r: Restaurant, o: Order, extra: { label: string; staff?: string; payments: { method: string; amount_cents: number; tip_cents: number }[]; change_cents: number; tz: string }): TicketLine[] {
+  const out = header(r);
+  out.push(rule(), { text: 'RECU PROVISOIRE', bold: true, center: true }, { text: dateTime(new Date().toISOString(), extra.tz), center: true });
+  out.push({ text: `${extra.label}  ${ticketRef(o)}` });
+  if (extra.staff) out.push({ text: `Servi par : ${extra.staff}` });
+  out.push(rule());
+  for (const l of o.order_lines) out.push(...rows(`${l.quantity} ${l.name}`, amount(l.line_total_cents)));
+  out.push(rule());
+  if (o.discount_cents > 0) out.push(...rows('Remise', '-' + amount(o.discount_cents)));
+  out.push(...rows('TOTAL TTC', `${amount(o.total_cents)} MAD`, { bold: true, large: true }));
+  out.push(rule());
+  for (const p of extra.payments) {
+    out.push(...rows(METHOD[p.method as keyof typeof METHOD] ?? p.method, amount(p.amount_cents)));
+    if (p.tip_cents) out.push(...rows('  Pourboire', amount(p.tip_cents)));
+  }
+  if (extra.change_cents > 0) out.push(...rows('Rendu', amount(extra.change_cents)));
+  out.push(rule(), { text: 'Paiement enregistre hors connexion.', center: true }, { text: 'Le ticket fiscal numerote est', center: true }, { text: 'disponible sur demande.', center: true });
+  out.push(rule(), { text: r.pos_settings?.receipt_footer || 'Merci de votre visite, a bientot !', center: true });
   return out;
 }
 

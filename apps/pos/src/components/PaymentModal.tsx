@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText } from 'lucide-react';
-import { usePos } from '../store';
+import { usePos, type PayResult } from '../store';
 import { mad, toCents } from '../lib/format';
 import { errorMessage } from '../lib/errors';
-import type { FiscalDoc, Order } from '../lib/types';
+import type { Order } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { PinPad } from './PinPad';
 
@@ -27,7 +27,7 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   const [buyer, setBuyer] = useState({ name: '', ice: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ doc: FiscalDoc; change: number } | null>(null);
+  const [done, setDone] = useState<{ res: PayResult; change: number; total: number } | null>(null);
 
   const receivedC = received ? toCents(received) : total;
   const extra = Math.max(0, receivedC - total);
@@ -47,27 +47,28 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
       ? [{ method: 'cash', amount_cents: cashC, tip_cents: 0 }, { method: 'card', amount_cents: cardC, tip_cents: tipC }]
       : [{ method: mode, amount_cents: total, tip_cents: tipC }];
     try {
-      const doc = await pos.pay(order, payments, invoice ? { name: buyer.name.trim(), ice: buyer.ice } : null, change);
-      if (doc) setDone({ doc, change });
+      const res = await pos.pay(order, payments, invoice ? { name: buyer.name.trim(), ice: buyer.ice } : null, change);
+      if (res) setDone({ res, change, total });
     } catch (e) { setError(errorMessage(e)); }
     setBusy(false);
   };
 
-  if (done) return (
+  if (done) { const doc = 'doc' in done.res ? done.res.doc : null; return (
     <Modal title="Encaissé" onClose={onPaid}
       footer={<div className="flex justify-between gap-2">
-        <Btn onClick={() => pos.reprintDoc(done.doc, label)}><Printer className="h-4 w-4" /> Réimprimer</Btn>
+        {doc ? <Btn onClick={() => pos.reprintDoc(doc, label)}><Printer className="h-4 w-4" /> Réimprimer</Btn> : <span />}
         <Btn tone="brand" onClick={onPaid}>Terminé</Btn>
       </div>}>
       <div className="py-4 text-center">
         <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-ok/15 pop"><CheckCircle2 className="h-12 w-12 text-ok" /></span>
-        <p className="mt-3 text-lg font-bold">{done.doc.doc_number}</p>
-        <p className="text-muted">{label} · {mad(done.doc.total_ttc_cents)}</p>
+        <p className="mt-3 text-lg font-bold">{doc ? doc.doc_number : 'Reçu provisoire'}</p>
+        <p className="text-muted">{label} · {mad(doc ? doc.total_ttc_cents : done.total)}</p>
+        {!doc && <p className="mx-auto mt-3 max-w-xs rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">Hors ligne : le ticket fiscal sera émis automatiquement au retour de la connexion (voir Historique).</p>}
         {done.change > 0 && <p className="mt-8 text-xs font-bold uppercase tracking-[0.25em] text-muted">À rendre</p>}
         {done.change > 0 && <p className="font-display text-6xl font-semibold text-brand tabular">{mad(done.change)}</p>}
       </div>
     </Modal>
-  );
+  ); }
 
   if (!order) return <Modal title="Encaisser" onClose={onClose}><p className="text-muted">Chargement…</p></Modal>;
 
