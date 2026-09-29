@@ -47,15 +47,18 @@ function usePosState() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!session) { setMemberships(null); setRestaurant(null); return; }
-    db.myRestaurants().then(ms => {
+  const sessionUser = session?.user?.id;
+  const refreshMemberships = useCallback(async () => {
+    if (!sessionUser) { setMemberships(null); setRestaurant(null); return; }
+    try {
+      const ms = await db.myRestaurants();
       setMemberships(ms);
       const saved = localStorage.getItem('pos-restaurant');
       const pick = ms.find(m => m.restaurant.id === saved) ?? (ms.length === 1 ? ms[0] : null);
-      if (pick) setRestaurant(pick.restaurant);
-    }).catch(e => setLoadError(errorMessage(e)));
-  }, [session]);
+      setRestaurant(pick ? pick.restaurant : null);
+    } catch (e) { setLoadError(errorMessage(e)); }
+  }, [sessionUser]);
+  useEffect(() => { refreshMemberships(); }, [refreshMemberships]);
 
   const chooseRestaurant = (r: Restaurant) => { localStorage.setItem('pos-restaurant', r.id); setRestaurant(r); setStaff(null); };
   const logout = async () => { await supabase.auth.signOut(); setStaff(null); setRestaurant(null); };
@@ -203,7 +206,7 @@ function usePosState() {
   }, [settings, fail]);
 
   return {
-    session, memberships, restaurant, chooseRestaurant, logout, loadError,
+    session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
     staffList, tables, categories, items, orders, staff, setStaff,
     live, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,

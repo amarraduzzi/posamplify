@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor } from 'lucide-react';
 import { inkFor } from '@resto/shared';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
@@ -11,14 +11,18 @@ import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { PlatformPage } from './pages/PlatformPage';
+import { Onboarding } from './pages/Onboarding';
+import { DevicesPage } from './pages/DevicesPage';
 
-type Page = 'menu' | 'staff' | 'tables' | 'settings' | 'reports' | 'platform';
+type Page = 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 
 export default function App() {
   const a = useAdminCtx();
   const [page, setPage] = useState<Page>('menu');
   const [navOpen, setNavOpen] = useState(false);
+  // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
+  const [, bump] = useState(0);
 
   useEffect(() => {
     const c = a.current?.branding?.primary_color;
@@ -33,12 +37,18 @@ export default function App() {
   if (a.session === undefined) return null;
   if (!a.session) return <Login />;
   if (a.list === null) return <p className="p-8 text-muted">Chargement…</p>;
+  // the wizard stays until its last step, also after the restaurant exists
+  const inWizard = localStorage.getItem('admin-wizard-step') !== null;
+  if ((inWizard || !a.list.length) && !a.isAdmin) {
+    return <Onboarding onDone={p => { if (p) setPage(p); bump(n => n + 1); }} />;
+  }
 
   const r = a.current;
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
     { id: 'menu', label: 'Menu', Icon: UtensilsCrossed, show: !!r },
     { id: 'tables', label: 'Tables & QR codes', Icon: QrCode, show: !!r },
     { id: 'staff', label: 'Personnel', Icon: Users, show: !!r },
+    { id: 'devices', label: 'Caisses', Icon: Monitor, show: !!r },
     { id: 'reports', label: 'Ventes', Icon: BarChart3, show: !!r },
     { id: 'settings', label: 'Restaurant', Icon: Settings, show: !!r },
     { id: 'platform', label: 'Plateforme', Icon: Shield, show: a.isAdmin },
@@ -81,6 +91,7 @@ export default function App() {
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
+          {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}
           {r && current === 'reports' && <ReportsPage key={r.id} r={r} />}
           {current === 'platform' && a.isAdmin && <PlatformPage />}
@@ -94,24 +105,42 @@ export default function App() {
 }
 
 function Login() {
+  const [mode, setMode] = useState<'login' | 'signup'>(() => (new URLSearchParams(location.search).has('inscription') ? 'signup' : 'login'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true); setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) setError(errorMessage(error));
+    e.preventDefault(); setBusy(true); setError(null); setInfo(null);
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) setError(errorMessage(error));
+    } else {
+      localStorage.setItem('admin-wizard-step', '0');
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin } });
+      if (error) { setError(errorMessage(error)); localStorage.removeItem('admin-wizard-step'); }
+      else if (!data.session) setInfo('Compte créé. Ouvrez le lien reçu par e-mail pour le confirmer, puis connectez-vous.');
+    }
     setBusy(false);
   };
   return (
     <div className="grid h-full place-items-center p-6">
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-2xl bg-surface p-6 shadow-sm">
-        <div><h1 className="text-2xl font-bold">Espace gérant</h1><p className="text-sm text-muted">Menu, personnel, tables et ventes.</p></div>
+        <div>
+          <h1 className="text-2xl font-bold">{mode === 'login' ? 'Espace gérant' : 'Créer mon compte'}</h1>
+          <p className="text-sm text-muted">{mode === 'login' ? 'Menu, personnel, tables et ventes.' : 'Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.'}</p>
+        </div>
         <Field label="E-mail"><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
-        <Field label="Mot de passe"><input className={inputCls} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></Field>
+        <Field label="Mot de passe" hint={mode === 'signup' ? '8 caractères minimum.' : undefined}>
+          <input className={inputCls} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} required />
+        </Field>
         {error && <p className="text-sm font-semibold text-danger">{error}</p>}
-        <Btn tone="brand" className="w-full" disabled={busy}>{busy ? 'Connexion…' : 'Se connecter'}</Btn>
+        {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
+        <Btn tone="brand" className="w-full" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Btn>
+        <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }} className="w-full text-center text-sm text-muted hover:text-ink">
+          {mode === 'login' ? 'Nouveau restaurant ? Créer un compte' : 'Déjà un compte ? Se connecter'}
+        </button>
       </form>
     </div>
   );

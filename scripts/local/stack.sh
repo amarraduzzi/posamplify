@@ -28,7 +28,7 @@ start_services() {
   GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated GOTRUE_JWT_ADMIN_ROLES=service_role \
   API_EXTERNAL_URL=http://localhost:54331/auth/v1 GOTRUE_SITE_URL=http://localhost:5174 \
   GOTRUE_API_HOST=127.0.0.1 PORT=9999 GOTRUE_MAILER_AUTOCONFIRM=true GOTRUE_EXTERNAL_EMAIL_ENABLED=true \
-  GOTRUE_DISABLE_SIGNUP=false GOTRUE_LOG_LEVEL=warn \
+  GOTRUE_DISABLE_SIGNUP=false GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED=true GOTRUE_LOG_LEVEL=warn \
     sh -c './auth migrate >> "$0/auth.log" 2>&1 && exec ./auth serve >> "$0/auth.log" 2>&1' "$DATA" &
   echo $! > "$DATA/auth.pid"
   for i in $(seq 1 30); do curl -sf localhost:9999/health >/dev/null && break; sleep 0.5; done

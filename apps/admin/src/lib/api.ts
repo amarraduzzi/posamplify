@@ -16,10 +16,17 @@ const M: Record<string, string> = {
   user_not_found: "Aucun compte avec cet e-mail. Créez-le d'abord dans Supabase (Authentication > Users).",
   only_demo_restaurants_can_be_purged: 'Seuls les restaurants de démonstration peuvent être supprimés.',
   network: 'Pas de connexion internet.',
+  slug_taken: 'Cette adresse est déjà prise.',
+  too_many_restaurants: 'Limite de 3 restaurants par compte atteinte. Contactez-nous.',
+  name_required: 'Indiquez le nom du restaurant.',
+  cannot_remove_yourself: 'Vous ne pouvez pas retirer votre propre accès.',
 };
 export function errorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
   if (/Invalid login credentials/i.test(msg)) return 'E-mail ou mot de passe incorrect.';
+  if (/already registered|already been registered/i.test(msg)) return 'Un compte existe déjà avec cet e-mail : connectez-vous.';
+  if (/Password should be/i.test(msg)) return 'Mot de passe trop court (8 caractères minimum).';
+  if (/Email not confirmed/i.test(msg)) return "Confirmez d'abord votre e-mail (lien reçu par e-mail).";
   if (/fetch|network/i.test(msg)) return M.network;
   if (/duplicate key.*restaurants_slug/i.test(msg)) return 'Cette adresse (slug) est déjà prise.';
   if (/duplicate key.*(label|name)/i.test(msg)) return 'Ce nom existe déjà.';

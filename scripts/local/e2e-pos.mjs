@@ -24,6 +24,7 @@ const btn = n => page.getByRole('button', typeof n === 'string' ? { name: n, exa
 
 // 1. till login, staff PIN
 await page.goto(BASE);
+await page.getByRole('button', { name: /Se connecter avec un e-mail/ }).click();
 await page.getByLabel('E-mail du poste').fill('kassa@doms.test');
 await page.getByLabel('Mot de passe').fill('kassa-test-123');
 await btn('Se connecter').click();

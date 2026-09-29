@@ -55,7 +55,7 @@ export default function App() {
   if (pos.session === undefined) return <Center>Chargement…</Center>;
   if (!pos.session) return <Login />;
   if (pos.memberships === null) return <Center>{pos.loadError ?? 'Chargement…'}</Center>;
-  if (!pos.memberships.length) return <Center>Ce compte n'est lié à aucun restaurant. <button className="ml-2 underline" onClick={pos.logout}>Se déconnecter</button></Center>;
+  if (!pos.memberships.length) return <Login disconnected />;
   if (!pos.restaurant) return (
     <Center>
       <div className="space-y-3 text-center">

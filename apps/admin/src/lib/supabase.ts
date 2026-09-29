@@ -5,3 +5,4 @@ export const supabase = createClient(
   { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'admin-auth' } },
 );
 export const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://posamplify.pages.dev').replace(/\/$/, '');
+export const POS_URL = ((import.meta.env.VITE_POS_URL as string) || 'https://amplify-kassa.pages.dev').replace(/\/$/, '');

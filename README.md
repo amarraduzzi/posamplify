@@ -18,7 +18,8 @@ Dit is **fase 1: de fundering**. Zie het architectuurplan voor de volledige rout
 | Import van het Dom's Café-menu uit de oude code | klaar (`supabase/seed.sql`) |
 | Kassa-app (`apps/pos`): tafels, bestellen, QR-bestellingen live, afrekenen, korting, annuleren, creditnota, X/Z-rapport, kasgeld, printen via printhost.exe | klaar, end-to-end getest |
 | Beheer-app (`apps/admin`): menu-editor (3 talen, varianten, foto's), personeel met PIN, tafels en QR-codes printen, restaurantinstellingen, verkopen met CSV-export, platformbeheer (restaurants aanmaken, activeren, pauzeren) | klaar, end-to-end getest |
-| Zelf aanmelden door nieuwe restaurants, online abonnementsbetaling | later |
+| Onboarding: restaurant maakt zelf een account, startwizard (menu-sjabloon, tafels, eigen PIN), kassa koppelen met eenmalige code, kassa's ontkoppelen | klaar, end-to-end getest |
+| Online abonnementsbetaling | later |
 
 ## Mappen
 
@@ -92,10 +93,16 @@ Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `d
 - Output directory: `apps/admin/dist`
 - Variabelen: dezelfde drie, plus `VITE_MENU_URL` (adres van de klant-app, bijvoorbeeld `https://posamplify.pages.dev`), nodig voor de QR-codes.
 
+## Supabase-instellingen voor onboarding
+
+- Authentication > Sign In / Providers > **Allow anonymous sign-ins**: aan (kassa's koppelen met een code).
+- Authentication > Sign In / Providers > Email > **Confirm email**: uit zolang er geen eigen e-mailserver (SMTP) is ingesteld; het standaard e-mailadres van Supabase verstuurt maar een paar mails per uur.
+- Beheer-app: optioneel `VITE_POS_URL` (adres van de kassa, standaard https://amplify-kassa.pages.dev).
+
 ## Testen
 
 ```bash
-npm run test:db     # 48 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
+npm run test:db     # 53 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
 ```
 
 Volledige lokale Supabase (database + echte Auth + PostgREST) voor de kassa, met een nep-printhost die tickets als tekst opslaat:
@@ -108,6 +115,7 @@ node scripts/local/fake-printhost.mjs &
 node scripts/local/e2e-pos.mjs                  # volledige kassadag, van login tot Z-rapport
 (cd apps/admin && VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_ANON_KEY=$(cat ../../.localstack/anon.key) npx vite) &
 node scripts/local/e2e-admin.mjs                # menu, personeel, tafels/QR, instellingen, platform
+node scripts/local/e2e-onboarding.mjs           # nieuw restaurant: aanmelden, wizard, kassa koppelen, eerste verkoop
 ```
 
 De tests bewijzen onder meer:
