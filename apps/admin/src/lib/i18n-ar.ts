@@ -334,4 +334,5 @@ export const AR: Record<string, string> = {
   "Le conseiller ne répond pas pour le moment. Réessayez dans un instant.": "المستشار لا يجيب حاليا. أعيدوا المحاولة بعد قليل.",
   "Texte rédigé par une IA à partir des chiffres ci-dessous. Les chiffres, eux, sont exacts.": "نص كتبه الذكاء الاصطناعي انطلاقا من الأرقام أسفله. أما الأرقام فهي دقيقة.",
   "Actualiser": "تحديث",
+  "Le briefing sera disponible après la prochaine mise à jour de la base de données.": "سيكون الملخص متوفرا بعد التحديث القادم لقاعدة البيانات.",
 };

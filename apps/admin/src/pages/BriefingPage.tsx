@@ -87,6 +87,7 @@ export function BriefingPage({ r }: { r: Restaurant }) {
   const [today, setToday] = useState<string>('');
   const [b, setB] = useState<Briefing | null>(null);
   const [hasTables, setHasTables] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let stop = false;
@@ -96,7 +97,11 @@ export function BriefingPage({ r }: { r: Restaurant }) {
         if (stop) return;
         if (!date) setToday(x.business_date);
         setB(x);
-      } catch (e) { a.fail(e); }
+      } catch (e) {
+        // database not updated yet (owner_briefing missing): say so quietly instead of an error toast
+        if (/owner_briefing|function|schema cache|PGRST202/i.test(String((e as Error).message))) setUnavailable(true);
+        else a.fail(e);
+      }
     })();
     return () => { stop = true; };
   }, [r.id, date, a]);
@@ -106,6 +111,7 @@ export function BriefingPage({ r }: { r: Restaurant }) {
   }, [r.id]);
 
   const list = useMemo(() => (b && today ? signals(b, today, hasTables) : []), [b, today, hasTables]);
+  if (unavailable) return <Card><h1 className="font-display text-2xl font-semibold">{t('Briefing')}</h1><p className="mt-2 text-muted">{t('Le briefing sera disponible après la prochaine mise à jour de la base de données.')}</p></Card>;
   if (!b) return <p className="text-muted">{t('Chargement…')}</p>;
 
   const rev = Number(b.today.revenue_ttc_cents), prev = Number(b.last_week.revenue_ttc_cents);
