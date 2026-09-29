@@ -268,9 +268,9 @@ export default function App() {
             )}
           </div>
 
-          <div className={`flex flex-col items-center text-center px-6 pb-8 ${b.cover_url ? 'pt-16 text-white' : 'pt-4'}`}>
+          <div className={`flex flex-col items-center text-center px-6 pb-8 ${b.cover_url ? 'pt-20 text-white' : 'pt-12'}`}>
             <Logo url={b.logo_url} name={r.name} />
-            <p className={`mt-5 text-[11px] font-semibold uppercase tracking-[0.3em] rtl:tracking-normal animate-rise ${b.cover_url ? 'text-white/75' : 'text-brand'}`}
+            <p className={`mt-9 text-[11px] font-semibold uppercase tracking-[0.3em] rtl:tracking-normal animate-rise ${b.cover_url ? 'text-white/75' : 'text-brand'}`}
               style={{ ['--i' as string]: 1 }}>{t.welcome}</p>
             <h1 className={`mt-2 font-display text-[2.6rem] sm:text-5xl font-semibold leading-[1.05] animate-rise ${b.cover_url ? 'text-white drop-shadow-lg' : ''}`}
               style={{ ['--i' as string]: 2 }}>{r.name}</h1>
@@ -475,11 +475,11 @@ function Logo({ url, name }: { url?: string; name: string }) {
   const initials = name.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
     <div className="relative animate-pop">
-      <Star8 filled={false} stroke={0.3} className="absolute -inset-5 size-[8.5rem] text-brand opacity-60 animate-spin-slow" />
-      <Star8 filled={false} stroke={0.3} className="absolute -inset-5 size-[8.5rem] text-brand opacity-25 rotate-[22.5deg]" />
-      <div className="relative size-24 rounded-full bg-surface ring-brand-soft grid place-items-center overflow-hidden">
+      <Star8 filled={false} stroke={0.25} className="absolute -inset-9 size-[11.5rem] text-brand opacity-55 animate-spin-slow" />
+      <Star8 filled={false} stroke={0.25} className="absolute -inset-9 size-[11.5rem] text-brand opacity-20 rotate-[22.5deg]" />
+      <div className="relative size-28 rounded-full bg-surface ring-brand-soft grid place-items-center overflow-hidden">
         {url && !failed
-          ? <img src={url} alt="" className="w-full h-full object-cover" onError={() => setFailed(true)} />
+          ? <img src={url} alt="" className="w-full h-full object-contain p-1" onError={() => setFailed(true)} />
           : <span className="font-display text-3xl font-semibold text-brand">{initials || '•'}</span>}
       </div>
     </div>
