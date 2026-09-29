@@ -26,7 +26,7 @@ export function HistoryView() {
         <Btn onClick={load}><RefreshCw className="h-4 w-4" /> Actualiser</Btn>
       </div>
       {!docs ? <p className="text-muted">Chargement…</p> : !docs.length ? <p className="py-16 text-center text-muted">Aucun ticket aujourd'hui.</p> : (
-        <div className="overflow-hidden rounded-2xl border border-line/10">
+        <div className="panel overflow-hidden rounded-3xl">
           <table className="w-full text-sm">
             <thead className="bg-surface-2 text-left text-muted"><tr><th className="px-4 py-2">N°</th><th>Heure</th><th>Paiement</th><th>Serveur</th><th className="px-4 text-right">Total</th></tr></thead>
             <tbody>

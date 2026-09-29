@@ -9,6 +9,7 @@ import type { DraftLine, Item, Line, Order } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import { PaymentModal } from './PaymentModal';
+import { Star8 } from './Brand';
 
 type Dialog = null | 'pay' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { variants: Item } | { lineNote: string };
 
@@ -22,6 +23,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const [busy, setBusy] = useState(false);
   const [cat, setCat] = useState<string>(pos.categories[0]?.id ?? '');
   const [query, setQuery] = useState('');
+  const showPhotos = localStorage.getItem('pos-photos') !== 'off';
   // new takeaway / delivery / glovo order details
   const [kind, setKind] = useState<'takeaway' | 'delivery' | 'glovo'>(target.kind === 'new' ? (target.source === 'glovo' ? 'glovo' : target.orderType) : 'takeaway');
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', ref: '' });
@@ -117,11 +119,11 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     <div className="fixed inset-0 z-40 flex bg-bg">
       {/* ------------------------------------------------ menu */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-3 border-b border-line/10 bg-surface px-4 py-2.5">
+        <div className="flex items-center gap-3 border-b border-line/[0.07] bg-surface px-4 py-3">
           <Btn onClick={back} className="px-3"><ArrowLeft className="h-5 w-5" /> Retour</Btn>
-          <h1 className="truncate text-xl font-black">{label}</h1>
-          {order && <span className="text-sm text-muted">#{order.ticket_number} · {time(order.created_at, r.timezone)}</span>}
-          <div className="relative ml-auto w-64">
+          <h1 className="truncate font-display text-2xl font-semibold">{label}</h1>
+          {order && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted">#{order.ticket_number} · {time(order.created_at, r.timezone)}</span>}
+          <div className="relative ml-auto w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un article" className={`${inputCls} py-2 pl-9`} />
             {query && <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"><X className="h-4 w-4" /></button>}
@@ -129,9 +131,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         </div>
 
         {target.kind === 'new' && !order && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-line/10 bg-surface px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface px-4 py-2.5">
             {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
-              <button key={k} onClick={() => setKind(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${kind === k ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted'}`}>
+              <button key={k} onClick={() => setKind(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-bold transition ${kind === k ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted hover:text-ink'}`}>
                 {k === 'takeaway' ? 'À emporter' : k === 'delivery' ? 'Livraison (tél.)' : 'Glovo'}
               </button>
             ))}
@@ -147,32 +149,50 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
 
         <div className="flex min-h-0 flex-1">
           {!query && (
-            <nav className="scroll-thin w-44 shrink-0 space-y-1 overflow-y-auto border-r border-line/10 p-2">
+            <nav className="scroll-thin w-48 shrink-0 space-y-1 overflow-y-auto border-r border-line/[0.07] bg-surface/50 p-2.5">
               {pos.categories.map(c => (
                 <button key={c.id} onClick={() => setCat(c.id)}
-                  className={`w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold leading-tight ${cat === c.id ? 'bg-brand text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}>
-                  {c.icon && <span className="mr-1.5">{c.icon}</span>}{tr(c.name, lang)}
+                  className={`flex w-full items-center gap-2.5 rounded-2xl px-3 py-3 text-left text-sm font-bold leading-tight transition ${cat === c.id ? 'gold-fill text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}>
+                  {c.icon && <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl text-base ${cat === c.id ? 'bg-black/10' : 'bg-surface-2'}`}>{c.icon}</span>}
+                  <span className="min-w-0 flex-1">{tr(c.name, lang)}</span>
                 </button>
               ))}
             </nav>
           )}
-          <div className="scroll-thin grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 overflow-y-auto p-3">
-            {visibleItems.map(i => (
-              <button key={i.id} onClick={() => addItem(i)} disabled={!i.available}
-                className="flex min-h-[84px] flex-col justify-between rounded-xl border border-line/10 bg-surface p-3 text-left transition hover:border-brand/60 active:scale-95 disabled:opacity-35">
-                <span className="text-sm font-bold leading-tight">{tr(i.name, lang)}</span>
-                <span className="mt-1 text-sm font-semibold text-brand tabular">
-                  {i.variants.length ? `${i.variants.length} options` : mad(i.price_cents)}{!i.available && ' · épuisé'}
-                </span>
-              </button>
-            ))}
+          <div className="scroll-thin grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 overflow-y-auto p-4">
+            {visibleItems.map(i => {
+              const inDraft = draft.filter(d => d.item_id === i.id).reduce((n, d) => n + d.quantity, 0);
+              return (
+                <button key={i.id} onClick={() => addItem(i)} disabled={!i.available}
+                  className={`panel group relative flex flex-col overflow-hidden rounded-2xl text-left transition hover:border-brand/50 active:scale-95 disabled:opacity-35 ${inDraft ? '!border-brand ring-1 ring-brand' : ''}`}>
+                  {showPhotos && i.image_url && (
+                    <span className="relative block aspect-[4/3] w-full overflow-hidden bg-surface-2">
+                      <img src={i.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
+                    </span>
+                  )}
+                  <span className="flex flex-1 flex-col justify-between gap-1 p-3">
+                    <span className="text-sm font-bold leading-tight">{tr(i.name, lang)}</span>
+                    <span className="text-sm font-bold text-brand tabular">
+                      {i.variants.length ? `${i.variants.length} options` : mad(i.price_cents)}{!i.available && ' · épuisé'}
+                    </span>
+                  </span>
+                  {inDraft > 0 && <span className="absolute right-2 top-2 grid h-7 min-w-7 place-items-center rounded-full bg-brand px-1.5 text-sm font-bold text-brand-ink shadow-lg tabular">{inDraft}</span>}
+                </button>
+              );
+            })}
             {!visibleItems.length && <p className="col-span-full py-10 text-center text-muted">Aucun article.</p>}
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------ ticket */}
-      <aside className="flex w-[380px] shrink-0 flex-col border-l border-line/10 bg-surface">
+      <aside className="flex w-[400px] shrink-0 flex-col border-l border-line/[0.07] bg-surface">
+        <div className="flex items-center gap-2 border-b border-line/[0.07] px-5 py-3">
+          <Star8 className="h-4 w-4 text-brand" />
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted">Ticket</p>
+          <p className="ml-auto text-xs font-semibold text-muted">{(order?.order_lines.reduce((n, l) => n + l.quantity, 0) ?? 0) + draft.reduce((n, d) => n + d.quantity, 0)} article(s)</p>
+        </div>
         {pendingQr && (
           <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
             <QrCode className="h-4 w-4" /> Commande client à accepter
@@ -186,8 +206,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           </div>
         )}
         <div className="scroll-thin flex-1 overflow-y-auto px-4 py-3">
-          {nothing && <p className="py-16 text-center text-muted">Touchez un article pour commencer.</p>}
-          <ul className="divide-y divide-line/10">
+          {nothing && (
+            <div className="py-20 text-center text-muted">
+              <Star8 filled={false} stroke={0.6} className="mx-auto h-14 w-14 text-brand/40" />
+              <p className="mt-3">Touchez un article pour commencer.</p>
+            </div>
+          )}
+          <ul className="divide-y divide-line/[0.07]">
             {order?.order_lines.map(l => (
               <li key={l.id} className="flex items-start gap-2 py-2">
                 <span className="w-8 shrink-0 font-bold tabular">{l.quantity}×</span>
@@ -201,7 +226,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
               </li>
             ))}
             {draft.map(d => (
-              <li key={d.key} className="flex items-start gap-2 bg-brand/5 py-2">
+              <li key={d.key} className="-mx-2 flex items-start gap-2 rounded-xl bg-brand/[0.07] px-2 py-2">
                 <div className="flex shrink-0 items-center gap-1">
                   <button onClick={() => bump(d.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2"><Minus className="h-4 w-4" /></button>
                   <span className="w-6 text-center font-bold tabular">{d.quantity}</span>
@@ -218,17 +243,17 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           {order?.note && <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-sm"><b>Note :</b> {order.note}</p>}
         </div>
 
-        <div className="space-y-1 border-t border-line/10 px-4 py-3 text-sm">
+        <div className="space-y-1 border-t border-line/[0.07] bg-bg/30 px-5 py-4 text-sm">
           {discount > 0 && <>
             <p className="flex justify-between text-muted"><span>Sous-total</span><span className="tabular">{mad(subtotal)}</span></p>
             <p className="flex justify-between text-ok"><span>Remise</span><span className="tabular">-{mad(discount)}</span></p>
           </>}
-          <p className="flex justify-between text-2xl font-black"><span>Total</span><span className="tabular">{mad(total)}</span></p>
+          <p className="flex items-baseline justify-between"><span className="text-xs font-bold uppercase tracking-[0.2em] text-muted">Total</span><span className="font-display text-4xl font-semibold text-brand tabular">{mad(total)}</span></p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 border-t border-line/10 p-3">
-          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-3.5"><Send className="h-5 w-5" /> Envoyer</Btn>
-          <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-3.5"><Wallet className="h-5 w-5" /> Encaisser</Btn>
+        <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5" /> Envoyer</Btn>
+          <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> Encaisser</Btn>
           <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> Addition</Btn>
           <Btn disabled={busy || !order} onClick={() => setDialog('discount')}><Percent className="h-4 w-4" /> Remise</Btn>
           <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> Note</Btn>

@@ -26,7 +26,7 @@ export interface Category { id: string; name: I18n; icon: string | null; station
 export interface Variant { id: string; menu_item_id: string; name: I18n; price_cents: number; sort_order: number }
 export interface Item {
   id: string; category_id: string; name: I18n; price_cents: number; station: string | null;
-  available: boolean; sort_order: number; variants: Variant[];
+  available: boolean; sort_order: number; variants: Variant[]; image_url?: string | null;
 }
 
 export interface Line {

@@ -8,6 +8,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const pos = usePos();
   const s = pos.settings;
   const [msg, setMsg] = useState<string | null>(null);
+  const [photos, setPhotos] = useState(localStorage.getItem('pos-photos') !== 'off');
   const printers = [
     { label: 'Ticket (caisse)', name: P.receiptPrinter(s) },
     ...[...new Set(pos.categories.map(c => c.station))].map(st => ({ label: `Bon ${st}`, name: P.printerFor(s, st) })),
@@ -30,6 +31,12 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       {msg && <p className="mt-2 text-sm font-semibold">{msg}</p>}
+      <h3 className="mb-2 mt-6 font-bold">Affichage</h3>
+      <label className="flex cursor-pointer items-center justify-between rounded-xl bg-surface-2 px-3 py-3">
+        <span>Photos des articles<span className="block text-xs text-muted">Désactivez sur un PC lent.</span></span>
+        <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={photos}
+          onChange={e => { const on = e.target.checked; setPhotos(on); localStorage.setItem('pos-photos', on ? 'on' : 'off'); }} />
+      </label>
       <h3 className="mb-2 mt-6 font-bold">Poste</h3>
       <Btn tone="danger" onClick={pos.logout}><LogOut className="h-4 w-4" /> Déconnecter ce poste</Btn>
     </Modal>

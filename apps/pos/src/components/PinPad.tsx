@@ -31,21 +31,30 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', allowDecimal ? ',' : 'back', '0', allowDecimal ? 'back' : 'ok'];
   return (
     <div className="mx-auto w-full max-w-xs">
-      <div className="mb-3 flex h-14 items-center justify-center rounded-xl bg-bg text-3xl font-bold tracking-[0.3em] tabular">
-        {masked ? '•'.repeat(v.length) : v || <span className="text-muted/50">0</span>}
-      </div>
-      {error && <p className="mb-2 text-center text-sm font-semibold text-danger">{error}</p>}
-      <div className="grid grid-cols-3 gap-2">
+      {masked ? (
+        <div key={error ?? 'ok'} className={`mb-4 flex h-12 items-center justify-center gap-3 ${error ? 'shake' : ''}`} aria-label={`${v.length} chiffres`}>
+          {Array.from({ length: Math.max(4, v.length) }).map((_, i) => (
+            <span key={i} className={`h-3.5 w-3.5 rounded-full transition-all duration-150 ${i < v.length ? 'scale-110 bg-brand shadow-[0_0_12px_rgb(var(--brand)/.7)]' : 'bg-surface-3'}`} />
+          ))}
+        </div>
+      ) : (
+        <div className="mb-3 flex h-16 items-center justify-center rounded-2xl bg-bg font-display text-4xl font-semibold tabular">
+          {v || <span className="text-muted/40">0</span>}
+        </div>
+      )}
+      {error && <p className="mb-3 text-center text-sm font-semibold text-danger">{error}</p>}
+      <div className="grid grid-cols-3 gap-2.5">
         {keys.map(k => (
           <button key={k} type="button" onClick={() => press(k)} disabled={busy}
-            className={`h-14 rounded-xl text-xl font-bold transition active:scale-95 ${k === 'ok' ? 'bg-brand text-brand-ink' : 'bg-surface-2 hover:bg-surface-3'}`}>
+            className={`h-16 rounded-2xl text-2xl font-semibold transition active:scale-95 ${
+              k === 'ok' ? 'gold-fill text-brand-ink' : k === 'back' ? 'text-muted hover:bg-surface-2 hover:text-ink' : 'border border-line/[0.07] bg-surface-2 hover:bg-surface-3'}`}>
             {k === 'back' ? <Delete className="mx-auto h-6 w-6" /> : k === 'ok' ? '✓' : k}
           </button>
         ))}
       </div>
       {allowDecimal && (
         <button type="button" onClick={() => press('ok')} disabled={busy || !v}
-          className="mt-2 h-12 w-full rounded-xl bg-brand font-bold text-brand-ink disabled:opacity-40">{submitLabel}</button>
+          className="gold-fill mt-2.5 h-14 w-full rounded-2xl text-lg font-bold text-brand-ink disabled:opacity-40">{submitLabel}</button>
       )}
     </div>
   );

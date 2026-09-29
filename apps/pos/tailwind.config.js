@@ -10,7 +10,10 @@ export default {
         ink: v('ink'), muted: v('muted'), line: v('line'),
         ok: v('ok'), warn: v('warn'), danger: v('danger'), qr: v('qr'),
       },
-      fontFamily: { sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'] },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans Variable"', '"IBM Plex Sans Arabic"', 'Segoe UI', 'system-ui', 'sans-serif'],
+        display: ['"Fraunces Variable"', 'Georgia', 'serif'],
+      },
     },
   },
   plugins: [],

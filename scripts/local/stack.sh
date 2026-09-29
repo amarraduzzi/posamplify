@@ -86,5 +86,5 @@ SQL
     for p in gateway rest auth; do [[ -f "$DATA/$p.pid" ]] && kill "$(cat "$DATA/$p.pid")" 2>/dev/null || true; done
     "${RUN[@]}" "$PGBIN/pg_ctl" -D "$DATA/pg" -m fast stop >/dev/null || true
     ;;
-  reset) "$0" stop; rm -rf "$DATA"; "$0" start ;;
+  reset) bash "$0" stop; rm -rf "$DATA"; bash "$0" start ;;
 esac

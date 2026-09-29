@@ -60,11 +60,11 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
         <Btn tone="brand" onClick={onPaid}>Terminé</Btn>
       </div>}>
       <div className="py-4 text-center">
-        <CheckCircle2 className="mx-auto h-14 w-14 text-ok" />
-        <p className="mt-2 text-lg font-bold">{done.doc.doc_number}</p>
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-ok/15 pop"><CheckCircle2 className="h-12 w-12 text-ok" /></span>
+        <p className="mt-3 text-lg font-bold">{done.doc.doc_number}</p>
         <p className="text-muted">{label} · {mad(done.doc.total_ttc_cents)}</p>
-        {done.change > 0 && <p className="mt-6 text-sm uppercase tracking-wide text-muted">À rendre</p>}
-        {done.change > 0 && <p className="text-5xl font-black text-brand tabular">{mad(done.change)}</p>}
+        {done.change > 0 && <p className="mt-8 text-xs font-bold uppercase tracking-[0.25em] text-muted">À rendre</p>}
+        {done.change > 0 && <p className="font-display text-6xl font-semibold text-brand tabular">{mad(done.change)}</p>}
       </div>
     </Modal>
   );
@@ -86,14 +86,15 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
       </div>}>
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-4">
-          <div className="rounded-2xl bg-bg p-4 text-center">
-            <p className="text-sm text-muted">Total à payer</p>
-            <p className="text-4xl font-black tabular">{mad(total)}</p>
+          <div className="relative overflow-hidden rounded-3xl border border-brand/25 bg-bg p-5 text-center">
+            <div className="zellige absolute inset-0 opacity-[0.06]" aria-hidden />
+            <p className="relative text-xs font-bold uppercase tracking-[0.25em] text-muted">Total à payer</p>
+            <p className="relative mt-1 font-display text-5xl font-semibold text-brand tabular">{mad(total)}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {modes.map(m => (
               <button key={m.id} onClick={() => setMode(m.id)}
-                className={`flex items-center justify-center gap-2 rounded-xl py-3 font-bold ${mode === m.id ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>
+                className={`flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold transition ${mode === m.id ? 'gold-fill text-brand-ink' : 'border border-line/[0.06] bg-surface-2 hover:bg-surface-3'}`}>
                 <m.Icon className="h-5 w-5" />{m.label}
               </button>
             ))}
@@ -101,11 +102,11 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
           {mode === 'cash' && (
             <div className="space-y-2">
               <div className="flex gap-2">
-                {quick.map(q => <button key={q} onClick={() => setReceived(String(q / 100))} className="flex-1 rounded-lg bg-surface-2 py-2 text-sm font-bold tabular">{q === total ? 'Exact' : mad(q)}</button>)}
+                {quick.map(q => <button key={q} onClick={() => setReceived(String(q / 100))} className="flex-1 rounded-xl border border-line/[0.06] bg-surface-2 py-2.5 text-sm font-bold tabular hover:bg-surface-3">{q === total ? 'Exact' : mad(q)}</button>)}
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-bg px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl bg-bg px-4 py-3">
                 <span className="text-muted">{keepChange ? 'Pourboire' : 'À rendre'}</span>
-                <span className="text-2xl font-black text-brand tabular">{mad(extra)}</span>
+                <span className="font-display text-3xl font-semibold text-brand tabular">{mad(extra)}</span>
               </div>
               {extra > 0 && (
                 <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={keepChange} onChange={e => setKeepChange(e.target.checked)} className="h-5 w-5" /> Le client laisse la monnaie en pourboire</label>

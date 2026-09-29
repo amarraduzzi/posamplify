@@ -29,12 +29,12 @@ export function ReportsView() {
   };
   if (!rep) return <p className="text-muted">Chargement…</p>;
   const K = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
-    <div className="rounded-2xl border border-line/10 bg-surface p-4"><p className="text-sm text-muted">{label}</p><p className={`tabular ${strong ? 'text-3xl font-black' : 'text-xl font-bold'}`}>{value}</p></div>
+    <div className="panel rounded-3xl p-5"><p className="text-xs font-bold uppercase tracking-wider text-muted">{label}</p><p className={`mt-1 tabular ${strong ? 'font-display text-4xl font-semibold text-brand' : 'text-2xl font-bold'}`}>{value}</p></div>
   );
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto text-lg font-bold">Journée du {rep.business_date} {rep.closed && <span className="ml-2 rounded bg-warn/20 px-2 py-0.5 text-sm text-warn">clôturée</span>}</h2>
+        <h2 className="mr-auto font-display text-2xl font-semibold">Journée du {rep.business_date} {rep.closed && <span className="ml-2 rounded bg-warn/20 px-2 py-0.5 text-sm text-warn">clôturée</span>}</h2>
         <Btn onClick={load}><RefreshCw className="h-4 w-4" /></Btn>
         <Btn onClick={pos.openDrawer}><Archive className="h-4 w-4" /> Ouvrir le tiroir</Btn>
         <Btn onClick={() => setDialog('float')} disabled={rep.closed}><Banknote className="h-4 w-4" /> Fond de caisse</Btn>
@@ -52,11 +52,11 @@ export function ReportsView() {
         <K label="TVA collectée" value={mad(rep.vat_cents)} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-2xl border border-line/10 bg-surface p-4">
+        <section className="panel rounded-3xl p-5">
           <h3 className="mb-2 font-bold">Par employé</h3>
           {rep.by_staff.length ? rep.by_staff.map((s, i) => <p key={i} className="flex justify-between py-1"><span>{s.name ?? '—'}</span><span className="tabular">{mad(s.revenue_ttc_cents)}</span></p>) : <p className="text-muted">Aucune vente.</p>}
         </section>
-        <section className="rounded-2xl border border-line/10 bg-surface p-4">
+        <section className="panel rounded-3xl p-5">
           <h3 className="mb-2 font-bold">Mouvements de caisse</h3>
           {moves.length ? moves.map(m => (
             <p key={m.id} className="flex justify-between py-1 text-sm"><span>{time(m.created_at, r.timezone)} · {m.kind === 'float' ? 'Fond' : m.kind === 'payout' ? 'Sortie' : 'Dépôt'} · {m.reason}{m.staff_id ? ` (${pos.staffById.get(m.staff_id)?.name ?? ''})` : ''}</span>
