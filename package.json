@@ -1,0 +1,15 @@
+{
+  "name": "resto-platform",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "test:db": "bash scripts/test-db.sh",
+    "dev:menu": "npm run dev -w @resto/menu",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "pg": "^8.13.1"
+  }
+}
