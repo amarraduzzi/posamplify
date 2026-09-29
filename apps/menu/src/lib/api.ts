@@ -7,8 +7,12 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 // Guests never log in: the anon key only allows the three public functions.
 // Only the small PostgREST client is used (not the full supabase-js with auth,
 // realtime and storage), which keeps the guest page light on slow 4G.
+// Works with both the new publishable keys (sb_publishable_...) and legacy
+// anon JWTs; only a JWT may go in the Authorization header.
 const db = new PostgrestClient(`${url}/rest/v1`, {
-  headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+  headers: anonKey?.startsWith('eyJ')
+    ? { apikey: anonKey, Authorization: `Bearer ${anonKey}` }
+    : { apikey: anonKey },
 });
 
 export class ApiError extends Error {
