@@ -26,8 +26,13 @@ await page.goto(BASE);
 await page.getByLabel('E-mail').fill('eigenaar@doms.test');
 await page.getByLabel('Mot de passe').fill('eigenaar-test-123');
 await btn('Se connecter').click();
-await page.getByRole('heading', { name: 'Menu' }).waitFor();
+// owners land on today's briefing
+await page.getByRole('heading', { name: 'Briefing' }).waitFor();
 if (await page.locator('select').first().isVisible()) await page.locator('select').first().selectOption({ label: "Dom's Café" });
+await page.getByText('Ce qu’il faut retenir').waitFor();
+await shot('00-briefing');
+await btn('Menu').click();
+await page.getByRole('heading', { name: 'Menu' }).waitFor();
 await page.getByText(/Boissons Chaudes/).first().waitFor();
 await shot('01-menu');
 

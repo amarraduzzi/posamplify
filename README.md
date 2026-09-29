@@ -20,6 +20,9 @@ Dit is **fase 1: de fundering**. Zie het architectuurplan voor de volledige rout
 | Beheer-app (`apps/admin`): menu-editor (3 talen, varianten, foto's), personeel met PIN, tafels en QR-codes printen, restaurantinstellingen, verkopen met CSV-export, platformbeheer (restaurants aanmaken, activeren, pauzeren) | klaar, end-to-end getest |
 | Onboarding: restaurant maakt zelf een account, startwizard (menu-sjabloon, tafels, eigen PIN), kassa koppelen met eenmalige code, kassa's ontkoppelen | klaar, end-to-end getest |
 | Offline kassa: bestellen, bonnen, afrekenen en pincode zonder internet, automatisch doorsturen bij herstel (`apps/pos/src/lib/outbox.ts`) | klaar, end-to-end getest |
+| Kassa en beheer in het Arabisch (rechts naar links), taal per medewerker | klaar |
+| Website met aanmelding op de hoofdpagina van het menudomein (`apps/menu/src/landing`) | klaar |
+| Briefing voor de eigenaar: exacte dagcijfers + signalen (`owner_briefing`), AI-conseiller via Edge Function `briefing-ai` | klaar (AI na instellen sleutel) |
 | Online abonnementsbetaling | later |
 
 ## Mappen
@@ -153,3 +156,9 @@ node scripts/local/e2e.mjs                     # bestelt als gast en controleert
 - Gasten kunnen zonder captcha bestellen. De database begrenst het aantal (8 per tafel en 150 per restaurant per 10 minuten). Cloudflare Turnstile kan erbij zodra er misbruik is.
 - Openingstijden worden opgeslagen, maar de klant-app sluit het bestellen buiten die tijden nog niet af.
 - De Tailwind v4-CSS van de klant-app vraagt Safari 15.4+ of Chrome 99+. Voor de kassa (Windows 7, Chrome 109) moet de opmaak bewust compatibel blijven, zoals nu in domscafe.
+
+## AI-conseiller activeren (eenmalig)
+
+1. Supabase > Edge Functions > Deploy a new function > Via editor: naam `briefing-ai`, inhoud van `supabase/functions/briefing-ai/index.ts`.
+2. Supabase > Edge Functions > Secrets: `ANTHROPIC_API_KEY` = sleutel van console.anthropic.com. Optioneel `BRIEFING_MODEL`.
+Zonder sleutel toont het beheer "bientôt activé"; de rest van de briefing werkt altijd.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles } from 'lucide-react';
 import { inkFor } from '@resto/shared';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
@@ -13,18 +13,19 @@ import { ReportsPage } from './pages/ReportsPage';
 import { PlatformPage } from './pages/PlatformPage';
 import { Onboarding } from './pages/Onboarding';
 import { DevicesPage } from './pages/DevicesPage';
+import { BriefingPage } from './pages/BriefingPage';
 import { AmplifyLogo, PatternBackdrop, Star8 } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
 import { dateLocale, t } from './lib/i18n';
 
-type Page = 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
+type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
 
 export default function App() {
   const a = useAdminCtx();
-  const [page, setPage] = useState<Page>('menu');
+  const [page, setPage] = useState<Page>('briefing');
   const [navOpen, setNavOpen] = useState(false);
   // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
   const [, bump] = useState(0);
@@ -50,6 +51,7 @@ export default function App() {
 
   const r = a.current;
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
+    { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: !!r },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: !!r },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: !!r },
@@ -101,6 +103,7 @@ export default function App() {
         <div className="rise mx-auto max-w-6xl p-4 md:p-10" key={current}>
           {!r && !a.isAdmin && <p className="text-muted">{t('Ce compte ne gère aucun restaurant.')}</p>}
           {r && r.status === 'paused' && <p className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">{t('Abonnement suspendu : consultation seulement.')}</p>}
+          {r && current === 'briefing' && <BriefingPage key={r.id} r={r} />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
@@ -146,7 +149,7 @@ function Login() {
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{t('Fait pour le Maroc')}</p>
           <h2 className="mt-4 font-display text-5xl font-semibold leading-[1.08]">{t('Le plus beau menu QR et la caisse la plus simple de votre ville.')}</h2>
           <ul className="mt-8 space-y-3 text-white/75">
-            {[t('Menu en français, arabe et anglais, avec photos'), t('Caisse, tickets cuisine et bar, rapports Z'), t('Prêt pour la facture électronique DGI')].map(x => (
+            {[t('Menu en français, arabe et anglais, avec photos'), t('Caisse, tickets cuisine et bar, rapports Z'), t('Fonctionne même sans internet')].map(x => (
               <li key={x} className="flex items-center gap-3"><Star8 className="h-4 w-4 shrink-0 text-brand" />{x}</li>
             ))}
           </ul>
