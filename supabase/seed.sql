@@ -27,6 +27,16 @@ insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order
 insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('277faf6d-ccc5-54e3-a597-88c06155f43b', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '18', '277faf6dcc', 18) on conflict (id) do nothing;
 insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('faa951ff-48d3-544f-9de4-1f4ba2d48d51', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '19', 'faa951ff48', 19) on conflict (id) do nothing;
 insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('64d5ecf0-c9de-5b65-9bd3-daf8c99ed4bd', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '20', '64d5ecf0c9', 20) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('34df8840-fe45-5ba7-997e-1b185895ba28', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '21', '34df8840fe', 21) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('c58b5fdc-02c3-513a-802f-73ee55b7ced7', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '22', 'c58b5fdc02', 22) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('3f3a473c-4c9b-5712-bd84-04288f3bb066', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '23', '3f3a473c4c', 23) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('e655dfe9-733a-54d1-912f-f05183bb7351', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '24', 'e655dfe973', 24) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('937b28cd-25eb-528a-bcc6-cde4578b7716', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '25', '937b28cd25', 25) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('a6150725-e0ca-503f-888a-e471ef84f28c', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '26', 'a6150725e0', 26) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('5042d44f-8dfe-553a-abc4-9a3d1f7238ce', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '27', '5042d44f8d', 27) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('0ff4bc23-9ae3-5aab-a01d-c38a4442fd3c', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '28', '0ff4bc239a', 28) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('880b6c51-f56b-5b02-841b-e92a0bc4ad95', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '29', '880b6c51f5', 29) on conflict (id) do nothing;
+insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('b3a832d1-b256-5f8c-8c68-17e5f728f09a', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '30', 'b3a832d1b2', 30) on conflict (id) do nothing;
 insert into public.categories (id, restaurant_id, name, icon, station, sort_order)
 values ('33f76fe9-3a32-5cc1-a5de-402a7c03f5ec', '73d530e0-9f6a-590e-adbd-2ac1e387b588', '{"fr":"Boissons Chaudes","en":"Hot Drinks","ar":"مشروبات ساخنة"}'::jsonb, '☕', 'bar', 10)
 on conflict (id) do update set name = excluded.name, icon = excluded.icon, sort_order = excluded.sort_order;

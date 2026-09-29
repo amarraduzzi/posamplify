@@ -32,7 +32,7 @@ await page.keyboard.type('0000'); await page.keyboard.press('Enter');
 await page.getByText('Code incorrect.').waitFor();
 for (const d of '1111') await btn(d, { exact: true }).click();
 await btn('✓').click();
-await page.getByText(/Tables \d+\/20/).waitFor();
+await page.getByText(/Tables \d+\/\d+/).waitFor();
 await shot('01-tables');
 
 // 2. table 3: two coffees + a pizza, send

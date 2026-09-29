@@ -68,8 +68,8 @@ values ('${rid}', ${q(slug)}, 'Dom''s Café', 'active', null, '{fr,en,ar}', '26 
                            thu: [['08:00', '23:30']], fri: [['08:00', '23:30']], sat: [['08:00', '23:59']], sun: [['08:00', '23:59']] })})
 on conflict (id) do update set name = excluded.name, branding = excluded.branding;`);
 
-// 20 tables with stable QR tokens
-for (let t = 1; t <= 20; t++) {
+// 30 tables (as in the current Dom's till) with stable QR tokens
+for (let t = 1; t <= 30; t++) {
   const token = uid('table', String(t)).replace(/-/g, '').slice(0, 10);
   out.push(`insert into public.dining_tables (id, restaurant_id, label, qr_token, sort_order) values ('${uid('table', String(t))}', '${rid}', '${t}', '${token}', ${t}) on conflict (id) do nothing;`);
 }
