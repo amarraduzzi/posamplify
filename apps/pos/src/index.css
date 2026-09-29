@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Colors are RGB channels so Tailwind v3 can add opacity (bg-brand/20) with
+   plain rgb() syntax, which Chrome 109 understands (no color-mix/oklch). */
+:root {
+  --brand: 201 161 90;
+  --brand-ink: 20 20 20;
+  --bg: 20 16 11;
+  --surface: 30 24 18;
+  --surface-2: 42 34 26;
+  --surface-3: 56 46 36;
+  --ink: 243 236 221;
+  --muted: 163 154 140;
+  --line: 243 236 221;
+  --ok: 110 190 120;
+  --warn: 240 170 60;
+  --danger: 240 100 90;
+  --qr: 70 140 255;
+}
+html, body, #root { height: 100%; }
+body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-tap-highlight-color: transparent; user-select: none; }
+input, textarea { user-select: text; }
+.tabular { font-variant-numeric: tabular-nums; }
+.scroll-thin { scrollbar-width: thin; }
+@keyframes blink { 50% { box-shadow: 0 0 0 3px rgb(var(--danger)); } }
+.blink { animation: blink 1s step-start infinite; }
+@keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pop { animation: pop .14s ease-out both; }

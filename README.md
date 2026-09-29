@@ -16,7 +16,8 @@ Dit is **fase 1: de fundering**. Zie het architectuurplan voor de volledige rout
 | Beheerfuncties: restaurant aanmaken, pauzeren, demo opruimen | klaar, getest |
 | Klant-QR-app (`apps/menu`): FR/EN/AR met RTL, thema per restaurant, winkelmand, volgen van de bestelling | klaar, end-to-end getest |
 | Import van het Dom's Café-menu uit de oude code | klaar (`supabase/seed.sql`) |
-| Kassa-app, keukenscherm, menu-editor, QR-codes printen | volgende stap |
+| Kassa-app (`apps/pos`): tafels, bestellen, QR-bestellingen live, afrekenen, korting, annuleren, creditnota, X/Z-rapport, kasgeld, printen via printhost.exe | klaar, end-to-end getest |
+| Menu-editor en beheer voor eigenaars, QR-codes printen | volgende stap |
 
 ## Mappen
 
@@ -25,7 +26,8 @@ supabase/
   migrations/     het volledige databaseschema, in volgorde
   seed.sql        Dom's Café als eerste restaurant (gegenereerd, niet met de hand aanpassen)
   tests/          40 databasetests
-apps/menu/        klant-QR-app (React + Vite)
+apps/menu/        klant-QR-app (React + Vite, Tailwind v4)
+apps/pos/         kassa (React + Vite, Tailwind v3: draait op Chrome 109 / Windows 7)
 packages/shared/  gedeelde types en hulpfuncties
 scripts/
   test-db.sh              draait de databasetests op een wegwerp-Postgres
@@ -74,10 +76,28 @@ Adressen:
 
 De tafelcodes staan in de tabel `dining_tables` (kolom `qr_token`). De QR-code bevat altijd de code, nooit het tafelnummer, zodat niemand op een andere tafel kan bestellen door de link aan te passen.
 
+## Kassa publiceren (tweede Cloudflare Pages-project, zelfde repo)
+
+- Build command: `npm run build -w @resto/pos`
+- Output directory: `apps/pos/dist`
+- Zelfde drie environment variables als de klant-app.
+
+Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `device`). Medewerkers kiezen daarna hun naam en typen hun PIN. Printen gaat via printhost.exe (zie de domscafe-repo); printernamen per restaurant staan in `restaurants.pos_settings`, standaard `TICKET`, `BAR` en `CUISINE`.
+
 ## Testen
 
 ```bash
-npm run test:db     # 40 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
+npm run test:db     # 45 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
+```
+
+Volledige lokale Supabase (database + echte Auth + PostgREST) voor de kassa, met een nep-printhost die tickets als tekst opslaat:
+
+```bash
+BIN=~/bin bash scripts/local/stack.sh start     # postgrest + auth binaries van GitHub releases in ~/bin
+node scripts/local/setup-till.mjs               # kassa@doms.test / kassa-test-123, PIN Sara 1111, Karim 9999
+node scripts/local/fake-printhost.mjs &
+(cd apps/pos && VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_ANON_KEY=$(cat ../../.localstack/anon.key) npx vite) &
+node scripts/local/e2e-pos.mjs                  # volledige kassadag, van login tot Z-rapport
 ```
 
 De tests bewijzen onder meer:
