@@ -18,9 +18,9 @@ export function StaffPage({ r }: { r: Restaurant }) {
   const toggle = async (s: Staff) => { try { check(await supabase.from('staff').update({ active: !s.active }).eq('id', s.id).select('id')); load(); } catch (e) { a.fail(e); } };
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">Personnel</h1><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> Ajouter</Btn></div>
+      <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">Personnel</h1><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> Ajouter</Btn></div>
       <p className="mb-4 text-sm text-muted">Chaque employé choisit son nom sur la caisse et tape son code. Les managers valident remises, annulations, avoirs et clôture Z.</p>
-      <ul className="divide-y divide-line/10 overflow-hidden rounded-2xl border border-line/10 bg-surface">
+      <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {staff.map(s => (
           <li key={s.id} className={`flex items-center gap-3 px-4 py-3 ${s.active ? '' : 'opacity-50'}`}>
             <div className="flex-1"><p className="font-semibold">{s.name}</p><p className="text-sm text-muted">{s.role === 'manager' ? 'Manager' : 'Employé'}</p></div>

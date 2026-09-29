@@ -27,14 +27,14 @@ export function TablesPage({ r }: { r: Restaurant }) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-2xl font-bold">Tables & QR codes</h1>
+        <h1 className="mr-auto font-display text-3xl font-semibold">Tables & QR codes</h1>
         <Btn onClick={() => setPrinting(tables.filter(t => t.active))} disabled={!tables.length}><Printer className="h-4 w-4" /> Imprimer tous les QR codes</Btn>
         <Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Ajouter des tables</Btn>
       </div>
       <p className="mb-4 text-sm text-muted">Chaque table a son propre QR code. Le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).</p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
         {tables.map(t => (
-          <div key={t.id} className={`rounded-2xl border border-line/10 bg-surface p-3 ${t.active ? '' : 'opacity-50'}`}>
+          <div key={t.id} className={`card rounded-3xl p-3 ${t.active ? '' : 'opacity-50'}`}>
             <div className="flex items-start justify-between">
               <div><p className="text-xl font-black">{t.label}</p>{t.zone && <p className="text-xs text-muted">{t.zone}</p>}</div>
               <button onClick={() => setEdit(t)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2"><Pencil className="h-4 w-4" /></button>

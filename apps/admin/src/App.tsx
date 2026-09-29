@@ -13,6 +13,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { PlatformPage } from './pages/PlatformPage';
 import { Onboarding } from './pages/Onboarding';
 import { DevicesPage } from './pages/DevicesPage';
+import { AmplifyLogo, PatternBackdrop, Star8 } from './components/Brand';
 
 type Page = 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
@@ -57,35 +58,41 @@ export default function App() {
 
   return (
     <div className="flex h-full">
-      <aside className={`no-print fixed inset-y-0 left-0 z-40 w-64 shrink-0 flex-col border-r border-line/10 bg-surface p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`}>
-        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Restaurant</p>
-        {a.list.length > 1 ? (
-          <select className={`${inputCls} mb-2`} value={r?.id ?? ''} onChange={e => { const x = a.list!.find(l => l.r.id === e.target.value); if (x) a.choose(x.r); }}>
-            {a.list.map(x => <option key={x.r.id} value={x.r.id}>{x.r.name}</option>)}
-          </select>
-        ) : <p className="mb-2 text-lg font-bold">{r?.name ?? '—'}</p>}
-        {r && <p className="mb-4 text-xs text-muted">{STATUS[r.status]}{r.status === 'trial' && r.trial_ends_at ? ` jusqu'au ${new Date(r.trial_ends_at).toLocaleDateString('fr-FR')}` : ''} · {a.role === 'admin' ? 'administrateur' : a.role === 'owner' ? 'propriétaire' : 'manager'}</p>}
-        <nav className="space-y-1">
+      <aside className={`night no-print fixed inset-y-0 left-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
+        <PatternBackdrop className="opacity-70" />
+        <AmplifyLogo className="relative mb-7 mt-1 px-2" />
+        <div className="relative mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">Restaurant</p>
+          {a.list.length > 1 ? (
+            <select className="mb-1 w-full rounded-xl border border-white/10 bg-night-2 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-brand" value={r?.id ?? ''} onChange={e => { const x = a.list!.find(l => l.r.id === e.target.value); if (x) a.choose(x.r); }}>
+              {a.list.map(x => <option key={x.r.id} value={x.r.id}>{x.r.name}</option>)}
+            </select>
+          ) : <p className="font-display text-xl font-semibold leading-tight">{r?.name ?? '—'}</p>}
+          {r && <p className="mt-1 flex items-center gap-1.5 text-xs text-white/55">
+            <span className={`h-1.5 w-1.5 rounded-full ${r.status === 'active' ? 'bg-ok' : r.status === 'trial' ? 'bg-brand' : 'bg-danger'}`} />
+            {STATUS[r.status]}{r.status === 'trial' && r.trial_ends_at ? ` jusqu'au ${new Date(r.trial_ends_at).toLocaleDateString('fr-FR')}` : ''} · {a.role === 'admin' ? 'administrateur' : a.role === 'owner' ? 'propriétaire' : 'manager'}</p>}
+        </div>
+        <nav className="relative space-y-1">
           {nav.filter(n => n.show).map(n => (
             <button key={n.id} onClick={() => { setPage(n.id); setNavOpen(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-semibold ${current === n.id ? 'bg-brand text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}>
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] font-semibold transition ${current === n.id ? 'gold-fill text-brand-ink' : 'text-white/60 hover:bg-white/[0.06] hover:text-white'}`}>
               <n.Icon className="h-5 w-5" />{n.label}
             </button>
           ))}
         </nav>
-        {r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted hover:bg-surface-2"><ExternalLink className="h-4 w-4" /> Voir le menu client</a>}
-        <div className="mt-auto pt-4">
-          <p className="mb-2 truncate text-xs text-muted">{a.session.user.email}</p>
-          <Btn className="w-full" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /> Déconnexion</Btn>
+        {r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> Voir le menu client</a>}
+        <div className="relative mt-auto pt-4">
+          <p className="mb-2 truncate px-1 text-xs text-white/40">{a.session.user.email}</p>
+          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.06] hover:text-white" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /> Déconnexion</button>
         </div>
       </aside>
       {navOpen && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setNavOpen(false)} />}
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="no-print sticky top-0 z-20 flex items-center gap-2 border-b border-line/10 bg-surface px-4 py-2 md:hidden">
-          <button onClick={() => setNavOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2"><MenuIcon className="h-5 w-5" /></button>
-          <span className="font-bold">{r?.name}</span>
+        <div className="night no-print sticky top-0 z-20 flex items-center gap-3 px-4 py-2.5 md:hidden">
+          <button onClick={() => setNavOpen(true)} aria-label="Menu" className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><MenuIcon className="h-5 w-5" /></button>
+          <span className="font-display text-lg font-semibold">{r?.name}</span>
         </div>
-        <div className="mx-auto max-w-6xl p-4 md:p-8">
+        <div className="rise mx-auto max-w-6xl p-4 md:p-10" key={current}>
           {!r && !a.isAdmin && <p className="text-muted">Ce compte ne gère aucun restaurant.</p>}
           {r && r.status === 'paused' && <p className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">Abonnement suspendu : consultation seulement.</p>}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
@@ -98,7 +105,7 @@ export default function App() {
         </div>
       </main>
       <div className="no-print pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
-        {a.toasts.map(t => <div key={t.id} className={`pop rounded-xl px-4 py-2.5 font-semibold text-white shadow-xl ${t.tone === 'error' ? 'bg-danger' : 'bg-ok'}`}>{t.text}</div>)}
+        {a.toasts.map(t => <div key={t.id} className={`pop rounded-2xl px-5 py-3 font-semibold text-white shadow-2xl ${t.tone === 'error' ? 'bg-danger' : 'bg-night'}`}>{t.tone !== 'error' && <span className="mr-2 text-brand">✓</span>}{t.text}</div>)}
       </div>
     </div>
   );
@@ -125,23 +132,40 @@ function Login() {
     setBusy(false);
   };
   return (
-    <div className="grid h-full place-items-center p-6">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-2xl bg-surface p-6 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold">{mode === 'login' ? 'Espace gérant' : 'Créer mon compte'}</h1>
-          <p className="text-sm text-muted">{mode === 'login' ? 'Menu, personnel, tables et ventes.' : 'Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.'}</p>
+    <div className="flex h-full">
+      <section className="night relative hidden flex-1 flex-col justify-between overflow-hidden p-12 lg:flex">
+        <PatternBackdrop />
+        <AmplifyLogo size="lg" className="relative" />
+        <div className="relative max-w-lg">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">Fait pour le Maroc</p>
+          <h2 className="mt-4 font-display text-5xl font-semibold leading-[1.08]">Le plus beau menu QR et la caisse la plus simple de votre ville.</h2>
+          <ul className="mt-8 space-y-3 text-white/75">
+            {['Menu en français, arabe et anglais, avec photos', 'Caisse, tickets cuisine et bar, rapports Z', 'Prêt pour la facture électronique DGI'].map(x => (
+              <li key={x} className="flex items-center gap-3"><Star8 className="h-4 w-4 shrink-0 text-brand" />{x}</li>
+            ))}
+          </ul>
         </div>
-        <Field label="E-mail"><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
-        <Field label="Mot de passe" hint={mode === 'signup' ? '8 caractères minimum.' : undefined}>
-          <input className={inputCls} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} required />
-        </Field>
-        {error && <p className="text-sm font-semibold text-danger">{error}</p>}
-        {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
-        <Btn tone="brand" className="w-full" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Btn>
-        <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }} className="w-full text-center text-sm text-muted hover:text-ink">
-          {mode === 'login' ? 'Nouveau restaurant ? Créer un compte' : 'Déjà un compte ? Se connecter'}
-        </button>
-      </form>
+        <p className="relative text-sm text-white/40">30 jours gratuits · sans engagement</p>
+      </section>
+      <div className="grid flex-1 place-items-center p-6 lg:max-w-xl">
+        <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
+          <AmplifyLogo cut="text-bg" className="mb-10 lg:hidden" />
+          <div>
+            <h1 className="font-display text-4xl font-semibold">{mode === 'login' ? 'Espace gérant' : 'Créer mon compte'}</h1>
+            <p className="mt-2 text-muted">{mode === 'login' ? 'Menu, personnel, tables et ventes.' : 'Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.'}</p>
+          </div>
+          <Field label="E-mail"><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
+          <Field label="Mot de passe" hint={mode === 'signup' ? '8 caractères minimum.' : undefined}>
+            <input className={inputCls} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} required />
+          </Field>
+          {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
+          {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
+          <Btn tone="brand" className="h-12 w-full text-base" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Btn>
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">
+            {mode === 'login' ? 'Nouveau restaurant ? Créer un compte' : 'Déjà un compte ? Se connecter'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

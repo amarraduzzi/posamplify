@@ -95,7 +95,7 @@ await inputs.nth(0).fill(T1); await inputs.nth(1).fill(T2); await inputs.nth(2).
 await dlg().getByRole('button', { name: /Ajouter 2 table/ }).click();
 await page.getByText('2 table(s) ajoutée(s)').waitFor();
 const [t41] = await q(`select qr_token from dining_tables t join restaurants r on r.id=t.restaurant_id where r.slug='doms-cafe' and label=$1`, [T1]);
-await page.getByText(T1, { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]').getByRole('button', { name: /QR/ }).click();
+await page.getByText(T1, { exact: true }).first().locator('xpath=ancestor::div[.//button[contains(., "QR")]][1]').getByRole('button', { name: /QR/ }).click();
 await page.locator('svg').first().waitFor();
 await shot('05-qr');
 const qrDisplayed = await page.locator('svg path').count();

@@ -39,7 +39,7 @@ export function ReportsPage({ r }: { r: Restaurant }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-bold">Ventes</h1>
+        <h1 className="mr-auto font-display text-3xl font-semibold">Ventes</h1>
         <input type="date" className={`${inputCls} w-44`} value={date} onChange={e => setDate(e.target.value)} />
         <Btn onClick={csv} disabled={!docs.length}><Download className="h-4 w-4" /> Export comptable (CSV)</Btn>
       </div>
@@ -58,7 +58,7 @@ export function ReportsPage({ r }: { r: Restaurant }) {
           <K l="Commandes annulées" v={String(rep.cancelled_orders)} />
         </div>
         <Card>
-          <h2 className="mb-2 font-bold">Par employé</h2>
+          <h2 className="mb-3 font-display text-xl font-semibold">Par employé</h2>
           {rep.by_staff.length ? rep.by_staff.map((s, i) => <p key={i} className="flex justify-between py-1"><span>{s.name ?? '—'}</span><span className="tabular">{mad(s.revenue_ttc_cents)}</span></p>) : <p className="text-muted">Aucune vente.</p>}
         </Card>
       </>}

@@ -8,14 +8,14 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   return (
-    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" className={`pop flex max-h-full w-full flex-col rounded-2xl bg-surface shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
-        <div className="flex items-center justify-between gap-3 border-b border-line/10 px-5 py-3.5">
-          <h2 className="text-lg font-bold">{title}</h2>
+    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-night/50 p-3 backdrop-blur-[2px]" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" className={`pop flex max-h-full w-full flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
+        <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
+          <h2 className="font-display text-xl font-semibold">{title}</h2>
           <button onClick={onClose} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="border-t border-line/10 px-5 py-3.5">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <div className="border-t border-line/[0.07] bg-surface-2/50 px-6 py-4">{footer}</div>}
       </div>
     </div>
   );
@@ -23,15 +23,15 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
 
 type Tone = 'brand' | 'plain' | 'ghost' | 'danger';
 const T: Record<Tone, string> = {
-  brand: 'bg-brand text-brand-ink hover:brightness-110',
+  brand: 'gold-fill text-brand-ink hover:brightness-105',
   plain: 'bg-surface-2 text-ink hover:bg-surface-3',
-  ghost: 'border border-line/15 bg-surface text-ink hover:bg-surface-2',
+  ghost: 'border border-line/[0.12] bg-surface text-ink hover:bg-surface-2',
   danger: 'border border-danger/30 bg-danger/10 text-danger hover:bg-danger/15',
 };
 export function Btn({ tone = 'plain', className = '', ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone }) {
   return <button {...p} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-40 ${T[tone]} ${className}`} />;
 }
-export const inputCls = 'w-full rounded-xl border border-line/15 bg-surface px-3.5 py-2.5 outline-none placeholder:text-muted/60 focus:border-brand disabled:bg-surface-2 disabled:text-muted';
+export const inputCls = 'w-full rounded-xl border border-line/[0.12] bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/60 focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:bg-surface-2 disabled:text-muted';
 /** A labelled control. Use group for button groups / multi-input widgets (a <label> would name the first button). */
 export function Field({ label, hint, children, group }: { label: string; hint?: string; children: ReactNode; group?: boolean }) {
   const inner = <><span className="mb-1 block text-sm font-semibold">{label}</span>{children}{hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}</>;
@@ -40,13 +40,13 @@ export function Field({ label, hint, children, group }: { label: string; hint?: 
 export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: string; disabled?: boolean }) {
   return (
     <button type="button" disabled={disabled} onClick={() => onChange(!checked)} className="inline-flex items-center gap-2 text-sm disabled:opacity-50" aria-pressed={checked}>
-      <span className={`relative h-6 w-11 rounded-full transition ${checked ? 'bg-ok' : 'bg-surface-3'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'left-[22px]' : 'left-0.5'}`} /></span>
+      <span className={`relative h-6 w-11 rounded-full transition ${checked ? 'bg-brand' : 'bg-surface-3'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'left-[22px]' : 'left-0.5'}`} /></span>
       {label && <span>{label}</span>}
     </button>
   );
 }
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-line/10 bg-surface p-5 ${className}`}>{children}</div>;
+  return <div className={`card rounded-3xl p-6 ${className}`}>{children}</div>;
 }
 
 const LBL: Record<string, string> = { fr: 'Français', en: 'English', ar: 'العربية', es: 'Español' };
@@ -91,7 +91,7 @@ export function ImageField({ url, onChange, upload, aspect = 'aspect-[4/3]' }: {
   };
   return (
     <div className="space-y-2">
-      <div className={`relative w-full max-w-xs overflow-hidden rounded-xl bg-surface-2 ${aspect}`}>
+      <div className={`relative w-full max-w-xs overflow-hidden rounded-2xl border border-line/[0.07] bg-surface-2 ${aspect}`}>
         {url && !broken ? <img src={url} alt="" onError={() => setBroken(true)} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center p-2 text-center text-sm text-muted">{url ? 'Photo introuvable' : 'Pas de photo'}</div>}
         {busy && <div className="absolute inset-0 grid place-items-center bg-white/70 text-sm font-semibold">Envoi…</div>}
       </div>

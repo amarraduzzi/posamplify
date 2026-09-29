@@ -46,18 +46,18 @@ export function SettingsPage({ r }: { r: Restaurant }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-bold">Restaurant</h1>
+        <h1 className="mr-auto font-display text-3xl font-semibold">Restaurant</h1>
         {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length} onClick={save}><Save className="h-4 w-4" /> Enregistrer</Btn>}
       </div>
       {ro && <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm">Seul le propriétaire peut modifier ces informations.</p>}
       <fieldset disabled={ro} className="space-y-6">
         <Card>
-          <h2 className="mb-4 font-bold">Adresses</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold">Adresses</h2>
           <p className="text-sm">Menu client : <a className="font-semibold text-brand underline" href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer">{MENU_URL}/{r.slug} <ExternalLink className="inline h-3 w-3" /></a></p>
           <p className="mt-1 text-sm text-muted">Les QR codes des tables (page Tables) ajoutent le numéro de table à cette adresse.</p>
         </Card>
         <Card>
-          <h2 className="mb-4 font-bold">Informations</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold">Informations</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nom du restaurant"><input className={inputCls} value={f.name} onChange={e => set({ name: e.target.value })} /></Field>
             <Field label="Téléphone"><input className={inputCls} value={f.phone} onChange={e => set({ phone: e.target.value })} /></Field>
@@ -66,7 +66,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-4 font-bold">Apparence du menu client</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold">Apparence du menu client</h2>
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
               <Field group label="Couleur principale">
@@ -94,7 +94,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-4 font-bold">Commandes en ligne</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold">Commandes en ligne</h2>
           <div className="flex flex-wrap gap-6">
             <Toggle checked={f.accept_dine_in} onChange={v => set({ accept_dine_in: v })} label="Sur place (QR code à table)" />
             <Toggle checked={f.accept_takeaway} onChange={v => set({ accept_takeaway: v })} label="À emporter" />
@@ -102,7 +102,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-1 font-bold">Informations fiscales</h2>
+          <h2 className="mb-1 font-display text-xl font-semibold">Informations fiscales</h2>
           <p className="mb-4 text-sm text-muted">Imprimées sur chaque ticket. Obligatoires pour la facturation électronique DGI.</p>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Raison sociale"><input className={inputCls} value={f.legal_name} onChange={e => set({ legal_name: e.target.value })} /></Field>
@@ -122,7 +122,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-1 font-bold">Caisse</h2>
+          <h2 className="mb-1 font-display text-xl font-semibold">Caisse</h2>
           <p className="mb-4 text-sm text-muted">Noms exacts des imprimantes dans Windows (programme printhost).</p>
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Imprimante tickets"><input className={inputCls} value={pos.receipt} onChange={e => setPos({ ...pos, receipt: e.target.value })} /></Field>

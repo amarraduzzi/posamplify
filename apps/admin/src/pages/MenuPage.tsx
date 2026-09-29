@@ -59,7 +59,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-bold">Menu</h1>
+        <h1 className="mr-auto font-display text-3xl font-semibold">Menu</h1>
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} pl-9`} placeholder="Chercher un article" value={q} onChange={e => setQ(e.target.value)} />
@@ -93,7 +93,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
             <h2 className="font-bold">{q ? 'Résultats' : cat ? tr(cat.name, lang) : 'Articles'}</h2>
             {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> Ajouter un article</Btn>}
           </div>
-          <ul className="divide-y divide-line/10 overflow-hidden rounded-2xl border border-line/10 bg-surface">
+          <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
             {shown.map((i, idx) => (
               <li key={i.id} className={`flex items-center gap-3 px-3 py-2.5 ${i.active ? '' : 'opacity-50'}`}>
                 {i.image_url ? <img src={i.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-lg bg-surface-2" />}

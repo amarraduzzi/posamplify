@@ -29,9 +29,9 @@ export function DevicesPage({ r }: { r: Restaurant }) {
   const people = members.filter(m => m.role !== 'device');
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">Caisses</h1><Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Relier une caisse</Btn></div>
+      <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">Caisses</h1><Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Relier une caisse</Btn></div>
       <p className="mb-4 text-sm text-muted">Chaque ordinateur ou tablette de caisse est relié avec un code à usage unique. Si un appareil est perdu ou volé, retirez-le ici : il perd immédiatement l'accès.</p>
-      <ul className="mb-8 divide-y divide-line/10 overflow-hidden rounded-2xl border border-line/10 bg-surface">
+      <ul className="mb-8 divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {tills.map(m => (
           <li key={m.user_id} className="flex items-center gap-3 px-4 py-3">
             <Monitor className="h-5 w-5 text-muted" />
@@ -41,8 +41,8 @@ export function DevicesPage({ r }: { r: Restaurant }) {
         ))}
         {!tills.length && <li className="px-4 py-8 text-center text-muted">Aucune caisse reliée.</li>}
       </ul>
-      <h2 className="mb-2 font-bold">Accès à l'espace gérant</h2>
-      <ul className="divide-y divide-line/10 overflow-hidden rounded-2xl border border-line/10 bg-surface">
+      <h2 className="mb-3 font-display text-xl font-semibold">Accès à l'espace gérant</h2>
+      <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {people.map(m => (
           <li key={m.user_id} className="flex items-center gap-3 px-4 py-3">
             <div className="flex-1"><p className="font-semibold">{ROLE[m.role]}{m.user_id === me ? ' (vous)' : ''}</p><p className="text-sm text-muted">Depuis le {new Date(m.created_at).toLocaleDateString('fr-FR')}</p></div>

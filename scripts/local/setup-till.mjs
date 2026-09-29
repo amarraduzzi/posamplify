@@ -17,6 +17,7 @@ const [{ id: rid }] = (await db.query(`select id from restaurants where slug = '
 const device = await user('kassa@doms.test', 'kassa-test-123');
 const owner = await user('eigenaar@doms.test', 'eigenaar-test-123');
 await db.query(`insert into memberships (restaurant_id, user_id, role) values ($1,$2,'device'),($1,$3,'owner') on conflict do nothing`, [rid, device.id, owner.id]);
+await db.query(`insert into platform_admins (user_id) values ($1) on conflict do nothing`, [owner.id]);
 await db.query(`update restaurants set legal_name = 'DOMS CAFE SARL', ice = '003366999000071', phone = '0611053649',
   pos_settings = '{"printers":{"receipt":"TICKET","stations":{"bar":"BAR","kitchen":"CUISINE"}},"idle_lock_minutes":10}' where id = $1`, [rid]);
 for (const [name, role, pin] of [['Sara', 'staff', '1111'], ['Youssef', 'staff', '2222'], ['Karim', 'manager', '9999']]) {

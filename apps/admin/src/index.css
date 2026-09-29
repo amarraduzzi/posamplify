@@ -1,28 +1,52 @@
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/fraunces/opsz.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Light back office. Channels so Tailwind v3 opacity works on Chrome 109. */
+/* Amplify POS back office: warm ivory with a midnight sidebar and the
+   restaurant's color. Channels so Tailwind v3 opacity works on Chrome 109. */
 :root {
-  --brand: 194 65 12;
-  --brand-ink: 255 255 255;
-  --bg: 246 244 240;
+  --brand: 201 161 90;
+  --brand-ink: 20 20 20;
+  --bg: 247 244 238;
   --surface: 255 255 255;
-  --surface-2: 240 237 232;
-  --surface-3: 228 224 217;
-  --ink: 28 26 23;
-  --muted: 110 106 99;
-  --line: 28 26 23;
-  --ok: 22 130 70;
+  --surface-2: 243 239 231;
+  --surface-3: 231 225 213;
+  --ink: 15 21 36;
+  --muted: 102 108 126;
+  --line: 15 21 36;
+  --ok: 22 138 84;
   --warn: 190 120 10;
-  --danger: 190 40 30;
+  --danger: 200 45 45;
   --qr: 40 100 220;
+  --night: 9 13 24;
+  --night-2: 22 29 48;
+  --zellige: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='black' stroke-width='1.1'%3E%3Cpath d='M32.00 10.00 L38.44 16.44 L47.56 16.44 L47.56 25.56 L54.00 32.00 L47.56 38.44 L47.56 47.56 L38.44 47.56 L32.00 54.00 L25.56 47.56 L16.44 47.56 L16.44 38.44 L10.00 32.00 L16.44 25.56 L16.44 16.44 L25.56 16.44Z'/%3E%3Cpath d='M35.44 23.69 L40.31 28.56 L40.31 35.44 L35.44 40.31 L28.56 40.31 L23.69 35.44 L23.69 28.56 L28.56 23.69Z'/%3E%3Cpath d='M32 0V10M32 54V64M0 32H10M54 32H64M0 0L16.44 16.44M64 0L47.56 16.44M0 64L16.44 47.56M64 64L47.56 47.56'/%3E%3C/g%3E%3C/svg%3E");
 }
 html, body, #root { height: 100%; }
-body { background: rgb(var(--bg)); color: rgb(var(--ink)); }
+body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-font-smoothing: antialiased; }
 .tabular { font-variant-numeric: tabular-nums; }
+.font-display { font-family: "Fraunces Variable", Georgia, serif; letter-spacing: -0.01em; }
+.zellige {
+  background-color: rgb(var(--brand));
+  -webkit-mask-image: var(--zellige); mask-image: var(--zellige);
+  -webkit-mask-size: 64px 64px; mask-size: 64px 64px;
+}
+.fade-b { -webkit-mask-image: linear-gradient(to bottom, #000, transparent 75%); mask-image: linear-gradient(to bottom, #000, transparent 75%); }
+.card { background: rgb(var(--surface)); border: 1px solid rgb(var(--line) / .07); box-shadow: 0 1px 2px rgb(15 21 36 / .04), 0 10px 30px -18px rgb(15 21 36 / .18); }
+.gold-fill {
+  background: linear-gradient(160deg, rgb(var(--brand)) 0%, rgb(var(--brand) / .85) 100%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / .25) inset, 0 8px 20px -10px rgb(var(--brand) / .8);
+}
+.night { background: radial-gradient(600px 400px at 0% 0%, rgb(var(--brand) / .14), transparent 70%), rgb(var(--night)); color: rgb(240 235 224); }
 @keyframes pop { from { transform: scale(.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.pop { animation: pop .14s ease-out both; }
+.pop { animation: pop .16s ease-out both; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.rise { animation: rise .4s cubic-bezier(.16, 1, .3, 1) both; }
+@media (prefers-reduced-motion: reduce) { .pop, .rise { animation: none; } }
 @media print {
   .no-print { display: none !important; }
   body { background: white; }

@@ -24,8 +24,8 @@ export function PlatformPage() {
   };
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-bold">Plateforme</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Nouveau restaurant</Btn></div>
-      <div className="overflow-x-auto rounded-2xl border border-line/10 bg-surface">
+      <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">Plateforme</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Nouveau restaurant</Btn></div>
+      <div className="overflow-x-auto card rounded-3xl">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-muted"><tr><th className="px-4 py-2">Restaurant</th><th>Statut</th><th>Fin d'essai</th><th className="px-4 text-right">Actions</th></tr></thead>
           <tbody>

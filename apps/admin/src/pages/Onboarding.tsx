@@ -76,7 +76,7 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
   };
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">Bienvenue !</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">Bienvenue !</h1>
       <p className="mb-6 text-muted">Créons votre restaurant. Vous avez 30 jours d'essai gratuit, sans engagement.</p>
       <div className="space-y-4">
         <Field label="Nom du restaurant"><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(slugify(e.target.value)); }} /></Field>
@@ -108,7 +108,7 @@ function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   };
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">Votre type d'établissement</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">Votre type d'établissement</h1>
       <p className="mb-6 text-muted">Nous préparons les catégories du menu. Vous ajouterez vos articles et prix ensuite, et vous pourrez tout modifier.</p>
       <div className="grid grid-cols-2 gap-3">
         {Object.entries(TEMPLATES).map(([k, t]) => (
@@ -141,7 +141,7 @@ function StepTables({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   };
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">Combien de tables ?</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">Combien de tables ?</h1>
       <p className="mb-6 text-muted">Chaque table reçoit son QR code. Les clients scannent et commandent directement depuis leur table.</p>
       <div className="flex flex-wrap gap-2">{['0', '5', '10', '15', '20', '30'].map(x => <button key={x} onClick={() => setN(x)} className={`h-12 w-14 rounded-xl text-lg font-bold ${n === x ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{x}</button>)}
         <input className={`${inputCls} w-24`} inputMode="numeric" value={n} onChange={e => setN(e.target.value.replace(/\D/g, ''))} /></div>
@@ -167,7 +167,7 @@ function StepYou({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   };
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">Votre code de caisse</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">Votre code de caisse</h1>
       <p className="mb-6 text-muted">Sur la caisse, chacun choisit son prénom et tape son code. Vous êtes manager : votre code valide les remises, annulations et la clôture de journée. Ajoutez vos employés ensuite dans « Personnel ».</p>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Votre prénom"><input autoFocus className={inputCls} maxLength={40} value={name} onChange={e => setName(e.target.value)} /></Field>
@@ -196,7 +196,7 @@ export function PairingCode({ r, label, onCreated }: { r: Restaurant; label?: st
 function StepTill({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">Relier votre caisse</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">Relier votre caisse</h1>
       <p className="mb-6 text-muted">La caisse fonctionne dans le navigateur (Chrome) de n'importe quel ordinateur ou tablette. Pas de mot de passe : un code à usage unique suffit.</p>
       <PairingCode r={r} label="Caisse principale" />
       <div className="mt-6 flex justify-end"><Btn tone="brand" onClick={onNext}>Continuer <ArrowRight className="h-4 w-4" /></Btn></div>
@@ -207,7 +207,7 @@ function StepTill({ r, onNext }: { r: Restaurant; onNext: () => void }) {
 function StepDone({ r, onFinish }: { r: Restaurant; onFinish: (p?: 'menu' | 'tables') => void }) {
   return (
     <Card>
-      <h1 className="mb-1 text-2xl font-bold">C'est prêt 🎉</h1>
+      <h1 className="mb-1 font-display text-3xl font-semibold">C'est prêt 🎉</h1>
       <p className="mb-6 text-muted">Il reste à ajouter vos articles et prix, puis à imprimer les QR codes pour vos tables.</p>
       <div className="grid gap-3 md:grid-cols-3">
         <Btn tone="brand" onClick={() => onFinish('menu')}>Ajouter mes articles</Btn>
