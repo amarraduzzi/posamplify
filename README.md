@@ -17,7 +17,8 @@ Dit is **fase 1: de fundering**. Zie het architectuurplan voor de volledige rout
 | Klant-QR-app (`apps/menu`): FR/EN/AR met RTL, thema per restaurant, winkelmand, volgen van de bestelling | klaar, end-to-end getest |
 | Import van het Dom's Café-menu uit de oude code | klaar (`supabase/seed.sql`) |
 | Kassa-app (`apps/pos`): tafels, bestellen, QR-bestellingen live, afrekenen, korting, annuleren, creditnota, X/Z-rapport, kasgeld, printen via printhost.exe | klaar, end-to-end getest |
-| Menu-editor en beheer voor eigenaars, QR-codes printen | volgende stap |
+| Beheer-app (`apps/admin`): menu-editor (3 talen, varianten, foto's), personeel met PIN, tafels en QR-codes printen, restaurantinstellingen, verkopen met CSV-export, platformbeheer (restaurants aanmaken, activeren, pauzeren) | klaar, end-to-end getest |
+| Zelf aanmelden door nieuwe restaurants, online abonnementsbetaling | later |
 
 ## Mappen
 
@@ -28,6 +29,7 @@ supabase/
   tests/          40 databasetests
 apps/menu/        klant-QR-app (React + Vite, Tailwind v4)
 apps/pos/         kassa (React + Vite, Tailwind v3: draait op Chrome 109 / Windows 7)
+apps/admin/       beheer voor eigenaars en platformbeheer (React + Vite, Tailwind v3)
 packages/shared/  gedeelde types en hulpfuncties
 scripts/
   test-db.sh              draait de databasetests op een wegwerp-Postgres
@@ -84,10 +86,16 @@ De tafelcodes staan in de tabel `dining_tables` (kolom `qr_token`). De QR-code b
 
 Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `device`). Medewerkers kiezen daarna hun naam en typen hun PIN. Printen gaat via printhost.exe (zie de domscafe-repo); printernamen per restaurant staan in `restaurants.pos_settings`, standaard `TICKET`, `BAR` en `CUISINE`.
 
+## Beheer publiceren (derde Cloudflare Pages-project)
+
+- Build command: `npm run build -w @resto/admin`
+- Output directory: `apps/admin/dist`
+- Variabelen: dezelfde drie, plus `VITE_MENU_URL` (adres van de klant-app, bijvoorbeeld `https://posamplify.pages.dev`), nodig voor de QR-codes.
+
 ## Testen
 
 ```bash
-npm run test:db     # 45 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
+npm run test:db     # 48 databasetests op een wegwerp-Postgres 16+ (lokaal geïnstalleerd)
 ```
 
 Volledige lokale Supabase (database + echte Auth + PostgREST) voor de kassa, met een nep-printhost die tickets als tekst opslaat:
@@ -98,6 +106,8 @@ node scripts/local/setup-till.mjs               # kassa@doms.test / kassa-test-1
 node scripts/local/fake-printhost.mjs &
 (cd apps/pos && VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_ANON_KEY=$(cat ../../.localstack/anon.key) npx vite) &
 node scripts/local/e2e-pos.mjs                  # volledige kassadag, van login tot Z-rapport
+(cd apps/admin && VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_ANON_KEY=$(cat ../../.localstack/anon.key) npx vite) &
+node scripts/local/e2e-admin.mjs                # menu, personeel, tafels/QR, instellingen, platform
 ```
 
 De tests bewijzen onder meer:

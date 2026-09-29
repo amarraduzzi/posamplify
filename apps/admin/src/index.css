@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light back office. Channels so Tailwind v3 opacity works on Chrome 109. */
+:root {
+  --brand: 194 65 12;
+  --brand-ink: 255 255 255;
+  --bg: 246 244 240;
+  --surface: 255 255 255;
+  --surface-2: 240 237 232;
+  --surface-3: 228 224 217;
+  --ink: 28 26 23;
+  --muted: 110 106 99;
+  --line: 28 26 23;
+  --ok: 22 130 70;
+  --warn: 190 120 10;
+  --danger: 190 40 30;
+  --qr: 40 100 220;
+}
+html, body, #root { height: 100%; }
+body { background: rgb(var(--bg)); color: rgb(var(--ink)); }
+.tabular { font-variant-numeric: tabular-nums; }
+@keyframes pop { from { transform: scale(.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pop { animation: pop .14s ease-out both; }
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  @page { margin: 10mm; }
+}

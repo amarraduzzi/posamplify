@@ -35,7 +35,7 @@ function usePosState() {
 
   const toast = useCallback((text: string, tone: Toast['tone'] = 'info') => {
     const id = Date.now() + Math.random();
-    setToasts(t => [...t, { id, text, tone }]);
+    setToasts(t => [...t.slice(-2), { id, text, tone }]);
     window.setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), tone === 'error' ? 7000 : 3500);
   }, []);
   const fail = useCallback((e: unknown) => toast(errorMessage(e), 'error'), [toast]);
