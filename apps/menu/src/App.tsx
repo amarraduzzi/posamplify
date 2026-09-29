@@ -42,7 +42,8 @@ export default function App() {
   useEffect(() => {
     if (!menu) return;
     const langs = menu.restaurant.languages;
-    const saved = load<string>('lang', 365 * 86400_000);
+    const asked = new URLSearchParams(window.location.search).get('lang');
+    const saved = asked && langs.includes(asked) ? asked : load<string>('lang', 365 * 86400_000);
     const phone = (navigator.language || '').slice(0, 2);
     setLang(saved && langs.includes(saved) ? saved : langs.includes(phone) ? phone : langs[0]);
     applyBranding(menu.restaurant.branding, menu.restaurant.name);

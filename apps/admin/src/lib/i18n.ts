@@ -23,6 +23,9 @@ export function applyLang(l: Lang) {
 }
 
 export function readLang(): Lang {
+  // ?lang=ar from the website wins (and is remembered)
+  const q = new URLSearchParams(window.location.search).get('lang');
+  if (q === 'ar' || q === 'fr') { saveLang(q); return q; }
   try { return localStorage.getItem(KEY) === 'ar' ? 'ar' : 'fr'; } catch { return 'fr'; }
 }
 export function saveLang(l: Lang) {
