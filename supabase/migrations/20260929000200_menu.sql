@@ -6,6 +6,7 @@ create table public.categories (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   name          jsonb not null check (app.valid_i18n(name, 60)),
+  icon          text check (length(icon) <= 16),     -- emoji shown in the category bar
   -- where items of this category are prepared / printed ("kitchen", "bar", ...)
   station       text not null default 'kitchen' check (station ~ '^[a-z0-9_-]{1,20}$'),
   sort_order    integer not null default 0,

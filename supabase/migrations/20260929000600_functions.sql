@@ -76,7 +76,7 @@ begin
     'table', case when t.id is not null
                   then jsonb_build_object('label', t.label, 'token', t.qr_token) end,
     'categories', coalesce((
-      select jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name) order by c.sort_order, c.created_at, c.id)
+      select jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name, 'icon', c.icon) order by c.sort_order, c.created_at, c.id)
       from public.categories c
       where c.restaurant_id = r.id and c.active
         and exists (select 1 from public.menu_items i
