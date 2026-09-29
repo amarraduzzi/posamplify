@@ -7,7 +7,8 @@ import { useCart } from './lib/cart';
 import { LANG_LABEL, strings } from './lib/strings';
 import { load, save, drop } from './lib/storage';
 import { applyBranding, applyLang } from './theme';
-import { ItemRow } from './components/ItemRow';
+import { ItemRow, FeaturedCard } from './components/ItemRow';
+import { Divider, PoweredBy, Star8 } from './components/Ornament';
 import { ItemSheet } from './components/ItemSheet';
 import { CartSheet, availableOrderTypes, type Checkout } from './components/CartSheet';
 import { OrderTracker, type TrackedOrder } from './components/OrderTracker';
@@ -185,6 +186,14 @@ export default function App() {
     sectionRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Signature dishes: tagged "popular" with a photo, else the first dishes with a photo.
+  const featured = useMemo(() => {
+    const withPhoto = (menu?.items ?? []).filter(i => i.image_url && i.available);
+    const pop = withPhoto.filter(i => i.tags.includes('popular'));
+    const list = pop.length >= 3 ? pop : withPhoto;
+    return list.length >= 3 ? list.slice(0, 8) : [];
+  }, [menu]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -192,15 +201,19 @@ export default function App() {
   if (state === 'notfound' || state === 'error' || !menu) {
     const s = strings((navigator.language || 'fr').slice(0, 2));
     return (
-      <div className="min-h-dvh grid place-items-center px-8 text-center">
-        <div>
-          <Utensils className="mx-auto size-10 text-muted" />
-          <h1 className="mt-4 text-xl font-bold">{state === 'error' ? s.loadError : s.notFound}</h1>
+      <div className="relative min-h-dvh grid place-items-center px-8 text-center overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-80 fade-down" aria-hidden><div className="absolute inset-0 zellige zellige-hero" /></div>
+        <div className="relative animate-rise">
+          <div className="mx-auto grid place-items-center size-20 rounded-full card text-brand">
+            <Utensils className="size-8" />
+          </div>
+          <h1 className="mt-6 font-display text-2xl font-semibold">{state === 'error' ? s.loadError : s.notFound}</h1>
           {state === 'notfound' && <p className="mt-2 text-muted">{s.notFoundHint}</p>}
           {state === 'error' && (
             <button onClick={() => { setState('loading'); loadMenu(); }}
-              className="mt-6 h-11 px-6 rounded-full bg-ink text-bg font-semibold">{s.retry}</button>
+              className="mt-8 h-12 px-8 rounded-full bg-brand text-brand-ink font-semibold glow-brand press">{s.retry}</button>
           )}
+          <div className="mt-14"><PoweredBy label={s.poweredBy} /></div>
         </div>
       </div>
     );
@@ -208,9 +221,11 @@ export default function App() {
 
   const r = menu.restaurant;
   const b = r.branding ?? {};
+  let idx = 0;
   const renderItem = (item: PublicItem) => (
     <ItemRow
       key={item.id}
+      index={idx++}
       item={item}
       lang={lang}
       fallbacks={fallbacks}
@@ -224,100 +239,133 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-dvh pb-28">
+    <div className="min-h-dvh pb-32">
       <div className="mx-auto max-w-2xl">
-        {/* Header */}
-        <header className="relative">
+        {/* Hero */}
+        <header className="relative isolate overflow-hidden">
           {b.cover_url ? (
-            <div className="h-40 sm:h-52 overflow-hidden sm:rounded-b-3xl">
-              <img src={b.cover_url} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 -z-10" aria-hidden>
+              <img src={b.cover_url} alt="" className="w-full h-full object-cover scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-bg" />
             </div>
-          ) : <div className="h-4" />}
-          <div className={`px-5 ${b.cover_url ? '-mt-10' : 'pt-4'}`}>
-            <div className="flex items-end gap-4">
-              {b.logo_url && (
-                <img src={b.logo_url} alt="" className="size-18 rounded-2xl object-cover bg-surface ring-4 ring-bg shadow-md shrink-0" />
-              )}
-              <div className="flex-1" />
-              {r.languages.length > 1 && (
-                <div className="flex rounded-full bg-surface-2 p-1 mb-1" role="group" aria-label="Language">
-                  {r.languages.map(l => (
-                    <button key={l} onClick={() => chooseLang(l)} aria-pressed={l === lang} lang={l}
-                      className={`h-8 min-w-9 px-2.5 rounded-full text-xs font-bold transition ${
-                        l === lang ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`}>
-                      {LANG_LABEL[l] ?? l.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              )}
+          ) : (
+            <div className="absolute inset-0 -z-10 hero-glow" aria-hidden>
+              <div className="absolute inset-0 fade-down"><div className="absolute inset-0 zellige zellige-hero" /></div>
             </div>
-            <h1 className="mt-3 font-display text-3xl font-bold leading-tight">{r.name}</h1>
-            {b.tagline && <p className="text-muted">{tr(b.tagline, lang, fallbacks)}</p>}
+          )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex items-center justify-end gap-2 px-4 pt-safe">
+            {r.languages.length > 1 && (
+              <div className="flex rounded-full p-1 bg-surface/70 backdrop-blur-md border border-line" role="group" aria-label="Language">
+                {r.languages.map(l => (
+                  <button key={l} onClick={() => chooseLang(l)} aria-pressed={l === lang} lang={l}
+                    className={`h-8 min-w-9 px-2.5 rounded-full text-xs font-bold transition ${
+                      l === lang ? 'bg-brand text-brand-ink shadow-sm' : 'text-muted hover:text-ink'}`}>
+                    {LANG_LABEL[l] ?? l.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={`flex flex-col items-center text-center px-6 pb-8 ${b.cover_url ? 'pt-16 text-white' : 'pt-4'}`}>
+            <Logo url={b.logo_url} name={r.name} />
+            <p className={`mt-5 text-[11px] font-semibold uppercase tracking-[0.3em] rtl:tracking-normal animate-rise ${b.cover_url ? 'text-white/75' : 'text-brand'}`}
+              style={{ ['--i' as string]: 1 }}>{t.welcome}</p>
+            <h1 className={`mt-2 font-display text-[2.6rem] sm:text-5xl font-semibold leading-[1.05] animate-rise ${b.cover_url ? 'text-white drop-shadow-lg' : ''}`}
+              style={{ ['--i' as string]: 2 }}>{r.name}</h1>
+            {b.tagline && (
+              <p className={`mt-2 text-[15px] animate-rise ${b.cover_url ? 'text-white/80' : 'text-muted'}`} style={{ ['--i' as string]: 3 }}>
+                {tr(b.tagline, lang, fallbacks)}
+              </p>
+            )}
+            <Divider className="mt-5 animate-rise" />
+
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm animate-rise" style={{ ['--i' as string]: 4 }}>
               {menu.table ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand text-brand-ink px-3 py-1 font-semibold">
-                  <Utensils className="size-3.5" />{t.table} <bdi>{menu.table.label}</bdi>
+                <span className="inline-flex items-center gap-2 rounded-full bg-brand text-brand-ink ps-2 pe-4 py-1.5 font-semibold glow-brand">
+                  <span className="grid place-items-center size-6 rounded-full bg-brand-ink/15"><Utensils className="size-3.5" /></span>
+                  <span>{t.table} <bdi>{menu.table.label}</bdi></span>
                 </span>
               ) : !canOrder ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 font-medium text-muted">
+                <span className="inline-flex items-center gap-1.5 rounded-full card px-3.5 py-1.5 font-medium text-muted">
                   <Eye className="size-3.5" />{t.browseOnly}
                 </span>
               ) : null}
               {r.address && (
-                <span className="inline-flex items-center gap-1 text-muted">
-                  <MapPin className="size-3.5" /><bdi>{r.address}{r.city ? `, ${r.city}` : ''}</bdi>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 backdrop-blur-md ${
+                  b.cover_url ? 'bg-black/30 text-white/90' : 'bg-surface/70 border border-line text-muted'}`}>
+                  <MapPin className="size-3.5 shrink-0" /><bdi className="truncate max-w-[16rem]">{r.address}{r.city ? `, ${r.city}` : ''}</bdi>
                 </span>
               )}
             </div>
-
-            {!menu.ordering_enabled && (
-              <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm">{t.orderingOff}</p>
-            )}
-            {menu.ordering_enabled && !canOrder && (
-              <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm">{t.scanTable}</p>
-            )}
-
-            {tracked && !trackerOpen && (
-              <button onClick={() => setTrackerOpen(true)}
-                className="mt-4 w-full flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-start">
-                <span dir="ltr" className="grid place-items-center size-9 rounded-full bg-brand text-brand-ink font-bold text-sm tabular-nums">
-                  #{tracked.ticket_number}
-                </span>
-                <span className="flex-1 font-medium">{t.ticket} <bdi dir="ltr">#{tracked.ticket_number}</bdi></span>
-                <span className="text-sm font-semibold text-brand">{t.trackOrder}</span>
-                <ChevronRight className="size-4 text-muted rtl:rotate-180" />
-              </button>
-            )}
           </div>
         </header>
 
+        <div className="px-5 space-y-3">
+          {!menu.ordering_enabled && (
+            <p className="rounded-2xl card px-4 py-3 text-sm">{t.orderingOff}</p>
+          )}
+          {menu.ordering_enabled && !canOrder && (
+            <p className="rounded-2xl card px-4 py-3 text-sm">{t.scanTable}</p>
+          )}
+          {tracked && !trackerOpen && (
+            <button onClick={() => setTrackerOpen(true)}
+              className="w-full flex items-center gap-3 rounded-2xl card px-3 py-3 text-start press">
+              <span className="relative grid place-items-center size-11 rounded-full bg-brand text-brand-ink">
+                <span className="absolute inset-0 rounded-full bg-brand animate-pulse-ring" aria-hidden />
+                <span dir="ltr" className="relative font-bold text-sm tabular-nums">#{tracked.ticket_number}</span>
+              </span>
+              <span className="flex-1 font-semibold">{t.ticket} <bdi dir="ltr">#{tracked.ticket_number}</bdi></span>
+              <span className="text-sm font-semibold text-brand">{t.trackOrder}</span>
+              <ChevronRight className="size-4 text-muted rtl:rotate-180" />
+            </button>
+          )}
+        </div>
+
+        {/* Signature dishes */}
+        {!q && featured.length > 0 && (
+          <section className="mt-6" aria-labelledby="featured">
+            <div className="px-5 flex items-center gap-2">
+              <Star8 className="size-3.5 text-brand" />
+              <h2 id="featured" className="font-display text-xl font-semibold">{t.featured}</h2>
+            </div>
+            <div className="mt-3 flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory px-5 pb-2 scroll-px-5">
+              {featured.map((item, i) => (
+                <FeaturedCard key={item.id} item={item} index={i} lang={lang} fallbacks={fallbacks} currency={currency} t={t}
+                  canOrder={canOrder} qty={cart.qtyOfItem(item.id)} onOpen={() => setOpenItem(item)}
+                  onQuickAdd={() => addToCart(item, null, 1)} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Sticky category bar / search */}
-        <nav className="sticky top-0 z-30 mt-5 bg-bg border-b border-line">
+        <nav className="sticky top-0 z-30 mt-5 bg-bg/80 backdrop-blur-xl border-b border-line">
           {searchOpen ? (
             <div className="flex items-center gap-2 px-4 py-2.5">
               <div className="relative flex-1">
                 <Search className="absolute start-3.5 top-1/2 -translate-y-1/2 size-4 text-muted pointer-events-none" />
                 <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search}
-                  className="w-full h-10 rounded-full bg-surface-2 ps-10 pe-4 text-sm outline-none placeholder:text-muted" />
+                  className="w-full h-11 rounded-full bg-surface border border-line ps-10 pe-4 text-[15px] outline-none focus:border-brand placeholder:text-muted" />
               </div>
               <button onClick={() => { setSearchOpen(false); setQuery(''); }} aria-label={t.searchClear}
-                className="grid place-items-center size-10 rounded-full bg-surface-2 text-muted"><X className="size-4.5" /></button>
+                className="grid place-items-center size-11 rounded-full bg-surface border border-line text-muted"><X className="size-4.5" /></button>
             </div>
           ) : (
             <div className="flex items-center">
               <button onClick={() => setSearchOpen(true)} aria-label={t.search}
-                className="shrink-0 ms-3 grid place-items-center size-10 rounded-full bg-surface-2 text-muted">
+                className="shrink-0 ms-4 grid place-items-center size-10 rounded-full bg-surface border border-line text-ink press">
                 <Search className="size-4.5" />
               </button>
-              <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar px-3 py-2.5">
+              <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar px-3 py-3">
                 {menu.categories.map(c => (
                   <button
                     key={c.id}
                     ref={el => { if (el) chipRefs.current.set(c.id, el); }}
                     onClick={() => goTo(c.id)}
-                    className={`shrink-0 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                      activeCat === c.id ? 'bg-ink text-bg' : 'bg-surface-2 text-ink'}`}
+                    className={`shrink-0 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${
+                      activeCat === c.id ? 'bg-brand text-brand-ink glow-brand' : 'bg-surface border border-line text-ink/80'}`}
                   >
                     {c.icon && <span className="me-1.5" aria-hidden>{c.icon}</span>}
                     {tr(c.name, lang, fallbacks)}
@@ -329,49 +377,56 @@ export default function App() {
         </nav>
 
         {/* Menu */}
-        <main className="px-5">
+        <main className="px-4">
           {q ? (
             results.length === 0
               ? <p className="py-16 text-center text-muted">{t.noResults}</p>
-              : <ul className="divide-y divide-line">{results.map(renderItem)}</ul>
+              : <ul className="pt-4 space-y-3">{results.map(renderItem)}</ul>
           ) : (
-            menu.categories.map(c => (
-              <section
-                key={c.id}
-                data-cat={c.id}
-                ref={el => { if (el) sectionRefs.current.set(c.id, el); }}
-                className="scroll-mt-16 pt-7"
-              >
-                <h2 className="font-display text-xl font-bold flex items-center gap-2">
-                  {c.icon && <span aria-hidden>{c.icon}</span>}{tr(c.name, lang, fallbacks)}
-                </h2>
-                <ul className="divide-y divide-line">{(byCategory.get(c.id) ?? []).map(renderItem)}</ul>
-              </section>
-            ))
+            menu.categories.map(c => {
+              const list = byCategory.get(c.id) ?? [];
+              return (
+                <section
+                  key={c.id}
+                  data-cat={c.id}
+                  ref={el => { if (el) sectionRefs.current.set(c.id, el); }}
+                  className="scroll-mt-20 pt-8"
+                >
+                  <div className="flex items-center gap-3 px-1 mb-3">
+                    <h2 className="font-display text-2xl font-semibold">{tr(c.name, lang, fallbacks)}</h2>
+                    <span className="flex-1 h-px bg-gradient-to-r from-line to-transparent rtl:bg-gradient-to-l" />
+                    <span className="text-xs font-medium text-muted tabular-nums">{list.length}</span>
+                  </div>
+                  <ul className="space-y-3">{list.map(renderItem)}</ul>
+                </section>
+              );
+            })
           )}
-          <footer className="mt-12 text-center text-xs text-muted">
-            {r.phone && <p>{r.phone}</p>}
-            <p className="mt-1 opacity-70">{t.poweredBy}</p>
+          <footer className="mt-16 flex flex-col items-center gap-3 text-center">
+            <Divider />
+            <p className="font-display text-lg font-semibold">{r.name}</p>
+            {r.phone && <a href={`tel:${r.phone}`} dir="ltr" className="text-sm text-muted">{r.phone}</a>}
+            <div className="mt-4"><PoweredBy label={t.poweredBy} /></div>
           </footer>
         </main>
       </div>
 
       {/* Cart bar */}
       {canOrder && cart.count > 0 && !cartOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-safe pt-3 pointer-events-none">
+        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-safe pt-8 pointer-events-none bg-gradient-to-t from-bg via-bg/70 to-transparent">
           <button
             key={bump}
             onClick={() => setCartOpen(true)}
-            className="pointer-events-auto mx-auto max-w-xl w-full h-14 rounded-full bg-brand text-brand-ink shadow-2xl flex items-center gap-3 px-3 animate-bump"
+            className="pointer-events-auto mx-auto max-w-xl w-full h-16 rounded-full bg-brand text-brand-ink glow-brand flex items-center gap-3 ps-2 pe-6 animate-bump"
           >
-            <span className="relative grid place-items-center size-9 rounded-full bg-brand-ink text-brand">
-              <ShoppingBag className="size-4.5" />
+            <span className="relative grid place-items-center size-12 rounded-full bg-brand-ink/15">
+              <ShoppingBag className="size-5" />
+              <span className="absolute -top-1 -end-1 grid place-items-center min-w-5 h-5 px-1 rounded-full bg-brand-ink text-brand text-[11px] font-bold tabular-nums">
+                {cart.count}
+              </span>
             </span>
-            <span className="flex-1 text-start font-semibold">
-              {t.viewCart}
-              <span className="block text-xs font-medium opacity-80">{t.items(cart.count)}</span>
-            </span>
-            <span className="pe-3 font-bold tabular-nums">{formatMoney(cart.total, currency, lang)}</span>
+            <span className="flex-1 text-start font-semibold text-[15px]">{t.viewCart}</span>
+            <span className="font-bold tabular-nums text-[15px]">{formatMoney(cart.total, currency, lang)}</span>
           </button>
         </div>
       )}
@@ -407,6 +462,7 @@ export default function App() {
           lang={lang}
           currency={currency}
           tableLabel={menu.table?.label ?? null}
+          restaurantName={r.name}
           onClose={() => setTrackerOpen(false)}
         />
       )}
@@ -414,19 +470,32 @@ export default function App() {
   );
 }
 
+function Logo({ url, name }: { url?: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const initials = name.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  return (
+    <div className="relative animate-pop">
+      <Star8 filled={false} stroke={0.3} className="absolute -inset-5 size-[8.5rem] text-brand opacity-60 animate-spin-slow" />
+      <Star8 filled={false} stroke={0.3} className="absolute -inset-5 size-[8.5rem] text-brand opacity-25 rotate-[22.5deg]" />
+      <div className="relative size-24 rounded-full bg-surface ring-brand-soft grid place-items-center overflow-hidden">
+        {url && !failed
+          ? <img src={url} alt="" className="w-full h-full object-cover" onError={() => setFailed(true)} />
+          : <span className="font-display text-3xl font-semibold text-brand">{initials || '•'}</span>}
+      </div>
+    </div>
+  );
+}
+
 function Skeleton() {
   return (
-    <div className="mx-auto max-w-2xl px-5 pt-8 animate-pulse" aria-busy="true">
-      <div className="size-16 rounded-2xl bg-surface-2" />
-      <div className="mt-4 h-7 w-48 rounded-lg bg-surface-2" />
-      <div className="mt-2 h-4 w-32 rounded bg-surface-2" />
-      <div className="mt-8 flex gap-2">{[0, 1, 2, 3].map(i => <div key={i} className="h-10 w-24 rounded-full bg-surface-2" />)}</div>
-      {[0, 1, 2, 3, 4].map(i => (
-        <div key={i} className="mt-6 flex gap-4">
-          <div className="flex-1 space-y-2"><div className="h-4 w-2/3 rounded bg-surface-2" /><div className="h-3 w-full rounded bg-surface-2" /><div className="h-4 w-16 rounded bg-surface-2" /></div>
-          <div className="size-24 rounded-2xl bg-surface-2" />
-        </div>
-      ))}
+    <div className="mx-auto max-w-2xl px-5 pt-16" aria-busy="true">
+      <div className="mx-auto size-24 rounded-full shimmer" />
+      <div className="mx-auto mt-6 h-3 w-24 rounded-full shimmer" />
+      <div className="mx-auto mt-3 h-9 w-56 rounded-xl shimmer" />
+      <div className="mx-auto mt-3 h-4 w-40 rounded-full shimmer" />
+      <div className="mt-10 flex gap-3 overflow-hidden">{[0, 1, 2].map(i => <div key={i} className="shrink-0 h-64 w-52 rounded-3xl shimmer" />)}</div>
+      <div className="mt-8 flex gap-2">{[0, 1, 2, 3].map(i => <div key={i} className="h-10 w-24 rounded-full shimmer" />)}</div>
+      {[0, 1, 2, 3].map(i => <div key={i} className="mt-3 h-32 rounded-3xl shimmer" />)}
     </div>
   );
 }

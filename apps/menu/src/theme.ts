@@ -18,10 +18,10 @@ export function applyBranding(b: Branding, name: string) {
   root.style.setProperty('--brand', brand);
   root.style.setProperty('--brand-ink', inkFor(brand));
   root.dataset.theme = b.theme === 'dark' ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', b.theme === 'dark' ? '#14100B' : '#FAF8F5');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', b.theme === 'dark' ? '#0E0C0A' : '#FBF8F3');
   document.title = name;
 
-  const font = b.font_display && DISPLAY_FONTS[b.font_display] ? b.font_display : null;
+  const font = b.font_display && b.font_display !== 'Fraunces' && DISPLAY_FONTS[b.font_display] ? b.font_display : null;
   if (font && !document.getElementById('display-font')) {
     const link = document.createElement('link');
     link.id = 'display-font';
@@ -30,7 +30,7 @@ export function applyBranding(b: Branding, name: string) {
     document.head.appendChild(link);
   }
   root.style.setProperty('--font-display-family',
-    font ? `"${font}", "Noto Naskh Arabic", serif` : '"Inter", "Noto Naskh Arabic", system-ui, sans-serif');
+    font ? `"${font}", "IBM Plex Sans Arabic", serif` : '"Fraunces Variable", "IBM Plex Sans Arabic", Georgia, serif');
 
   if (b.logo_url) {
     let icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');

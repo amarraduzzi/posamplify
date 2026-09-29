@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { formatMoney, tr, type PublicItem } from '@resto/shared';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
@@ -31,20 +32,34 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
   const variant = item.variants.find(v => v.id === variantId);
   const unit = Number(variant ? variant.price_cents : item.price_cents);
   const desc = tr(item.description, lang, fallbacks);
+  const hasPhoto = !!item.image_url && !imgFailed;
 
   return (
     <Sheet
       open
       onClose={onClose}
       closeLabel={t.close}
-      title={<h2 className="font-display text-xl font-bold leading-tight pt-1">{tr(item.name, lang, fallbacks)}</h2>}
+      media={hasPhoto ? (
+        <div className="relative aspect-[4/3] bg-surface-2">
+          <img src={item.image_url!} alt="" onError={() => setImgFailed(true)} className="size-full object-cover animate-fade" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface to-transparent" aria-hidden />
+        </div>
+      ) : undefined}
+      title={
+        <div>
+          <h2 className="font-display text-[1.7rem] font-semibold leading-tight">{tr(item.name, lang, fallbacks)}</h2>
+          {!item.variants.length && (
+            <p className="mt-1 text-lg font-bold text-brand tabular-nums">{formatMoney(unit, currency, lang)}</p>
+          )}
+        </div>
+      }
       footer={canOrder && item.available ? (
         <div className="flex items-center gap-3">
           <Stepper value={qty} onChange={setQty} />
           <button
             type="button"
             onClick={() => onAdd(variant?.id ?? null, qty, note)}
-            className="flex-1 h-12 rounded-full bg-brand text-brand-ink font-semibold flex items-center justify-between px-5 active:scale-[.98] transition"
+            className="flex-1 h-13 rounded-full bg-brand text-brand-ink font-semibold flex items-center justify-between px-5 glow-brand press"
           >
             <span>{t.addToCart}</span>
             <span className="tabular-nums">{formatMoney(unit * qty, currency, lang)}</span>
@@ -52,37 +67,31 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
         </div>
       ) : undefined}
     >
-      {item.image_url && !imgFailed && (
-        <img src={item.image_url} alt="" onError={() => setImgFailed(true)}
-          className="w-full aspect-[4/3] object-cover rounded-2xl bg-surface-2 mb-4" />
-      )}
       {desc && <p className="text-muted leading-relaxed">{desc}</p>}
       <div className="mt-3"><TagPills tags={item.tags} t={t} /></div>
-      {!item.variants.length && (
-        <p className="mt-3 text-lg font-semibold tabular-nums">{formatMoney(unit, currency, lang)}</p>
-      )}
 
       {item.variants.length > 0 && (
-        <fieldset className="mt-5">
-          <legend className="text-sm font-semibold mb-2">{t.choose}</legend>
+        <fieldset className="mt-6">
+          <legend className="text-xs font-bold uppercase tracking-[0.15em] text-muted mb-3">{t.choose}</legend>
           <div className="space-y-2">
-            {item.variants.map(v => (
-              <label
-                key={v.id}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer transition-colors ${
-                  v.id === variantId ? 'border-brand bg-surface-2' : 'border-line'}`}
-              >
-                <input
-                  type="radio"
-                  name="variant"
-                  checked={v.id === variantId}
-                  onChange={() => setVariantId(v.id)}
-                  className="size-4 accent-[var(--brand)]"
-                />
-                <span className="flex-1">{tr(v.name, lang, fallbacks)}</span>
-                <span className="font-semibold tabular-nums">{formatMoney(Number(v.price_cents), currency, lang)}</span>
-              </label>
-            ))}
+            {item.variants.map(v => {
+              const on = v.id === variantId;
+              return (
+                <label
+                  key={v.id}
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 cursor-pointer transition-all ${
+                    on ? 'border-brand bg-brand/8 ring-1 ring-brand' : 'border-line hover:border-brand/40'}`}
+                >
+                  <span className="relative grid place-items-center size-5 shrink-0">
+                    <input type="radio" name="variant" checked={on} onChange={() => setVariantId(v.id)}
+                      className="appearance-none size-5 rounded-full border-2 border-line checked:border-brand checked:bg-brand transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand/40" />
+                    {on && <Check className="absolute size-3 text-brand-ink pointer-events-none" strokeWidth={3.5} aria-hidden />}
+                  </span>
+                  <span className="flex-1 font-medium">{tr(v.name, lang, fallbacks)}</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(Number(v.price_cents), currency, lang)}</span>
+                </label>
+              );
+            })}
           </div>
         </fieldset>
       )}
@@ -95,7 +104,7 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
             onChange={e => setNote(e.target.value.slice(0, 200))}
             rows={2}
             placeholder={t.itemNote}
-            className="w-full resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-sm placeholder:text-muted outline-none focus:border-brand"
+            className="w-full resize-none rounded-2xl border border-line bg-surface-2/60 px-4 py-3 text-sm placeholder:text-muted outline-none focus:border-brand transition-colors"
           />
         </label>
       )}

@@ -1,4 +1,4 @@
-import { AlertCircle, QrCode } from 'lucide-react';
+import { AlertCircle, QrCode, ShoppingBag } from 'lucide-react';
 import { formatMoney, tr, type OrderType, type PublicMenu } from '@resto/shared';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
@@ -52,7 +52,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
       closeLabel={t.close}
       title={
         <div className="pt-1">
-          <h2 className="font-display text-xl font-bold">{t.cart}</h2>
+          <h2 className="font-display text-[1.7rem] font-semibold leading-tight">{t.cart}</h2>
           {menu.table && checkout.orderType === 'dine_in' && (
             <p className="text-sm text-muted">{t.table} {menu.table.label}</p>
           )}
@@ -70,7 +70,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
             type="button"
             onClick={onSubmit}
             disabled={!canSubmit}
-            className="w-full h-13 rounded-full bg-brand text-brand-ink font-semibold flex items-center justify-between px-6 disabled:opacity-45 active:scale-[.98] transition"
+            className="w-full h-14 rounded-full bg-brand text-brand-ink font-semibold text-[15px] flex items-center justify-between px-6 glow-brand disabled:opacity-45 disabled:shadow-none press"
           >
             <span>{busy ? t.sending : t.placeOrder}</span>
             <span className="tabular-nums">{formatMoney(cart.total, currency, lang)}</span>
@@ -81,7 +81,10 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
       ) : undefined}
     >
       {cart.count === 0 ? (
-        <p className="py-10 text-center text-muted">{t.emptyCart}</p>
+        <div className="py-12 text-center">
+          <div className="mx-auto grid place-items-center size-16 rounded-full bg-surface-2 text-brand"><ShoppingBag className="size-7" /></div>
+          <p className="mt-4 text-muted">{t.emptyCart}</p>
+        </div>
       ) : (
         <>
           <ul className="divide-y divide-line">
@@ -90,12 +93,15 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
               if (!it) return null;
               const v = it.variants.find(x => x.id === l.variant_id);
               return (
-                <li key={l.key} className="flex items-center gap-3 py-3">
+                <li key={l.key} className="flex items-center gap-3 py-3.5">
+                  {it.image_url
+                    ? <img src={it.image_url} alt="" className="size-14 shrink-0 rounded-xl object-cover bg-surface-2" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    : null}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium leading-snug">{tr(it.name, lang, fallbacks)}</p>
                     {v && <p className="text-sm text-muted">{tr(v.name, lang, fallbacks)}</p>}
                     {l.note && <p className="text-sm text-muted italic truncate">“{l.note}”</p>}
-                    <p className="text-sm font-semibold tabular-nums mt-0.5">{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
+                    <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
                   </div>
                   <Stepper size="sm" min={0} value={l.quantity} onChange={q => cart.setQty(l.key, q)} removeLabel={t.remove} />
                 </li>
@@ -104,14 +110,14 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
           </ul>
 
           {types.length > 1 && (
-            <div className="mt-4 grid gap-1 rounded-full bg-surface-2 p-1" style={{ gridTemplateColumns: `repeat(${types.length}, 1fr)` }}>
+            <div className="mt-5 grid gap-1 rounded-full bg-surface-2 p-1" style={{ gridTemplateColumns: `repeat(${types.length}, 1fr)` }}>
               {types.map(ty => (
                 <button
                   key={ty}
                   type="button"
                   onClick={() => set({ orderType: ty })}
                   className={`h-10 rounded-full text-sm font-semibold transition ${
-                    checkout.orderType === ty ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`}
+                    checkout.orderType === ty ? 'bg-brand text-brand-ink shadow-sm' : 'text-muted'}`}
                 >
                   {t.orderType[ty]}
                 </button>
