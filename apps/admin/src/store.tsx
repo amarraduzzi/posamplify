@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { check, errorMessage } from './lib/api';
+import { applyLang, getLang, saveLang, type Lang } from './lib/i18n';
 import type { Restaurant } from './lib/types';
 
 export interface Toast { id: number; text: string; tone: 'ok' | 'error' }
@@ -13,6 +14,9 @@ function useAdmin() {
   const [list, setList] = useState<{ r: Restaurant; role: Role }[] | null>(null);
   const [current, setCurrent] = useState<Restaurant | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // language: applied before the first render (main.tsx); state here re-renders the app on change
+  const [lang, setLangState] = useState<Lang>(getLang);
+  const setLang = useCallback((l: Lang) => { applyLang(l); saveLang(l); setLangState(l); }, []);
 
   const toast = useCallback((text: string, tone: Toast['tone'] = 'ok') => {
     const id = Date.now() + Math.random();
@@ -51,7 +55,7 @@ function useAdmin() {
   const role: Role | null = current ? (list?.find(x => x.r.id === current.id)?.role ?? null) : null;
   // platform admins can edit everything; owners the profile; managers menu, staff and tables
   const canEditProfile = isAdmin || role === 'owner';
-  return { session, isAdmin, list, current, choose, role, canEditProfile, reload, toasts, toast, fail };
+  return { lang, setLang, session, isAdmin, list, current, choose, role, canEditProfile, reload, toasts, toast, fail };
 }
 
 export type Admin = ReturnType<typeof useAdmin>;

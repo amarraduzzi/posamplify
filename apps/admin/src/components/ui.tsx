@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { X, ImagePlus, Trash2, Link as LinkIcon } from 'lucide-react';
 import type { I18n } from '../lib/types';
+import { t } from '../lib/i18n';
 
 export function Modal({ title, onClose, children, footer, wide }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -12,7 +13,7 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
       <div role="dialog" className={`pop flex max-h-full w-full flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
         <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
           <h2 className="font-display text-xl font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label={t('Fermer')} className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && <div className="border-t border-line/[0.07] bg-surface-2/50 px-6 py-4">{footer}</div>}
@@ -40,7 +41,7 @@ export function Field({ label, hint, children, group }: { label: string; hint?: 
 export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: string; disabled?: boolean }) {
   return (
     <button type="button" disabled={disabled} onClick={() => onChange(!checked)} className="inline-flex items-center gap-2 text-sm disabled:opacity-50" aria-pressed={checked}>
-      <span className={`relative h-6 w-11 rounded-full transition ${checked ? 'bg-brand' : 'bg-surface-3'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'left-[22px]' : 'left-0.5'}`} /></span>
+      <span className={`relative h-6 w-11 rounded-full transition ${checked ? 'bg-brand' : 'bg-surface-3'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'start-[22px]' : 'start-0.5'}`} /></span>
       {label && <span>{label}</span>}
     </button>
   );
@@ -56,7 +57,7 @@ export function I18nInput({ value, onChange, langs, multiline, max = 80, require
   value: I18n; onChange: (v: I18n) => void; langs: string[]; multiline?: boolean; max?: number; required?: boolean; compact?: boolean; ariaLabel?: string;
 }) {
   const [cur, setCur] = useState(langs[0]);
-  const set = (t: string) => { const n = { ...value, [cur]: t.slice(0, max) }; if (!n[cur]) delete n[cur]; onChange(n); };
+  const set = (s: string) => { const n = { ...value, [cur]: s.slice(0, max) }; if (!n[cur]) delete n[cur]; onChange(n); };
   const Tag = multiline ? 'textarea' : 'input';
   return (
     <div>
@@ -69,7 +70,7 @@ export function I18nInput({ value, onChange, langs, multiline, max = 80, require
         ))}
       </div>
       <Tag aria-label={ariaLabel ? `${ariaLabel} (${LBL[cur] ?? cur})` : undefined} dir={cur === 'ar' ? 'rtl' : 'ltr'} rows={multiline ? 3 : undefined} className={inputCls} value={value[cur] ?? ''} onChange={e => set(e.target.value)}
-        placeholder={cur === langs[0] ? '' : `${LBL[cur] ?? cur} (facultatif, sinon ${LBL[langs[0]] ?? langs[0]})`} />
+        placeholder={cur === langs[0] ? '' : t('{lang} (facultatif, sinon {first})', { lang: LBL[cur] ?? cur, first: LBL[langs[0]] ?? langs[0] })} />
     </div>
   );
 }
@@ -92,18 +93,18 @@ export function ImageField({ url, onChange, upload, aspect = 'aspect-[4/3]' }: {
   return (
     <div className="space-y-2">
       <div className={`relative w-full max-w-xs overflow-hidden rounded-2xl border border-line/[0.07] bg-surface-2 ${aspect}`}>
-        {url && !broken ? <img src={url} alt="" onError={() => setBroken(true)} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center p-2 text-center text-sm text-muted">{url ? 'Photo introuvable' : 'Pas de photo'}</div>}
-        {busy && <div className="absolute inset-0 grid place-items-center bg-white/70 text-sm font-semibold">Envoi…</div>}
+        {url && !broken ? <img src={url} alt="" onError={() => setBroken(true)} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center p-2 text-center text-sm text-muted">{url ? t('Photo introuvable') : t('Pas de photo')}</div>}
+        {busy && <div className="absolute inset-0 grid place-items-center bg-white/70 text-sm font-semibold">{t('Envoi…')}</div>}
       </div>
       <div className="flex flex-wrap gap-2">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold hover:bg-surface-3">
-          <ImagePlus className="h-4 w-4" /> {url ? 'Changer' : 'Ajouter une photo'}
+          <ImagePlus className="h-4 w-4" /> {url ? t('Changer') : t('Ajouter une photo')}
           <input type="file" accept="image/*" className="hidden" onChange={e => pick(e.target.files?.[0])} />
         </label>
-        <Btn type="button" onClick={() => setLink(v => !v)}><LinkIcon className="h-4 w-4" /> Lien</Btn>
-        {url && <Btn type="button" tone="danger" onClick={() => onChange(null)}><Trash2 className="h-4 w-4" /></Btn>}
+        <Btn type="button" onClick={() => setLink(v => !v)}><LinkIcon className="h-4 w-4" /> {t('Lien')}</Btn>
+        {url && <Btn type="button" tone="danger" aria-label={t('Supprimer la photo')} onClick={() => onChange(null)}><Trash2 className="h-4 w-4" /></Btn>}
       </div>
-      {link && <input className={inputCls} placeholder="https://…" defaultValue={url ?? ''} onBlur={e => onChange(e.target.value.trim() || null)} />}
+      {link && <input className={inputCls} dir="ltr" placeholder="https://…" defaultValue={url ?? ''} onBlur={e => onChange(e.target.value.trim() || null)} />}
       {err && <p className="text-sm text-danger">{err}</p>}
     </div>
   );

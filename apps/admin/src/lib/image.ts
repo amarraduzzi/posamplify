@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { t } from './i18n';
 
 /** Resizes a photo in the browser (max width, WebP/JPEG) so menus load fast on 4G. */
 async function shrink(file: File, maxW: number): Promise<Blob> {
@@ -20,6 +21,6 @@ export async function uploadImage(restaurantId: string, folder: string, file: Fi
   const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const path = `${restaurantId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
   const { error } = await supabase.storage.from('menu-images').upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
-  if (error) throw new Error(`Envoi de la photo impossible : ${error.message}`);
+  if (error) throw new Error(t('Envoi de la photo impossible : {m}', { m: error.message }));
   return supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
 }

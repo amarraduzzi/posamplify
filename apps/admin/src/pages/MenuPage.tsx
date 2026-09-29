@@ -7,8 +7,12 @@ import { uploadImage } from '../lib/image';
 import { useAdminCtx } from '../store';
 import type { Category, I18n, Item, Restaurant, Variant } from '../lib/types';
 import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../components/ui';
+import { t } from '../lib/i18n';
 
+// tag labels (the stored value is the key), shown through t()
+// i18n:values
 const TAGS: Record<string, string> = { popular: 'Populaire', new: 'Nouveau', spicy: 'Épicé', vegetarian: 'Végétarien' };
+// i18n:end
 const ICONS = ['☕', '🥤', '🍹', '🍕', '🍔', '🌮', '🥪', '🥗', '🍳', '🥞', '🍰', '🍦', '🍝', '🍲', '🥘', '🍗', '🐟', '🍟', '🥐', '🫖'];
 
 export function MenuPage({ r }: { r: Restaurant }) {
@@ -59,64 +63,64 @@ export function MenuPage({ r }: { r: Restaurant }) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto font-display text-3xl font-semibold">Menu</h1>
+        <h1 className="me-auto font-display text-3xl font-semibold">{t('Menu')}</h1>
         <div className="relative w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input className={`${inputCls} pl-9`} placeholder="Chercher un article" value={q} onChange={e => setQ(e.target.value)} />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input className={`${inputCls} ps-9`} placeholder={t('Chercher un article')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
       </div>
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">Catégories</h2>
-            <Btn className="px-3 py-1.5" onClick={() => setEditCat('new')}><Plus className="h-4 w-4" /> Ajouter</Btn>
+            <h2 className="font-bold">{t('Catégories')}</h2>
+            <Btn className="px-3 py-1.5" onClick={() => setEditCat('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
           </div>
           <ul className="space-y-1">
             {cats.map((c, idx) => (
               <li key={c.id} className={`group flex items-center gap-1 rounded-xl ${sel === c.id && !q ? 'bg-brand text-brand-ink' : 'hover:bg-surface-2'}`}>
-                <button onClick={() => { setSel(c.id); setQ(''); }} className="min-w-0 flex-1 px-3 py-2.5 text-left font-semibold">
-                  <span className="mr-1.5">{c.icon}</span>{tr(c.name, lang)}
-                  <span className="ml-1 text-xs opacity-60">({items.filter(i => i.category_id === c.id).length})</span>
-                  {!c.active && <span className="ml-1 text-xs opacity-70">· masquée</span>}
+                <button onClick={() => { setSel(c.id); setQ(''); }} className="min-w-0 flex-1 px-3 py-2.5 text-start font-semibold">
+                  <span className="me-1.5">{c.icon}</span><bdi>{tr(c.name, lang)}</bdi>
+                  <span className="ms-1 text-xs opacity-60">({items.filter(i => i.category_id === c.id).length})</span>
+                  {!c.active && <span className="ms-1 text-xs opacity-70">· {t('masquée')}</span>}
                 </button>
-                <button onClick={() => move(cats, idx, -1, 'categories')} className="hidden h-8 w-7 place-items-center group-hover:grid" aria-label="Monter"><ArrowUp className="h-4 w-4" /></button>
-                <button onClick={() => move(cats, idx, 1, 'categories')} className="hidden h-8 w-7 place-items-center group-hover:grid" aria-label="Descendre"><ArrowDown className="h-4 w-4" /></button>
-                <button onClick={() => setEditCat(c)} className="grid h-8 w-8 place-items-center" aria-label="Modifier"><Pencil className="h-4 w-4" /></button>
+                <button onClick={() => move(cats, idx, -1, 'categories')} className="hidden h-8 w-7 place-items-center group-hover:grid" aria-label={t('Monter')}><ArrowUp className="h-4 w-4" /></button>
+                <button onClick={() => move(cats, idx, 1, 'categories')} className="hidden h-8 w-7 place-items-center group-hover:grid" aria-label={t('Descendre')}><ArrowDown className="h-4 w-4" /></button>
+                <button onClick={() => setEditCat(c)} className="grid h-8 w-8 place-items-center" aria-label={t('Modifier')}><Pencil className="h-4 w-4" /></button>
               </li>
             ))}
           </ul>
-          {!cats.length && <p className="text-sm text-muted">Commencez par créer une catégorie (Boissons, Plats…).</p>}
+          {!cats.length && <p className="text-sm text-muted">{t('Commencez par créer une catégorie (Boissons, Plats…).')}</p>}
         </section>
 
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">{q ? 'Résultats' : cat ? tr(cat.name, lang) : 'Articles'}</h2>
-            {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> Ajouter un article</Btn>}
+            <h2 className="font-bold">{q ? t('Résultats') : cat ? tr(cat.name, lang) : t('Articles')}</h2>
+            {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> {t('Ajouter un article')}</Btn>}
           </div>
           <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
             {shown.map((i, idx) => (
               <li key={i.id} className={`flex items-center gap-3 px-3 py-2.5 ${i.active ? '' : 'opacity-50'}`}>
                 {i.image_url ? <img src={i.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-lg bg-surface-2" />}
-                <button onClick={() => setEditItem(i)} className="min-w-0 flex-1 text-left">
-                  <p className="truncate font-semibold">{tr(i.name, lang)}</p>
+                <button onClick={() => setEditItem(i)} className="min-w-0 flex-1 text-start">
+                  <p className="truncate font-semibold"><bdi>{tr(i.name, lang)}</bdi></p>
                   <p className="text-sm text-muted tabular">
                     {i.item_variants.length ? i.item_variants.map(v => `${tr(v.name, lang)} ${mad(v.price_cents)}`).join(' · ') : mad(i.price_cents)}
-                    {i.tags.map(t => <span key={t} className="ml-2 rounded bg-surface-2 px-1.5 text-xs">{TAGS[t] ?? t}</span>)}
+                    {i.tags.map(g => <span key={g} className="ms-2 rounded bg-surface-2 px-1.5 text-xs">{TAGS[g] ? t(TAGS[g]) : g}</span>)}
                   </p>
                 </button>
-                <Toggle checked={i.available} onChange={v => upd('menu_items', i.id, { available: v })} label={i.available ? 'Disponible' : 'Épuisé'} />
-                <button onClick={() => upd('menu_items', i.id, { active: !i.active })} title={i.active ? 'Masquer du menu' : 'Afficher'} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-surface-2">
+                <Toggle checked={i.available} onChange={v => upd('menu_items', i.id, { available: v })} label={i.available ? t('Disponible') : t('Épuisé')} />
+                <button onClick={() => upd('menu_items', i.id, { active: !i.active })} title={i.active ? t('Masquer du menu') : t('Afficher')} aria-label={i.active ? t('Masquer du menu') : t('Afficher')} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-surface-2">
                   {i.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
                 {!q && <>
-                  <button onClick={() => move(shown, idx, -1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label="Monter"><ArrowUp className="h-4 w-4" /></button>
-                  <button onClick={() => move(shown, idx, 1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label="Descendre"><ArrowDown className="h-4 w-4" /></button>
+                  <button onClick={() => move(shown, idx, -1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label={t('Monter')}><ArrowUp className="h-4 w-4" /></button>
+                  <button onClick={() => move(shown, idx, 1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label={t('Descendre')}><ArrowDown className="h-4 w-4" /></button>
                 </>}
               </li>
             ))}
-            {!shown.length && <li className="px-4 py-10 text-center text-muted">{q ? 'Aucun article trouvé.' : 'Aucun article dans cette catégorie.'}</li>}
+            {!shown.length && <li className="px-4 py-10 text-center text-muted">{q ? t('Aucun article trouvé.') : t('Aucun article dans cette catégorie.')}</li>}
           </ul>
-          <p className="mt-2 text-xs text-muted">« Épuisé » : visible mais non commandable aujourd'hui. L'œil masque l'article du menu et de la caisse.</p>
+          <p className="mt-2 text-xs text-muted">{t("« Épuisé » : visible mais non commandable aujourd'hui. L'œil masque l'article du menu et de la caisse.")}</p>
         </section>
       </div>
 
@@ -141,28 +145,28 @@ function CategoryEditor({ r, cat, count, onClose, onSaved }: { r: Restaurant; ca
       const row = { name, icon: icon || null, station, active };
       if (cat) check(await supabase.from('categories').update(row).eq('id', cat.id).select('id'));
       const created = cat ? null : (check(await supabase.from('categories').insert({ ...row, restaurant_id: r.id, sort_order: (count + 1) * 10 }).select('id').single()) as { id: string });
-      a.toast('Catégorie enregistrée'); onSaved(created?.id);
+      a.toast(t('Catégorie enregistrée')); onSaved(created?.id);
     } catch (e) { a.fail(e); }
     setBusy(false);
   };
   const remove = async () => {
-    try { check(await supabase.from('categories').delete().eq('id', cat!.id).select('id')); a.toast('Catégorie supprimée'); onSaved(); } catch (e) { a.fail(e); }
+    try { check(await supabase.from('categories').delete().eq('id', cat!.id).select('id')); a.toast(t('Catégorie supprimée')); onSaved(); } catch (e) { a.fail(e); }
   };
   return (
-    <Modal title={cat ? 'Modifier la catégorie' : 'Nouvelle catégorie'} onClose={onClose}
-      footer={<div className="flex justify-between">{cat ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> Supprimer</Btn> : <span />}<Btn tone="brand" disabled={!ok || busy} onClick={save}>Enregistrer</Btn></div>}>
+    <Modal title={cat ? t('Modifier la catégorie') : t('Nouvelle catégorie')} onClose={onClose}
+      footer={<div className="flex justify-between">{cat ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer')}</Btn> : <span />}<Btn tone="brand" disabled={!ok || busy} onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <div className="space-y-4">
-        <Field group label="Nom"><I18nInput value={name} onChange={setName} langs={r.languages} max={60} required /></Field>
-        <Field group label="Icône">
+        <Field group label={t('Nom')}><I18nInput value={name} onChange={setName} langs={r.languages} max={60} required /></Field>
+        <Field group label={t('Icône')}>
           <div className="mb-2 flex flex-wrap gap-1">{ICONS.map(i => <button key={i} type="button" onClick={() => setIcon(i)} className={`h-9 w-9 rounded-lg text-lg ${icon === i ? 'bg-brand/20 ring-2 ring-brand' : 'bg-surface-2'}`}>{i}</button>)}</div>
-          <input className={`${inputCls} w-24`} value={icon} onChange={e => setIcon(e.target.value.slice(0, 4))} />
+          <input aria-label={t('Icône')} className={`${inputCls} !w-24`} value={icon} onChange={e => setIcon(e.target.value.slice(0, 4))} />
         </Field>
-        <Field label="Préparé à" hint="Détermine sur quelle imprimante le bon est envoyé.">
+        <Field label={t('Préparé à')} hint={t('Détermine sur quelle imprimante le bon est envoyé.')}>
           <select className={inputCls} value={station} onChange={e => setStation(e.target.value)}>
-            <option value="kitchen">Cuisine</option><option value="bar">Bar</option>
+            <option value="kitchen">{t('Cuisine')}</option><option value="bar">{t('Bar')}</option>
           </select>
         </Field>
-        <Toggle checked={active} onChange={setActive} label="Visible sur le menu et la caisse" />
+        <Toggle checked={active} onChange={setActive} label={t('Visible sur le menu et la caisse')} />
       </div>
     </Modal>
   );
@@ -207,70 +211,70 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
         if (v.id) check(await supabase.from('item_variants').update(vr).eq('id', v.id).select('id'));
         else check(await supabase.from('item_variants').insert({ ...vr, restaurant_id: r.id, menu_item_id: id }).select('id'));
       }
-      a.toast('Article enregistré'); onSaved();
+      a.toast(t('Article enregistré')); onSaved();
     } catch (e) { a.fail(e); }
     setBusy(false);
   };
   const remove = async () => {
-    try { check(await supabase.from('menu_items').delete().eq('id', item!.id).select('id')); a.toast('Article supprimé'); onSaved(); } catch (e) { a.fail(e); }
+    try { check(await supabase.from('menu_items').delete().eq('id', item!.id).select('id')); a.toast(t('Article supprimé')); onSaved(); } catch (e) { a.fail(e); }
   };
 
   return (
-    <Modal wide title={item ? tr(item.name, r.languages[0]) : 'Nouvel article'} onClose={onClose}
-      footer={<div className="flex justify-between">{item ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> Supprimer</Btn> : <span />}<Btn tone="brand" disabled={!ok || busy} onClick={save}>{busy ? 'Enregistrement…' : 'Enregistrer'}</Btn></div>}>
+    <Modal wide title={item ? tr(item.name, r.languages[0]) : t('Nouvel article')} onClose={onClose}
+      footer={<div className="flex justify-between">{item ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer')}</Btn> : <span />}<Btn tone="brand" disabled={!ok || busy} onClick={save}>{busy ? t('Enregistrement…') : t('Enregistrer')}</Btn></div>}>
       <div className="grid gap-5 md:grid-cols-[1fr_240px]">
         <div className="space-y-4">
-          <Field group label="Nom"><I18nInput ariaLabel="Nom" value={name} onChange={setName} langs={r.languages} required /></Field>
-          <Field group label="Description"><I18nInput value={desc} onChange={setDesc} langs={r.languages} multiline max={500} /></Field>
+          <Field group label={t('Nom')}><I18nInput ariaLabel={t('Nom')} value={name} onChange={setName} langs={r.languages} required /></Field>
+          <Field group label={t('Description')}><I18nInput value={desc} onChange={setDesc} langs={r.languages} multiline max={500} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Catégorie">
+            <Field label={t('Catégorie')}>
               <select className={inputCls} value={category} onChange={e => setCategory(e.target.value)}>
                 {cats.map(c => <option key={c.id} value={c.id}>{tr(c.name, r.languages[0])}</option>)}
               </select>
             </Field>
-            {!variants.length && <Field label="Prix (MAD)"><input className={inputCls} inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder="35" /></Field>}
+            {!variants.length && <Field label={t('Prix (MAD)')}><input className={inputCls} inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder="35" /></Field>}
           </div>
 
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-semibold">Tailles / options {variants.length ? '' : '(facultatif)'}</span>
-              <Btn className="px-3 py-1.5" onClick={() => setVariants(v => [...v, { name: {}, price_cents: 0, priceText: price, sort_order: v.length, active: true }])}><Plus className="h-4 w-4" /> Option</Btn>
+              <span className="text-sm font-semibold">{t('Tailles / options')} {variants.length ? '' : t('(facultatif)')}</span>
+              <Btn className="px-3 py-1.5" onClick={() => setVariants(v => [...v, { name: {}, price_cents: 0, priceText: price, sort_order: v.length, active: true }])}><Plus className="h-4 w-4" /> {t('Option')}</Btn>
             </div>
             {variants.map((v, k) => (
               <div key={v.id ?? k} className="mb-2 flex items-start gap-2">
-                <div className="min-w-0 flex-1"><I18nInput compact ariaLabel={`Option ${k + 1}`} value={v.name} onChange={n => setVariants(vs => vs.map((x, j) => j === k ? { ...x, name: n } : x))} langs={r.languages} max={60} /></div>
-                <div className="mt-8 w-24 shrink-0"><input aria-label={`Prix option ${k + 1}`} className={inputCls} inputMode="decimal" placeholder="Prix" value={v.priceText} onChange={e => setVariants(vs => vs.map((x, j) => j === k ? { ...x, priceText: e.target.value } : x))} /></div>
-                <button onClick={() => setVariants(vs => vs.filter((_, j) => j !== k))} className="mt-8 grid h-11 w-10 place-items-center rounded-lg text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
+                <div className="min-w-0 flex-1"><I18nInput compact ariaLabel={t('Option {n}', { n: k + 1 })} value={v.name} onChange={n => setVariants(vs => vs.map((x, j) => j === k ? { ...x, name: n } : x))} langs={r.languages} max={60} /></div>
+                <div className="mt-8 w-24 shrink-0"><input aria-label={t('Prix option {n}', { n: k + 1 })} className={inputCls} inputMode="decimal" placeholder={t('Prix')} value={v.priceText} onChange={e => setVariants(vs => vs.map((x, j) => j === k ? { ...x, priceText: e.target.value } : x))} /></div>
+                <button onClick={() => setVariants(vs => vs.filter((_, j) => j !== k))} aria-label={t("Retirer l'option {n}", { n: k + 1 })} className="mt-8 grid h-11 w-10 place-items-center rounded-lg text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
-            {variants.length > 0 && <p className="text-xs text-muted">Avec des options, le client doit en choisir une ; chaque option a son prix.</p>}
+            {variants.length > 0 && <p className="text-xs text-muted">{t('Avec des options, le client doit en choisir une ; chaque option a son prix.')}</p>}
           </div>
 
           <div className="flex flex-wrap gap-2">
             {Object.entries(TAGS).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setTags(t => t.includes(k) ? t.filter(x => x !== k) : [...t, k])}
-                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${tags.includes(k) ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{l}</button>
+              <button key={k} type="button" onClick={() => setTags(g => g.includes(k) ? g.filter(x => x !== k) : [...g, k])}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${tags.includes(k) ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{t(l)}</button>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="TVA">
+            <Field label={t('TVA')}>
               <select className={inputCls} value={vat} onChange={e => setVat(e.target.value)}>
-                <option value="">Par défaut du restaurant ({r.default_vat_bp / 100} %)</option>
+                <option value="">{t('Par défaut du restaurant ({p} %)', { p: r.default_vat_bp / 100 })}</option>
                 {[0, 700, 1000, 1400, 2000].map(v => <option key={v} value={v}>{v / 100} %</option>)}
               </select>
             </Field>
-            <Field label="Préparé à">
+            <Field label={t('Préparé à')}>
               <select className={inputCls} value={station} onChange={e => setStation(e.target.value)}>
-                <option value="">Comme la catégorie</option><option value="kitchen">Cuisine</option><option value="bar">Bar</option>
+                <option value="">{t('Comme la catégorie')}</option><option value="kitchen">{t('Cuisine')}</option><option value="bar">{t('Bar')}</option>
               </select>
             </Field>
           </div>
           <div className="flex flex-wrap gap-6">
-            <Toggle checked={active} onChange={setActive} label="Visible" />
-            <Toggle checked={available} onChange={setAvailable} label="Disponible aujourd'hui" />
+            <Toggle checked={active} onChange={setActive} label={t('Visible')} />
+            <Toggle checked={available} onChange={setAvailable} label={t("Disponible aujourd'hui")} />
           </div>
         </div>
-        <Field group label="Photo"><ImageField url={image} onChange={setImage} upload={f => uploadImage(r.id, 'items', f)} /></Field>
+        <Field group label={t('Photo')}><ImageField url={image} onChange={setImage} upload={f => uploadImage(r.id, 'items', f)} /></Field>
       </div>
     </Modal>
   );

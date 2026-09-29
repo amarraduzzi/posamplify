@@ -12,7 +12,7 @@ export default {
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans Variable"', '"IBM Plex Sans Arabic"', 'Segoe UI', 'system-ui', 'sans-serif'],
-        display: ['"Fraunces Variable"', 'Georgia', 'serif'],
+        display: ['"Fraunces Variable"', '"IBM Plex Sans Arabic"', 'Georgia', 'serif'],
       },
     },
   },

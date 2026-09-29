@@ -1,6 +1,10 @@
 import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { applyLang, readLang } from './lib/i18n';
+
+// language before the first render, so an Arabic back office never flashes in French
+applyLang(readLang());
 
 const root = createRoot(document.getElementById('root')!);
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
