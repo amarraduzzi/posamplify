@@ -8,6 +8,8 @@ import { resolveTenant } from './lib/tenant';
 // It is a separate chunk, so guests at a table never download it.
 const Landing = lazy(() => import('./landing/Landing'));
 const isSite = !resolveTenant().slug;
+// shown inside the website's phone mockup: hide the scrollbars (Windows draws them)
+try { if (window.self !== window.top) document.documentElement.classList.add('embedded'); } catch { /* cross-origin parent */ }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

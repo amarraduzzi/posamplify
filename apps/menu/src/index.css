@@ -134,3 +134,5 @@ body { -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antiali
   .reveal { opacity: 1; transform: none; transition: none; }
   .float { animation: none; }
 }
+.embedded, .embedded body { scrollbar-width: none; }
+.embedded ::-webkit-scrollbar { display: none; }
