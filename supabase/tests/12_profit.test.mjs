@@ -146,6 +146,7 @@ test('AI suggestions: fill empty recipes only, prices as estimates until confirm
 
 test('website addresses cannot be taken by a restaurant', async () => {
   assert.equal(await rpc(w.users.ownerA, 'slug_available', ['profit']), false);
+  assert.equal(await rpc(w.users.ownerA, 'slug_available', ['fonctionnalites']), false);
   assert.equal(await rpc(w.users.ownerA, 'slug_available', ['Admin']), false);
   assert.equal(await rpc(w.users.ownerA, 'slug_available', ['profit-cafe']), true);
 });

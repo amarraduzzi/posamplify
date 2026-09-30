@@ -6,7 +6,7 @@ export type Plan = { name: string; tag: string; price: string; text: string; ite
 export type SiteLang = 'fr' | 'ar';
 
 const fr = {
-  nav: { features: 'Fonctionnalités', demo: 'Démo', pricing: 'Tarifs', faq: 'Questions', login: 'Se connecter', cta: 'Essai gratuit', profit: 'Amplify Profit' },
+  nav: { all: 'Toutes les fonctionnalités', allCta: 'Voir les {n} fonctionnalités', features: 'Fonctionnalités', demo: 'Démo', pricing: 'Tarifs', faq: 'Questions', login: 'Se connecter', cta: 'Essai gratuit', profit: 'Amplify Profit' },
   products: {
     kicker: 'Deux produits',
     title: 'Vendez mieux. Gagnez plus.',
@@ -108,7 +108,7 @@ const fr = {
 type Copy = typeof fr;
 
 const ar: Copy = {
-  nav: { features: 'المميزات', demo: 'عرض مباشر', pricing: 'الأسعار', faq: 'أسئلة', login: 'تسجيل الدخول', cta: 'تجربة مجانية', profit: 'Amplify Profit' },
+  nav: { all: 'كل المميزات', allCta: 'شاهدوا المميزات {n}', features: 'المميزات', demo: 'عرض مباشر', pricing: 'الأسعار', faq: 'أسئلة', login: 'تسجيل الدخول', cta: 'تجربة مجانية', profit: 'Amplify Profit' },
   products: {
     kicker: 'منتوجان',
     title: 'بيعوا أفضل. اربحوا أكثر.',

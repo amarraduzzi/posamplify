@@ -5,6 +5,9 @@ import {
   ShieldCheck, Smartphone, Sparkles, Wifi, WifiOff, Zap, BarChart3,
 } from 'lucide-react';
 import { COPY, type SiteLang } from './copy';
+import { FEATURES_COPY } from './featuresCopy';
+
+const FEATURE_COUNT = FEATURES_COPY.fr.modules.reduce((n, m) => n + m.items.length, 0);
 import { Star8 } from '../components/Ornament';
 import { AmplifyLogo } from './AmplifyMark';
 
@@ -73,7 +76,7 @@ export default function Landing() {
               <AmplifyLogo mark="h-7 w-9 sm:h-8 sm:w-10" text="text-[0.95rem] sm:text-lg" />
             </a>
             <div className="hidden md:flex items-center gap-6 text-sm text-muted">
-              <a href="#features" className="hover:text-ink transition-colors">{c.nav.features}</a>
+              <a href="/fonctionnalites" className="hover:text-ink transition-colors">{c.nav.features}</a>
               <a href="#demo" className="hover:text-ink transition-colors">{c.nav.demo}</a>
               <a href="#pricing" className="hover:text-ink transition-colors">{c.nav.pricing}</a>
               <a href="#faq" className="hover:text-ink transition-colors">{c.nav.faq}</a>
@@ -162,6 +165,11 @@ export default function Landing() {
               </article>
             );
           })}
+        </div>
+        <div className="reveal mt-8 text-center">
+          <a href="/fonctionnalites" className="inline-flex h-12 items-center gap-2 rounded-full border border-brand/50 bg-brand/10 px-6 font-bold text-brand hover:bg-brand/20 transition-colors">
+            {c.nav.allCta.replace('{n}', String(FEATURE_COUNT))} <ArrowRight className="size-4 rtl:rotate-180" />
+          </a>
         </div>
       </Section>
 

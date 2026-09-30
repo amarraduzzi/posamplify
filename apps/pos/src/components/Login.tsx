@@ -26,7 +26,8 @@ const CODE_ERRORS: Record<string, string> = {
 export function Login({ disconnected }: { disconnected?: boolean }) {
   const pos = usePos();
   const [mode, setMode] = useState<'code' | 'email'>('code');
-  const [code, setCode] = useState('');
+  // opened from the QR code in the back office: the code comes with the link
+  const [code, setCode] = useState(() => { try { return (new URLSearchParams(window.location.search).get('code') ?? '').toUpperCase().slice(0, 9); } catch { return ''; } });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,6 +45,8 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
         if (error) throw error;
       }
       await rpc('pair_device', { p_code: code.replace(/\s|-/g, '') });
+      // do not keep the one-time code in the address (nor in a home-screen shortcut)
+      try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
       await pos.refreshMemberships();
     } catch (err) {
       const m = (err as Error).message;

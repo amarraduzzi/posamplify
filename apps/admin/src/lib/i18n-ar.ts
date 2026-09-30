@@ -824,4 +824,9 @@ export const AR: Record<string, string> = {
   "QR code avis Google": "رمز QR لآراء Google",
   "Règle Google : ne donnez rien en échange d’un avis (réduction, cadeau, tirage au sort) et demandez-le à tous les clients, pas seulement aux contents. Sinon Google peut supprimer vos avis.": "قاعدة Google: لا تعطوا أي شيء مقابل رأي (تخفيض، هدية، قرعة) واطلبوه من جميع الزبائن، وليس فقط الراضين. وإلا قد تحذف Google آراءكم.",
   "Télécharger pour les tables": "تحميل للطاولات",
+  "Téléphone ou tablette : scannez avec l’appareil photo": "هاتف أو لوحة: امسحوا بالكاميرا",
+  "QR code de connexion": "رمز QR للربط",
+  "Puis « Ajouter à l’écran d’accueil » pour l’ouvrir comme une application.": "ثم « إضافة إلى الشاشة الرئيسية » لفتحه كتطبيق.",
+  "Chaque ordinateur, tablette ou téléphone de serveur est relié avec un code à usage unique. Si un appareil est perdu ou volé, retirez-le ici : il perd immédiatement l'accès.": "كل حاسوب أو لوحة أو هاتف نادل يربط برمز يستعمل مرة واحدة. إذا ضاع جهاز أو سرق، أزيلوه هنا: يفقد الولوج فورا.",
+  "Caisse comptoir, Téléphone Youssef…": "صندوق الكونطوار، هاتف يوسف…",
 };

@@ -33,7 +33,7 @@ export function DevicesPage({ r }: { r: Restaurant }) {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Caisses')}</h1><Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Relier une caisse')}</Btn></div>
-      <p className="mb-4 text-sm text-muted">{t("Chaque ordinateur ou tablette de caisse est relié avec un code à usage unique. Si un appareil est perdu ou volé, retirez-le ici : il perd immédiatement l'accès.")}</p>
+      <p className="mb-4 text-sm text-muted">{t("Chaque ordinateur, tablette ou téléphone de serveur est relié avec un code à usage unique. Si un appareil est perdu ou volé, retirez-le ici : il perd immédiatement l'accès.")}</p>
       <ul className="mb-8 divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {tills.map(m => (
           <li key={m.user_id} className="flex items-center gap-3 px-4 py-3">
@@ -56,7 +56,7 @@ export function DevicesPage({ r }: { r: Restaurant }) {
       {adding && (
         <Modal title={t('Relier une caisse')} onClose={() => { setAdding(false); load(); }}>
           <div className="space-y-4">
-            <Field label={t("Nom de l'appareil")}><input className={inputCls} maxLength={40} value={label} onChange={e => setLabel(e.target.value)} placeholder={t('Caisse comptoir, Tablette terrasse…')} /></Field>
+            <Field label={t("Nom de l'appareil")}><input className={inputCls} maxLength={40} value={label} onChange={e => setLabel(e.target.value)} placeholder={t('Caisse comptoir, Téléphone Youssef…')} /></Field>
             <PairingCode r={r} label={label} />
           </div>
         </Modal>

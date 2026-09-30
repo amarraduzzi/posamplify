@@ -42,6 +42,7 @@ export default function ProfitLanding() {
               <a href="#how" className="hover:text-ink transition-colors">{c.nav.how}</a>
               <a href="#pricing" className="hover:text-ink transition-colors">{c.nav.pricing}</a>
               <a href="#faq" className="hover:text-ink transition-colors">{c.nav.faq}</a>
+              <a href="/fonctionnalites" className="hover:text-ink transition-colors">{lang === 'ar' ? 'كل المميزات' : 'Toutes les fonctionnalités'}</a>
             </div>
             <button onClick={() => setLang(rtl ? 'fr' : 'ar')} lang={rtl ? 'fr' : 'ar'}
               className="h-9 px-3 rounded-full border border-line text-sm font-semibold text-muted hover:text-ink transition-colors whitespace-nowrap">

@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { Check, Coffee, Soup, Sandwich, FileX, ArrowRight, Printer, ExternalLink, Camera, TrendingUp } from 'lucide-react';
 import { ImportMenu } from '../components/ImportMenu';
@@ -214,9 +215,22 @@ function StepYou({ r, onNext }: { r: Restaurant; onNext: () => void }) {
 export function PairingCode({ r, label, onCreated }: { r: Restaurant; label?: string; onCreated?: () => void }) {
   const a = useAdminCtx();
   const [code, setCode] = useState<{ code: string; expires_at: string } | null>(null);
-  const make = async () => { try { setCode(await rpc('create_pairing_code', { p_restaurant_id: r.id, p_label: label || null })); onCreated?.(); } catch (e) { a.fail(e); } };
+  const [qr, setQr] = useState<string | null>(null);
+  const make = async () => {
+    try {
+      const c = await rpc<{ code: string; expires_at: string }>('create_pairing_code', { p_restaurant_id: r.id, p_label: label || null });
+      setCode(c); onCreated?.();
+      // a phone scans this and is linked in one tap (the code is in the link)
+      setQr(await QRCode.toDataURL(`${POS_URL}/?code=${encodeURIComponent(c.code)}`, { width: 480, margin: 1 }).catch(() => null));
+    } catch (e) { a.fail(e); }
+  };
   return code ? (
     <div className="rounded-2xl bg-surface-2 p-5 text-center">
+      {qr && <>
+        <p className="text-sm font-semibold">{t('Téléphone ou tablette : scannez avec l’appareil photo')}</p>
+        <img src={qr} alt={t('QR code de connexion')} className="mx-auto my-3 h-44 w-44 rounded-xl bg-white p-2" />
+        <p className="mb-4 text-xs text-muted">{t('Puis « Ajouter à l’écran d’accueil » pour l’ouvrir comme une application.')}</p>
+      </>}
       <p className="text-sm text-muted">{t("Sur l'ordinateur ou la tablette de caisse, ouvrez")}</p>
       <a href={POS_URL} target="_blank" rel="noreferrer" dir="ltr" className="font-bold text-brand underline">{POS_URL.replace('https://', '')} <ExternalLink className="inline h-3 w-3" /></a>
       <p className="mt-3 text-sm text-muted">{t('et tapez ce code :')}</p>

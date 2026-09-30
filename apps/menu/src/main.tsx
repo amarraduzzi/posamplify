@@ -8,14 +8,15 @@ import { resolveTenant } from './lib/tenant';
 // It is a separate chunk, so guests at a table never download it.
 const Landing = lazy(() => import('./landing/Landing'));
 const ProfitLanding = lazy(() => import('./landing/ProfitLanding'));
+const FeaturesLanding = lazy(() => import('./landing/FeaturesLanding'));
 // the website: the bare domain (Amplify POS) and /profit (Amplify Profit); "profit" is a reserved slug
 const slug = resolveTenant().slug;
-const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : null;
+const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // shown inside the website's phone mockup: hide the scrollbars (Windows draws them)
 try { if (window.self !== window.top) document.documentElement.classList.add('embedded'); } catch { /* cross-origin parent */ }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : <Landing />}</Suspense> : <App />}
+    {site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );
