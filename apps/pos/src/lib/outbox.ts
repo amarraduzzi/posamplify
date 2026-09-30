@@ -36,6 +36,7 @@ export type Op =
   | { kind: 'createOrder'; order: NewOrder }
   | { kind: 'addLines'; order_id: string; lines: NewLine[] }
   | { kind: 'markSent'; ids: string[]; at: string }
+  | { kind: 'requestPrint'; ids: string[]; at: string }
   | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id'>> }
   | { kind: 'updateLine'; id: string; patch: Partial<Pick<Line, 'quantity' | 'note'>> }
   | { kind: 'deleteLine'; id: string }
@@ -112,6 +113,13 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
         }
         break;
       }
+      case 'requestPrint':
+        for (const id of op.ids) {
+          const o = lineOwner.get(id);
+          const l = o?.order_lines.find(x => x.id === id);
+          if (l && !l.kitchen_sent_at && !l.print_requested_at) l.print_requested_at = op.at;
+        }
+        break;
       case 'markSent':
         for (const id of op.ids) {
           const o = lineOwner.get(id);
@@ -181,6 +189,9 @@ export async function send(op: Op): Promise<FiscalDoc | undefined> {
         check(await supabase.from('order_lines').upsert(rows, { onConflict: 'id', ignoreDuplicates: true }));
         return;
       }
+      case 'requestPrint':
+        if (op.ids.length) check(await supabase.from('order_lines').update({ print_requested_at: op.at }).in('id', op.ids).is('kitchen_sent_at', null));
+        return;
       case 'markSent':
         if (op.ids.length) check(await supabase.from('order_lines').update({ kitchen_sent_at: op.at }).in('id', op.ids).is('kitchen_sent_at', null));
         return;
@@ -220,6 +231,7 @@ export function describe(op: Op, labelOf: (orderId: string) => string): string {
     case 'createOrder': return t('Nouvelle commande {ref}', { ref: op.order.local_ref });
     case 'addLines': return `${t('{n} article(s)', { n: op.lines.reduce((n, l) => n + l.quantity, 0) })} · ${labelOf(op.order_id)}`;
     case 'markSent': return t('Bon cuisine ({n} ligne(s))', { n: op.ids.length });
+    case 'requestPrint': return t('Bon à imprimer à la caisse ({n} ligne(s))', { n: op.ids.length });
     case 'updateOrder': return `${t('Mise à jour')} · ${labelOf(op.id)}`;
     case 'updateLine': return t("Modification d'article");
     case 'deleteLine': return t('Article retiré');

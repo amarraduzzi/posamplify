@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Send, ChevronUp, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -12,6 +12,7 @@ import { ManagerApproval } from './StaffGate';
 import { PaymentModal } from './PaymentModal';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
+import { useIsPhone } from '../lib/phone';
 
 type Dialog = null | 'pay' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { variants: Item } | { lineNote: string };
 
@@ -30,6 +31,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     const v = it.variants.find(x => x.id === l.variant_id);
     return nameOf(it.name) + (v ? ` (${nameOf(v.name)})` : '');
   };
+  const phone = useIsPhone();
+  const [sheet, setSheet] = useState(false);
   const [draft, setDraft] = useState<DraftLine[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [payId, setPayId] = useState<string | null>(null);
@@ -128,6 +131,202 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
 
   const nothing = !order && !draft.length;
 
+  const banners = <>
+        {pendingQr && (
+          <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
+            <QrCode className="h-4 w-4" /> {t('Commande client à accepter')}
+            <button disabled={busy} onClick={() => run(() => pos.acceptQr(order!))} className="ms-auto rounded-lg bg-white px-3 py-1 text-qr">{t('Accepter')}</button>
+          </div>
+        )}
+        {extraOrders.length > 0 && (
+          <div className="flex items-center gap-2 bg-warn/15 px-4 py-2.5 text-sm font-semibold text-warn">
+            {t('{n} commandes sur cette table', { n: extraOrders.length + 1 })}
+            <button disabled={busy} onClick={mergeAll} className="ms-auto flex items-center gap-1 rounded-lg bg-warn px-3 py-1 text-black"><Merge className="h-4 w-4" /> {t('Regrouper')}</button>
+          </div>
+        )}
+    </>;
+  const ticketBody = <>
+          {nothing && (
+            <div className="py-20 text-center text-muted">
+              <Star8 filled={false} stroke={0.6} className="mx-auto h-14 w-14 text-brand/40" />
+              <p className="mt-3">{t('Touchez un article pour commencer.')}</p>
+            </div>
+          )}
+          <ul className="divide-y divide-line/[0.07]">
+            {order?.order_lines.map(l => (
+              <li key={l.id} className="flex items-start gap-2 py-2">
+                <span className="w-8 shrink-0 font-bold tabular">{l.quantity}×</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-tight">{lineName(l)}</p>
+                  {l.note && <p className="text-xs italic text-muted">{l.note}</p>}
+                  <p className="text-xs text-muted">{l.kitchen_sent_at ? t('Envoyé') : l.print_requested_at ? t('Envoyé (bon à la caisse)') : <span className="text-warn">{t('Pas encore envoyé')}</span>}</p>
+                </div>
+                <span className="font-semibold tabular">{mad(l.line_total_cents)}</span>
+                <button onClick={() => setDialog({ void: l })} aria-label={t('Retirer')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger/15 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+              </li>
+            ))}
+            {draft.map(d => (
+              <li key={d.key} className="-mx-2 flex items-start gap-2 rounded-xl bg-brand/[0.07] px-2 py-2">
+                <div className="flex shrink-0 items-center gap-1">
+                  <button onClick={() => bump(d.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2"><Minus className="h-4 w-4" /></button>
+                  <span className="w-6 text-center font-bold tabular">{d.quantity}</span>
+                  <button onClick={() => bump(d.key, 1)} className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2"><Plus className="h-4 w-4" /></button>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-tight">{lineName(d)}</p>
+                  <button onClick={() => setDialog({ lineNote: d.key })} className="text-xs text-brand">{d.note ? `“${d.note}”` : t('+ précision')}</button>
+                </div>
+                <span className="font-semibold tabular">{mad(d.unit_price_cents * d.quantity)}</span>
+              </li>
+            ))}
+          </ul>
+          {order?.note && <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-sm"><b>{t('Note :')}</b> {order.note}</p>}
+    </>;
+  const totalsBox = <>
+        <div className="space-y-1 border-t border-line/[0.07] bg-bg/30 px-5 py-4 text-sm">
+          {discount > 0 && <>
+            <p className="flex justify-between text-muted"><span>{t('Sous-total')}</span><span className="tabular">{mad(subtotal)}</span></p>
+            <p className="flex justify-between text-ok"><span>{t('Remise')}</span><span className="tabular">-{mad(discount)}</span></p>
+          </>}
+          <p className="flex items-baseline justify-between"><span className="text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Total')}</span><span className="font-display text-4xl font-semibold text-brand tabular">{mad(total)}</span></p>
+        </div>
+    </>;
+  const actionsGrid = <>
+        <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
+          <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
+          <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> {t('Addition')}</Btn>
+          <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> {t('Remise')}</Btn>
+          <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
+          <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> {t('Renvoyer bon')}</Btn>
+          {order?.table_id && <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>}
+          <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {t('Annuler')}</Btn>
+        </div>
+    </>;
+  const dialogs = <>
+      {/* ------------------------------------------------ dialogs */}
+      {dialog === 'pay' && payId && <PaymentModal orderId={payId} label={label} onClose={() => setDialog(null)} onPaid={onClose} />}
+      {dialog === 'discount' && order && <DiscountDialog order={order} onClose={() => setDialog(null)} />}
+      {dialog === 'cancel' && order && <CancelDialog order={order} onClose={() => setDialog(null)} onDone={onClose} />}
+      {dialog === 'move' && order && <MoveDialog order={order} onClose={() => setDialog(null)} onMoved={id => { setDialog(null); onRetarget({ kind: 'table', tableId: id }); }} />}
+      {dialog === 'note' && order && <NoteDialog order={order} onClose={() => setDialog(null)} />}
+      {dialog === 'leave' && (
+        <Modal title={t('Articles non envoyés')} onClose={() => setDialog(null)}
+          footer={<div className="flex justify-end gap-2">
+            <Btn tone="danger" onClick={onClose}>{t('Abandonner')}</Btn>
+            <Btn tone="brand" onClick={() => run(async () => { await commit(true); onClose(); })}>{t('Envoyer et quitter')}</Btn>
+          </div>}>
+          <p>{t("{n} article(s) n'ont pas encore été envoyés.", { n: draft.length })}</p>
+        </Modal>
+      )}
+      {dialog && typeof dialog === 'object' && 'variants' in dialog && (
+        <Modal title={nameOf(dialog.variants.name)} onClose={() => setDialog(null)}>
+          <div className="grid grid-cols-2 gap-2">
+            {dialog.variants.variants.map(v => (
+              <Btn key={v.id} className="flex-col py-4" onClick={() => { addItem(dialog.variants, v.id); setDialog(null); }}>
+                <span>{nameOf(v.name)}</span><span className="text-brand tabular">{mad(v.price_cents)}</span>
+              </Btn>
+            ))}
+          </div>
+        </Modal>
+      )}
+      {dialog && typeof dialog === 'object' && 'lineNote' in dialog && (
+        <LineNoteDialog initial={draft.find(d => d.key === dialog.lineNote)?.note ?? ''} onClose={() => setDialog(null)}
+          onSave={n => { setDraft(d => d.map(x => x.key === dialog.lineNote ? { ...x, note: n } : x)); setDialog(null); }} />
+      )}
+      {dialog && typeof dialog === 'object' && 'void' in dialog && order && (
+        <VoidDialog line={dialog.void} onClose={() => setDialog(null)} />
+      )}
+    </>;
+
+  // ---------------------------------------------------------------- phone: order taking at the table
+  if (phone) {
+    const count = (order?.order_lines.reduce((n, l) => n + l.quantity, 0) ?? 0) + draft.reduce((n, d) => n + d.quantity, 0);
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-bg">
+        <div className="flex items-center gap-2 border-b border-line/[0.07] bg-surface px-3 py-2.5">
+          <button onClick={back} aria-label={t('Retour')} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2"><ArrowLeft className="h-5 w-5 rtl:rotate-180" /></button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-semibold leading-tight">{label}</h1>
+            {order && <p className="text-xs text-muted">{ticketRef(order)} · {time(order.created_at, r.timezone)}</p>}
+          </div>
+        </div>
+        {target.kind === 'new' && !order && (
+          <div className="flex gap-2 overflow-x-auto border-b border-line/[0.07] bg-surface px-3 py-2">
+            {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
+              <button key={k} onClick={() => setKind(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind === k ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
+                {k === 'takeaway' ? t('À emporter') : k === 'delivery' ? t('Livraison (tél.)') : 'Glovo'}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="border-b border-line/[0.07] bg-surface/60 px-3 py-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('Rechercher un article')} className={`${inputCls} py-2 ps-9`} />
+            {query && <button onClick={() => setQuery('')} aria-label={t('Effacer')} className="absolute end-2 top-1/2 -translate-y-1/2 text-muted"><X className="h-4 w-4" /></button>}
+          </div>
+          {!query && (
+            <div className="scroll-thin -mx-3 mt-2 flex gap-2 overflow-x-auto px-3 pb-1">
+              {pos.categories.map(c => (
+                <button key={c.id} onClick={() => setCat(c.id)}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold ${cat === c.id ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
+                  {c.icon ? `${c.icon} ` : ''}{nameOf(c.name)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <ul className="scroll-thin flex-1 divide-y divide-line/[0.07] overflow-y-auto">
+          {visibleItems.map(i => {
+            const inDraft = draft.filter(d => d.item_id === i.id).reduce((n, d) => n + d.quantity, 0);
+            return (
+              <li key={i.id}>
+                <button onClick={() => addItem(i)} disabled={!i.available}
+                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-surface-2 disabled:opacity-35 ${inDraft ? 'bg-brand/[0.07]' : ''}`}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
+                    <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}</span>
+                  </span>
+                  {inDraft > 0
+                    ? <span className="grid h-9 min-w-9 place-items-center rounded-full bg-brand px-2 font-bold text-brand-ink tabular">{inDraft}</span>
+                    : <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-brand"><Plus className="h-5 w-5" /></span>}
+                </button>
+              </li>
+            );
+          })}
+          {!visibleItems.length && <li className="py-10 text-center text-muted">{t('Aucun article.')}</li>}
+        </ul>
+        <div className="flex gap-2 border-t border-line/[0.07] bg-surface p-3">
+          <button onClick={() => setSheet(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl bg-surface-2 px-4 py-3 text-start">
+            <ChevronUp className="h-5 w-5 shrink-0 text-muted" />
+            <span className="min-w-0 flex-1"><span className="block text-xs text-muted">{t('Ticket · {n} article(s)', { n: count })}</span><b className="tabular">{mad(total)}</b></span>
+          </button>
+          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
+        </div>
+        {sheet && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-bg">
+            <div className="flex items-center gap-2 border-b border-line/[0.07] bg-surface px-3 py-2.5">
+              <button onClick={() => setSheet(false)} aria-label={t('Retour')} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2"><ArrowLeft className="h-5 w-5 rtl:rotate-180" /></button>
+              <h2 className="font-display text-xl font-semibold">{t('Ticket')} · {label}</h2>
+            </div>
+            {banners}
+            <div className="scroll-thin flex-1 overflow-y-auto px-4 py-3">{ticketBody}</div>
+            {totalsBox}
+            <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+              <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { sendNow(); setSheet(false); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>
+              <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
+              {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>
+                : <Btn disabled={busy} onClick={() => setSheet(false)}>{t('Ajouter')}</Btn>}
+              <p className="col-span-2 pt-1 text-center text-xs text-muted">{t('L’encaissement se fait à la caisse.')}</p>
+            </div>
+          </div>
+        )}
+        {dialogs}
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex bg-bg">
       {/* ------------------------------------------------ menu */}
@@ -206,109 +405,17 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Ticket')}</p>
           <p className="ms-auto text-xs font-semibold text-muted">{t('{n} article(s)', { n: (order?.order_lines.reduce((n, l) => n + l.quantity, 0) ?? 0) + draft.reduce((n, d) => n + d.quantity, 0) })}</p>
         </div>
-        {pendingQr && (
-          <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
-            <QrCode className="h-4 w-4" /> {t('Commande client à accepter')}
-            <button disabled={busy} onClick={() => run(() => pos.acceptQr(order!))} className="ms-auto rounded-lg bg-white px-3 py-1 text-qr">{t('Accepter')}</button>
-          </div>
-        )}
-        {extraOrders.length > 0 && (
-          <div className="flex items-center gap-2 bg-warn/15 px-4 py-2.5 text-sm font-semibold text-warn">
-            {t('{n} commandes sur cette table', { n: extraOrders.length + 1 })}
-            <button disabled={busy} onClick={mergeAll} className="ms-auto flex items-center gap-1 rounded-lg bg-warn px-3 py-1 text-black"><Merge className="h-4 w-4" /> {t('Regrouper')}</button>
-          </div>
-        )}
+        {banners}
         <div className="scroll-thin flex-1 overflow-y-auto px-4 py-3">
-          {nothing && (
-            <div className="py-20 text-center text-muted">
-              <Star8 filled={false} stroke={0.6} className="mx-auto h-14 w-14 text-brand/40" />
-              <p className="mt-3">{t('Touchez un article pour commencer.')}</p>
-            </div>
-          )}
-          <ul className="divide-y divide-line/[0.07]">
-            {order?.order_lines.map(l => (
-              <li key={l.id} className="flex items-start gap-2 py-2">
-                <span className="w-8 shrink-0 font-bold tabular">{l.quantity}×</span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-tight">{lineName(l)}</p>
-                  {l.note && <p className="text-xs italic text-muted">{l.note}</p>}
-                  <p className="text-xs text-muted">{l.kitchen_sent_at ? t('Envoyé') : <span className="text-warn">{t('Pas encore envoyé')}</span>}</p>
-                </div>
-                <span className="font-semibold tabular">{mad(l.line_total_cents)}</span>
-                <button onClick={() => setDialog({ void: l })} aria-label={t('Retirer')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger/15 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
-              </li>
-            ))}
-            {draft.map(d => (
-              <li key={d.key} className="-mx-2 flex items-start gap-2 rounded-xl bg-brand/[0.07] px-2 py-2">
-                <div className="flex shrink-0 items-center gap-1">
-                  <button onClick={() => bump(d.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2"><Minus className="h-4 w-4" /></button>
-                  <span className="w-6 text-center font-bold tabular">{d.quantity}</span>
-                  <button onClick={() => bump(d.key, 1)} className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2"><Plus className="h-4 w-4" /></button>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-tight">{lineName(d)}</p>
-                  <button onClick={() => setDialog({ lineNote: d.key })} className="text-xs text-brand">{d.note ? `“${d.note}”` : t('+ précision')}</button>
-                </div>
-                <span className="font-semibold tabular">{mad(d.unit_price_cents * d.quantity)}</span>
-              </li>
-            ))}
-          </ul>
-          {order?.note && <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-sm"><b>{t('Note :')}</b> {order.note}</p>}
+          {ticketBody}
         </div>
 
-        <div className="space-y-1 border-t border-line/[0.07] bg-bg/30 px-5 py-4 text-sm">
-          {discount > 0 && <>
-            <p className="flex justify-between text-muted"><span>{t('Sous-total')}</span><span className="tabular">{mad(subtotal)}</span></p>
-            <p className="flex justify-between text-ok"><span>{t('Remise')}</span><span className="tabular">-{mad(discount)}</span></p>
-          </>}
-          <p className="flex items-baseline justify-between"><span className="text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Total')}</span><span className="font-display text-4xl font-semibold text-brand tabular">{mad(total)}</span></p>
-        </div>
+        {totalsBox}
 
-        <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
-          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
-          <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
-          <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> {t('Addition')}</Btn>
-          <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> {t('Remise')}</Btn>
-          <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
-          <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> {t('Renvoyer bon')}</Btn>
-          {order?.table_id && <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>}
-          <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {t('Annuler')}</Btn>
-        </div>
+        {actionsGrid}
       </aside>
 
-      {/* ------------------------------------------------ dialogs */}
-      {dialog === 'pay' && payId && <PaymentModal orderId={payId} label={label} onClose={() => setDialog(null)} onPaid={onClose} />}
-      {dialog === 'discount' && order && <DiscountDialog order={order} onClose={() => setDialog(null)} />}
-      {dialog === 'cancel' && order && <CancelDialog order={order} onClose={() => setDialog(null)} onDone={onClose} />}
-      {dialog === 'move' && order && <MoveDialog order={order} onClose={() => setDialog(null)} onMoved={id => { setDialog(null); onRetarget({ kind: 'table', tableId: id }); }} />}
-      {dialog === 'note' && order && <NoteDialog order={order} onClose={() => setDialog(null)} />}
-      {dialog === 'leave' && (
-        <Modal title={t('Articles non envoyés')} onClose={() => setDialog(null)}
-          footer={<div className="flex justify-end gap-2">
-            <Btn tone="danger" onClick={onClose}>{t('Abandonner')}</Btn>
-            <Btn tone="brand" onClick={() => run(async () => { await commit(true); onClose(); })}>{t('Envoyer et quitter')}</Btn>
-          </div>}>
-          <p>{t("{n} article(s) n'ont pas encore été envoyés.", { n: draft.length })}</p>
-        </Modal>
-      )}
-      {dialog && typeof dialog === 'object' && 'variants' in dialog && (
-        <Modal title={nameOf(dialog.variants.name)} onClose={() => setDialog(null)}>
-          <div className="grid grid-cols-2 gap-2">
-            {dialog.variants.variants.map(v => (
-              <Btn key={v.id} className="flex-col py-4" onClick={() => { addItem(dialog.variants, v.id); setDialog(null); }}>
-                <span>{nameOf(v.name)}</span><span className="text-brand tabular">{mad(v.price_cents)}</span>
-              </Btn>
-            ))}
-          </div>
-        </Modal>
-      )}
-      {dialog && typeof dialog === 'object' && 'lineNote' in dialog && (
-        <LineNoteDialog initial={draft.find(d => d.key === dialog.lineNote)?.note ?? ''} onClose={() => setDialog(null)}
-          onSave={n => { setDraft(d => d.map(x => x.key === dialog.lineNote ? { ...x, note: n } : x)); setDialog(null); }} />
-      )}
-      {dialog && typeof dialog === 'object' && 'void' in dialog && order && (
-        <VoidDialog line={dialog.void} onClose={() => setDialog(null)} />
-      )}
+      {dialogs}
     </div>
   );
 }
@@ -456,7 +563,7 @@ function VoidDialog({ line, onClose }: { line: Line; onClose: () => void }) {
   };
   return (
     <Modal title={t('Retirer « {name} »', { name: line.name })} onClose={onClose}>
-      {line.kitchen_sent_at ? (pos.online ? <>
+      {line.kitchen_sent_at || line.print_requested_at ? (pos.online ? <>
         <p className="mb-3 text-center text-sm text-muted">{t('Déjà envoyé en cuisine : validation manager nécessaire.')}</p>
         <ManagerApproval onApprove={approve} busy={busy} error={error} />
       </> : <p className="text-center text-sm text-muted">{t('Déjà envoyé en cuisine : la validation manager demande une connexion internet.')}</p>) : <Btn tone="danger" className="w-full" onClick={() => remove().catch(pos.fail)}>{t('Retirer')}</Btn>}

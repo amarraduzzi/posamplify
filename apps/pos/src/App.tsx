@@ -12,6 +12,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { Star8, initials } from './components/Brand';
 import { SyncPanel } from './components/SyncPanel';
 import { t } from './lib/i18n';
+import { useIsPhone } from './lib/phone';
 
 type Tab = 'tables' | 'live' | 'history' | 'reports';
 
@@ -22,6 +23,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSync, setShowSync] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const phone = useIsPhone();
 
   useEffect(() => { const i = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(i); }, []);
 
@@ -65,6 +67,46 @@ export default function App() {
     { id: 'history', label: t('Historique'), Icon: HistoryIcon },
     { id: 'reports', label: t('Caisse & rapports'), Icon: BarChart3 },
   ];
+
+  // ---- phone in the waiter's hand: tables, orders, take-away; payment at the till
+  if (phone) {
+    const mainTab = tab === 'live' ? 'live' : 'tables';
+    return (
+      <div className="ambient flex h-full flex-col">
+        {pos.pendingQr.length > 0 && (
+          <button onClick={() => setTab('live')} className="animate-pulse bg-gradient-to-r from-qr to-[#7a5cff] py-2 text-center text-sm font-bold text-white">
+            {pos.pendingQr.length === 1 ? t('1 nouvelle commande client (QR) à accepter') : t('{n} nouvelles commandes clients (QR) à accepter', { n: pos.pendingQr.length })}
+          </button>
+        )}
+        <header className="flex items-center gap-2 border-b border-line/[0.07] bg-surface/90 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-semibold leading-tight">{r.name}</p>
+            <p className="text-xs text-muted">{pos.staff.name}</p>
+          </div>
+          <ConnectionPill stale={stale} onClick={() => setShowSync(true)} />
+          <button onClick={() => pos.setLang(pos.lang === 'ar' ? 'fr' : 'ar')} aria-label={pos.lang === 'ar' ? 'Français' : 'العربية'}
+            className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted">{pos.lang === 'ar' ? 'FR' : 'ع'}</button>
+          <button aria-label={t('Verrouiller')} onClick={() => pos.setStaff(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2"><Lock className="h-4 w-4" /></button>
+        </header>
+        {!pos.online && <p className="bg-warn/15 py-1.5 text-center text-xs font-semibold text-warn">{t('Hors ligne : les commandes partent au retour d’internet.')}</p>}
+        <main className="scroll-thin flex-1 overflow-y-auto p-3">
+          {mainTab === 'tables' ? <TablesView onOpen={setTarget} /> : <LiveOrders onOpen={setTarget} />}
+        </main>
+        <nav className="grid grid-cols-3 gap-1 border-t border-line/[0.07] bg-surface p-1.5">
+          {([['tables', t('Tables'), Armchair, 0], ['live', t('Commandes'), Receipt, pos.pendingQr.length]] as const).map(([id, l, Icon, badge]) => (
+            <button key={id} onClick={() => setTab(id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-bold ${mainTab === id ? 'gold-fill text-brand-ink' : 'text-muted'}`}>
+              <Icon className="h-5 w-5" />{l}
+              {!!badge && <span className="absolute end-3 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-qr px-1 text-[11px] text-white">{badge}</span>}
+            </button>
+          ))}
+          <button onClick={() => setTarget({ kind: 'new', orderType: 'takeaway', source: 'pos' })} className="flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-bold text-brand"><ShoppingBag className="h-5 w-5" />{t('Emporter')}</button>
+        </nav>
+        {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
+        {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
+        <Toasts />
+      </div>
+    );
+  }
 
   return (
     <div className="ambient flex h-full flex-col">

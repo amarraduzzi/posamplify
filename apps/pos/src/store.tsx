@@ -296,6 +296,12 @@ function usePosState() {
     if (!unsent.length || !restaurant) return;
     const byStation = new Map<string, Line[]>();
     unsent.forEach(l => byStation.set(l.station, [...(byStation.get(l.station) ?? []), l]));
+    // a phone (no printer here): the till with the printer prints the bons
+    if (!printerOk) {
+      enqueue([{ kind: 'requestPrint', ids: unsent.map(l => l.id), at: now() }]);
+      toast(t('Envoyé : le bon s’imprime à la caisse'), 'ok');
+      return;
+    }
     let printed = true;
     if (printerOk) {
       for (const [station, ls] of byStation) {
@@ -307,6 +313,33 @@ function usePosState() {
     enqueue([{ kind: 'markSent', ids: unsent.map(l => l.id), at: now() }]);
     if (printerOk && printed) toast(t('Bon envoyé en cuisine'), 'ok');
   }, [restaurant, printerOk, settings, printLabel, staff, fail, toast, enqueue]);
+
+  // ---- bons sent from phones: this till has the printer, it prints them -----
+  const claiming = useRef(false);
+  const waiting = orders.some(o => o.order_lines.some(l => l.print_requested_at && !l.kitchen_sent_at));
+  useEffect(() => {
+    if (!printerOk || !online || !restaurant || !waiting || claiming.current) return;
+    claiming.current = true;
+    (async () => {
+      try {
+        const got = await db.rpc<{ id: string; order_id: string; station: string; quantity: number; name: string; note: string | null; staff_id: string | null }[]>('claim_kitchen_lines', { p_restaurant_id: restaurant.id });
+        if (!got.length) return;
+        await reloadOrdersRef.current();
+        const all = current();
+        const groups = new Map<string, typeof got>();
+        got.forEach(l => groups.set(`${l.order_id}|${l.station}`, [...(groups.get(`${l.order_id}|${l.station}`) ?? []), l]));
+        for (const ls of groups.values()) {
+          const o = all.find(x => x.id === ls[0].order_id);
+          if (!o) continue;
+          const who = staffList.find(s => s.id === ls[0].staff_id)?.name;
+          try { await P.print(P.printerFor(settings, ls[0].station), `Bon ${ls[0].station}`, P.kitchenTicket(o, ls[0].station, ls, printLabel(o), restaurant.timezone, who)); }
+          catch (e) { fail(e); }
+        }
+      } catch (e) { if (!isNetworkError(e)) fail(e); }
+      finally { claiming.current = false; }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printerOk, online, restaurant, waiting, orders]);
 
   /** Saves draft lines (creating the order if needed) and sends them to the kitchen. Works offline. */
   const commitDraft = useCallback(async (target: { order: Order | null; tableId: string | null; orderType: string; source: string;

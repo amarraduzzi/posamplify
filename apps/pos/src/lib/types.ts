@@ -33,6 +33,8 @@ export interface Line {
   id: string; order_id: string; menu_item_id: string | null; variant_id: string | null;
   name: string; unit_price_cents: number; quantity: number; line_total_cents: number;
   station: string; note: string | null; kitchen_sent_at: string | null; created_at: string;
+  /** sent from a device without printer: a till with a printer prints the bon */
+  print_requested_at?: string | null;
 }
 
 export interface Order {

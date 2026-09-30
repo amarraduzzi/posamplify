@@ -263,3 +263,18 @@ test('X report and Z closing of the day', async () => {
   await assert.rejects(sql(`delete from public.day_closures where restaurant_id = $1`, [w.A.r.id]), /cannot be changed/);
   assert.equal((await rpc(dev, 'day_report', [w.A.r.id, null])).closed, true);
 });
+
+test('phone orders: lines asked to print are claimed by one till only', async () => {
+  const dev = w.users.deviceA, rid = w.A.r.id;
+  const o = await tillOrder(dev, rid, [{ item_id: w.A.items.tajine.id, qty: 2 }, { item_id: w.A.items.jus.id }]);
+  const ids = (await sql(`select id from public.order_lines where order_id = $1`, [o.id])).map(x => x.id);
+  // the phone (no printer) asks for the bons
+  await as(dev, `update public.order_lines set print_requested_at = now() where id = any($1)`, [ids]);
+  const [a, b] = await Promise.all([rpc(dev, 'claim_kitchen_lines', [rid]), rpc(dev, 'claim_kitchen_lines', [rid])]);
+  assert.equal(a.length + b.length, 2, 'each line printed once');
+  const left = await sql(`select count(*)::int n from public.order_lines where order_id = $1 and kitchen_sent_at is null`, [o.id]);
+  assert.equal(left[0].n, 0);
+  assert.deepEqual(await rpc(dev, 'claim_kitchen_lines', [rid]), []);
+  await assert.rejects(rpc(w.users.deviceB, 'claim_kitchen_lines', [rid]), /not allowed/);
+  await rpc(dev, 'cancel_order', [o.id, 'test', w.A.staff.karim.id, '9999']);
+});
