@@ -449,7 +449,7 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
                 <ul className="divide-y divide-line/10 text-sm">
                   {x.lines.map((l, k) => (
                     <li key={k} className="flex items-center gap-3 px-3 py-1.5">
-                      <span className="flex-1">{l.name}{l.name_ar && <span className="ms-2 text-xs text-muted" dir="rtl">{l.name_ar}</span>}</span>
+                      <span className="flex-1">{l.name}{l.name_ar && <span className="ms-2 text-xs text-muted"><bdi dir="rtl">{l.name_ar}</bdi></span>}</span>
                       <span className="tabular">{fmtQty(l.qty, l.base_unit)}</span>
                       <span className="hidden w-36 text-end text-xs text-muted tabular sm:block">{priced.has(l.name.toLowerCase()) ? t('prix connu') : unitPrice(l)}</span>
                       <button aria-label={t('Retirer')} onClick={() => setOut(o => o.map((y, j) => (j === i ? { ...y, lines: y.lines.filter((_, m) => m !== k) } : y)))} className="text-muted hover:text-danger"><X className="h-4 w-4" /></button>
