@@ -20,7 +20,7 @@ export default function FeaturesLanding() {
   const signup = `${ADMIN}/?inscription=1&lang=${lang}`;
   const login = `${ADMIN}/?lang=${lang}`;
   const total = c.modules.reduce((n, m) => n + m.items.length, 0);
-  const statValues = [String(c.modules.length), `${total}+`, '3'];
+  const statValues = [String(c.modules.length), `${total}+`, '2'];
 
   useEffect(() => {
     const root = document.documentElement;
