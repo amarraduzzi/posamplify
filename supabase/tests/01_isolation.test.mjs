@@ -17,6 +17,8 @@ before(async () => {
     values ($1, 'Farine B', 'g', 'kg', 1000, 500) returning id`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.recipe_lines (restaurant_id, menu_item_id, ingredient_id, qty) values ($1, $2, $3, 100)`,
     [w.B.r.id, w.B.items.pizza.id, gB.id]);
+  await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
+  await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
     JSON.stringify([{ category: { fr: 'Import B' }, name: { fr: 'Plat B' }, price_cents: 100 }])]);
 });

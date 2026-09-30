@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -19,8 +19,9 @@ import { dateLocale, t } from './lib/i18n';
 import { useCaptcha } from './lib/captcha';
 import { ProfitPage } from './pages/ProfitPage';
 import { IngredientsPage } from './pages/IngredientsPage';
+import { ChargesPage } from './pages/ChargesPage';
 
-type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients';
+type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'charges';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -67,6 +68,7 @@ function Screens() {
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
+    { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
@@ -125,6 +127,7 @@ function Screens() {
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
+          {r && current === 'charges' && <ChargesPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}

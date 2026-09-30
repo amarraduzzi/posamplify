@@ -40,7 +40,7 @@ try {
   await page.getByRole('button', { name: 'Calculer mes marges' }).click();
   await page.getByRole('heading', { name: 'Marges' }).waitFor();
   const nav = await page.locator('aside nav button').allTextContents();
-  assert.deepEqual(nav.map(s => s.trim()), ['Menu', 'Marges', 'Ingrédients', 'Restaurant'], 'no till parts');
+  assert.deepEqual(nav.map(s => s.trim()), ['Menu', 'Marges', 'Ingrédients', 'Charges', 'Restaurant'], 'no till parts');
   await page.getByText('PROFIT').first().waitFor();
   await page.screenshot({ path: `${OUT}/profit-only-admin.png` });
   assert.deepEqual(errors, []);
