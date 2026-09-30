@@ -1,0 +1,36 @@
+<!-- Supabase > Authentication > Emails > Templates > Confirm signup
+     Subject: Confirmez votre adresse e-mail · تأكيد بريدكم الإلكتروني -->
+<div style="margin:0;padding:24px 12px;background:#F3F6FA;font-family:Arial,Helvetica,sans-serif;color:#001E3E">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#FFFFFF;border-radius:16px;overflow:hidden">
+    <tr>
+      <td style="background:#002E5F;padding:22px 28px">
+        <span style="font-size:20px;font-weight:800;letter-spacing:1px;color:#FFFFFF">AMPLIFY <span style="color:#05B962">POS</span></span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 28px 8px" dir="ltr">
+        <h1 style="margin:0 0 12px;font-size:22px;color:#001E3E">Bienvenue sur Amplify POS</h1>
+        <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#3A4A63">Merci pour votre inscription. Cliquez sur le bouton ci-dessous pour confirmer votre adresse e-mail et créer votre restaurant.</p>
+        <p style="margin:0 0 24px">
+          <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#00874B;color:#FFFFFF;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 26px;border-radius:10px">Confirmer mon adresse</a>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 28px 24px;border-top:1px solid #E6ECF3" dir="rtl" align="right">
+        <h2 style="margin:18px 0 10px;font-size:19px;color:#001E3E">مرحبا بكم في Amplify POS</h2>
+        <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#3A4A63">شكرا على تسجيلكم. اضغطوا على الزر أسفله لتأكيد بريدكم الإلكتروني وإنشاء مطعمكم.</p>
+        <p style="margin:0 0 8px">
+          <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#00874B;color:#FFFFFF;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 26px;border-radius:10px">تأكيد البريد الإلكتروني</a>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px;background:#F3F6FA;font-size:12px;line-height:1.5;color:#6B7A90">
+        Vous n'avez pas demandé cette inscription ? Ignorez simplement cet e-mail.<br>
+        <span dir="rtl">لم تطلبوا هذا التسجيل؟ تجاهلوا هذه الرسالة فقط.</span><br><br>
+        Amplify POS · Amplify Growth Studio · Maroc
+      </td>
+    </tr>
+  </table>
+</div>
