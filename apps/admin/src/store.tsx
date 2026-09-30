@@ -10,6 +10,12 @@ export type Role = 'owner' | 'manager' | 'device' | 'admin';
 
 function useAdmin() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  // opened from the "mot de passe oublié" email: ask for a new password first
+  const [recovery, setRecovery] = useState(() => new URLSearchParams(location.search).has('reset'));
+  const endRecovery = useCallback(() => {
+    setRecovery(false);
+    history.replaceState(null, '', location.pathname);
+  }, []);
   const [isAdmin, setIsAdmin] = useState(false);
   const [list, setList] = useState<{ r: Restaurant; role: Role }[] | null>(null);
   const [current, setCurrent] = useState<Restaurant | null>(null);
@@ -27,7 +33,10 @@ function useAdmin() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((e, s) => {
+      if (e === 'PASSWORD_RECOVERY') setRecovery(true);
+      setSession(s);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -55,7 +64,7 @@ function useAdmin() {
   const role: Role | null = current ? (list?.find(x => x.r.id === current.id)?.role ?? null) : null;
   // platform admins can edit everything; owners the profile; managers menu, staff and tables
   const canEditProfile = isAdmin || role === 'owner';
-  return { lang, setLang, session, isAdmin, list, current, choose, role, canEditProfile, reload, toasts, toast, fail };
+  return { lang, setLang, session, recovery, endRecovery, isAdmin, list, current, choose, role, canEditProfile, reload, toasts, toast, fail };
 }
 
 export type Admin = ReturnType<typeof useAdmin>;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
@@ -23,7 +23,21 @@ type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
 
+/** Messages ("Enregistré", errors) on every screen: login, wizard and the back office. */
 export default function App() {
+  return <><Screens /><Toasts /></>;
+}
+
+function Toasts() {
+  const a = useAdminCtx();
+  return (
+    <div className="no-print pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+      {a.toasts.map(x => <div key={x.id} className={`pop rounded-2xl px-5 py-3 font-semibold text-white shadow-2xl ${x.tone === 'error' ? 'bg-danger' : 'bg-night'}`}>{x.tone !== 'error' && <span className="me-2 text-[#05B962]">✓</span>}{x.text}</div>)}
+    </div>
+  );
+}
+
+function Screens() {
   const a = useAdminCtx();
   const [page, setPage] = useState<Page>('briefing');
   const [navOpen, setNavOpen] = useState(false);
@@ -33,6 +47,7 @@ export default function App() {
 
   if (a.session === undefined) return null;
   if (!a.session) return <Login />;
+  if (a.recovery) return <NewPassword />;
   if (a.list === null) return <p className="p-8 text-muted">{t('Chargement…')}</p>;
   // the wizard stays until its last step, also after the restaurant exists
   const inWizard = localStorage.getItem('admin-wizard-step') !== null;
@@ -104,21 +119,30 @@ export default function App() {
           {current === 'platform' && a.isAdmin && <PlatformPage />}
         </div>
       </main>
-      <div className="no-print pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
-        {a.toasts.map(x => <div key={x.id} className={`pop rounded-2xl px-5 py-3 font-semibold text-white shadow-2xl ${x.tone === 'error' ? 'bg-danger' : 'bg-night'}`}>{x.tone !== 'error' && <span className="me-2 text-brand">✓</span>}{x.text}</div>)}
-      </div>
     </div>
   );
 }
 
 function Login() {
-  const [mode, setMode] = useState<'login' | 'signup'>(() => (new URLSearchParams(location.search).has('inscription') ? 'signup' : 'login'));
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(() => (new URLSearchParams(location.search).has('inscription') ? 'signup' : 'login'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const cap = useCaptcha();
+  // a link from an email that expired or was already used comes back with #error=...
+  useEffect(() => {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get('error')) {
+      setError(/expired|invalid/i.test(h.get('error_code') ?? h.get('error_description') ?? '')
+        ? t('Ce lien a expiré ou a déjà été utilisé. Demandez un nouveau lien.')
+        : t('Ce lien ne fonctionne pas. Demandez un nouveau lien.'));
+      if (new URLSearchParams(location.search).has('reset')) setMode('forgot');
+      history.replaceState(null, '', location.pathname);
+    }
+  }, []);
+  const switchTo = (m: typeof mode) => { setMode(m); setError(null); setInfo(null); };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null); setInfo(null);
     const captchaToken = cap.token;
@@ -126,6 +150,11 @@ function Login() {
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken } });
       if (error) setError(errorMessage(error));
+    } else if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/?reset=1`, captchaToken });
+      // same message whether the account exists or not (nobody can test which emails are customers)
+      if (error && !/not found/i.test(error.message)) setError(errorMessage(error));
+      else setInfo(t('Si un compte existe avec cet e-mail, vous allez recevoir un lien pour choisir un nouveau mot de passe. Pensez à vérifier les spams.'));
     } else {
       localStorage.setItem('admin-wizard-step', '0');
       const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin, captchaToken } });
@@ -157,22 +186,66 @@ function Login() {
             <LangSwitch />
           </div>
           <div>
-            <h1 className="font-display text-4xl font-semibold">{mode === 'login' ? t('Espace gérant') : t('Créer mon compte')}</h1>
-            <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : t('Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.')}</p>
+            <h1 className="font-display text-4xl font-semibold">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
+            <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : mode === 'forgot' ? t('Indiquez votre e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.') : t('Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.')}</p>
           </div>
           <Field label={t('E-mail')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
-          <Field label={t('Mot de passe')} hint={mode === 'signup' ? t('8 caractères minimum.') : undefined}>
-            <input className={inputCls} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} required />
-          </Field>
+          {mode !== 'forgot' && (
+            <Field label={t('Mot de passe')} hint={mode === 'signup' ? t('8 caractères minimum.') : undefined}>
+              <input className={inputCls} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={e => setPassword(e.target.value)} required />
+            </Field>
+          )}
+          {mode === 'login' && (
+            <button type="button" onClick={() => switchTo('forgot')} className="-mt-2 block text-sm font-semibold text-brand hover:underline">{t('Mot de passe oublié ?')}</button>
+          )}
           {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
           {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
           {cap.widget}
-          <Btn tone="brand" className="h-12 w-full text-base" disabled={busy || !cap.ready}>{busy ? '…' : !cap.ready ? t('Vérification anti-robot…') : mode === 'login' ? t('Se connecter') : t('Créer mon compte')}</Btn>
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">
+          <Btn tone="brand" className="h-12 w-full text-base" disabled={busy || !cap.ready}>{busy ? '…' : !cap.ready ? t('Vérification anti-robot…') : mode === 'login' ? t('Se connecter') : mode === 'forgot' ? t('Envoyer le lien') : t('Créer mon compte')}</Btn>
+          <button type="button" onClick={() => switchTo(mode === 'login' ? 'signup' : 'login')} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">
             {mode === 'login' ? t('Nouveau restaurant ? Créer un compte') : t('Déjà un compte ? Se connecter')}
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+/** Opened from the "mot de passe oublié" email: the user is signed in with a one-time link and chooses a new password. */
+function NewPassword() {
+  const a = useAdminCtx();
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(null);
+    if (pw.length < 8) { setError(t('Mot de passe trop court (8 caractères minimum).')); return; }
+    if (pw !== pw2) { setError(t('Les deux mots de passe ne sont pas identiques.')); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setBusy(false);
+    if (error) { setError(errorMessage(error)); return; }
+    a.toast(t('Mot de passe modifié.'));
+    a.endRecovery();
+  };
+  return (
+    <div className="grid h-full place-items-center p-6">
+      <form onSubmit={submit} className="rise card w-full max-w-sm space-y-5 rounded-3xl p-7">
+        <div className="flex items-center justify-between gap-3"><AmplifyLogo tone="light" size="sm" /><LangSwitch /></div>
+        <div>
+          <h1 className="font-display text-3xl font-semibold">{t('Nouveau mot de passe')}</h1>
+          <p className="mt-2 text-sm text-muted" dir="ltr">{a.session?.user.email}</p>
+        </div>
+        <Field label={t('Nouveau mot de passe')} hint={t('8 caractères minimum.')}>
+          <input className={inputCls} type="password" autoComplete="new-password" autoFocus value={pw} onChange={e => setPw(e.target.value)} required />
+        </Field>
+        <Field label={t('Confirmer le mot de passe')}>
+          <input className={inputCls} type="password" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} required />
+        </Field>
+        {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
+        <Btn tone="brand" className="h-12 w-full text-base" disabled={busy}>{busy ? '…' : t('Enregistrer le mot de passe')}</Btn>
+      </form>
     </div>
   );
 }
