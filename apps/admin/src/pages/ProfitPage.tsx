@@ -9,6 +9,7 @@ import { useAdminCtx } from '../store';
 import type { BaseUnit, I18n, Ingredient, ProfitData, ProfitDish, RecipeLine, Restaurant } from '../lib/types';
 import { RECIPE_UNITS, fcTone, fmtQty, pct, unitCost } from '../lib/profit';
 import { IngredientEditor } from '../components/IngredientEditor';
+import { MenuMatrix } from '../components/MenuMatrix';
 import { Btn, Modal, inputCls } from '../components/ui';
 
 const key = (d: { item_id: string; variant_id: string | null }) => `${d.item_id}|${d.variant_id ?? ''}`;
@@ -20,7 +21,7 @@ export function ProfitPage({ r, onIngredients }: { r: Restaurant; onIngredients:
   const [data, setData] = useState<ProfitData | null>(null);
   const [edit, setEdit] = useState<ProfitDish | null>(null);
   const [ai, setAi] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'bad' | 'todo'>('all');
+  const [filter, setFilter] = useState<'all' | 'bad' | 'todo' | 'matrix'>('all');
 
   const load = useCallback(async () => {
     try { setData(await rpc<ProfitData>('profit_dishes', { p_restaurant_id: r.id, p_days: 30 })); }
@@ -41,7 +42,7 @@ export function ProfitPage({ r, onIngredients }: { r: Restaurant; onIngredients:
     : costed.length ? Math.round(costed.reduce((s, d) => s + (d.food_cost_bp ?? 0), 0) / costed.length) : null;
   const profit = soldCosted.reduce((s, d) => s + (d.profit_cents ?? 0), 0);
 
-  const shown = filter === 'bad' ? bad : filter === 'todo' ? todo : dishes;
+  const shown = filter === 'bad' ? bad : filter === 'todo' ? todo : filter === 'matrix' ? [] : dishes;
   const groups = useMemo(() => {
     const m = new Map<string, ProfitDish[]>();
     for (const d of shown) { const k = tr(d.category, lang); m.set(k, [...(m.get(k) ?? []), d]); }
@@ -112,10 +113,12 @@ export function ProfitPage({ r, onIngredients }: { r: Restaurant; onIngredients:
         )}
 
         <div className="mb-3 flex flex-wrap gap-2">
-          {([['all', t('Tous ({n})', { n: dishes.length })], ['bad', t('À revoir ({n})', { n: bad.length })], ['todo', t('Sans fiche ({n})', { n: todo.length })]] as const).map(([k, l]) => (
+          {([['all', t('Tous ({n})', { n: dishes.length })], ['bad', t('À revoir ({n})', { n: bad.length })], ['todo', t('Sans fiche ({n})', { n: todo.length })], ['matrix', t('Analyse du menu')]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${filter === k ? 'bg-night text-white' : 'bg-surface-2 text-muted hover:text-ink'}`}>{l}</button>
           ))}
         </div>
+
+        {filter === 'matrix' && <MenuMatrix dishes={dishes} lang={lang} usesPos={data.uses_pos} days={data.days} onOpen={setEdit} />}
 
         {/* ---- dishes */}
         <div className="space-y-4">
@@ -153,7 +156,7 @@ export function ProfitPage({ r, onIngredients }: { r: Restaurant; onIngredients:
             </section>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">{t('Food cost = coût des ingrédients ÷ prix de vente hors TVA. Marge = prix hors TVA − coût des ingrédients (avant loyer et salaires).')}</p>
+        {filter !== 'matrix' && <p className="mt-3 text-xs text-muted">{t('Food cost = coût des ingrédients ÷ prix de vente hors TVA. Marge = prix hors TVA − coût des ingrédients (avant loyer et salaires).')}</p>}
       </>)}
 
       {edit && data && <RecipeEditor r={r} dish={edit} sizes={dishes.filter(d => d.item_id === edit.item_id)} target={target}
