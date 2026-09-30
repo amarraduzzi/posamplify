@@ -1,13 +1,18 @@
-// Bot protection with Cloudflare Turnstile (free). Only active when
-// VITE_TURNSTILE_SITE_KEY is set (Cloudflare Pages > Settings > Variables); the
-// matching secret key goes into Supabase > Authentication > Attack Protection.
-// Without the key (local tests) nothing is shown and no token is sent.
+// Bot protection with Cloudflare Turnstile (free). The matching secret key goes
+// into Supabase > Authentication > Attack Protection. On localhost (tests) it is
+// off: nothing is shown and no token is sent.
 // The widget is mostly invisible: it only asks for a click when a visitor looks suspicious.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLang, t } from './i18n';
 
-const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) || '';
+// Public site key of the "Amplify POS" widget (hostnames: amplify-admin.pages.dev,
+// amplify-kassa.pages.dev; add a custom domain there when there is one).
+// Not used on localhost (local tests), overridable with VITE_TURNSTILE_SITE_KEY ('' = off).
+const DEFAULT_SITE_KEY = '0x4AAAAAAFKLRxnVCHBd2OHl';
+const LOCAL = /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname);
+const ENV_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const SITE_KEY = ENV_KEY !== undefined ? ENV_KEY : LOCAL ? '' : DEFAULT_SITE_KEY;
 
 type Turnstile = {
   render: (el: HTMLElement, o: Record<string, unknown>) => string;
