@@ -335,6 +335,7 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
   const stopRef = useRef(false);
   const [done, setDone] = useState(0);
   const [failed, setFailed] = useState(0);
+  const [quotaHit, setQuotaHit] = useState(false);
   const run = async () => {
     setStep('busy'); setErr(''); setProgress(0); setDone(0); setFailed(0); stopRef.current = false;
     try {
@@ -343,9 +344,9 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
       setPriced(new Set(rows.filter(x => x.purchase_price_cents != null).map(x => x.name.toLowerCase())));
       const all: AiDish[] = [];
       const batches: ProfitDish[][] = [];
-      for (let i = 0; i < dishes.length; i += 6) batches.push(dishes.slice(i, i + 6));
+      for (let i = 0; i < dishes.length; i += 10) batches.push(dishes.slice(i, i + 10));
       let fatal: Error | null = null;
-      let nFailed = 0, next = 0, lastDetail = '';
+      let nFailed = 0, next = 0, lastDetail = '', quota = false;
 
       const ask = async (batch: ProfitDish[]) => {
         const body = { restaurant_id: r.id, ingredients: known.slice(0, 250), dishes: batch.map(d => ({
@@ -357,18 +358,25 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
           const b = data?.error ? data : ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
           const code = b?.error ?? '';
           if (code === 'ai_not_configured' || ctx?.status === 404) throw Object.assign(new Error(t("L'assistant IA n'est pas encore activé.")), { fatal: true });
+          if (code === 'ai_busy' || ctx?.status === 429) throw Object.assign(new Error('ai_busy'), { busy: true });
           if (code === 'not_allowed' || ctx?.status === 401 || ctx?.status === 403) throw Object.assign(new Error(t("L'IA n'a pas pu préparer les fiches. Vérifiez que la fonction profit-ai a « Verify JWT » désactivé.")), { fatal: true });
           throw new Error([code || `http ${ctx?.status ?? '?'}`, b?.detail].filter(Boolean).join(' · ').slice(0, 220));
         }
         return data.dishes as { key: string; lines: AiLine[] }[];
       };
       const worker = async () => {
-        while (!fatal && !stopRef.current && next < batches.length) {
+        while (!fatal && !quota && !stopRef.current && next < batches.length) {
           const batch = batches[next++];
           let res: { key: string; lines: AiLine[] }[] | null = null;
-          for (let attempt = 0; attempt < 2 && !res && !fatal; attempt++) {
+          for (let attempt = 0; attempt < 2 && !res && !fatal && !quota; attempt++) {
             try { res = await ask(batch); }
-            catch (e) { if ((e as { fatal?: boolean }).fatal) fatal = e as Error; else { lastDetail = (e as Error).message; if (attempt === 0) await new Promise(ok => window.setTimeout(ok, 3000)); } }
+            catch (e) {
+              const x = e as Error & { fatal?: boolean; busy?: boolean };
+              if (x.fatal) fatal = x;
+              // free AI quota: wait once for the per-minute limit, then stop politely (daily limit)
+              else if (x.busy) { if (attempt === 0) await new Promise(ok => window.setTimeout(ok, 35000)); else quota = true; }
+              else { lastDetail = x.message; if (attempt === 0) await new Promise(ok => window.setTimeout(ok, 3000)); }
+            }
           }
           if (res) {
             for (const x of res) {
@@ -381,8 +389,10 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
           setProgress(p => Math.min(dishes.length, p + batch.length));
         }
       };
-      await Promise.all([worker(), worker(), worker()]);
+      await Promise.all([worker(), worker()]);
       if (fatal) throw fatal;
+      setQuotaHit(quota);
+      if (!all.length && quota) throw new Error(t('Limite gratuite de l’IA atteinte pour le moment. Réessayez dans une heure, ou demain si la limite du jour est atteinte. Rien n’est perdu.'));
       if (!all.length) throw new Error(t("L'IA n'a pas pu préparer les fiches. Réessayez.") + (lastDetail ? ` [${lastDetail}]` : ''));
       // same order as the menu
       const order = new Map(dishes.map((d, k) => [key(d), k]));
@@ -460,6 +470,7 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
             );
           })}
           <p className="text-xs text-muted">{t('Les quantités se corrigent ensuite plat par plat, et les prix dans « Ingrédients ».')}</p>
+          {quotaHit && <p className="rounded-xl bg-warn/10 px-3 py-2 text-xs font-semibold text-warn">{t('La limite gratuite de l’IA est atteinte : enregistrez ces fiches, et relancez plus tard pour les plats restants.')}</p>}
           {out.length < dishes.length && <p className="rounded-xl bg-warn/10 px-3 py-2 text-xs font-semibold text-warn">{t('{n} plats sans proposition cette fois{f}. Relancez l’IA après avoir enregistré : elle ne traitera que les plats restants.', { n: dishes.length - out.length, f: failed ? ` (${t('délai dépassé')})` : '' })}</p>}
         </div>
       )}

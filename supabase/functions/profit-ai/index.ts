@@ -13,7 +13,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 const KEY = Deno.env.get('GEMINI_API_KEY');
 const MODEL = Deno.env.get('PROFIT_MODEL') ?? Deno.env.get('BRIEFING_MODEL') ?? 'gemini-3.5-flash';
-const MAX_DISHES = 12;
+const MAX_DISHES = 12; // the screen sends 10 per call: fewer calls, kinder to the free AI quota
 
 const cors = {
   'Access-Control-Allow-Origin': '*',

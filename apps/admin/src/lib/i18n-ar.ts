@@ -542,4 +542,6 @@ export const AR: Record<string, string> = {
   "{n} plats sans proposition cette fois{f}. Relancez l’IA après avoir enregistré : elle ne traitera que les plats restants.": "{n} أطباق بدون اقتراح هذه المرة{f}. أعيدوا تشغيل الذكاء الاصطناعي بعد الحفظ: سيعالج الأطباق المتبقية فقط.",
   "{n} plats traités sur {t}": "تمت معالجة {n} من أصل {t} طبقا",
   "Arrêter et vérifier": "التوقف والتحقق",
+  "Limite gratuite de l’IA atteinte pour le moment. Réessayez dans une heure, ou demain si la limite du jour est atteinte. Rien n’est perdu.": "تم بلوغ الحد المجاني للذكاء الاصطناعي حاليا. أعيدوا المحاولة بعد ساعة، أو غدا إذا بلغ الحد اليومي. لا شيء ضاع.",
+  "La limite gratuite de l’IA est atteinte : enregistrez ces fiches, et relancez plus tard pour les plats restants.": "تم بلوغ الحد المجاني للذكاء الاصطناعي: احفظوا هذه البطاقات وأعيدوا التشغيل لاحقا للأطباق المتبقية.",
 };
