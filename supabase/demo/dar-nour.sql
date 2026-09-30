@@ -3,10 +3,6 @@
 -- the demo from scratch. Photos: Unsplash (free license), loaded from their CDN.
 begin;
 
--- remove the previous demo (purge mode: demo data may go, real restaurants never)
-select set_config('app.purge', 'on', true);
-delete from public.restaurants where slug = 'dar-nour' and is_demo;
-select set_config('app.purge', 'off', true);
 
 do $$
 declare
@@ -15,6 +11,11 @@ declare
   it  uuid;
   img constant text := 'https://images.unsplash.com/photo-%s?w=800&q=75&auto=format&fit=crop';
 begin
+  -- remove the previous demo (purge mode: demo data may go, real restaurants never)
+  perform set_config('app.purge', 'on', true);
+  delete from public.restaurants where slug = 'dar-nour' and is_demo;
+  perform set_config('app.purge', 'off', true);
+
   insert into public.restaurants (slug, name, status, is_demo, languages, address, city, branding,
     accept_dine_in, accept_takeaway, accept_delivery, opening_hours)
   values ('dar-nour', 'Dar Nour', 'active', true, '{fr,ar,en}', 'Café de démonstration', 'Maroc',
@@ -106,5 +107,9 @@ begin
   insert into public.dining_tables (restaurant_id, label, sort_order)
   select rid, n::text, n from generate_series(1, 8) n;
 end $$;
+
+-- confirmation shown in the SQL editor
+select 'Dar Nour : ' || count(*) || ' plats' as resultat
+  from public.menu_items i join public.restaurants r on r.id = i.restaurant_id where r.slug = 'dar-nour';
 
 commit;
