@@ -1,5 +1,5 @@
 // Amplify Profit: margins per dish, recipe cards, and the AI that fills them.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUpRight, Check, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
@@ -331,35 +331,62 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
   const byKey = useMemo(() => new Map(dishes.map(d => [key(d), d])), [dishes]);
   const nm = (n: I18n) => tr(n, lang);
 
+  // small batches, three at a time, each with a time limit: a big menu never blocks the screen
+  const stopRef = useRef(false);
+  const [done, setDone] = useState(0);
+  const [failed, setFailed] = useState(0);
   const run = async () => {
-    setStep('busy'); setErr(''); setProgress(0);
+    setStep('busy'); setErr(''); setProgress(0); setDone(0); setFailed(0); stopRef.current = false;
     try {
       const rows = check(await supabase.from('ingredients').select('name, purchase_price_cents').eq('restaurant_id', r.id)) as { name: string; purchase_price_cents: number | null }[];
       const known = rows.map(x => x.name);
       setPriced(new Set(rows.filter(x => x.purchase_price_cents != null).map(x => x.name.toLowerCase())));
       const all: AiDish[] = [];
-      for (let i = 0; i < dishes.length; i += 20) {
-        const batch = dishes.slice(i, i + 20).map(d => ({
-          key: key(d), name: nm(d.name), variant: d.variant_name ? nm(d.variant_name) : undefined,
-          category: nm(d.category), price_dh: d.price_cents / 100,
-        }));
-        const { data, error } = await supabase.functions.invoke('profit-ai', { body: { restaurant_id: r.id, dishes: batch, ingredients: known } });
+      const batches: ProfitDish[][] = [];
+      for (let i = 0; i < dishes.length; i += 6) batches.push(dishes.slice(i, i + 6));
+      let fatal: Error | null = null;
+      let nFailed = 0, next = 0, lastDetail = '';
+
+      const ask = async (batch: ProfitDish[]) => {
+        const body = { restaurant_id: r.id, ingredients: known.slice(0, 250), dishes: batch.map(d => ({
+          key: key(d), name: nm(d.name), variant: d.variant_name ? nm(d.variant_name) : undefined, category: nm(d.category), price_dh: d.price_cents / 100 })) };
+        const timeout = new Promise<never>((_, rej) => window.setTimeout(() => rej(new Error('timeout')), 100000));
+        const { data, error } = await Promise.race([supabase.functions.invoke('profit-ai', { body }), timeout]);
         if (error || !data || data.error) {
           const ctx = (error as { context?: Response } | null)?.context;
-          const body = data?.error ? data : ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
-          const code = body?.error ?? '';
-          if (code === 'ai_not_configured' || ctx?.status === 404) throw new Error(t("L'assistant IA n'est pas encore activé."));
-          if (code === 'ai_busy') throw new Error(t("L'IA est très demandée en ce moment. Réessayez dans une minute."));
-          throw new Error(t("L'IA n'a pas pu préparer les fiches. Réessayez."));
+          const b = data?.error ? data : ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+          const code = b?.error ?? '';
+          if (code === 'ai_not_configured' || ctx?.status === 404) throw Object.assign(new Error(t("L'assistant IA n'est pas encore activé.")), { fatal: true });
+          if (code === 'not_allowed' || ctx?.status === 401 || ctx?.status === 403) throw Object.assign(new Error(t("L'IA n'a pas pu préparer les fiches. Vérifiez que la fonction profit-ai a « Verify JWT » désactivé.")), { fatal: true });
+          throw new Error([code || `http ${ctx?.status ?? '?'}`, b?.detail].filter(Boolean).join(' · ').slice(0, 220));
         }
-        for (const x of data.dishes as { key: string; lines: AiLine[] }[]) {
-          if (!byKey.has(x.key)) continue;
-          const lines = (x.lines ?? []).filter(l => l && l.name && ['g', 'ml', 'pc'].includes(l.base_unit) && l.qty > 0);
-          if (lines.length) { all.push({ key: x.key, lines, include: true }); for (const l of lines) if (!known.includes(l.name)) known.push(l.name); }
+        return data.dishes as { key: string; lines: AiLine[] }[];
+      };
+      const worker = async () => {
+        while (!fatal && !stopRef.current && next < batches.length) {
+          const batch = batches[next++];
+          let res: { key: string; lines: AiLine[] }[] | null = null;
+          for (let attempt = 0; attempt < 2 && !res && !fatal; attempt++) {
+            try { res = await ask(batch); }
+            catch (e) { if ((e as { fatal?: boolean }).fatal) fatal = e as Error; else { lastDetail = (e as Error).message; if (attempt === 0) await new Promise(ok => window.setTimeout(ok, 3000)); } }
+          }
+          if (res) {
+            for (const x of res) {
+              if (!byKey.has(x.key)) continue;
+              const lines = (x.lines ?? []).filter(l => l && l.name && ['g', 'ml', 'pc'].includes(l.base_unit) && l.qty > 0);
+              if (lines.length) { all.push({ key: x.key, lines, include: true }); for (const l of lines) if (!known.includes(l.name)) known.push(l.name); }
+            }
+            setDone(all.length);
+          } else if (!fatal) { nFailed += batch.length; setFailed(nFailed); }
+          setProgress(p => Math.min(dishes.length, p + batch.length));
         }
-        setProgress(Math.min(dishes.length, i + 20));
-      }
-      if (!all.length) throw new Error(t("L'IA n'a pas pu préparer les fiches. Réessayez."));
+      };
+      await Promise.all([worker(), worker(), worker()]);
+      if (fatal) throw fatal;
+      if (!all.length) throw new Error(t("L'IA n'a pas pu préparer les fiches. Réessayez.") + (lastDetail ? ` [${lastDetail}]` : ''));
+      // same order as the menu
+      const order = new Map(dishes.map((d, k) => [key(d), k]));
+      all.sort((x, y) => (order.get(x.key) ?? 0) - (order.get(y.key) ?? 0));
       setOut(all); setStep('review');
     } catch (e) { setErr(errorMessage(e).replace(/^Erreur : /, '')); setStep('intro'); }
   };
@@ -402,7 +429,10 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
         <div className="grid place-items-center gap-4 py-14 text-center">
           <span className="relative grid h-16 w-16 place-items-center rounded-full gold-fill text-brand-ink"><Sparkles className="h-7 w-7" /><Loader2 className="absolute -inset-2 h-20 w-20 animate-spin text-brand/40" /></span>
           <p className="font-display text-xl font-semibold">{t('L’IA prépare vos fiches…')}</p>
-          <p className="text-sm text-muted tabular">{progress} / {dishes.length}</p>
+          <div className="h-2 w-64 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${Math.round(progress * 100 / Math.max(1, dishes.length))}%` }} /></div>
+          <p className="text-sm text-muted tabular">{t('{n} plats traités sur {t}', { n: progress, t: dishes.length })} · {t('{n} fiches prêtes', { n: done })}</p>
+          <p className="max-w-sm text-xs text-muted">{t('Environ 1 minute pour 20 plats. Vous pouvez vous arrêter et vérifier ce qui est prêt : les autres plats pourront être traités ensuite.')}</p>
+          {done > 0 && <Btn tone="ghost" onClick={() => { stopRef.current = true; }}>{t('Arrêter et vérifier')}</Btn>}
         </div>
       )}
       {(step === 'review' || step === 'saving') && (
@@ -430,6 +460,7 @@ function AiFill({ r, dishes, onClose, onSaved }: { r: Restaurant; dishes: Profit
             );
           })}
           <p className="text-xs text-muted">{t('Les quantités se corrigent ensuite plat par plat, et les prix dans « Ingrédients ».')}</p>
+          {out.length < dishes.length && <p className="rounded-xl bg-warn/10 px-3 py-2 text-xs font-semibold text-warn">{t('{n} plats sans proposition cette fois{f}. Relancez l’IA après avoir enregistré : elle ne traitera que les plats restants.', { n: dishes.length - out.length, f: failed ? ` (${t('délai dépassé')})` : '' })}</p>}
         </div>
       )}
     </Modal>

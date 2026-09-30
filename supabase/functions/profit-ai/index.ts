@@ -13,7 +13,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 const KEY = Deno.env.get('GEMINI_API_KEY');
 const MODEL = Deno.env.get('PROFIT_MODEL') ?? Deno.env.get('BRIEFING_MODEL') ?? 'gemini-3.5-flash';
-const MAX_DISHES = 25;
+const MAX_DISHES = 12;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +67,19 @@ const SCHEMA = {
   required: ['dishes'],
 };
 
+// quick answers: recipes need common sense, not long reasoning
+const THINK = { thinkingConfig: { thinkingLevel: 'low' } };
+function call(prompt: string, think: boolean) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': KEY!, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2, maxOutputTokens: 12000, ...(think ? THINK : {}) },
+    }),
+  });
+}
+
 type Dish = { key: string; name: string; variant?: string; category?: string; description?: string; price_dh?: number };
 
 Deno.serve(async req => {
@@ -95,14 +108,9 @@ Deno.serve(async req => {
   const prompt = `${PROMPT}\n\nIngrédients existants : ${JSON.stringify(known)}\n\nPlats :\n${JSON.stringify(clean)}`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'x-goog-api-key': KEY, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2, maxOutputTokens: 32768 },
-      }),
-    });
+    let res = await call(prompt, true);
+    // a model that does not know the "thinking" setting: ask again without it
+    if (res.status === 400 && /thinking/i.test(await res.clone().text())) res = await call(prompt, false);
     if (!res.ok) {
       const t = (await res.text()).slice(0, 200);
       return json({ error: res.status === 429 ? 'ai_busy' : 'ai_failed', detail: `gemini ${res.status} ${t}` }, res.status === 429 ? 429 : 502);

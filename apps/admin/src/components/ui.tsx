@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useState, type ReactNode } from 'react';
 import { X, ImagePlus, Trash2, Link as LinkIcon } from 'lucide-react';
 import type { I18n } from '../lib/types';
@@ -8,7 +9,8 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  return (
+  // rendered on <body>: an animated page (transform) would otherwise hold it far down a long page
+  return createPortal((
     <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-night/50 p-3 backdrop-blur-[2px]" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" className={`pop flex max-h-full w-full flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
         <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
@@ -19,7 +21,7 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
         {footer && <div className="border-t border-line/[0.07] bg-surface-2/50 px-6 py-4">{footer}</div>}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 type Tone = 'brand' | 'plain' | 'ghost' | 'danger';

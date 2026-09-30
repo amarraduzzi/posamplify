@@ -535,4 +535,11 @@ export const AR: Record<string, string> = {
   "Ou commencez avec des catégories prêtes :": "أو ابدأوا بفئات جاهزة:",
   "Place aux marges : l’IA peut remplir les fiches techniques de vos plats en une minute.": "حان وقت الهوامش: يمكن للذكاء الاصطناعي ملء البطاقات التقنية لأطباقكم في دقيقة.",
   "Voir mes plats": "عرض أطباقي",
+  "Environ 1 minute pour 20 plats. Vous pouvez vous arrêter et vérifier ce qui est prêt : les autres plats pourront être traités ensuite.": "حوالي دقيقة لكل 20 طبقا. يمكنكم التوقف والتحقق مما هو جاهز: ستعالج الأطباق الأخرى لاحقا.",
+  "L'IA n'a pas pu préparer les fiches. Vérifiez que la fonction profit-ai a « Verify JWT » désactivé.": "لم يتمكن الذكاء الاصطناعي من إعداد البطاقات. تحققوا من أن «Verify JWT» معطل في الدالة profit-ai.",
+  "délai dépassé": "تجاوز المهلة",
+  "{n} fiches prêtes": "{n} بطاقات جاهزة",
+  "{n} plats sans proposition cette fois{f}. Relancez l’IA après avoir enregistré : elle ne traitera que les plats restants.": "{n} أطباق بدون اقتراح هذه المرة{f}. أعيدوا تشغيل الذكاء الاصطناعي بعد الحفظ: سيعالج الأطباق المتبقية فقط.",
+  "{n} plats traités sur {t}": "تمت معالجة {n} من أصل {t} طبقا",
+  "Arrêter et vérifier": "التوقف والتحقق",
 };

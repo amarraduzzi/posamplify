@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { t } from '../lib/i18n';
@@ -10,7 +11,8 @@ export function Modal({ title, onClose, children, footer, wide }: {
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  return (
+  // rendered on <body>: an animated screen (transform) would otherwise hold it inside that screen
+  return createPortal((
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#02050c]/70 p-4 backdrop-blur-[2px]" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" className={`pop panel flex max-h-full w-full flex-col overflow-hidden rounded-3xl shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-md'}`}>
         <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
@@ -21,7 +23,7 @@ export function Modal({ title, onClose, children, footer, wide }: {
         {footer && <div className="border-t border-line/[0.07] bg-bg/40 px-6 py-4">{footer}</div>}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 type BtnTone = 'brand' | 'ghost' | 'danger' | 'ok' | 'plain';
