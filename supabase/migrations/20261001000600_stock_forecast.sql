@@ -12,7 +12,7 @@
 
 -- A purchase dated the day of a count: before the count (the default, a count
 -- is the stock at the end of the day) or received after it (after_count).
-alter table public.stock_purchases add column after_count boolean not null default false;
+alter table public.stock_purchases add column if not exists after_count boolean not null default false;
 
 create or replace function public.stock_forecast(p_restaurant_id uuid)
 returns jsonb
