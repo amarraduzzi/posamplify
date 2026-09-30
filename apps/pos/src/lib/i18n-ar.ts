@@ -301,4 +301,13 @@ export const AR: Record<string, string> = {
   "Vérification anti-robot…": "جار التحقق من أنكم لستم روبوتا…",
   "Vérification anti-robot impossible. Vérifiez la connexion et rechargez la page.": "تعذر التحقق من أنكم لستم روبوتا. تحققوا من الاتصال وأعيدوا تحميل الصفحة.",
   "Vérification anti-robot échouée. Réessayez dans un instant.": "فشل التحقق من أنكم لستم روبوتا. أعيدوا المحاولة بعد قليل.",
+  "Arrivée": "الوصول",
+  "Bonjour {name} !": "مرحبا {name}!",
+  "Bonne soirée {name} !": "مساء الخير {name}!",
+  "Départ": "المغادرة",
+  "Pas de connexion internet : le pointage n’est pas possible pour le moment.": "لا يوجد اتصال بالإنترنت: التسجيل غير ممكن حاليا.",
+  "Pointer arrivée / départ": "تسجيل الوصول / المغادرة",
+  "Qui pointe ?": "من يسجل؟",
+  "Temps de travail : {d}": "مدة العمل: {d}",
+  "Votre dernier départ n’avait pas été pointé. Le gérant le corrigera.": "لم يتم تسجيل مغادرتكم الأخيرة. سيصححها المسير.",
 };

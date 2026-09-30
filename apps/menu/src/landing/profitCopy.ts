@@ -42,7 +42,7 @@ const fr = {
       ['Factures fournisseurs en photo', 'Même les bons écrits à la main du souk. Les prix se mettent à jour et vous êtes alerté.', false],
       ['Stock et écarts', 'Comptez en 10 minutes. Voyez ce qui manque, en kilos et en dirhams.', true],
       ['Loyer, salaires, point mort', 'Le chiffre à faire chaque jour pour être rentable.', true],
-      ['Personnel', 'Heures, coût du personnel en % du chiffre d’affaires, remises et annulations par employé.', false],
+      ['Personnel', 'Heures, coût du personnel en % du chiffre d’affaires, remises et annulations par employé.', true],
     ] as [string, string, boolean][],
   },
   how: {
@@ -123,7 +123,7 @@ const ar: ProfitCopy = {
       ['فواتير الموردين بصورة', 'حتى وصولات السوق المكتوبة باليد. تتحدث الأسعار وتتوصلون بتنبيه.', false],
       ['المخزون والفوارق', 'عدّوا في 10 دقائق. شاهدوا ما ينقص، بالكيلو والدرهم.', true],
       ['الكراء، الأجور، عتبة المردودية', 'الرقم الذي يجب تحقيقه كل يوم لتكونوا مربحين.', true],
-      ['الموظفون', 'الساعات، تكلفة الموظفين كنسبة من المعاملات، التخفيضات والإلغاءات لكل موظف.', false],
+      ['الموظفون', 'الساعات، تكلفة الموظفين كنسبة من المعاملات، التخفيضات والإلغاءات لكل موظف.', true],
     ],
   },
   how: {

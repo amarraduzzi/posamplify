@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock3 } from 'lucide-react';
 import { usePos } from '../store';
 import { rpc } from '../lib/data';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
@@ -17,6 +17,7 @@ export function StaffGate() {
   const [who, setWho] = useState<Staff | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clocking, setClocking] = useState(false);
   const r = pos.restaurant!;
   // nobody is working: a good moment to switch to a new app version, if one is waiting
   useEffect(() => { if (!import.meta.env.PROD) return; import('../lib/sw').then(m => m.applyUpdateIfWaiting()).catch(() => {}); }, []);
@@ -84,7 +85,73 @@ export function StaffGate() {
           <button onClick={() => setWho(null)} className="mx-auto mt-5 flex items-center gap-1 text-sm text-muted hover:text-ink"><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("Changer d'employé")}</button>
         </div>
       )}
+      {/* clock-in / out: only useful when the owner has Amplify Profit to read the hours */}
+      {r.products?.includes('profit') && pos.staffList.length > 0 && (
+        <button onClick={() => setClocking(true)} className="panel relative flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold hover:border-brand/60">
+          <Clock3 className="h-4 w-4 text-brand" /> {t('Pointer arrivée / départ')}
+        </button>
+      )}
       <button onClick={pos.logout} className="relative text-xs text-muted/60 hover:text-ink">{t('Déconnecter ce poste')}</button>
+      {clocking && <ClockIn onClose={() => setClocking(false)} />}
+    </div>
+  );
+}
+
+/** Clock in or out with the personal PIN. Needs the internet (hours are kept on the server). */
+function ClockIn({ onClose }: { onClose: () => void }) {
+  const pos = usePos();
+  const r = pos.restaurant!;
+  const [who, setWho] = useState<Staff | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<{ action: 'in' | 'out'; name: string; minutes?: number; forgot?: boolean } | null>(null);
+  useEffect(() => { if (!done) return; const i = window.setTimeout(onClose, 3500); return () => window.clearTimeout(i); }, [done, onClose]);
+  const submit = async (pin: string) => {
+    if (!who) return;
+    if (!pos.online) { setError(t('Pas de connexion internet : le pointage n’est pas possible pour le moment.')); return; }
+    setBusy(true); setError(null);
+    try {
+      const res = await rpc<{ ok: boolean; error?: string; action: 'in' | 'out'; name: string; minutes?: number; forgot?: boolean }>('pos_clock', { p_restaurant_id: r.id, p_staff_id: who.id, p_pin: pin });
+      if (res.ok) setDone(res);
+      else setError(PIN_ERRORS[res.error ?? 'invalid'] ?? t('Code incorrect.'));
+    } catch (e) { setError(isNetworkError(e) ? t('Pas de connexion internet : le pointage n’est pas possible pour le moment.') : errorMessage(e)); }
+    setBusy(false);
+  };
+  const time = new Date().toLocaleTimeString('fr-FR', { timeZone: r.timezone, hour: '2-digit', minute: '2-digit' });
+  const dur = (m = 0) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#02050c]/80 p-6 backdrop-blur-sm" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" className="pop panel w-full max-w-2xl rounded-3xl p-6">
+        {done ? (
+          <div className="py-8 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{done.action === 'in' ? t('Arrivée') : t('Départ')} · {time}</p>
+            <h2 className="mt-3 font-display text-4xl font-semibold">{done.action === 'in' ? t('Bonjour {name} !', { name: done.name }) : t('Bonne soirée {name} !', { name: done.name })}</h2>
+            {done.action === 'out' && <p className="mt-2 text-lg text-muted">{t('Temps de travail : {d}', { d: dur(done.minutes) })}</p>}
+            {done.forgot && <p className="mt-3 text-sm text-warn">{t('Votre dernier départ n’avait pas été pointé. Le gérant le corrigera.')}</p>}
+          </div>
+        ) : !who ? (
+          <>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-display text-2xl font-semibold">{t('Qui pointe ?')}</h2>
+              <button onClick={onClose} className="text-sm text-muted hover:text-ink">{t('Annuler')}</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {pos.staffList.map(s => (
+                <button key={s.id} onClick={() => { setWho(s); setError(null); }} className="panel flex items-center gap-3 rounded-2xl px-4 py-4 text-start hover:border-brand/60 active:scale-95">
+                  <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-2 font-bold text-brand">{initials(s.name)}</span>
+                  <span className="font-bold">{s.name}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="mx-auto max-w-sm">
+            <p className="mb-4 text-center text-lg">{t('Code de {name}', { name: who.name })}</p>
+            <PinPad onSubmit={submit} busy={busy} error={error} />
+            <button onClick={() => setWho(null)} className="mx-auto mt-5 flex items-center gap-1 text-sm text-muted hover:text-ink"><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("Changer d'employé")}</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

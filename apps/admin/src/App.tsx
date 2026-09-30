@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -21,8 +21,9 @@ import { ProfitPage } from './pages/ProfitPage';
 import { IngredientsPage } from './pages/IngredientsPage';
 import { ChargesPage } from './pages/ChargesPage';
 import { StockPage } from './pages/StockPage';
+import { TeamPage } from './pages/TeamPage';
 
-type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'charges';
+type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -70,6 +71,7 @@ function Screens() {
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
     { id: 'stock', label: t('Inventaire'), Icon: ClipboardList, show: hasProfit },
+    { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
@@ -130,6 +132,7 @@ function Screens() {
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
           {r && current === 'stock' && <StockPage key={r.id} r={r} />}
+          {r && current === 'team' && <TeamPage key={r.id} r={r} />}
           {r && current === 'charges' && <ChargesPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}

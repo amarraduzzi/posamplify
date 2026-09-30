@@ -17,7 +17,7 @@ export interface Restaurant {
   languages: string[]; branding: { primary_color?: string; logo_url?: string };
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
-  pos_settings: PosSettings; trial_ends_at: string | null;
+  pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
 }
 
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
