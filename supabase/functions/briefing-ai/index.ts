@@ -2,18 +2,27 @@
 //
 // Security: it runs the database function owner_briefing() WITH THE CALLER'S
 // OWN LOGIN, so only owners and managers of that restaurant get an answer
-// (the database refuses everyone else). The Anthropic key is a server secret
-// (ANTHROPIC_API_KEY), never sent to the browser.
+// (the database refuses everyone else). The AI key is a server secret, never
+// sent to the browser: GEMINI_API_KEY (Google, has a free tier) or
+// ANTHROPIC_API_KEY (Claude). If both are set, Gemini is used.
+//
+// Privacy: staff names and the restaurant name are replaced by neutral labels
+// before the figures leave for the AI, and put back in the answer. (Google's
+// free tier may use prompts to improve its products; the labels keep people's
+// names out of it.)
 //
 // Reliability: the model receives the exact figures and must not compute new
 // ones; it only explains them and proposes actions. No accusations of staff.
 //
 // Deploy: Supabase dashboard > Edge Functions > Deploy a new function > via Editor,
-// name "briefing-ai", paste this file. Secret: Edge Functions > Secrets > ANTHROPIC_API_KEY.
+// name "briefing-ai", paste this file. Secret: Edge Functions > Secrets > GEMINI_API_KEY
+// (or ANTHROPIC_API_KEY). Optional: BRIEFING_MODEL.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
-const MODEL = Deno.env.get('BRIEFING_MODEL') ?? 'claude-sonnet-5';
+const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
+const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+const MODEL = Deno.env.get('BRIEFING_MODEL') ?? (GEMINI_KEY ? 'gemini-3.5-flash' : 'claude-sonnet-5');
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -42,8 +51,7 @@ Réponds UNIQUEMENT avec un JSON : {"summary": "3 phrases maximum sur la journé
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
-  const key = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!key) return json({ error: 'ai_not_configured' }, 503);
+  if (!GEMINI_KEY && !ANTHROPIC_KEY) return json({ error: 'ai_not_configured' }, 503);
 
   const auth = req.headers.get('Authorization') ?? '';
   const { restaurant_id, business_date = null, lang = 'fr' } = await req.json().catch(() => ({}));
@@ -56,30 +64,60 @@ Deno.serve(async req => {
   const { data: facts, error } = await db.rpc('owner_briefing', { p_restaurant_id: restaurant_id, p_business_date: business_date });
   if (error) return json({ error: error.message }, error.message.includes('not allowed') ? 403 : 400);
 
-  const l = lang === 'ar' ? 'ar' : 'fr';
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 700,
-      system: SYSTEM[l],
-      messages: [{ role: 'user', content: `Chiffres de la journée (JSON) :\n${JSON.stringify(facts)}` }],
-    }),
+  // pseudonymise: people's names never leave, labels come back and are replaced
+  const names = new Map<string, string>();
+  const staff = (facts.staff ?? []).map((s: { name: string | null }, i: number) => {
+    const label = `EMPLOYE_${i + 1}`;
+    if (s.name) names.set(label, s.name);
+    return { ...s, name: label, staff_id: undefined };
   });
-  if (!res.ok) return json({ error: 'ai_failed', status: res.status }, 502);
-  const out = await res.json();
-  const text: string = out?.content?.[0]?.text ?? '';
+  const anon = { ...facts, restaurant: undefined, staff, today: { ...facts.today, by_staff: undefined }, last_week: { ...facts.last_week, by_staff: undefined } };
+  const unmask = (x: string) => x.replace(/EMPLOYE_\d+/g, m => names.get(m) ?? m);
+
+  const l = lang === 'ar' ? 'ar' : 'fr';
+  const prompt = `Chiffres de la journée (JSON). Les employés sont désignés par EMPLOYE_1, EMPLOYE_2... : garde exactement ces libellés dans ta réponse.\n${JSON.stringify(anon)}`;
+  let text = '';
+  try {
+    text = GEMINI_KEY ? await gemini(SYSTEM[l], prompt) : await claude(SYSTEM[l], prompt);
+  } catch (e) {
+    return json({ error: 'ai_failed', detail: String(e).slice(0, 200) }, 502);
+  }
   const m = text.match(/\{[\s\S]*\}/);
   try {
     const parsed = JSON.parse(m ? m[0] : text);
     return json({
-      summary: String(parsed.summary ?? ''),
-      actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 3).map(String) : [],
-      watch: Array.isArray(parsed.watch) ? parsed.watch.slice(0, 2).map(String) : [],
+      summary: unmask(String(parsed.summary ?? '')),
+      actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 3).map((x: unknown) => unmask(String(x))) : [],
+      watch: Array.isArray(parsed.watch) ? parsed.watch.slice(0, 2).map((x: unknown) => unmask(String(x))) : [],
       business_date: facts.business_date, model: MODEL,
     });
   } catch {
     return json({ error: 'ai_bad_format' }, 502);
   }
 });
+
+async function gemini(system: string, prompt: string): Promise<string> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': GEMINI_KEY!, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 1024, temperature: 0.4 },
+    }),
+  });
+  if (!res.ok) throw new Error(`gemini ${res.status} ${(await res.text()).slice(0, 150)}`);
+  const out = await res.json();
+  return (out?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('');
+}
+
+async function claude(system: string, prompt: string): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': ANTHROPIC_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 700, system, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!res.ok) throw new Error(`claude ${res.status}`);
+  const out = await res.json();
+  return out?.content?.[0]?.text ?? '';
+}

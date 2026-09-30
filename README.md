@@ -160,5 +160,5 @@ node scripts/local/e2e.mjs                     # bestelt als gast en controleert
 ## AI-conseiller activeren (eenmalig)
 
 1. Supabase > Edge Functions > Deploy a new function > Via editor: naam `briefing-ai`, inhoud van `supabase/functions/briefing-ai/index.ts`.
-2. Supabase > Edge Functions > Secrets: `ANTHROPIC_API_KEY` = sleutel van console.anthropic.com. Optioneel `BRIEFING_MODEL`.
+2. Supabase > Edge Functions > Secrets: `GEMINI_API_KEY` (gratis sleutel via aistudio.google.com > Get API key) of `ANTHROPIC_API_KEY`. Optioneel `BRIEFING_MODEL`. Namen van personeel worden vervangen door labels voordat de cijfers naar de AI gaan.
 Zonder sleutel toont het beheer "bientôt activé"; de rest van de briefing werkt altijd.
