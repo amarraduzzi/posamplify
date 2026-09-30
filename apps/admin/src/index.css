@@ -65,3 +65,7 @@ body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-font-smoothin
   body { background: white; }
   @page { margin: 10mm; }
 }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .2) transparent; }
+.scroll-thin::-webkit-scrollbar { width: 6px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / .2); border-radius: 6px; }

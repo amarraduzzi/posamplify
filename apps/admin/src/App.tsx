@@ -72,8 +72,10 @@ function Screens() {
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo className="relative mb-7 mt-1 px-2" />
-        <div className="relative mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+        <AmplifyLogo className="relative mb-5 mt-1 shrink-0 px-2" />
+        {/* the middle part scrolls on low screens, so language and logout stay visible */}
+        <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+        <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">{t('Restaurant')}</p>
           {a.list.length > 1 ? (
             <select className="mb-1 w-full rounded-xl border border-white/10 bg-night-2 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-brand" value={r?.id ?? ''} onChange={e => { const x = a.list!.find(l => l.r.id === e.target.value); if (x) a.choose(x.r); }}>
@@ -87,14 +89,15 @@ function Screens() {
         <nav className="relative space-y-1">
           {nav.filter(n => n.show).map(n => (
             <button key={n.id} onClick={() => { setPage(n.id); setNavOpen(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-[15px] font-semibold transition ${current === n.id ? 'gold-fill text-brand-ink' : 'text-white/60 hover:bg-white/[0.06] hover:text-white'}`}>
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-[15px] font-semibold transition [@media(max-height:820px)]:py-2 ${current === n.id ? 'gold-fill text-brand-ink' : 'text-white/60 hover:bg-white/[0.06] hover:text-white'}`}>
               <n.Icon className="h-5 w-5" />{n.label}
             </button>
           ))}
         </nav>
         {r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
-        <div className="relative mt-auto pt-4">
-          <LangSwitch dark className="mb-3 flex w-full" />
+        </div>
+        <div className="relative shrink-0 border-t border-white/10 pt-3">
+          <LangSwitch dark className="mb-2 flex w-full" />
           <p className="mb-2 truncate px-1 text-xs text-white/40" dir="ltr">{a.session.user.email}</p>
           <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.06] hover:text-white" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4 rtl:-scale-x-100" /> {t('Déconnexion')}</button>
         </div>
