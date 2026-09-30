@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Save, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
+import { Save, ExternalLink, Star, Download } from 'lucide-react';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { uploadImage } from '../lib/image';
@@ -21,7 +22,15 @@ export function SettingsPage({ r }: { r: Restaurant }) {
     day_cutoff_hour: r.day_cutoff_hour,
   });
   const [brand, setBrand] = useState({ primary_color: r.branding.primary_color ?? '#C2410C', theme: r.branding.theme ?? 'light',
-    logo_url: r.branding.logo_url ?? null as string | null, cover_url: r.branding.cover_url ?? null as string | null, tagline: (r.branding.tagline ?? {}) as I18n });
+    logo_url: r.branding.logo_url ?? null as string | null, cover_url: r.branding.cover_url ?? null as string | null, tagline: (r.branding.tagline ?? {}) as I18n,
+    review_url: r.branding.review_url ?? '', review_on_receipt: r.branding.review_on_receipt ?? true });
+  const reviewOk = !brand.review_url.trim() || /^https:\/\/\S+$/.test(brand.review_url.trim());
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    const u = brand.review_url.trim();
+    if (!u || !reviewOk) { setQr(null); return; }
+    QRCode.toDataURL(u, { width: 600, margin: 2 }).then(setQr).catch(() => setQr(null));
+  }, [brand.review_url, reviewOk]);
   const ps = r.pos_settings ?? {};
   const [pos, setPos] = useState({ receipt: ps.printers?.receipt ?? 'TICKET', kitchen: ps.printers?.stations?.kitchen ?? 'CUISINE', bar: ps.printers?.stations?.bar ?? 'BAR',
     idle: String(ps.idle_lock_minutes ?? 10), footer: ps.receipt_footer ?? '' });
@@ -34,7 +43,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       check(await supabase.from('restaurants').update({
         ...f, name: f.name.trim(), ice: f.ice.trim() || null, legal_name: f.legal_name.trim() || null, tax_id: f.tax_id.trim() || null,
         rc: f.rc.trim() || null, phone: f.phone.trim() || null, address: f.address.trim() || null, city: f.city.trim() || null,
-        branding: { ...r.branding, ...brand, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined },
+        branding: { ...r.branding, ...brand, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined },
         pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: { kitchen: pos.kitchen.trim() || 'CUISINE', bar: pos.bar.trim() || 'BAR' } },
           idle_lock_minutes: Math.max(0, Math.min(120, Number(pos.idle) || 0)), receipt_footer: pos.footer.trim() || undefined },
       }).eq('id', r.id).select('id'));
@@ -48,7 +57,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="me-auto font-display text-3xl font-semibold">{t('Restaurant')}</h1>
-        {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
+        {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length || !reviewOk} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
       </div>
       {ro && <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm">{t('Seul le propriétaire peut modifier ces informations.')}</p>}
       <fieldset disabled={ro} className="space-y-6">
@@ -92,6 +101,25 @@ export function SettingsPage({ r }: { r: Restaurant }) {
               <Field group label={t('Logo')}><ImageField aspect="aspect-square" url={brand.logo_url} onChange={u => setBrand({ ...brand, logo_url: u })} upload={file => uploadImage(r.id, 'brand', file, 512)} /></Field>
               <Field group label={t('Photo de couverture')}><ImageField aspect="aspect-[16/7]" url={brand.cover_url} onChange={u => setBrand({ ...brand, cover_url: u })} upload={file => uploadImage(r.id, 'brand', file, 1600)} /></Field>
             </div>
+          </div>
+        </Card>
+        <Card>
+          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Star className="h-5 w-5 text-brand" /> {t('Avis Google')}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Plus d’avis, plus de clients sur Google Maps. Le lien s’imprime en QR code sous chaque ticket et apparaît sur votre menu QR.')}</p>
+          <div className="grid gap-5 md:grid-cols-[1fr_auto]">
+            <div className="space-y-4">
+              <Field label={t('Lien pour laisser un avis')} hint={reviewOk ? t('Google Business Profile > « Demander des avis » > copiez le lien (il commence par https://g.page/r/).') : t('Le lien doit commencer par https://')}>
+                <input dir="ltr" className={inputCls} value={brand.review_url} onChange={e => setBrand({ ...brand, review_url: e.target.value })} placeholder="https://g.page/r/..." />
+              </Field>
+              <Toggle checked={brand.review_on_receipt} onChange={v => setBrand({ ...brand, review_on_receipt: v })} label={t('Imprimer le QR sous les tickets')} />
+              <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Règle Google : ne donnez rien en échange d’un avis (réduction, cadeau, tirage au sort) et demandez-le à tous les clients, pas seulement aux contents. Sinon Google peut supprimer vos avis.')}</p>
+            </div>
+            {qr && (
+              <div className="text-center">
+                <img src={qr} alt={t('QR code avis Google')} className="mx-auto h-40 w-40 rounded-xl border border-line/10 bg-white p-1" />
+                <a href={qr} download={`avis-google-${r.slug}.png`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand"><Download className="h-4 w-4" /> {t('Télécharger pour les tables')}</a>
+              </div>
+            )}
           </div>
         </Card>
         <Card>

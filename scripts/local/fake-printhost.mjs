@@ -13,6 +13,11 @@ function decode(b64) {
     if (c === 0x1d && b[i + 1] === 0x21) { i += 2; continue; }
     if (c === 0x1d && b[i + 1] === 0x56) { i += 3; continue; }
     if (c === 0x1b && b[i + 1] === 0x70) { drawer = true; i += 4; continue; }
+    if (c === 0x1d && b[i + 1] === 0x28 && b[i + 2] === 0x6b) { // QR code: GS ( k pL pH cn fn ...
+      const len = b[i + 3] + b[i + 4] * 256;
+      if (b[i + 6] === 0x50) s += `[QR ${b.subarray(i + 8, i + 5 + len).toString('latin1')}]`;
+      i += 4 + len; continue;
+    }
     s += c === 0x0a ? '\n' : String.fromCharCode(c);
   }
   return s.replace(/\n{3,}$/, '\n') + (drawer ? '[TIROIR OUVERT]\n' : '');

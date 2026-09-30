@@ -815,4 +815,13 @@ export const AR: Record<string, string> = {
   "Sur les {d} derniers jours de caisse. Chaque plat est comparé aux plats de sa catégorie.": "على آخر {d} يوما من الصندوق. كل طبق يقارن بأطباق فئته.",
   "{m} de marge / plat": "{m} هامش / طبق",
   "À retirer de la carte, ou à refaire entièrement. Moins de plats, c’est aussi moins de stock et de perte.": "للسحب من القائمة، أو لإعادة التحضير كليا. أطباق أقل تعني أيضا مخزونا وضياعا أقل.",
+  "Avis Google": "آراء Google",
+  "Google Business Profile > « Demander des avis » > copiez le lien (il commence par https://g.page/r/).": "Google Business Profile > « طلب الآراء » > انسخوا الرابط (يبدأ بـ https://g.page/r/).",
+  "Imprimer le QR sous les tickets": "طباعة QR أسفل التذاكر",
+  "Le lien doit commencer par https://": "يجب أن يبدأ الرابط بـ https://",
+  "Lien pour laisser un avis": "رابط ترك رأي",
+  "Plus d’avis, plus de clients sur Google Maps. Le lien s’imprime en QR code sous chaque ticket et apparaît sur votre menu QR.": "آراء أكثر، زبائن أكثر على Google Maps. الرابط يطبع كرمز QR أسفل كل تذكرة ويظهر في قائمة QR.",
+  "QR code avis Google": "رمز QR لآراء Google",
+  "Règle Google : ne donnez rien en échange d’un avis (réduction, cadeau, tirage au sort) et demandez-le à tous les clients, pas seulement aux contents. Sinon Google peut supprimer vos avis.": "قاعدة Google: لا تعطوا أي شيء مقابل رأي (تخفيض، هدية، قرعة) واطلبوه من جميع الزبائن، وليس فقط الراضين. وإلا قد تحذف Google آراءكم.",
+  "Télécharger pour les tables": "تحميل للطاولات",
 };

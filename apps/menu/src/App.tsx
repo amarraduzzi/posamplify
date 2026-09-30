@@ -12,6 +12,7 @@ import { Divider, PoweredBy, Star8 } from './components/Ornament';
 import { ItemSheet } from './components/ItemSheet';
 import { CartSheet, availableOrderTypes, type Checkout } from './components/CartSheet';
 import { OrderTracker, type TrackedOrder } from './components/OrderTracker';
+import { ReviewButton } from './components/ReviewButton';
 
 type LoadState = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -407,6 +408,7 @@ export default function App() {
             <Divider />
             <p className="font-display text-lg font-semibold">{r.name}</p>
             {r.phone && <a href={`tel:${r.phone}`} dir="ltr" className="text-sm text-muted">{r.phone}</a>}
+            <div className="mt-4"><ReviewButton url={r.branding?.review_url} label={t.reviewCta} hint={t.reviewHint} /></div>
             <div className="mt-4"><PoweredBy label={t.poweredBy} /></div>
           </footer>
         </main>
@@ -464,6 +466,7 @@ export default function App() {
           currency={currency}
           tableLabel={menu.table?.label ?? null}
           restaurantName={r.name}
+          reviewUrl={r.branding?.review_url}
           onClose={() => setTrackerOpen(false)}
         />
       )}

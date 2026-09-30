@@ -78,6 +78,11 @@ const fr = {
     popular: 'Le plus complet',
     soon: 'Bientôt',
     choose: 'Commencer',
+    included: {
+      title: 'Tout est inclus. Aucune option payante.',
+      text: 'Ailleurs, la facture, la commande QR ou les avis clients coûtent souvent 100 DH de plus chacun. Chez nous, c’est dans le prix.',
+      items: ['Factures clients avec ICE', 'QR avis Google sur chaque ticket', 'Menu QR en français, arabe et anglais', 'Fonctionne sans internet', 'Mises à jour et sauvegardes', 'Installation sur place à Rabat', 'Support WhatsApp avec un vrai interlocuteur', 'Sans engagement'],
+    },
     plans: [
       { name: 'Essentiel', tag: 'Amplify POS', price: '199', text: 'Pour les cafés et snacks.', product: 'pos', items: ['1 caisse', 'Menu QR consultation', 'Bons cuisine et bar', 'Rapports X et Z', 'Français et arabe'] },
       { name: 'Restaurant', tag: 'Amplify POS', price: '349', text: 'Pour les restaurants avec service.', product: 'pos', items: ['Caisses illimitées', 'Commande QR à table', 'Tables, zones et transferts', 'À emporter, livraison, Glovo', 'Fonctionne hors ligne'] },
@@ -175,6 +180,11 @@ const ar: Copy = {
     popular: 'الأكثر اكتمالا',
     soon: 'قريبا',
     choose: 'ابدأوا',
+    included: {
+      title: 'كل شيء مشمول. بدون خيارات مؤدى عنها.',
+      text: 'في أماكن أخرى، الفاتورة أو الطلب بـ QR أو آراء الزبائن تكلف غالبا 100 درهم إضافية لكل واحدة. عندنا، كلها في الثمن.',
+      items: ['فواتير الزبائن مع ICE', 'QR لآراء Google على كل تذكرة', 'قائمة QR بالفرنسية والعربية والإنجليزية', 'يعمل بدون إنترنت', 'التحديثات والنسخ الاحتياطية', 'التركيب في عين المكان بالرباط', 'دعم عبر واتساب مع شخص حقيقي', 'بدون التزام'],
+    },
     plans: [
       { name: 'الأساسي', tag: 'Amplify POS', price: '199', text: 'للمقاهي والوجبات السريعة.', product: 'pos', items: ['صندوق واحد', 'قائمة QR للاطلاع', 'وصولات المطبخ والبار', 'تقارير X و Z', 'العربية والفرنسية'] },
       { name: 'المطعم', tag: 'Amplify POS', price: '349', text: 'للمطاعم مع الخدمة.', product: 'pos', items: ['صناديق غير محدودة', 'الطلب بـ QR على الطاولة', 'الطاولات والمناطق والنقل', 'للأخذ، التوصيل، Glovo', 'يعمل بدون إنترنت'] },

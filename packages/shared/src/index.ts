@@ -13,6 +13,9 @@ export interface Branding {
   cover_url?: string;
   tagline?: I18n;
   font_display?: string;
+  /** Google 'ask for reviews' link: QR on the receipt and a button on the guest menu */
+  review_url?: string;
+  review_on_receipt?: boolean;
 }
 
 export interface PublicRestaurant {

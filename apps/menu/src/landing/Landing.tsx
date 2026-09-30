@@ -227,6 +227,17 @@ export default function Landing() {
             );
           })}
         </div>
+        <div className="reveal mt-10 rounded-[2rem] border border-brand/30 bg-brand/[0.06] p-7 md:p-9">
+          <div className="grid gap-6 md:grid-cols-[1fr_1.4fr] md:items-center">
+            <div>
+              <h3 className="font-display text-2xl font-semibold">{c.pricing.included.title}</h3>
+              <p className="mt-2 text-muted">{c.pricing.included.text}</p>
+            </div>
+            <ul className="grid gap-2.5 sm:grid-cols-2 text-[15px]">
+              {c.pricing.included.items.map(it => <li key={it} className="flex gap-2.5"><Check className="size-5 shrink-0 text-brand" /><span>{it}</span></li>)}
+            </ul>
+          </div>
+        </div>
       </Section>
 
       {/* ------------------------------------------------------------ faq */}

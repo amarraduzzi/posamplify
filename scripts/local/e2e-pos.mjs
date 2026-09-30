@@ -27,6 +27,9 @@ const shot = n => page.screenshot({ path: `${OUT}/${n}.png` });
 process.on('unhandledRejection', async e => { await page.screenshot({ path: `${OUT}/FAIL.png` }).catch(() => {}); console.error(e.message.split('\n')[0]); process.exit(1); });
 const btn = n => page.getByRole('button', typeof n === 'string' ? { name: n, exact: true } : { name: n });
 
+// Google review link: printed as a QR under every receipt
+await q(`update restaurants set branding = branding || '{"review_url":"https://g.page/r/dom-test/review"}' where slug = 'doms-cafe'`);
+
 // 1. till login, staff PIN
 await page.goto(BASE);
 await page.getByRole('button', { name: /Se connecter avec un e-mail/ }).click();
@@ -173,6 +176,8 @@ await page.waitForTimeout(800);
 t = tickets();
 assert.match(t, /RAPPORT Z/);
 assert.match(t, /Ecart de caisse/);
+assert.match(t, /Votre avis compte !/);
+assert.match(t, /\[QR https:\/\/g\.page\/r\/dom-test\/review\]/);
 const chain = await q(`select public.verify_fiscal_chain(id) v from restaurants where slug='doms-cafe'`).catch(() => null);
 
 // 9. lock

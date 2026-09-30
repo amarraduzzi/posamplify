@@ -1,3 +1,4 @@
+import { ReviewButton } from './ReviewButton';
 import { useEffect, useState } from 'react';
 import { Check, ChefHat, BellRing, UtensilsCrossed, XCircle } from 'lucide-react';
 import { formatMoney, type OrderStatus } from '@resto/shared';
@@ -14,7 +15,8 @@ const STEPS: { key: OrderStatus; Icon: typeof Check }[] = [
   { key: 'served', Icon: UtensilsCrossed },
 ];
 
-export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, onClose }: {
+export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, reviewUrl, onClose }: {
+  reviewUrl?: string;
   order: TrackedOrder;
   t: Strings;
   lang: string;
@@ -102,6 +104,7 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
           </ol>
         )}
 
+        {status === 'served' && <div className="mt-8 animate-rise"><ReviewButton url={reviewUrl} label={t.reviewCta} hint={t.reviewHint} /></div>}
         <p className="mt-auto pt-6 text-center text-sm text-muted">{t.payAtCounter}</p>
         <button
           type="button"

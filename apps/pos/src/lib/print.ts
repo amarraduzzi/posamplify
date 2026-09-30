@@ -8,7 +8,7 @@ import { amount, dateTime, METHOD, TYPE } from './format';
 
 const HOST = 'http://127.0.0.1:8934';
 
-export interface TicketLine { text: string; bold?: boolean; large?: boolean; center?: boolean }
+export interface TicketLine { text: string; bold?: boolean; large?: boolean; center?: boolean; qr?: string }
 const W = 32; // characters per line on 58mm paper (80mm printers print it fine too)
 
 async function call<T>(path: string, init?: RequestInit, ms = 4000): Promise<T | null> {
@@ -25,9 +25,32 @@ export const pingPrinter = async () => !!(await call<{ ok: boolean }>('/ping', u
 function ascii(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/[^\x20-\x7E]/g, '?');
 }
+/** Native ESC/POS QR code (GS ( k), centred: supported by Epson-compatible ticket printers. */
+function qrBytes(data: string): number[] {
+  const d = [...ascii(data)].map(c => c.charCodeAt(0) & 0xff).slice(0, 300);
+  const n = d.length + 3;
+  return [
+    0x1b, 0x61, 1,
+    0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00,          // model 2
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x06,                // module size 6
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31,                // error correction M
+    0x1d, 0x28, 0x6b, n & 0xff, n >> 8, 0x31, 0x50, 0x30, ...d,     // store the data
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30,                // print it
+    0x0a, 0x1b, 0x61, 0,
+  ];
+}
+
+/** "Leave us a review" block under a receipt, when the owner set the Google link. */
+function reviewBlock(r: Restaurant): TicketLine[] {
+  const u = r.branding?.review_url;
+  if (!u || !/^https:\/\/\S+$/.test(u) || r.branding?.review_on_receipt === false) return [];
+  return [rule(), { text: 'Votre avis compte !', bold: true, center: true }, { text: 'Scannez pour nous noter sur Google', center: true }, { text: '', qr: u }];
+}
+
 function escpos(lines: TicketLine[], opts: { cut?: boolean; drawer?: boolean } = {}): string {
   const b: number[] = [0x1b, 0x40];
   for (const l of lines) {
+    if (l.qr) { b.push(...qrBytes(l.qr)); continue; }
     b.push(0x1b, 0x61, l.center ? 1 : 0, 0x1b, 0x45, l.bold ? 1 : 0, 0x1d, 0x21, l.large ? 0x11 : 0);
     for (const ch of ascii(l.text)) b.push(ch.charCodeAt(0) & 0xff);
     b.push(0x0a);
@@ -125,6 +148,7 @@ export function provisionalTicket(r: Restaurant, o: Order, extra: { label: strin
   if (extra.change_cents > 0) out.push(...rows('Rendu', amount(extra.change_cents)));
   out.push(rule(), { text: 'Paiement enregistre hors connexion.', center: true }, { text: 'Le ticket fiscal numerote est', center: true }, { text: 'disponible sur demande.', center: true });
   out.push(rule(), { text: r.pos_settings?.receipt_footer || 'Merci de votre visite, a bientot !', center: true });
+  out.push(...reviewBlock(r));
   return out;
 }
 
@@ -159,6 +183,7 @@ export function fiscalTicket(r: Restaurant, d: FiscalDoc, extra: { label?: strin
   if (d.reason) out.push(rule(), { text: `Motif : ${d.reason}` });
   out.push(rule(), { text: r.pos_settings?.receipt_footer || 'Merci de votre visite, a bientot !', center: true });
   out.push({ text: `Ctrl ${d.hash.slice(0, 16)}`, center: true });
+  if (d.doc_type !== 'credit_note') out.push(...reviewBlock(r));
   return out;
 }
 
