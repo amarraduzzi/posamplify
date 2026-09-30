@@ -66,7 +66,7 @@ export interface DayReport {
   cash_float_cents: number; cash_payouts_cents: number; cash_deposits_cents: number; expected_cash_cents: number;
   open_orders: number; cancelled_orders: number;
   by_staff: { staff_id: string | null; name: string | null; revenue_ttc_cents: number }[];
-  closed?: boolean;
+  closed?: boolean; counted_cash_cents?: number | null; cash_diff_cents?: number | null;
 }
 
 export interface CashMovement { id: string; kind: 'float' | 'payout' | 'deposit'; amount_cents: number; reason: string; staff_id: string | null; created_at: string }

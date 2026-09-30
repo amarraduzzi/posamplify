@@ -112,3 +112,28 @@ test('without the till: hours and labour against the revenue typed in Charges', 
   assert.equal(s.orders, 0, 'no till figures without the till');
   assert.equal(rep.labour_bp, Math.round(Number(rep.team.labour_cents) * 10000 / Number(rep.revenue_ht_cents)));
 });
+
+test('Z closing with a blind cash count: the difference is kept and shown per person', async () => {
+  const d = w.users.deviceA, rid = A.r.id;
+  await sql(`update public.restaurants set products = '{pos,profit}' where id = $1`, [rid]);
+  const day = (await rpc(d, 'day_report', [rid, null]));
+  // the open order of the removed-line test must go first
+  for (const o of await sql(`select id from public.orders where restaurant_id = $1 and closed_at is null and status <> 'cancelled'`, [rid])) {
+    await rpc(d, 'cancel_order', [o.id, 'test', A.staff.karim.id, '9999']);
+  }
+  const expected = Number((await rpc(d, 'day_report', [rid, null])).expected_cash_cents);
+  await assert.rejects(rpc(d, 'close_day', [rid, day.business_date, A.staff.karim.id, '9999', -5]), /invalid_request/);
+  const z = await rpc(d, 'close_day', [rid, day.business_date, A.staff.karim.id, '9999', expected - 12000]);
+  assert.equal(z.ok, true);
+  assert.equal(Number(z.totals.cash_diff_cents), -12000, '120 DH missing');
+  const [c] = await sql(`select counted_cash_cents, cash_diff_cents from public.day_closures where restaurant_id = $1`, [rid]);
+  assert.equal(Number(c.cash_diff_cents), -12000);
+  const rep = await rpc(d, 'day_report', [rid, day.business_date]);
+  assert.equal(rep.closed, true);
+  assert.equal(Number(rep.cash_diff_cents), -12000);
+  const team = await rpc(w.users.managerA, 'staff_report', [rid, day.business_date, day.business_date]);
+  const k = team.people.find(p => p.staff_id === A.staff.karim.id);
+  assert.equal(k.closings, 1);
+  assert.equal(Number(k.cash_short_cents), -12000);
+  assert.equal(Number(team.team.cash_short_cents), -12000);
+});

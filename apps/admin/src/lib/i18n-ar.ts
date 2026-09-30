@@ -796,4 +796,8 @@ export const AR: Record<string, string> = {
   "{v} sortis de ses additions ({p} de ses ventes), bien plus que le reste de l’équipe.": "{v} خرجت من فواتيره ({p} من مبيعاته)، أكثر بكثير من باقي الفريق.",
   "Équipe": "الفريق",
   "à surveiller": "للمراقبة",
+  "il manquait {v} en caisse aux clôtures qu’il a faites ({n}).": "كان هناك نقص {v} في الصندوق عند الإغلاقات التي قام بها ({n}).",
+  "Écart de caisse": "فرق الصندوق",
+  "{n} clôtures": "{n} إغلاقات",
+  "Écart de caisse (ses clôtures)": "فرق الصندوق (إغلاقاته)",
 };

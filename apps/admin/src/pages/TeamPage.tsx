@@ -19,10 +19,11 @@ interface Person {
   cancellations: number; cancelled_cents: number; cancellations_approved: number; cancellations_approved_cents: number;
   removed_lines: number; removed_cents: number; credit_notes: number; credit_note_cents: number;
   tips_cents: number; payouts: number; payout_cents: number; leak_cents: number; leak_bp: number | null; watch: boolean;
+  closings: number; closings_counted: number; cash_diff_cents: number; cash_short_cents: number;
 }
 interface Report {
   from: string; to: string; uses_pos: boolean; revenue_ht_cents: number; revenue_source: 'pos' | 'manual' | null; labour_bp: number | null;
-  team: { hours: number; labour_cents: number; unpriced_hours: number; sales_cents: number; leak_cents: number; open_now: number; forgot: number };
+  team: { hours: number; labour_cents: number; unpriced_hours: number; sales_cents: number; leak_cents: number; open_now: number; forgot: number; cash_short_cents: number; cash_diff_cents: number; closings_counted: number };
   people: Person[];
 }
 interface Shift { id: string; staff_id: string; clock_in: string; clock_out: string | null; source: 'pos' | 'manual'; note: string | null }
@@ -71,6 +72,7 @@ export function TeamPage({ r }: { r: Restaurant }) {
   const pos = !!rep?.uses_pos;
   const watch = rep?.people.filter(p => p.watch) ?? [];
   const forgot = rep?.people.filter(p => p.forgot > 0) ?? [];
+  const short = rep?.people.filter(p => Number(p.cash_short_cents) <= -5000) ?? [];
   const noRate = rep?.people.filter(p => p.hours > 0 && p.hourly_cost_cents == null) ?? [];
   const lb = rep?.labour_bp ?? null;
 
@@ -102,12 +104,18 @@ export function TeamPage({ r }: { r: Restaurant }) {
             : <Kpi label={t('Chiffre d’affaires HT')} value={mad(rep.revenue_ht_cents)} hint={rep.revenue_source === 'manual' ? t('saisi dans Charges') : t('pas encore indiqué')} />}
         </div>
 
-        {(watch.length > 0 || forgot.length > 0 || noRate.length > 0) && (
+        {(watch.length > 0 || short.length > 0 || forgot.length > 0 || noRate.length > 0) && (
           <div className="mb-5 space-y-2">
             {watch.map(p => (
               <button key={p.staff_id} onClick={() => setOpen(p)} className="flex w-full items-start gap-2 rounded-2xl border border-danger/40 bg-danger/5 px-4 py-3 text-start text-sm hover:bg-danger/10">
                 <Eye className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                 <span><b>{p.name}</b> : {t('{v} sortis de ses additions ({p} de ses ventes), bien plus que le reste de l’équipe.', { v: mad(p.leak_cents), p: pct(p.leak_bp) })} <span className="text-muted">{t('Voir le détail')}</span></span>
+              </button>
+            ))}
+            {short.map(p => (
+              <button key={'c' + p.staff_id} onClick={() => setOpen(p)} className="flex w-full items-start gap-2 rounded-2xl border border-danger/40 bg-danger/5 px-4 py-3 text-start text-sm hover:bg-danger/10">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                <span><b>{p.name}</b> : {t('il manquait {v} en caisse aux clôtures qu’il a faites ({n}).', { v: mad(Math.abs(p.cash_short_cents)), n: p.closings_counted })}</span>
               </button>
             ))}
             {forgot.map(p => (
@@ -126,7 +134,7 @@ export function TeamPage({ r }: { r: Restaurant }) {
         )}
 
         <div className="card overflow-x-auto rounded-3xl">
-          <table className={`w-full text-sm ${pos ? 'min-w-[860px]' : 'min-w-[520px]'}`}>
+          <table className={`w-full text-sm ${pos ? 'min-w-[960px]' : 'min-w-[520px]'}`}>
             <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted">
               <tr>
                 <th className="px-4 py-3 text-start">{t('Employé')}</th>
@@ -138,6 +146,7 @@ export function TeamPage({ r }: { r: Restaurant }) {
                   <th className="px-3 py-3 text-end">{t('Remises')}</th>
                   <th className="px-3 py-3 text-end">{t('Annulations')}</th>
                   <th className="px-3 py-3 text-end">{t('Retirés après cuisine')}</th>
+                  <th className="px-3 py-3 text-end">{t('Écart de caisse')}</th>
                 </>}
                 <th className="w-10 px-3 py-3" />
               </tr>
@@ -159,11 +168,12 @@ export function TeamPage({ r }: { r: Restaurant }) {
                     <Cell n={p.discounts} v={p.discount_cents} />
                     <Cell n={p.cancellations} v={p.cancelled_cents} />
                     <Cell n={p.removed_lines} v={p.removed_cents} strong />
+                    <td className="px-3 py-2.5 text-end tabular">{p.closings_counted ? <><span className={Number(p.cash_diff_cents) < -1000 ? 'font-semibold text-danger' : ''}>{Number(p.cash_diff_cents) > 0 ? '+' : ''}{mad(p.cash_diff_cents)}</span><span className="block text-xs text-muted">{t('{n} clôtures', { n: p.closings_counted })}</span></> : '—'}</td>
                   </>}
                   <td className="px-3 py-2.5 text-end"><Pencil className="inline h-4 w-4 text-muted" /></td>
                 </tr>
               ))}
-              {!rep.people.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-muted">{t('Aucun employé.')}</td></tr>}
+              {!rep.people.length && <tr><td colSpan={10} className="px-4 py-10 text-center text-muted">{t('Aucun employé.')}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -264,6 +274,7 @@ function PersonModal({ r, p, from, to, uses_pos, onClose, onChanged }: { r: Rest
                 [t('Avoirs'), p.credit_notes ? `${mad(p.credit_note_cents)} × ${p.credit_notes}` : '—'],
                 [t('Sorties de caisse'), p.payouts ? `${mad(p.payout_cents)} × ${p.payouts}` : '—'],
                 [t('Pourboires'), p.tips_cents ? mad(p.tips_cents) : '—'],
+                [t('Écart de caisse (ses clôtures)'), p.closings_counted ? `${Number(p.cash_diff_cents) > 0 ? '+' : ''}${mad(p.cash_diff_cents)} · ${t('{n} clôtures', { n: p.closings_counted })}` : '—'],
               ] as [string, string][]).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 border-b border-line/10 py-1.5"><dt className="text-muted">{k}</dt><dd className="font-semibold tabular">{v}</dd></div>
               ))}

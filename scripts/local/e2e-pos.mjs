@@ -155,13 +155,24 @@ await page.getByRole('dialog').getByRole('button', { name: '✓' }).click();
 await page.getByText('Commande annulée').waitFor();
 await btn(/Caisse & rapports/).click();
 await btn(/Clôturer la journée/).click();
+// blind cash count first: 100 DH in the drawer
+await page.getByRole('dialog').getByLabel('Comptez les espèces dans la caisse (MAD)').fill('100');
+await page.getByRole('dialog').getByRole('button', { name: 'Continuer' }).click();
 await page.getByRole('dialog').getByRole('button', { name: 'Karim' }).click();
 for (const d of '9999') await page.getByRole('dialog').getByRole('button', { name: d, exact: true }).click();
 await page.getByRole('dialog').getByRole('button', { name: '✓' }).click();
-await page.getByText('Journée clôturée', { exact: true }).waitFor();
+await page.getByText('Écart de caisse').waitFor();
 await shot('10-z');
+const [zc] = await q(`select c.counted_cash_cents, c.cash_diff_cents, (c.totals ->> 'expected_cash_cents')::bigint expected
+                        from day_closures c join restaurants r on r.id = c.restaurant_id where r.slug = 'doms-cafe'`);
+assert.equal(Number(zc.counted_cash_cents), 10000);
+assert.equal(Number(zc.cash_diff_cents), 10000 - Number(zc.expected));
+await page.getByRole('dialog').getByRole('button', { name: /Imprimer le rapport Z/ }).click();
+await page.getByRole('dialog').waitFor({ state: 'detached' });
+await page.waitForTimeout(800);
 t = tickets();
 assert.match(t, /RAPPORT Z/);
+assert.match(t, /Ecart de caisse/);
 const chain = await q(`select public.verify_fiscal_chain(id) v from restaurants where slug='doms-cafe'`).catch(() => null);
 
 // 9. lock

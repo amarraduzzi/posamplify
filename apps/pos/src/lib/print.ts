@@ -180,6 +180,10 @@ export function reportTicket(r: Restaurant, rep: DayReport, title: string): Tick
   add('Fond de caisse', amount(rep.cash_float_cents));
   add('Sorties de caisse', amount(rep.cash_payouts_cents));
   add('Especes attendues', amount(rep.expected_cash_cents), true);
+  if (rep.counted_cash_cents != null) {
+    add('Especes comptees', amount(rep.counted_cash_cents));
+    add('Ecart de caisse', amount(rep.cash_diff_cents ?? 0), true);
+  }
   out.push(rule());
   for (const s of rep.by_staff) add(s.name ?? 'Sans nom', amount(s.revenue_ttc_cents));
   out.push(rule());

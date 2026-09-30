@@ -105,24 +105,58 @@ function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void
   const pos = usePos();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // blind count: the manager counts the drawer before seeing what should be there
+  const [counted, setCounted] = useState('');
+  const [step, setStep] = useState<'count' | 'approve'>('count');
+  const [done, setDone] = useState<DayReport | null>(null);
   const approve = async (managerId: string, pin: string) => {
     setBusy(true); setError(null);
     try {
-      const res = await db.rpc<{ ok: boolean; error?: string; totals?: DayReport }>('close_day', { p_restaurant_id: pos.restaurant!.id, p_business_date: rep.business_date, p_manager_staff_id: managerId, p_pin: pin });
+      const res = await db.rpc<{ ok: boolean; error?: string; totals?: DayReport }>('close_day', {
+        p_restaurant_id: pos.restaurant!.id, p_business_date: rep.business_date, p_manager_staff_id: managerId, p_pin: pin,
+        p_counted_cash_cents: toCents(counted) });
       if (!res.ok) setError(PIN_ERRORS[res.error ?? 'invalid']);
-      else { pos.setDayClosed(true); pos.toast(t('Journée clôturée'), 'ok'); onDone({ ...rep, ...res.totals, closed: true } as DayReport); }
+      else { pos.setDayClosed(true); pos.toast(t('Journée clôturée'), 'ok'); setDone({ ...rep, ...res.totals, closed: true } as DayReport); }
     } catch (e) { setError(errorMessage(e)); }
     setBusy(false);
   };
+  if (done) {
+    const diff = Number(done.cash_diff_cents ?? 0);
+    const tone = Math.abs(diff) <= 1000 ? 'text-ok' : diff < 0 ? 'text-danger' : 'text-warn';
+    return (
+      <Modal title={t('Journée clôturée')} onClose={() => onDone(done)}
+        footer={<div className="flex justify-end"><Btn tone="brand" onClick={() => onDone(done)}><Printer className="h-4 w-4" /> {t('Imprimer le rapport Z')}</Btn></div>}>
+        <dl className="space-y-2 text-lg">
+          <div className="flex justify-between"><dt>{t('Espèces comptées')}</dt><dd className="font-bold tabular">{mad(done.counted_cash_cents ?? 0)}</dd></div>
+          <div className="flex justify-between"><dt>{t('Espèces attendues')}</dt><dd className="font-bold tabular">{mad(done.expected_cash_cents)}</dd></div>
+          <div className={`flex justify-between border-t border-line/10 pt-2 ${tone}`}><dt className="font-bold">{t('Écart de caisse')}</dt>
+            <dd className="font-display text-2xl font-semibold tabular">{diff > 0 ? '+' : ''}{mad(diff)}</dd></div>
+        </dl>
+        <p className={`mt-3 text-sm ${tone}`}>{Math.abs(diff) <= 1000 ? t('La caisse est juste.') : diff < 0 ? t('Il manque de l’argent dans la caisse. Le gérant en sera informé.') : t('Il y a plus d’argent que prévu : une vente n’a peut-être pas été encaissée.')}</p>
+      </Modal>
+    );
+  }
   return (
     <Modal title={t('Clôturer la journée (rapport Z)')} onClose={onClose}>
-      <p className="mb-2">{t("Chiffre d'affaires :")} <b className="tabular">{mad(rep.revenue_ttc_cents)}</b> · {t('Espèces attendues :')} <b className="tabular">{mad(rep.expected_cash_cents)}</b></p>
+      <p className="mb-2">{t("Chiffre d'affaires :")} <b className="tabular">{mad(rep.revenue_ttc_cents)}</b></p>
       <p className="mb-4 text-sm text-warn">{t("Définitif : après la clôture, plus aucune vente n'est possible sur cette journée.")}</p>
       {pos.queue.some(q => q.state !== 'done')
         ? <p className="font-semibold text-danger">{t("Des opérations de ce poste ne sont pas encore envoyées (voir Synchronisation). Attendez qu'elles partent avant de clôturer.")}</p>
         : rep.open_orders > 0
         ? <p className="font-semibold text-danger">{t("{n} commande(s) encore ouverte(s). Encaissez-les ou annulez-les d'abord.", { n: rep.open_orders })}</p>
-        : <ManagerApproval onApprove={approve} busy={busy} error={error} />}
+        : step === 'count' ? (
+          <div className="space-y-3">
+            <Field label={t('Comptez les espèces dans la caisse (MAD)')}>
+              <input autoFocus className={`${inputCls} text-2xl tabular`} inputMode="decimal" value={counted} onChange={e => setCounted(e.target.value)} placeholder="0"
+                onKeyDown={e => { if (e.key === 'Enter' && counted.trim()) setStep('approve'); }} />
+            </Field>
+            <p className="text-sm text-muted">{t('Billets et pièces, fond de caisse compris. Le montant attendu s’affiche après.')}</p>
+            <div className="flex justify-end"><Btn tone="brand" disabled={!counted.trim() || toCents(counted) < 0} onClick={() => setStep('approve')}>{t('Continuer')}</Btn></div>
+          </div>
+        ) : (<>
+          <p className="mb-3 text-sm">{t('Espèces comptées :')} <b className="tabular">{mad(toCents(counted))}</b> <button className="ms-2 text-brand underline" onClick={() => setStep('count')}>{t('Modifier')}</button></p>
+          <ManagerApproval onApprove={approve} busy={busy} error={error} />
+        </>)}
     </Modal>
   );
 }
