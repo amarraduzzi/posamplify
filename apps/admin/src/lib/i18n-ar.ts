@@ -404,4 +404,7 @@ export const AR: Record<string, string> = {
   "suggéré": "مقترح",
   "{n} sans prix :": "{n} بدون سعر:",
   "Mettre dans « {c} » ?": "وضعها في «{c}»؟",
+  "Vérification anti-robot…": "جار التحقق من أنكم لستم روبوتا…",
+  "Vérification anti-robot impossible. Vérifiez la connexion et rechargez la page.": "تعذر التحقق من أنكم لستم روبوتا. تحققوا من الاتصال وأعيدوا تحميل الصفحة.",
+  "Vérification anti-robot échouée. Réessayez dans un instant.": "فشل التحقق من أنكم لستم روبوتا. أعيدوا المحاولة بعد قليل.",
 };

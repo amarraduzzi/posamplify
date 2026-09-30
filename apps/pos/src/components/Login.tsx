@@ -1,3 +1,4 @@
+import { useCaptcha } from '../lib/captcha';
 import { useState } from 'react';
 import { KeyRound, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -30,13 +31,16 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cap = useCaptcha();
 
   const pair = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        const { error } = await supabase.auth.signInAnonymously();
+        const captchaToken = cap.token;
+        cap.reset(); // a token works only once
+        const { error } = await supabase.auth.signInAnonymously({ options: { captchaToken } });
         if (error) throw error;
       }
       await rpc('pair_device', { p_code: code.replace(/\s|-/g, '') });
@@ -49,7 +53,9 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
   };
   const login = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const captchaToken = cap.token;
+    cap.reset();
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken } });
     if (error) setError(errorMessage(error));
     setBusy(false);
   };
@@ -71,16 +77,18 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
               </Field>
               <p className="text-xs leading-relaxed text-muted">{t("Le code se crée dans l'espace gérant, rubrique « Caisses ». Il est valable 30 minutes.")}</p>
               {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
-              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy || code.replace(/\s|-/g, '').length !== 8}><KeyRound className="h-5 w-5" /> {busy ? t('Connexion…') : t('Relier ce poste')}</Btn>
+              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy || !cap.ready || code.replace(/\s|-/g, '').length !== 8}><KeyRound className="h-5 w-5" /> {busy ? t('Connexion…') : t('Relier ce poste')}</Btn>
             </form>
           ) : (
             <form onSubmit={login} className="space-y-4">
               <Field label={t('E-mail du poste')}><input className={inputCls} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
               <Field label={t('Mot de passe')}><input className={inputCls} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></Field>
               {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
-              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy}>{busy ? t('Connexion…') : t('Se connecter')}</Btn>
+              <Btn tone="brand" className="h-14 w-full text-base" disabled={busy || !cap.ready}>{busy ? t('Connexion…') : !cap.ready ? t('Vérification anti-robot…') : t('Se connecter')}</Btn>
             </form>
           )}
+          {/* one widget for both forms (it must stay mounted) */}
+          <div className="mt-4">{cap.widget}</div>
           <button onClick={() => { setMode(mode === 'code' ? 'email' : 'code'); setError(null); }} className="mx-auto mt-5 flex items-center gap-1.5 text-sm text-muted hover:text-ink">
             {mode === 'code' ? <><Mail className="h-4 w-4" /> {t('Se connecter avec un e-mail')}</> : <><KeyRound className="h-4 w-4" /> {t('Utiliser un code de connexion')}</>}
           </button>

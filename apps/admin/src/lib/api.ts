@@ -27,6 +27,7 @@ const M: Record<string, string> = {
 // i18n:end
 export function errorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
+  if (/captcha/i.test(msg)) return t('Vérification anti-robot échouée. Réessayez dans un instant.');
   if (/Invalid login credentials/i.test(msg)) return t('E-mail ou mot de passe incorrect.');
   if (/already registered|already been registered/i.test(msg)) return t('Un compte existe déjà avec cet e-mail : connectez-vous.');
   if (/Password should be/i.test(msg)) return t('Mot de passe trop court (8 caractères minimum).');

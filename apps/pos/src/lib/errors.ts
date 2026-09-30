@@ -25,6 +25,7 @@ const M: Record<string, string> = {
 // i18n:end
 export function errorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
+  if (/captcha/i.test(msg)) return t('Vérification anti-robot échouée. Réessayez dans un instant.');
   if (/Invalid login credentials/i.test(msg)) return t(M.invalid_login);
   if (/fetch|network|Failed to fetch|NetworkError|timeout/i.test(msg)) return t(M.network);
   const key = Object.keys(M).find(k => msg === k || msg.startsWith(k));

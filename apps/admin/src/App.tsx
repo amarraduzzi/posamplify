@@ -16,6 +16,7 @@ import { BriefingPage } from './pages/BriefingPage';
 import { AmplifyLogo, PatternBackdrop, Star8 } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
 import { dateLocale, t } from './lib/i18n';
+import { useCaptcha } from './lib/captcha';
 
 type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
 // i18n:values
@@ -117,14 +118,17 @@ function Login() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const cap = useCaptcha();
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null); setInfo(null);
+    const captchaToken = cap.token;
+    cap.reset(); // a token works only once
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken } });
       if (error) setError(errorMessage(error));
     } else {
       localStorage.setItem('admin-wizard-step', '0');
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin } });
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin, captchaToken } });
       if (error) { setError(errorMessage(error)); localStorage.removeItem('admin-wizard-step'); }
       else if (!data.session) setInfo(t('Compte créé. Ouvrez le lien reçu par e-mail pour le confirmer, puis connectez-vous.'));
     }
@@ -162,7 +166,8 @@ function Login() {
           </Field>
           {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
           {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
-          <Btn tone="brand" className="h-12 w-full text-base" disabled={busy}>{busy ? '…' : mode === 'login' ? t('Se connecter') : t('Créer mon compte')}</Btn>
+          {cap.widget}
+          <Btn tone="brand" className="h-12 w-full text-base" disabled={busy || !cap.ready}>{busy ? '…' : !cap.ready ? t('Vérification anti-robot…') : mode === 'login' ? t('Se connecter') : t('Créer mon compte')}</Btn>
           <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">
             {mode === 'login' ? t('Nouveau restaurant ? Créer un compte') : t('Déjà un compte ? Se connecter')}
           </button>
