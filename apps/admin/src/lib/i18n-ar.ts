@@ -578,6 +578,7 @@ export const AR: Record<string, string> = {
   "Le chiffre d’affaires TTC à faire chaque jour d’ouverture pour ne pas perdre d’argent.": "رقم المعاملات مع الضريبة الواجب تحقيقه كل يوم فتح حتى لا تخسروا.",
   "Le compte du mois": "حساب الشهر",
   "Le total de vos tickets Z du mois.": "مجموع تذاكر Z للشهر.",
+  "Vide : le chiffre de la caisse. À remplir si la caisse n’a pas tout enregistré ce mois.": "فارغ: رقم الصندوق. املأه إذا لم يسجل الصندوق كل شيء هذا الشهر.",
   "Logiciels et abonnements": "البرامج والاشتراكات",
   "Loyer": "الكراء",
   "Marchandises": "السلع",

@@ -87,7 +87,6 @@ export function ChargesPage({ r }: { r: Restaurant }) {
   const hasSalaries = costs.some(c => c.active && c.category === 'salaires');
   const hasSocial = costs.some(c => c.active && c.category === 'charges_sociales');
   const positive = (m?.result_cents ?? 0) >= 0;
-  const needsRevenue = m && m.revenue_source !== 'pos';
   const noRevenue = !!m && m.revenue_source === null;
   const todayPct = m?.breakeven_day_ttc_cents ? Math.min(100, Math.round(m.revenue_today_ttc_cents * 100 / m.breakeven_day_ttc_cents)) : 0;
 
@@ -154,9 +153,9 @@ export function ChargesPage({ r }: { r: Restaurant }) {
             <div className="mt-5 rounded-2xl bg-surface-2 p-4">
               <p className="mb-3 text-sm font-bold">{t('Vos chiffres de {m}', { m: monthName })}</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                {needsRevenue && (
-                  <Field label={t('Chiffre d’affaires TTC (DH)')} hint={t('Le total de vos tickets Z du mois.')}>
-                    <input className={inputCls} inputMode="decimal" value={rev} onChange={e => setRev(e.target.value)} placeholder="85000" />
+                {(
+                  <Field label={t('Chiffre d’affaires TTC (DH)')} hint={m.uses_pos ? t('Vide : le chiffre de la caisse. À remplir si la caisse n’a pas tout enregistré ce mois.') : t('Le total de vos tickets Z du mois.')}>
+                    <input className={inputCls} inputMode="decimal" value={rev} onChange={e => setRev(e.target.value)} placeholder={m.uses_pos ? fromCents(m.revenue_ttc_cents) || '85000' : '85000'} />
                   </Field>
                 )}
                 <Field label={t('Achats de marchandises (DH)')} hint={t('Nourriture et boissons achetées ce mois. Sinon estimé avec vos fiches.')}>

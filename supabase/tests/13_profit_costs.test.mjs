@@ -40,8 +40,13 @@ test('with the till: revenue comes from the fiscal tickets', async () => {
   await sql(`update public.restaurants set products = '{pos,profit}' where id = $1`, [rid]);
   const o = await tillOrder(w.users.deviceA, rid, [{ item_id: A.items.tajine.id, name: 'Tajine', price: 8500, qty: 2 }]);
   await rpc(w.users.deviceA, 'pos_pay_order', [o.id, JSON.stringify([{ method: 'cash', amount_cents: Number(o.total_cents) }]), A.staff.sara.id, null]);
-  const p = await rpc(w.users.managerA, 'profit_month', [rid, null]);
-  assert.equal(p.revenue_source, 'pos', 'till beats the typed number');
+  // a typed revenue wins (month of the switch); empty it and the till counts
+  let p = await rpc(w.users.managerA, 'profit_month', [rid, null]);
+  assert.equal(p.revenue_source, 'manual', 'typed number beats the till');
+  assert.equal(Number(p.revenue_ttc_cents), 8800000);
+  await sql(`update public.month_figures set revenue_ttc_cents = null where restaurant_id = $1`, [rid]);
+  p = await rpc(w.users.managerA, 'profit_month', [rid, null]);
+  assert.equal(p.revenue_source, 'pos');
   assert.equal(Number(p.revenue_ttc_cents), Number(o.total_cents));
   assert.equal(Number(p.revenue_today_ttc_cents), Number(o.total_cents));
   assert.equal(p.cogs_source, 'purchases', 'typed purchases still win');
