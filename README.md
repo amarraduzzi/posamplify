@@ -172,3 +172,10 @@ Beheer > Menu > **Importer**. Twee routes, allebei eerst een controlescherm, daa
 
 Database: `import_menu`, `undo_menu_import`, tabel `menu_imports` (migratie `20260930000300_menu_import.sql`). Een gerecht dat al bestaat in dezelfde categorie wordt overgeslagen; verkochte gerechten worden bij ongedaan maken verborgen in plaats van gewist.
 Tests: `supabase/tests/11_menu_import.test.mjs`, `node --test --experimental-strip-types scripts/menu-import-cases.test.ts`, `scripts/local/e2e-import.mjs`.
+
+## Amplify Profit (fase 1)
+
+Tweede product op hetzelfde platform (`restaurants.products`: `pos`, `profit` of beide). Beheer > **Marges** en **Ingrédients**:
+ingrediënten met inkoopprijs/perte, fiches techniques per gerecht (en per maat), food cost %, marge, prijsadvies, en met Amplify POS ook de verkochte aantallen en winst.
+**Remplir avec l'IA** (Edge Function `profit-ai`, Verify JWT uit, zelfde `GEMINI_API_KEY`) vult standaardrecepten met geschatte prijzen ("prix estimé" tot bevestigd).
+Database: migratie `20261001000100_profit.sql` (`profit_dishes`, `apply_recipe_suggestions`). Tests: `supabase/tests/12_profit.test.mjs`, `scripts/local/e2e-profit.mjs`.

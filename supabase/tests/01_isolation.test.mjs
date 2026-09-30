@@ -13,6 +13,10 @@ before(async () => {
   await rpc(w.users.deviceB, 'close_order', [o.id, null, null]);
   await as(w.users.deviceB, `insert into public.cash_movements (restaurant_id, business_date, kind, amount_cents, reason)
                              values ($1, current_date, 'float', 50000, 'fond de caisse')`, [w.B.r.id]);
+  const [gB] = await as(w.users.ownerB, `insert into public.ingredients (restaurant_id, name, base_unit, purchase_unit, purchase_qty, purchase_price_cents)
+    values ($1, 'Farine B', 'g', 'kg', 1000, 500) returning id`, [w.B.r.id]);
+  await as(w.users.ownerB, `insert into public.recipe_lines (restaurant_id, menu_item_id, ingredient_id, qty) values ($1, $2, $3, 100)`,
+    [w.B.r.id, w.B.items.pizza.id, gB.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
     JSON.stringify([{ category: { fr: 'Import B' }, name: { fr: 'Plat B' }, price_cents: 100 }])]);
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -17,8 +17,10 @@ import { AmplifyLogo, PatternBackdrop, Star8 } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
 import { dateLocale, t } from './lib/i18n';
 import { useCaptcha } from './lib/captcha';
+import { ProfitPage } from './pages/ProfitPage';
+import { IngredientsPage } from './pages/IngredientsPage';
 
-type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform';
+type Page = 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -56,23 +58,30 @@ function Screens() {
   }
 
   const r = a.current;
+  // which products this restaurant has (Amplify POS, Amplify Profit, or both)
+  const products = r?.products ?? ['pos', 'profit'];
+  const hasPos = !!r && products.includes('pos');
+  const hasProfit = !!r && products.includes('profit');
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
-    { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: !!r },
+    { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
-    { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: !!r },
-    { id: 'staff', label: t('Personnel'), Icon: Users, show: !!r },
-    { id: 'devices', label: t('Caisses'), Icon: Monitor, show: !!r },
-    { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: !!r },
+    { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
+    { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
+    { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos },
+    { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
+    { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
+    { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
     { id: 'settings', label: t('Restaurant'), Icon: Settings, show: !!r },
     { id: 'platform', label: t('Plateforme'), Icon: Shield, show: a.isAdmin },
   ];
-  const current = !r && a.isAdmin ? 'platform' : page;
+  const visible = nav.filter(n => n.show).map(n => n.id);
+  const current = !r && a.isAdmin ? 'platform' : visible.includes(page) ? page : (visible[0] ?? 'settings');
 
   return (
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo className="relative mb-5 mt-1 shrink-0 px-2" />
+        <AmplifyLogo product={hasPos ? 'POS' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
         {/* the middle part scrolls on low screens, so language and logout stay visible */}
         <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
         <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
@@ -114,6 +123,8 @@ function Screens() {
           {r && r.status === 'paused' && <p className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">{t('Abonnement suspendu : consultation seulement.')}</p>}
           {r && current === 'briefing' && <BriefingPage key={r.id} r={r} />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
+          {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
+          {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}

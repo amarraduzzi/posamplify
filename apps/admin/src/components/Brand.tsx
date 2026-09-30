@@ -20,14 +20,14 @@ export function AmplifyMark({ className = '', tone = 'dark' }: { className?: str
 }
 
 /** Logo: the mark plus the wordmark AMPLIFY POS, in the Amplify colors. */
-export function AmplifyLogo({ className = '', size = 'md', tone = 'dark' }: { className?: string; size?: 'sm' | 'md' | 'lg'; tone?: 'dark' | 'light' }) {
+export function AmplifyLogo({ className = '', size = 'md', tone = 'dark', product = 'POS' }: { className?: string; size?: 'sm' | 'md' | 'lg'; tone?: 'dark' | 'light'; product?: 'POS' | 'PROFIT' }) {
   const m = size === 'lg' ? 'h-12 w-[3.65rem]' : size === 'sm' ? 'h-7 w-[2.15rem]' : 'h-9 w-[2.75rem]';
   const t = size === 'lg' ? 'text-[1.6rem]' : size === 'sm' ? 'text-[0.95rem]' : 'text-[1.2rem]';
   return (
     <div className={`flex items-center gap-2.5 ${className}`} dir="ltr">
       <AmplifyMark tone={tone} className={`shrink-0 ${m}`} />
       <span className={`font-logo font-extrabold leading-none tracking-[0.02em] ${t} ${tone === 'dark' ? 'text-white' : 'text-[#002E5F]'}`}>
-        AMPLIFY <span className="text-[#05B962]">POS</span>
+        AMPLIFY <span className="text-[#05B962]">{product}</span>
       </span>
     </div>
   );

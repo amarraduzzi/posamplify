@@ -8,6 +8,8 @@ export interface Restaurant {
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
+  products?: ('pos' | 'profit')[];
+  profit_settings?: { target_food_cost_bp?: number };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean }
@@ -19,3 +21,18 @@ export interface Item {
 }
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; qr_token: string; sort_order: number; active: boolean }
+
+export type BaseUnit = 'g' | 'ml' | 'pc';
+export interface Ingredient {
+  id: string; restaurant_id: string; name: string; name_ar: string | null; category: string;
+  base_unit: BaseUnit; purchase_unit: string; purchase_qty: number; purchase_price_cents: number | null;
+  waste_bp: number; price_estimated: boolean; supplier: string | null; active: boolean; updated_at: string;
+}
+export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number }
+export interface ProfitDish {
+  item_id: string; variant_id: string | null; name: I18n; variant_name: I18n | null; category: I18n; image_url: string | null;
+  price_cents: number; vat_bp: number; price_ht_cents: number; lines: number; unpriced: number; estimated: number;
+  cost_cents: number | null; food_cost_bp: number | null; margin_cents: number | null; suggested_price_cents: number | null;
+  sold_qty: number; profit_cents: number | null;
+}
+export interface ProfitData { target_food_cost_bp: number; days: number; uses_pos: boolean; dishes: ProfitDish[] }
