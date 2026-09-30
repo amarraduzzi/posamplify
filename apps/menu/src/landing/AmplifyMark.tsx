@@ -9,12 +9,12 @@ export function AmplifyMark({ className = '', tone = 'dark' }: { className?: str
 }
 
 /** AMPLIFY POS wordmark next to the mark, as on the Amplify logo. */
-export function AmplifyLogo({ className = '', mark = 'h-8 w-10', text = 'text-lg' }: { className?: string; mark?: string; text?: string }) {
+export function AmplifyLogo({ className = '', mark = 'h-8 w-10', text = 'text-lg', product = 'POS' }: { className?: string; mark?: string; text?: string; product?: 'POS' | 'PROFIT' }) {
   return (
     <span className={`flex items-center gap-2.5 ${className}`} dir="ltr">
       <AmplifyMark className={mark} />
       <span className={`font-logo font-extrabold leading-none tracking-[0.02em] whitespace-nowrap text-white ${text}`}>
-        AMPLIFY <span className="text-[#05B962]">POS</span>
+        AMPLIFY <span className="text-[#05B962]">{product}</span>
       </span>
     </span>
   );

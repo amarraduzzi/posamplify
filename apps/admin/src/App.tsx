@@ -103,7 +103,7 @@ function Screens() {
             </button>
           ))}
         </nav>
-        {r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
+        {hasPos && r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
         </div>
         <div className="relative shrink-0 border-t border-white/10 pt-3">
           <LangSwitch dark className="mb-2 flex w-full" />
@@ -157,6 +157,15 @@ function Login() {
     }
   }, []);
   const switchTo = (m: typeof mode) => { setMode(m); setError(null); setInfo(null); };
+  // product chosen on the website (Amplify POS, Amplify Profit, or both)
+  const [product] = useState(() => {
+    const q = new URLSearchParams(location.search);
+    if (q.has('inscription')) {
+      const p = q.get('produit');
+      try { if (p === 'pos' || p === 'profit') localStorage.setItem('signup-product', p); else localStorage.removeItem('signup-product'); } catch { /* private mode */ }
+    }
+    return localStorage.getItem('signup-product') === 'profit' ? 'PROFIT' as const : 'POS' as const;
+  });
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null); setInfo(null);
     const captchaToken = cap.token;
@@ -181,7 +190,7 @@ function Login() {
     <div className="flex h-full">
       <section className="night relative hidden flex-1 flex-col justify-between overflow-hidden p-12 lg:flex">
         <PatternBackdrop />
-        <AmplifyLogo size="lg" className="relative" />
+        <AmplifyLogo size="lg" product={product} className="relative" />
         <div className="relative max-w-lg">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{t('Fait pour le Maroc')}</p>
           <h2 className="mt-4 font-display text-5xl font-semibold leading-[1.08]">{t('Le plus beau menu QR et la caisse la plus simple de votre ville.')}</h2>
@@ -196,7 +205,7 @@ function Login() {
       <div className="grid flex-1 place-items-center p-6 lg:max-w-xl">
         <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
           <div className="mb-10 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
-            <AmplifyLogo tone="light" className="lg:hidden" />
+            <AmplifyLogo tone="light" product={product} className="lg:hidden" />
             <LangSwitch />
           </div>
           <div>

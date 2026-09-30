@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check, Coffee, Soup, Sandwich, FileX, ArrowRight, Printer, ExternalLink } from 'lucide-react';
+import { Check, Coffee, Soup, Sandwich, FileX, ArrowRight, Printer, ExternalLink, Camera, TrendingUp } from 'lucide-react';
+import { ImportMenu } from '../components/ImportMenu';
 import { supabase, MENU_URL, POS_URL } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -27,15 +28,29 @@ const TEMPLATES: Record<string, { label: string; Icon: typeof Coffee; cats: C[] 
 };
 // i18n:end
 const slugify = (n: string) => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-const STEPS = () => [t('Restaurant'), t('Menu'), t('Tables'), t('Vous'), t('Caisse'), t('Terminé')];
+type StepKey = 'restaurant' | 'menu' | 'tables' | 'you' | 'till' | 'done';
+// i18n:values
+const STEP_LABEL: Record<StepKey, string> = { restaurant: 'Restaurant', menu: 'Menu', tables: 'Tables', you: 'Vous', till: 'Caisse', done: 'Terminé' };
+// i18n:end
+/** The product chosen on the website (?produit=pos|profit), remembered from the sign-up page. */
+export function signupProducts(): ('pos' | 'profit')[] {
+  const v = localStorage.getItem('signup-product');
+  return v === 'profit' ? ['profit'] : v === 'pos' ? ['pos'] : ['pos', 'profit'];
+}
+type DonePage = 'menu' | 'tables' | 'profit';
 
-/** First-run wizard for a restaurant that signed up by itself. */
-export function Onboarding({ onDone }: { onDone: (page?: 'menu' | 'tables') => void }) {
+/** First-run wizard for a restaurant that signed up by itself. Amplify Profit alone: no tables, staff or till steps. */
+export function Onboarding({ onDone }: { onDone: (page?: DonePage) => void }) {
   const a = useAdminCtx();
   const [step, setStep] = useState(() => Number(localStorage.getItem('admin-wizard-step') ?? 0));
   const r = step > 0 ? a.current : null;
+  const products = r?.products ?? signupProducts();
+  const keys: StepKey[] = products.includes('pos') ? ['restaurant', 'menu', 'tables', 'you', 'till', 'done'] : ['restaurant', 'menu', 'done'];
+  const STEPS = () => keys.map(k => t(STEP_LABEL[k]));
+  const key = keys[Math.min(step, keys.length - 1)];
   const go = (n: number) => { localStorage.setItem('admin-wizard-step', String(n)); setStep(n); };
-  const finish = (page?: 'menu' | 'tables') => { localStorage.removeItem('admin-wizard-step'); onDone(page); };
+  const next = () => go(step + 1);
+  const finish = (page?: DonePage) => { localStorage.removeItem('admin-wizard-step'); localStorage.removeItem('signup-product'); onDone(page); };
 
   return (
     <div className="mx-auto max-w-2xl p-4 md:p-8">
@@ -47,12 +62,12 @@ export function Onboarding({ onDone }: { onDone: (page?: 'menu' | 'tables') => v
           </li>
         ))}
       </ol>
-      {step === 0 && <StepRestaurant onNext={() => go(1)} />}
-      {step === 1 && r && <StepMenu r={r} onNext={() => go(2)} />}
-      {step === 2 && r && <StepTables r={r} onNext={() => go(3)} />}
-      {step === 3 && r && <StepYou r={r} onNext={() => go(4)} />}
-      {step === 4 && r && <StepTill r={r} onNext={() => go(5)} />}
-      {step === 5 && r && <StepDone r={r} onFinish={finish} />}
+      {key === 'restaurant' && <StepRestaurant onNext={next} />}
+      {key === 'menu' && r && <StepMenu r={r} onNext={next} />}
+      {key === 'tables' && r && <StepTables r={r} onNext={next} />}
+      {key === 'you' && r && <StepYou r={r} onNext={next} />}
+      {key === 'till' && r && <StepTill r={r} onNext={next} />}
+      {key === 'done' && r && <StepDone r={r} onFinish={finish} />}
       {step > 0 && !r && <p className="text-muted">{t('Chargement…')}</p>}
     </div>
   );
@@ -73,7 +88,7 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
   const create = async () => {
     setBusy(true);
     try {
-      const id = await rpc<string>('signup_restaurant', { p_name: name.trim(), p_slug: slug, p_city: city.trim() || null });
+      const id = await rpc<string>('signup_restaurant', { p_name: name.trim(), p_slug: slug, p_city: city.trim() || null, p_products: signupProducts() });
       localStorage.setItem('admin-restaurant', id);
       await a.reload();
       onNext();
@@ -99,6 +114,8 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
 function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   const a = useAdminCtx();
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState(false);
   const pick = async (key: string) => {
     setBusy(true);
     try {
@@ -116,6 +133,14 @@ function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
     <Card>
       <h1 className="mb-1 font-display text-3xl font-semibold">{t("Votre type d'établissement")}</h1>
       <p className="mb-6 text-muted">{t('Nous préparons les catégories du menu. Vous ajouterez vos articles et prix ensuite, et vous pourrez tout modifier.')}</p>
+      <button disabled={busy} onClick={() => setImporting(true)} className="mb-4 flex w-full items-center gap-4 rounded-2xl border border-brand/50 bg-gradient-to-r from-brand/15 to-surface p-5 text-start transition hover:border-brand disabled:opacity-50">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full gold-fill text-brand-ink"><Camera className="h-6 w-6" /></span>
+        <span>
+          <span className="block font-bold">{t('Importer ma carte (photo ou Excel)')}</span>
+          <span className="block text-sm text-muted">{t('Le plus rapide : tous vos plats et prix sont créés pour vous.')}</span>
+        </span>
+      </button>
+      <p className="mb-3 text-sm font-semibold text-muted">{t('Ou commencez avec des catégories prêtes :')}</p>
       <div className="grid grid-cols-2 gap-3">
         {Object.entries(TEMPLATES).map(([k, tp]) => (
           <button key={k} disabled={busy} onClick={() => pick(k)} className="rounded-2xl border border-line/15 p-5 text-start transition hover:border-brand disabled:opacity-50">
@@ -125,6 +150,8 @@ function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
           </button>
         ))}
       </div>
+      {importing && <ImportMenu r={r} cats={[]} items={[]} onDone={() => setImported(true)}
+        onClose={() => { setImporting(false); if (imported) onNext(); }} />}
     </Card>
   );
 }
@@ -210,7 +237,19 @@ function StepTill({ r, onNext }: { r: Restaurant; onNext: () => void }) {
   );
 }
 
-function StepDone({ r, onFinish }: { r: Restaurant; onFinish: (p?: 'menu' | 'tables') => void }) {
+function StepDone({ r, onFinish }: { r: Restaurant; onFinish: (p?: DonePage) => void }) {
+  if (!(r.products ?? ['pos']).includes('pos')) {
+    return (
+      <Card>
+        <h1 className="mb-1 font-display text-3xl font-semibold">{t("C'est prêt")} 🎉</h1>
+        <p className="mb-6 text-muted">{t('Place aux marges : l’IA peut remplir les fiches techniques de vos plats en une minute.')}</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Btn tone="brand" onClick={() => onFinish('profit')}><TrendingUp className="h-4 w-4" /> {t('Calculer mes marges')}</Btn>
+          <Btn onClick={() => onFinish('menu')}>{t('Voir mes plats')}</Btn>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card>
       <h1 className="mb-1 font-display text-3xl font-semibold">{t("C'est prêt")} 🎉</h1>

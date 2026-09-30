@@ -143,3 +143,9 @@ test('AI suggestions: fill empty recipes only, prices as estimates until confirm
   assert.equal((await as(m, `select count(*)::int n from public.recipe_lines where menu_item_id = $1`, [A.items.tajine.id]))[0].n, 4);
   await assert.rejects(rpc(w.users.ownerB, 'apply_recipe_suggestions', [rid, '[]']), /not allowed/);
 });
+
+test('website addresses cannot be taken by a restaurant', async () => {
+  assert.equal(await rpc(w.users.ownerA, 'slug_available', ['profit']), false);
+  assert.equal(await rpc(w.users.ownerA, 'slug_available', ['Admin']), false);
+  assert.equal(await rpc(w.users.ownerA, 'slug_available', ['profit-cafe']), true);
+});

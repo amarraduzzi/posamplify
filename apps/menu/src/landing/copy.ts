@@ -1,10 +1,20 @@
 // Website copy, French and Arabic. Claims stay factual: only what the product does today;
 // upcoming features are labelled "Bientôt / قريبا".
 
+export type Plan = { name: string; tag: string; price: string; text: string; items: string[]; product?: 'pos' | 'profit'; featured?: boolean };
+
 export type SiteLang = 'fr' | 'ar';
 
 const fr = {
-  nav: { features: 'Fonctionnalités', demo: 'Démo', pricing: 'Tarifs', faq: 'Questions', login: 'Se connecter', cta: 'Essai gratuit' },
+  nav: { features: 'Fonctionnalités', demo: 'Démo', pricing: 'Tarifs', faq: 'Questions', login: 'Se connecter', cta: 'Essai gratuit', profit: 'Amplify Profit' },
+  products: {
+    kicker: 'Deux produits',
+    title: 'Vendez mieux. Gagnez plus.',
+    text: 'Prenez la caisse, l’outil de marges, ou les deux. Ensemble, ils partagent tout automatiquement.',
+    pos: { name: 'Amplify POS', tag: 'Caisse et menu QR', text: 'La caisse tactile, le menu QR, les bons cuisine et le briefing du soir. Même sans internet.', items: ['Caisse et tables', 'Menu QR en 3 langues', 'Rapports X et Z, tickets numérotés'], cta: 'Découvrir' },
+    profit: { name: 'Amplify Profit', tag: 'Marges et coûts', text: 'Ce que coûte chaque plat, ce qu’il vous rapporte, et quel prix demander. Fonctionne avec votre caisse actuelle.', items: ['Fiches techniques remplies par l’IA', 'Food cost et marge par plat', 'Prix conseillé'], cta: 'Découvrir Amplify Profit' },
+    together: 'Ensemble : les ventes de la caisse calculent vos marges réelles, sans rien saisir.',
+  },
   hero: {
     eyebrow: 'Caisse · Menu QR · Gestion',
     title1: 'La caisse qui',
@@ -65,14 +75,15 @@ const fr = {
     title: 'Des prix clairs. Pas de surprise.',
     note: '30 jours gratuits sur toutes les formules. Prix hors taxes, par mois et par restaurant. Matériel vendu à part.',
     per: 'DH HT / mois',
-    popular: 'Le plus choisi',
+    popular: 'Le plus complet',
     soon: 'Bientôt',
     choose: 'Commencer',
     plans: [
-      { name: 'Essentiel', price: '199', text: 'Pour les cafés et snacks.', items: ['1 caisse', 'Menu QR consultation', 'Bons cuisine et bar', 'Rapports X et Z', 'Français et arabe'] },
-      { name: 'Restaurant', price: '349', text: 'Pour les restaurants avec service.', items: ['Caisses illimitées', 'Commande QR à table', 'Tables, zones et transferts', 'À emporter, livraison, Glovo', 'Fonctionne hors ligne'] },
-      { name: 'Contrôle', price: '599', text: 'Pour piloter les coûts.', items: ['Tout Restaurant', 'Stock et fiches techniques', 'Food cost par plat', 'Briefing du soir'], soon: true },
-    ],
+      { name: 'Essentiel', tag: 'Amplify POS', price: '199', text: 'Pour les cafés et snacks.', product: 'pos', items: ['1 caisse', 'Menu QR consultation', 'Bons cuisine et bar', 'Rapports X et Z', 'Français et arabe'] },
+      { name: 'Restaurant', tag: 'Amplify POS', price: '349', text: 'Pour les restaurants avec service.', product: 'pos', items: ['Caisses illimitées', 'Commande QR à table', 'Tables, zones et transferts', 'À emporter, livraison, Glovo', 'Fonctionne hors ligne'] },
+      { name: 'Profit', tag: 'Amplify Profit', price: '249', text: 'Avec votre caisse actuelle.', items: ['Fiches techniques par l’IA', 'Food cost et marge par plat', 'Prix conseillé', 'Import de votre carte en photo'], product: 'profit' },
+      { name: 'Contrôle', tag: 'POS + Profit', price: '499', text: 'Tout Restaurant et tout Profit.', items: ['Tout Restaurant', 'Tout Profit', 'Marges réelles depuis la caisse', 'Briefing du soir avec l’IA'], featured: true },
+    ] as Plan[],
   },
   faq: {
     kicker: 'Questions',
@@ -92,7 +103,15 @@ const fr = {
 type Copy = typeof fr;
 
 const ar: Copy = {
-  nav: { features: 'المميزات', demo: 'عرض مباشر', pricing: 'الأسعار', faq: 'أسئلة', login: 'تسجيل الدخول', cta: 'تجربة مجانية' },
+  nav: { features: 'المميزات', demo: 'عرض مباشر', pricing: 'الأسعار', faq: 'أسئلة', login: 'تسجيل الدخول', cta: 'تجربة مجانية', profit: 'Amplify Profit' },
+  products: {
+    kicker: 'منتوجان',
+    title: 'بيعوا أفضل. اربحوا أكثر.',
+    text: 'اختاروا الصندوق، أو أداة الهوامش، أو الاثنين معا. معا يتقاسمان كل شيء تلقائيا.',
+    pos: { name: 'Amplify POS', tag: 'الصندوق وقائمة QR', text: 'صندوق باللمس، قائمة QR، وصولات المطبخ وملخص المساء. حتى بدون إنترنت.', items: ['الصندوق والطاولات', 'قائمة QR بثلاث لغات', 'تقارير X و Z وتذاكر مرقمة'], cta: 'اكتشفوا' },
+    profit: { name: 'Amplify Profit', tag: 'الهوامش والتكاليف', text: 'كم يكلف كل طبق، وكم يربحكم، وأي ثمن يجب طلبه. يعمل مع صندوقكم الحالي.', items: ['بطاقات تقنية يملؤها الذكاء الاصطناعي', 'تكلفة المواد والهامش لكل طبق', 'الثمن المقترح'], cta: 'اكتشفوا Amplify Profit' },
+    together: 'معا: مبيعات الصندوق تحسب هوامشكم الحقيقية، بدون أي إدخال.',
+  },
   hero: {
     eyebrow: 'صندوق · قائمة QR · تسيير',
     title1: 'الصندوق الذي',
@@ -153,14 +172,15 @@ const ar: Copy = {
     title: 'أسعار واضحة. بدون مفاجآت.',
     note: '30 يوما مجانا في جميع العروض. الأسعار بدون ضريبة، شهريا ولكل مطعم. المعدات تباع على حدة.',
     per: 'درهم / شهر (بدون ضريبة)',
-    popular: 'الأكثر اختيارا',
+    popular: 'الأكثر اكتمالا',
     soon: 'قريبا',
     choose: 'ابدأوا',
     plans: [
-      { name: 'الأساسي', price: '199', text: 'للمقاهي والوجبات السريعة.', items: ['صندوق واحد', 'قائمة QR للاطلاع', 'وصولات المطبخ والبار', 'تقارير X و Z', 'العربية والفرنسية'] },
-      { name: 'المطعم', price: '349', text: 'للمطاعم مع الخدمة.', items: ['صناديق غير محدودة', 'الطلب بـ QR على الطاولة', 'الطاولات والمناطق والنقل', 'للأخذ، التوصيل، Glovo', 'يعمل بدون إنترنت'] },
-      { name: 'المراقبة', price: '599', text: 'للتحكم في التكاليف.', items: ['كل عرض المطعم', 'المخزون والبطاقات التقنية', 'تكلفة كل طبق', 'ملخص المساء'], soon: true },
-    ],
+      { name: 'الأساسي', tag: 'Amplify POS', price: '199', text: 'للمقاهي والوجبات السريعة.', product: 'pos', items: ['صندوق واحد', 'قائمة QR للاطلاع', 'وصولات المطبخ والبار', 'تقارير X و Z', 'العربية والفرنسية'] },
+      { name: 'المطعم', tag: 'Amplify POS', price: '349', text: 'للمطاعم مع الخدمة.', product: 'pos', items: ['صناديق غير محدودة', 'الطلب بـ QR على الطاولة', 'الطاولات والمناطق والنقل', 'للأخذ، التوصيل، Glovo', 'يعمل بدون إنترنت'] },
+      { name: 'Profit', tag: 'Amplify Profit', price: '249', text: 'مع صندوقكم الحالي.', items: ['بطاقات تقنية بالذكاء الاصطناعي', 'تكلفة المواد والهامش لكل طبق', 'الثمن المقترح', 'استيراد قائمتكم بصورة'], product: 'profit' },
+      { name: 'المراقبة', tag: 'POS + Profit', price: '499', text: 'كل عرض المطعم وكل Profit.', items: ['كل عرض المطعم', 'كل Profit', 'هوامش حقيقية من الصندوق', 'ملخص المساء بالذكاء الاصطناعي'], featured: true },
+    ] as Plan[],
   },
   faq: {
     kicker: 'أسئلة',

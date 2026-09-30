@@ -11,17 +11,17 @@ import { AmplifyLogo } from './AmplifyMark';
 // Amplify POS website. Served at the root of the menu app (restaurants live under /<slug>),
 // loaded lazily so guests scanning a table QR code never download it.
 
-const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://amplify-admin.pages.dev';
+export const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://amplify-admin.pages.dev';
 const DEMO_SLUG = (import.meta.env.VITE_DEMO_SLUG as string | undefined) ?? 'dar-nour'; // fictional demo café (supabase/demo/dar-nour.sql)
 
 // The Amplify colors from the logo: deep navy and green (independent of any restaurant's branding).
-const THEME = {
+export const THEME = {
   '--bg': '#020F20', '--surface': '#071B36', '--surface-2': '#0D274A', '--ink': '#ECF2FA', '--muted': '#8CA0BE',
   '--line': 'rgba(210, 225, 245, 0.10)', '--brand': '#05B962', '--brand-ink': '#001E3E', '--danger': '#F47171',
   '--font-display-family': '"Montserrat Variable", "IBM Plex Sans Arabic", system-ui, sans-serif',
 } as CSSProperties;
 
-function initialLang(): SiteLang {
+export function initialLang(): SiteLang {
   try {
     const q = new URLSearchParams(location.search).get('lang');
     if (q === 'ar' || q === 'fr') return q;
@@ -32,7 +32,7 @@ function initialLang(): SiteLang {
 }
 
 /** Adds .in to elements with .reveal when they scroll into view. */
-function useReveal(dep: unknown) {
+export function useReveal(dep: unknown) {
   useEffect(() => {
     const els = document.querySelectorAll('.reveal:not(.in)');
     if (!('IntersectionObserver' in window)) { els.forEach(e => e.classList.add('in')); return; }
@@ -47,6 +47,8 @@ export default function Landing() {
   const c = COPY[lang];
   const rtl = lang === 'ar';
   const signup = `${ADMIN}/?inscription=1&lang=${lang}`;
+  // each product can be bought on its own: the plan buttons open a sign-up for that product
+  const signupFor = (product?: 'pos' | 'profit') => `${signup}${product ? `&produit=${product}` : ''}`;
   const login = `${ADMIN}/?lang=${lang}`;
   const Arrow = rtl ? ArrowLeft : ArrowRight;
 
@@ -75,6 +77,7 @@ export default function Landing() {
               <a href="#demo" className="hover:text-ink transition-colors">{c.nav.demo}</a>
               <a href="#pricing" className="hover:text-ink transition-colors">{c.nav.pricing}</a>
               <a href="#faq" className="hover:text-ink transition-colors">{c.nav.faq}</a>
+              <a href="/profit" className="font-semibold text-brand hover:text-ink transition-colors">{c.nav.profit}</a>
             </div>
             <button onClick={() => setLang(rtl ? 'fr' : 'ar')} lang={rtl ? 'fr' : 'ar'}
               className="h-9 px-3 rounded-full border border-line text-sm font-semibold text-muted hover:text-ink transition-colors whitespace-nowrap">
@@ -122,6 +125,23 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      {/* ------------------------------------------------------------ two products */}
+      <Section id="produits" kicker={c.products.kicker} title={c.products.title} text={c.products.text} icon={<Sparkles className="size-4" />}>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([['pos', c.products.pos, '#features'], ['profit', c.products.profit, '/profit']] as const).map(([k, p, href], i) => (
+            <a key={k} href={href} className={`reveal group relative flex flex-col overflow-hidden rounded-[2rem] border p-7 transition-colors ${k === 'profit' ? 'border-brand/50 bg-gradient-to-br from-brand/15 to-surface hover:border-brand' : 'border-line bg-surface/70 hover:border-brand/50'}`} style={{ ['--d' as string]: `${i * 90}ms` }}>
+              <Star8 filled={false} stroke={0.4} className="absolute -top-10 -end-10 size-36 text-brand/10 group-hover:text-brand/25 transition-colors" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand">{p.tag}</p>
+              <h3 dir="ltr" className="mt-2 font-logo text-2xl font-extrabold rtl:text-end">AMPLIFY <span className="text-brand">{k === 'pos' ? 'POS' : 'PROFIT'}</span></h3>
+              <p className="mt-3 text-muted leading-relaxed">{p.text}</p>
+              <ul className="mt-5 space-y-2 text-[15px] flex-1">{p.items.map(it => <li key={it} className="flex gap-2.5"><Check className="size-5 shrink-0 text-brand" />{it}</li>)}</ul>
+              <span className="mt-6 inline-flex items-center gap-2 font-bold text-brand">{p.cta}<Arrow className="size-4 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1" /></span>
+            </a>
+          ))}
+        </div>
+        <p className="reveal mx-auto mt-6 flex max-w-2xl items-center justify-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-5 py-3 text-center text-sm font-semibold"><Zap className="size-4 shrink-0 text-brand" />{c.products.together}</p>
+      </Section>
 
       {/* ------------------------------------------------------------ offline */}
       <Section id="offline" kicker={c.offline.kicker} title={c.offline.title} text={c.offline.text} icon={<CloudOff className="size-4" />}>
@@ -188,25 +208,21 @@ export default function Landing() {
 
       {/* ------------------------------------------------------------ pricing */}
       <Section id="pricing" kicker={c.pricing.kicker} title={c.pricing.title} text={c.pricing.note} icon={<Receipt className="size-4" />}>
-        <div className="grid md:grid-cols-3 gap-4 items-stretch">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {c.pricing.plans.map((p, i) => {
-            const featured = i === 1;
+            const featured = !!p.featured;
             return (
               <article key={p.name} className={`reveal relative flex flex-col rounded-[2rem] p-7 ${featured ? 'bg-gradient-to-b from-brand/20 to-surface border border-brand/60 shadow-[0_30px_80px_-30px_rgba(5,185,98,.55)] md:-translate-y-3' : 'border border-line bg-surface/70'}`}
                 style={{ ['--d' as string]: `${i * 90}ms` }}>
                 {featured && <span className="absolute -top-3.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-brand px-3.5 py-1 text-xs font-bold text-brand-ink whitespace-nowrap">{c.pricing.popular}</span>}
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-2xl font-semibold">{p.name}</h3>
-                  {p.soon && <span className="rounded-full border border-line px-2.5 py-0.5 text-xs font-semibold text-muted">{c.pricing.soon}</span>}
-                </div>
+                <p dir="ltr" className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand rtl:text-end">{p.tag}</p>
+                <h3 className="mt-1 font-display text-2xl font-semibold">{p.name}</h3>
                 <p className="mt-1 text-sm text-muted">{p.text}</p>
                 <p className="mt-6 flex items-baseline gap-2"><span dir="ltr" className="font-display text-5xl font-semibold">{p.price}</span><span className="text-sm text-muted">{c.pricing.per}</span></p>
                 <ul className="mt-6 space-y-2.5 text-[15px] flex-1">
                   {p.items.map(it => <li key={it} className="flex gap-2.5"><Check className="size-5 shrink-0 text-brand" /><span>{it}</span></li>)}
                 </ul>
-                {!p.soon && (
-                  <a href={signup} className={`mt-8 h-12 grid place-items-center rounded-full font-bold press ${featured ? 'bg-brand text-brand-ink glow-brand' : 'border border-line hover:border-brand/50 transition-colors'}`}>{c.pricing.choose}</a>
-                )}
+                <a href={signupFor(p.product)} className={`mt-8 h-12 grid place-items-center rounded-full font-bold press ${featured ? 'bg-brand text-brand-ink glow-brand' : 'border border-line hover:border-brand/50 transition-colors'}`}>{c.pricing.choose}</a>
               </article>
             );
           })}
@@ -252,7 +268,7 @@ export default function Landing() {
   );
 }
 
-function Section({ id, kicker, title, text, icon, children }: { id: string; kicker: string; title: string; text?: string; icon: ReactNode; children: ReactNode }) {
+export function Section({ id, kicker, title, text, icon, children }: { id: string; kicker: string; title: string; text?: string; icon: ReactNode; children: ReactNode }) {
   return (
     <section id={id} className="scroll-mt-24 px-5 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl">

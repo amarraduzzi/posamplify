@@ -529,4 +529,10 @@ export const AR: Record<string, string> = {
   "Épluchures, os, parures : la partie jetée.": "القشور والعظام والزوائد: الجزء الذي يرمى.",
   "Indiquez une quantité pour chaque ingrédient.": "أدخلوا كمية لكل مكون.",
   "prix connu": "ثمن معروف",
+  "Calculer mes marges": "احسبوا هوامشكم",
+  "Importer ma carte (photo ou Excel)": "استيراد قائمتي (صورة أو Excel)",
+  "Le plus rapide : tous vos plats et prix sont créés pour vous.": "الأسرع: تنشأ كل أطباقكم وأثمنتكم تلقائيا.",
+  "Ou commencez avec des catégories prêtes :": "أو ابدأوا بفئات جاهزة:",
+  "Place aux marges : l’IA peut remplir les fiches techniques de vos plats en une minute.": "حان وقت الهوامش: يمكن للذكاء الاصطناعي ملء البطاقات التقنية لأطباقكم في دقيقة.",
+  "Voir mes plats": "عرض أطباقي",
 };

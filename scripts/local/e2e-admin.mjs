@@ -26,9 +26,10 @@ await page.goto(BASE);
 await page.getByLabel('E-mail').fill('eigenaar@doms.test');
 await page.getByLabel('Mot de passe').fill('eigenaar-test-123');
 await btn('Se connecter').click();
-// owners land on today's briefing
+// owners land on today's briefing (Dom's has POS; other test restaurants may be Profit only)
+await page.locator('aside').waitFor();
+if (await page.locator('aside select').first().isVisible()) await page.locator('aside select').first().selectOption({ label: "Dom's Café" });
 await page.getByRole('heading', { name: 'Briefing' }).waitFor();
-if (await page.locator('select').first().isVisible()) await page.locator('select').first().selectOption({ label: "Dom's Café" });
 await page.getByText('Ce qu’il faut retenir').waitFor();
 await shot('00-briefing');
 await btn('Menu').click();
