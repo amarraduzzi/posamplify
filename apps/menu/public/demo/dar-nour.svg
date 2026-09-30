@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Dar Nour: fictional demo café of Amplify POS -->
+  <path d="M100 8 L127 35 H165 V73 L192 100 L165 127 V165 H127 L100 192 L73 165 H35 V127 L8 100 L35 73 V35 H73 Z" fill="#B4532A"/>
+  <circle cx="100" cy="100" r="58" fill="#FBF3E6"/>
+  <circle cx="100" cy="100" r="50" fill="none" stroke="#B4532A" stroke-width="1.5" stroke-dasharray="2 4"/>
+  <text x="100" y="98" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#7A3418" letter-spacing="1">Dar</text>
+  <text x="100" y="128" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" font-style="italic" fill="#B4532A">Nour</text>
+</svg>

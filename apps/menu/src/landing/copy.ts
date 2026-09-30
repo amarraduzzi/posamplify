@@ -45,8 +45,8 @@ const fr = {
   },
   live: {
     kicker: 'Démo en direct',
-    title: 'Scannez le menu d’un vrai café.',
-    text: 'Ouvrez l’appareil photo de votre téléphone et scannez ce code. Vous voyez exactement ce que voient les clients de Dom’s Café à Rabat.',
+    title: 'Scannez, vous êtes à table.',
+    text: 'Ouvrez l’appareil photo de votre téléphone et scannez ce code. Voici Dar Nour, notre café de démonstration : exactement ce que verront vos clients.',
     open: 'Ouvrir le menu',
   },
   soon: {
@@ -133,8 +133,8 @@ const ar: Copy = {
   },
   live: {
     kicker: 'عرض مباشر',
-    title: 'امسحوا قائمة مقهى حقيقي.',
-    text: 'افتحوا كاميرا هاتفكم وامسحوا هذا الرمز. سترون بالضبط ما يراه زبناء Dom’s Café في الرباط.',
+    title: 'امسحوا الرمز، وكأنكم في المقهى.',
+    text: 'افتحوا كاميرا هاتفكم وامسحوا هذا الرمز. هذا مقهى دار نور، مقهى العرض لدينا: بالضبط ما سيراه زبناؤكم.',
     open: 'فتح القائمة',
   },
   soon: {

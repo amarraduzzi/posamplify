@@ -12,7 +12,7 @@ import { AmplifyLogo } from './AmplifyMark';
 // loaded lazily so guests scanning a table QR code never download it.
 
 const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://amplify-admin.pages.dev';
-const DEMO_SLUG = (import.meta.env.VITE_DEMO_SLUG as string | undefined) ?? 'doms-cafe';
+const DEMO_SLUG = (import.meta.env.VITE_DEMO_SLUG as string | undefined) ?? 'dar-nour'; // fictional demo café (supabase/demo/dar-nour.sql)
 
 // The Amplify colors from the logo: deep navy and green (independent of any restaurant's branding).
 const THEME = {
@@ -296,13 +296,13 @@ function Phone({ src }: { src: string }) {
 
 function TillMock() {
   const tables = [
-    [1, 0], [2, 185], [3, 0], [4, 32], [5, 0], [6, 0], [7, 240], [8, 0], [9, 68], [10, 0], [11, 0], [12, 0],
+    [1, 0], [2, 185], [3, 0], [4, 32], [5, 0], [6, 0], [7, 250], [8, 0], [9, 68], [10, 0], [11, 0], [12, 0],
   ] as const;
   return (
     <div dir="ltr" className="overflow-hidden rounded-[1.2rem] bg-[#031428] text-[10px] text-[#ECF2FA] select-none" aria-hidden>
       <div className="flex items-center gap-2 border-b border-white/5 bg-[#071B36] px-3 py-2">
         <span className="relative grid size-5 place-items-center"><Star8 className="absolute inset-0 size-full text-brand" /></span>
-        <span className="font-display text-[11px] font-semibold">Dom's Café</span>
+        <span className="font-display text-[11px] font-semibold">Dar Nour</span>
         <span className="ms-2 rounded-md bg-brand px-2 py-1 font-bold text-brand-ink">Tables 4/12</span>
         <span className="rounded-md px-2 py-1 text-[#8CA0BE]">Commandes</span>
         <span className="rounded-md px-2 py-1 text-[#8CA0BE]">Historique</span>
@@ -319,10 +319,10 @@ function TillMock() {
         </div>
         <div className="border-s border-white/5 bg-[#071B36] p-2.5 flex flex-col">
           <p className="font-bold uppercase tracking-widest text-[#8CA0BE]">Table 7</p>
-          {[['2×', 'Tajine poulet', '130'], ['1×', 'Salade marocaine', '35'], ['3×', 'Thé à la menthe', '45'], ['1×', 'Jus d’orange', '30']].map(([q, n, p]) => (
+          {[['2×', 'Tajine poulet', '130'], ['1×', 'Salade du jardin', '45'], ['3×', 'Thé à la menthe', '45'], ['1×', 'Jus d’orange', '30']].map(([q, n, p]) => (
             <p key={n} className="mt-1.5 flex gap-1"><b>{q}</b><span className="flex-1 truncate">{n}</span><span>{p}</span></p>
           ))}
-          <p className="mt-auto flex items-baseline justify-between border-t border-white/5 pt-2"><span className="text-[#8CA0BE]">TOTAL</span><span className="font-display text-base font-semibold text-brand">240 MAD</span></p>
+          <p className="mt-auto flex items-baseline justify-between border-t border-white/5 pt-2"><span className="text-[#8CA0BE]">TOTAL</span><span className="font-display text-base font-semibold text-brand">250 MAD</span></p>
           <span className="mt-2 rounded-lg bg-[#2DD4BF] py-1.5 text-center font-bold text-[#032A2A]">Encaisser</span>
         </div>
       </div>
