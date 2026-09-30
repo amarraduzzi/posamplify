@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
@@ -8,6 +8,7 @@ import { useAdminCtx } from '../store';
 import type { Category, I18n, Item, Restaurant, Variant } from '../lib/types';
 import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
+import { ImportMenu } from '../components/ImportMenu';
 
 // tag labels (the stored value is the key), shown through t()
 // i18n:values
@@ -24,6 +25,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [q, setQ] = useState('');
   const [editCat, setEditCat] = useState<Category | 'new' | null>(null);
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -68,7 +70,18 @@ export function MenuPage({ r }: { r: Restaurant }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} ps-9`} placeholder={t('Chercher un article')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        <Btn tone="ghost" onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
       </div>
+      {items.length < 5 && (
+        <button onClick={() => setImporting(true)} className="mb-6 flex w-full items-center gap-4 rounded-3xl border border-brand/40 bg-gradient-to-r from-brand/15 via-surface to-surface p-5 text-start transition hover:border-brand">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full gold-fill text-brand-ink"><Camera className="h-6 w-6" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg font-semibold">{t('Votre menu prêt en 2 minutes')}</span>
+            <span className="block text-sm text-muted">{t("Une photo de votre carte ou l'export Excel de votre ancienne caisse suffit. Rien à retaper.")}</span>
+          </span>
+          <span className="hidden rounded-xl gold-fill px-4 py-2.5 text-sm font-semibold text-brand-ink sm:block">{t('Importer mon menu')}</span>
+        </button>
+      )}
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
         <section>
           <div className="mb-2 flex items-center justify-between">
@@ -124,6 +137,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
         </section>
       </div>
 
+      {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}
       {editCat && <CategoryEditor r={r} cat={editCat === 'new' ? null : editCat} count={cats.length} onClose={() => setEditCat(null)} onSaved={async id => { setEditCat(null); await load(); if (id) setSel(id); }} />}
       {editItem && <ItemEditor r={r} cats={cats} item={editItem === 'new' ? null : editItem} catId={sel} count={shown.length}
         onClose={() => setEditItem(null)} onSaved={async () => { setEditItem(null); await load(); }} />}

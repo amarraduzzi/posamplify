@@ -162,3 +162,13 @@ node scripts/local/e2e.mjs                     # bestelt als gast en controleert
 1. Supabase > Edge Functions > Deploy a new function > Via editor: naam `briefing-ai`, inhoud van `supabase/functions/briefing-ai/index.ts`.
 2. Supabase > Edge Functions > Secrets: `GEMINI_API_KEY` (gratis sleutel via aistudio.google.com > Get API key) of `ANTHROPIC_API_KEY`. Optioneel `BRIEFING_MODEL`. Namen van personeel worden vervangen door labels voordat de cijfers naar de AI gaan.
 Zonder sleutel toont het beheer "bientôt activé"; de rest van de briefing werkt altijd.
+
+## Menu importeren (overstappen zonder overtypen)
+
+Beheer > Menu > **Importer**. Twee routes, allebei eerst een controlescherm, daarna één klik (alles of niets) en elke import is ongedaan te maken:
+
+- **Excel/CSV** (export van de oude kassa, of het downloadbare model). Kolommen worden herkend in FR/AR/EN (Désignation, Famille, Prix TTC, الاسم, السعر...), kostprijs/stock/btw-kolommen worden genegeerd, maten op aparte regels of in kolommen (S/M/L) worden varianten, categorie-titels als losse regels werken ook. Oud `.xls`: eerst opslaan als `.xlsx` of CSV.
+- **Foto of PDF van de kaart** (max. 6 bestanden): Edge Function `menu-extract` laat Gemini de kaart lezen en vertalen. Deploy: Edge Functions > Deploy a new function > Via editor, naam `menu-extract`, inhoud van `supabase/functions/menu-extract/index.ts`, **Verify JWT uit**. Gebruikt dezelfde `GEMINI_API_KEY`.
+
+Database: `import_menu`, `undo_menu_import`, tabel `menu_imports` (migratie `20260930000300_menu_import.sql`). Een gerecht dat al bestaat in dezelfde categorie wordt overgeslagen; verkochte gerechten worden bij ongedaan maken verborgen in plaats van gewist.
+Tests: `supabase/tests/11_menu_import.test.mjs`, `node --test --experimental-strip-types scripts/menu-import-cases.test.ts`, `scripts/local/e2e-import.mjs`.

@@ -13,6 +13,8 @@ before(async () => {
   await rpc(w.users.deviceB, 'close_order', [o.id, null, null]);
   await as(w.users.deviceB, `insert into public.cash_movements (restaurant_id, business_date, kind, amount_cents, reason)
                              values ($1, current_date, 'float', 50000, 'fond de caisse')`, [w.B.r.id]);
+  await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
+    JSON.stringify([{ category: { fr: 'Import B' }, name: { fr: 'Plat B' }, price_cents: 100 }])]);
 });
 after(() => pool.end());
 
