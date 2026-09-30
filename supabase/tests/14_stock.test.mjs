@@ -100,3 +100,55 @@ test('inventory is for managers and owners of that restaurant only', async () =>
   // B cannot use A's count with its own report
   await assert.rejects(rpc(w.users.ownerB, 'stock_report', [w.B.r.id, cA.id, cB.id]), /unknown count/);
 });
+
+test('stock now and what to buy: with the till (sales) and without (counts)', async () => {
+  const m = w.users.managerA, rid = A.r.id;
+  let f = await rpc(m, 'stock_forecast', [rid]);
+  assert.equal(f.order_days, 7);
+  assert.equal(f.sales_days, 1, 'the till has one day of history');
+  let p = f.items.find(i => i.ingredient_id === poulet.id);
+  assert.equal(Number(p.estimate), 2000, 'counted today');
+  assert.equal(p.daily_source, 'sales');
+  assert.equal(Number(p.daily), 800, '2 tajines x 400 g');
+  assert.equal(Number(p.days_left), 2.5);
+  assert.equal(p.status, 'order');
+  assert.equal(Number(p.to_buy), 7 * 800 - 2000);
+  assert.equal(Number(p.to_buy_cents), 23400, '3.6 kg at 65 DH');
+  const h = f.items.find(i => i.ingredient_id === huile.id);
+  assert.equal(h.daily_source, 'counts', 'no dish uses oil: use per day from the two counts');
+  assert.equal(Number(h.daily), 500);
+  assert.equal(Number(h.to_buy), 3500 - 1500);
+  assert.equal(Number(h.to_buy_cents), 4000);
+
+  // sales after the count lower the estimate; a purchase raises it
+  await sql(`update public.stock_counts set counted_on = counted_on - 1 where id in ($1, $2)`, [cA.id, cB.id]);
+  f = await rpc(m, 'stock_forecast', [rid]);
+  p = f.items.find(i => i.ingredient_id === poulet.id);
+  assert.equal(Number(p.estimate), 2000 + 3000 - 800, 'counted yesterday + bought today - sold today');
+  assert.equal(Number(p.bought_since), 3000);
+  await sql(`update public.stock_counts set counted_on = counted_on + 1 where id in ($1, $2)`, [cA.id, cB.id]);
+
+  // without the till: use per day from the counts, 6 kg a day -> urgent
+  await sql(`update public.restaurants set products = '{profit}', profit_settings = '{"order_days": 3}' where id = $1`, [rid]);
+  f = await rpc(m, 'stock_forecast', [rid]);
+  p = f.items.find(i => i.ingredient_id === poulet.id);
+  assert.equal(f.sales_days, null);
+  assert.equal(p.daily_source, 'counts');
+  assert.equal(Number(p.daily), 6000);
+  assert.equal(p.status, 'urgent');
+  assert.equal(Number(p.to_buy), 3 * 6000 - 2000);
+  await assert.rejects(rpc(w.users.deviceA, 'stock_forecast', [rid]), /not allowed/);
+});
+
+test('a purchase on the day of a count: before it by default, or received after it', async () => {
+  const m = w.users.managerA, rid = A.r.id;
+  await sql(`update public.restaurants set products = '{profit}', profit_settings = '{}' where id = $1`, [rid]);
+  const est = async () => Number((await rpc(m, 'stock_forecast', [rid])).items.find(i => i.ingredient_id === huile.id).estimate);
+  const before = await est();
+  await as(m, `insert into public.stock_purchases (restaurant_id, ingredient_id, purchased_on, qty) values ($1, $2, current_date, 1000)`, [rid, huile.id]);
+  assert.equal(await est(), before, 'same day, before the evening count: already in the count');
+  await as(m, `insert into public.stock_purchases (restaurant_id, ingredient_id, purchased_on, qty, after_count) values ($1, $2, current_date, 2000, true)`, [rid, huile.id]);
+  assert.equal(await est(), before + 2000, 'received after the count: adds to the stock');
+  const r = await rpc(m, 'stock_report', [rid, cA.id, cB.id]);
+  assert.equal(Number(r.items.find(i => i.ingredient_id === huile.id).bought), 1000, 'the after-count purchase is for the next period');
+});

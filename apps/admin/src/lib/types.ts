@@ -9,7 +9,7 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
   products?: ('pos' | 'profit')[];
-  profit_settings?: { target_food_cost_bp?: number };
+  profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean }
