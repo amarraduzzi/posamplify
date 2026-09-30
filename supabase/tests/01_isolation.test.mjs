@@ -17,6 +17,9 @@ before(async () => {
     values ($1, 'Farine B', 'g', 'kg', 1000, 500) returning id`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.recipe_lines (restaurant_id, menu_item_id, ingredient_id, qty) values ($1, $2, $3, 100)`,
     [w.B.r.id, w.B.items.pizza.id, gB.id]);
+  const [cB] = await as(w.users.ownerB, `insert into public.stock_counts (restaurant_id, counted_on) values ($1, current_date) returning id`, [w.B.r.id]);
+  await as(w.users.ownerB, `insert into public.stock_count_lines (restaurant_id, count_id, ingredient_id, qty) values ($1, $2, $3, 500)`, [w.B.r.id, cB.id, gB.id]);
+  await as(w.users.ownerB, `insert into public.stock_purchases (restaurant_id, ingredient_id, purchased_on, qty) values ($1, $2, current_date, 1000)`, [w.B.r.id, gB.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
