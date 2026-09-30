@@ -111,6 +111,8 @@ export function BriefingPage({ r }: { r: Restaurant }) {
   }, [r.id]);
 
   const list = useMemo(() => (b && today ? signals(b, today, hasTables) : []), [b, today, hasTables]);
+  // orders still open (nothing sold, nothing cancelled) are not worth a row
+  const staffRows = (b?.staff ?? []).filter(s => s.orders > 0 || s.cancelled > 0);
   if (unavailable) return <Card><h1 className="font-display text-2xl font-semibold">{t('Briefing')}</h1><p className="mt-2 text-muted">{t('Le briefing sera disponible après la prochaine mise à jour de la base de données.')}</p></Card>;
   if (!b) return <p className="text-muted">{t('Chargement…')}</p>;
 
@@ -214,7 +216,7 @@ export function BriefingPage({ r }: { r: Restaurant }) {
 
       <Card>
         <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold"><Users className="h-5 w-5 text-brand" />{t('Par employé')}</h2>
-        {b.staff.length ? (
+        {staffRows.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-muted"><tr className="text-start">
@@ -225,7 +227,7 @@ export function BriefingPage({ r }: { r: Restaurant }) {
                 <th className="text-end font-semibold">{t('Annulations')}</th>
               </tr></thead>
               <tbody>
-                {b.staff.map(s => (
+                {staffRows.map(s => (
                   <tr key={s.staff_id ?? 'none'} className="border-t border-line/[0.08]">
                     <td className="py-2.5 font-semibold">{s.name ?? t('Sans nom')}</td>
                     <td className="text-end tabular">{s.orders}</td>
