@@ -154,3 +154,4 @@ export function inkFor(hex: string): string {
   const onLight = (L + 0.05) / (0.0056 + 0.05); // #141414
   return onLight >= onDark ? '#141414' : '#ffffff';
 }
+export * from './brand';

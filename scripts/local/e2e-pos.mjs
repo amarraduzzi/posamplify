@@ -16,6 +16,11 @@ const tickets = () => (existsSync(TICKETS) ? readFileSync(TICKETS, 'utf8') : '')
 
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+if (process.env.DEBUG) {
+  page.on('console', m => console.log('[console]', m.type(), m.text().slice(0, 300)));
+  page.on('requestfailed', r => console.log('[failed]', r.method(), r.url().slice(0, 120), r.failure()?.errorText));
+  page.on('response', r => { if (r.url().includes('/rpc/')) console.log('[rpc]', r.status(), r.url().split('/rpc/')[1]); });
+}
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 const shot = n => page.screenshot({ path: `${OUT}/${n}.png` });

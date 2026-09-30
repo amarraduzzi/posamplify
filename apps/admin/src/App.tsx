@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles } from 'lucide-react';
-import { inkFor } from '@resto/shared';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -30,15 +29,6 @@ export default function App() {
   // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
   const [, bump] = useState(0);
 
-  useEffect(() => {
-    const c = a.current?.branding?.primary_color;
-    const m = c && /^#?([0-9a-f]{6})$/i.exec(c);
-    if (m) {
-      const n = parseInt(m[1], 16);
-      document.documentElement.style.setProperty('--brand', `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`);
-      document.documentElement.style.setProperty('--brand-ink', inkFor(c!) === '#ffffff' ? '255 255 255' : '20 20 20');
-    }
-  }, [a.current]);
 
   if (a.session === undefined) return null;
   if (!a.session) return <Login />;
@@ -159,7 +149,7 @@ function Login() {
       <div className="grid flex-1 place-items-center p-6 lg:max-w-xl">
         <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
           <div className="mb-10 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
-            <AmplifyLogo cut="text-bg" className="lg:hidden" />
+            <AmplifyLogo tone="light" className="lg:hidden" />
             <LangSwitch />
           </div>
           <div>

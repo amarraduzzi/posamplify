@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { COPY, type SiteLang } from './copy';
 import { Star8 } from '../components/Ornament';
+import { AmplifyLogo } from './AmplifyMark';
 
 // Amplify POS website. Served at the root of the menu app (restaurants live under /<slug>),
 // loaded lazily so guests scanning a table QR code never download it.
@@ -13,11 +14,11 @@ import { Star8 } from '../components/Ornament';
 const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://amplify-admin.pages.dev';
 const DEMO_SLUG = (import.meta.env.VITE_DEMO_SLUG as string | undefined) ?? 'doms-cafe';
 
-// Midnight and gold, the product's own look (independent of any restaurant's branding).
+// The Amplify colors from the logo: deep navy and green (independent of any restaurant's branding).
 const THEME = {
-  '--bg': '#070B14', '--surface': '#0E1422', '--surface-2': '#172036', '--ink': '#F2EDE2', '--muted': '#8F99B0',
-  '--line': 'rgba(214, 222, 240, 0.09)', '--brand': '#C9A15A', '--brand-ink': '#17120A', '--danger': '#F47171',
-  '--font-display-family': '"Fraunces Variable", "IBM Plex Sans Arabic", Georgia, serif',
+  '--bg': '#020F20', '--surface': '#071B36', '--surface-2': '#0D274A', '--ink': '#ECF2FA', '--muted': '#8CA0BE',
+  '--line': 'rgba(210, 225, 245, 0.10)', '--brand': '#05B962', '--brand-ink': '#001E3E', '--danger': '#F47171',
+  '--font-display-family': '"Montserrat Variable", "IBM Plex Sans Arabic", system-ui, sans-serif',
 } as CSSProperties;
 
 function initialLang(): SiteLang {
@@ -53,9 +54,9 @@ export default function Landing() {
     const root = document.documentElement;
     root.lang = lang; root.dir = rtl ? 'rtl' : 'ltr';
     root.dataset.theme = 'dark';
-    document.body.style.background = '#070B14';
+    document.body.style.background = '#020F20';
     document.title = rtl ? 'Amplify POS · صندوق ذكي للمقاهي والمطاعم في المغرب' : 'Amplify POS · La caisse des cafés et restaurants au Maroc';
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#070B14');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#020F20');
     try { localStorage.setItem('site-lang', lang); } catch { /* ignore */ }
   }, [lang, rtl]);
   useReveal(lang);
@@ -67,11 +68,7 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-4 pt-3">
           <nav className="flex items-center gap-3 rounded-2xl border border-line bg-surface/70 backdrop-blur-xl px-3 py-2 sm:px-4">
             <a href="#top" className="flex items-center gap-2.5 me-auto">
-              <span className="relative grid place-items-center size-8">
-                <Star8 className="absolute inset-0 size-full text-brand" />
-                <Star8 className="relative size-3 text-bg" />
-              </span>
-              <span className="font-display text-base sm:text-lg font-semibold whitespace-nowrap">Amplify <span className="text-brand">POS</span></span>
+              <AmplifyLogo mark="h-7 w-9 sm:h-8 sm:w-10" text="text-[0.95rem] sm:text-lg" />
             </a>
             <div className="hidden md:flex items-center gap-6 text-sm text-muted">
               <a href="#features" className="hover:text-ink transition-colors">{c.nav.features}</a>
@@ -195,7 +192,7 @@ export default function Landing() {
           {c.pricing.plans.map((p, i) => {
             const featured = i === 1;
             return (
-              <article key={p.name} className={`reveal relative flex flex-col rounded-[2rem] p-7 ${featured ? 'bg-gradient-to-b from-brand/20 to-surface border border-brand/60 shadow-[0_30px_80px_-30px_rgba(201,161,90,.55)] md:-translate-y-3' : 'border border-line bg-surface/70'}`}
+              <article key={p.name} className={`reveal relative flex flex-col rounded-[2rem] p-7 ${featured ? 'bg-gradient-to-b from-brand/20 to-surface border border-brand/60 shadow-[0_30px_80px_-30px_rgba(5,185,98,.55)] md:-translate-y-3' : 'border border-line bg-surface/70'}`}
                 style={{ ['--d' as string]: `${i * 90}ms` }}>
                 {featured && <span className="absolute -top-3.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-brand px-3.5 py-1 text-xs font-bold text-brand-ink whitespace-nowrap">{c.pricing.popular}</span>}
                 <div className="flex items-center justify-between">
@@ -246,7 +243,7 @@ export default function Landing() {
 
       <footer className="border-t border-line px-5 py-10 text-center text-sm text-muted">
         <div className="flex items-center justify-center gap-2">
-          <Star8 className="size-4 text-brand" /><span className="font-display font-semibold text-ink">Amplify POS</span>
+          <AmplifyLogo mark="h-6 w-8" text="text-base" />
         </div>
         <p className="mt-2">{c.footer}</p>
         <p className="mt-1">© 2026</p>
@@ -288,7 +285,7 @@ function HeroVisual({ lang }: { lang: SiteLang }) {
 
 function Phone({ src }: { src: string }) {
   return (
-    <div className="relative rounded-[2.4rem] border border-white/10 bg-[#05070d] p-2 shadow-[0_40px_90px_-30px_rgba(0,0,0,.95),0_0_0_1px_rgba(201,161,90,.25)]">
+    <div className="relative rounded-[2.4rem] border border-white/10 bg-[#010A16] p-2 shadow-[0_40px_90px_-30px_rgba(0,0,0,.95),0_0_0_1px_rgba(5,185,98,.25)]">
       <div className="absolute top-3.5 start-1/2 z-10 h-5 w-20 -translate-x-1/2 rtl:translate-x-1/2 rounded-full bg-black" aria-hidden />
       <div className="overflow-hidden rounded-[1.9rem] bg-bg aspect-[9/19.5]">
         <iframe src={src} title="Menu" loading="lazy" className="size-full border-0" />
@@ -302,31 +299,31 @@ function TillMock() {
     [1, 0], [2, 185], [3, 0], [4, 32], [5, 0], [6, 0], [7, 240], [8, 0], [9, 68], [10, 0], [11, 0], [12, 0],
   ] as const;
   return (
-    <div dir="ltr" className="overflow-hidden rounded-[1.2rem] bg-[#080C16] text-[10px] text-[#F0EBE0] select-none" aria-hidden>
-      <div className="flex items-center gap-2 border-b border-white/5 bg-[#0F1524] px-3 py-2">
+    <div dir="ltr" className="overflow-hidden rounded-[1.2rem] bg-[#031428] text-[10px] text-[#ECF2FA] select-none" aria-hidden>
+      <div className="flex items-center gap-2 border-b border-white/5 bg-[#071B36] px-3 py-2">
         <span className="relative grid size-5 place-items-center"><Star8 className="absolute inset-0 size-full text-brand" /></span>
         <span className="font-display text-[11px] font-semibold">Dom's Café</span>
         <span className="ms-2 rounded-md bg-brand px-2 py-1 font-bold text-brand-ink">Tables 4/12</span>
-        <span className="rounded-md px-2 py-1 text-[#8B95AD]">Commandes</span>
-        <span className="rounded-md px-2 py-1 text-[#8B95AD]">Historique</span>
-        <span className="ms-auto flex items-center gap-1 rounded-full bg-[#4AC98A]/10 px-2 py-0.5 font-bold text-[#4AC98A]"><Wifi className="size-3" />En direct</span>
+        <span className="rounded-md px-2 py-1 text-[#8CA0BE]">Commandes</span>
+        <span className="rounded-md px-2 py-1 text-[#8CA0BE]">Historique</span>
+        <span className="ms-auto flex items-center gap-1 rounded-full bg-[#2DD4BF]/10 px-2 py-0.5 font-bold text-[#2DD4BF]"><Wifi className="size-3" />En direct</span>
       </div>
       <div className="grid grid-cols-[1fr_128px]">
         <div className="grid grid-cols-4 gap-2 p-3">
           {tables.map(([n, amt]) => (
-            <div key={n} className={`aspect-square rounded-xl grid place-content-center text-center ${amt ? 'gold-tile text-brand-ink' : 'border border-white/5 bg-[#0F1524]'}`}>
+            <div key={n} className={`aspect-square rounded-xl grid place-content-center text-center ${amt ? 'gold-tile text-brand-ink' : 'border border-white/5 bg-[#071B36]'}`}>
               <span className="font-display text-base font-semibold leading-none">{n}</span>
               {amt ? <span className="mt-0.5 font-bold">{amt} MAD</span> : null}
             </div>
           ))}
         </div>
-        <div className="border-s border-white/5 bg-[#0F1524] p-2.5 flex flex-col">
-          <p className="font-bold uppercase tracking-widest text-[#8B95AD]">Table 7</p>
+        <div className="border-s border-white/5 bg-[#071B36] p-2.5 flex flex-col">
+          <p className="font-bold uppercase tracking-widest text-[#8CA0BE]">Table 7</p>
           {[['2×', 'Tajine poulet', '130'], ['1×', 'Salade marocaine', '35'], ['3×', 'Thé à la menthe', '45'], ['1×', 'Jus d’orange', '30']].map(([q, n, p]) => (
             <p key={n} className="mt-1.5 flex gap-1"><b>{q}</b><span className="flex-1 truncate">{n}</span><span>{p}</span></p>
           ))}
-          <p className="mt-auto flex items-baseline justify-between border-t border-white/5 pt-2"><span className="text-[#8B95AD]">TOTAL</span><span className="font-display text-base font-semibold text-brand">240 MAD</span></p>
-          <span className="mt-2 rounded-lg bg-[#4AC98A] py-1.5 text-center font-bold text-[#04130b]">Encaisser</span>
+          <p className="mt-auto flex items-baseline justify-between border-t border-white/5 pt-2"><span className="text-[#8CA0BE]">TOTAL</span><span className="font-display text-base font-semibold text-brand">240 MAD</span></p>
+          <span className="mt-2 rounded-lg bg-[#2DD4BF] py-1.5 text-center font-bold text-[#032A2A]">Encaisser</span>
         </div>
       </div>
     </div>
@@ -373,23 +370,23 @@ function OfflineDemo({ lang }: { lang: SiteLang }) {
       <div className="rounded-[2rem] border border-line bg-surface/70 p-6 text-center">
         <p className="text-sm font-semibold text-muted">{c.internet}</p>
         <button role="switch" aria-checked={online} onClick={() => setOnline(o => !o)}
-          className={`relative mx-auto mt-4 block h-16 w-32 rounded-full transition-colors duration-300 ${online ? 'bg-[#4AC98A]' : 'bg-[#F47171]'}`}>
+          className={`relative mx-auto mt-4 block h-16 w-32 rounded-full transition-colors duration-300 ${online ? 'bg-[#2DD4BF]' : 'bg-[#F47171]'}`}>
           <span className={`absolute top-2 grid size-12 place-items-center rounded-full bg-white shadow-lg transition-all duration-300 ${online ? 'start-[4.5rem]' : 'start-2'}`}>
-            {online ? <Wifi className="size-6 text-[#1f8f5b]" /> : <WifiOff className="size-6 text-[#c24141]" />}
+            {online ? <Wifi className="size-6 text-[#0E7C70]" /> : <WifiOff className="size-6 text-[#c24141]" />}
           </span>
         </button>
-        <p className={`mt-4 font-display text-2xl font-semibold ${online ? 'text-[#4AC98A]' : 'text-[#F47171]'}`}>{online ? c.on : c.off}</p>
+        <p className={`mt-4 font-display text-2xl font-semibold ${online ? 'text-[#2DD4BF]' : 'text-[#F47171]'}`}>{online ? c.on : c.off}</p>
         <p className="mt-1 h-5 text-sm text-muted">{queued ? `${queued} ${c.queued}` : c.synced}</p>
       </div>
       <div className="rounded-[2rem] border border-line bg-bg/70 p-3">
         <ul className="space-y-2">
           {feed.map((e, i) => (
             <li key={e.id} className={`flex items-center gap-3 rounded-2xl border border-line bg-surface/80 px-4 py-3 ${i === 0 ? 'animate-rise' : ''}`}>
-              <span className={`grid size-8 shrink-0 place-items-center rounded-full transition-colors ${e.synced ? 'bg-[#4AC98A]/15 text-[#4AC98A]' : 'bg-[#F2AD46]/15 text-[#F2AD46]'}`}>
+              <span className={`grid size-8 shrink-0 place-items-center rounded-full transition-colors ${e.synced ? 'bg-[#2DD4BF]/15 text-[#2DD4BF]' : 'bg-[#F2AD46]/15 text-[#F2AD46]'}`}>
                 {e.synced ? <Check className="size-4" strokeWidth={3} /> : <Clock className="size-4" />}
               </span>
               <span className="flex-1 font-medium">{e.text}</span>
-              <span className={`text-xs font-semibold ${e.synced ? 'text-[#4AC98A]' : 'text-[#F2AD46]'}`}>{e.synced ? '✓' : c.queued}</span>
+              <span className={`text-xs font-semibold ${e.synced ? 'text-[#2DD4BF]' : 'text-[#F2AD46]'}`}>{e.synced ? '✓' : c.queued}</span>
             </li>
           ))}
         </ul>
@@ -417,7 +414,7 @@ function MiniTicket({ lang }: { lang: SiteLang }) {
       </ul>
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm font-bold">
         <span className="rounded-xl bg-brand py-3 text-center text-brand-ink">{ar ? 'إرسال' : 'Envoyer'}</span>
-        <span className="rounded-xl bg-[#4AC98A] py-3 text-center text-[#04130b]">{ar ? 'تحصيل' : 'Encaisser'}</span>
+        <span className="rounded-xl bg-[#2DD4BF] py-3 text-center text-[#032A2A]">{ar ? 'تحصيل' : 'Encaisser'}</span>
       </div>
     </div>
   );
@@ -427,14 +424,14 @@ function LiveDemo({ openLabel, lang }: { openLabel: string; lang: SiteLang }) {
   const url = `${location.origin}/${DEMO_SLUG}`;
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
-    QRCode.toDataURL(url, { margin: 1, width: 440, color: { dark: '#070B14', light: '#F2EDE2' } }).then(setQr).catch(() => {});
+    QRCode.toDataURL(url, { margin: 1, width: 440, color: { dark: '#020F20', light: '#ECF2FA' } }).then(setQr).catch(() => {});
   }, [url]);
   return (
     <div className="reveal mx-auto grid max-w-4xl items-center gap-10 md:grid-cols-2">
       <div className="text-center">
         <div className="relative mx-auto w-fit">
           <Star8 filled={false} stroke={0.3} className="absolute -inset-10 size-[calc(100%+5rem)] text-brand/40 animate-spin-slow" />
-          <div className="relative rounded-[2rem] bg-[#F2EDE2] p-4 shadow-[0_30px_80px_-30px_rgba(201,161,90,.6)]">
+          <div className="relative rounded-[2rem] bg-[#ECF2FA] p-4 shadow-[0_30px_80px_-30px_rgba(5,185,98,.6)]">
             {qr ? <img src={qr} alt="QR code" className="size-52" /> : <div className="size-52" />}
           </div>
         </div>

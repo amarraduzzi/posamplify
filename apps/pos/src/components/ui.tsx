@@ -27,7 +27,7 @@ export function Modal({ title, onClose, children, footer, wide }: {
 type BtnTone = 'brand' | 'ghost' | 'danger' | 'ok' | 'plain';
 const TONES: Record<BtnTone, string> = {
   brand: 'gold-fill text-brand-ink hover:brightness-110',
-  ok: 'bg-ok text-[#04130b] shadow-[0_10px_24px_-12px_rgb(var(--ok)/.8)] hover:brightness-110',
+  ok: 'bg-ok text-[#032A2A] shadow-[0_10px_24px_-12px_rgb(var(--ok)/.8)] hover:brightness-110',
   danger: 'bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20',
   ghost: 'border border-line/15 text-ink hover:bg-surface-2',
   plain: 'bg-surface-2 text-ink border border-line/[0.06] hover:bg-surface-3',

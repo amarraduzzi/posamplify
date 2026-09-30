@@ -58,8 +58,8 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
     <div className="ambient relative grid h-full place-items-center overflow-hidden p-6">
       <PatternBackdrop />
       <div className="rise relative w-full max-w-md">
+        <div className="mb-8 flex justify-end"><LangSwitch /></div>
         <AmplifyLogo size="lg" className="mb-8 justify-center" />
-        <LangSwitch className="absolute end-0 top-0" />
         <div className="panel rounded-3xl p-8">
           <h1 className="font-display text-3xl font-semibold">{t('Caisse')}</h1>
           <p className="mb-6 mt-1 text-sm text-muted">{disconnected ? t("Ce poste n'est relié à aucun restaurant.") : t('Relier ce poste à votre restaurant (une seule fois).')}</p>

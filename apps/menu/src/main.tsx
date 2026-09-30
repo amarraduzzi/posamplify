@@ -13,6 +13,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isSite ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#070B14' }} />}><Landing /></Suspense> : <App />}
+    {isSite ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}><Landing /></Suspense> : <App />}
   </StrictMode>,
 );

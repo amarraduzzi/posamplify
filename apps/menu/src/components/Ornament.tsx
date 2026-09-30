@@ -1,3 +1,4 @@
+import { AmplifyMark } from '../landing/AmplifyMark';
 /** Eight-pointed star (khatam), the signature of Moroccan zellige. */
 export function Star8({ className = '', filled = true, stroke = 1.2 }: { className?: string; filled?: boolean; stroke?: number }) {
   return (
@@ -26,12 +27,14 @@ export function Divider({ className = '' }: { className?: string }) {
 
 /** Product signature shown at the bottom of every guest menu. */
 export function PoweredBy({ label }: { label: string }) {
+  const dark = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
+  // the root of this domain is the Amplify POS website
   return (
-    <a href="https://amplify-admin.pages.dev" target="_blank" rel="noopener"
+    <a href="/" target="_blank" rel="noopener"
       className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink transition-colors">
       <span>{label}</span>
-      <Star8 className="size-3 text-brand" />
-      <span className="font-semibold tracking-wide text-ink/80">Amplify POS</span>
+      <AmplifyMark tone={dark ? 'dark' : 'light'} className="h-3.5 w-[1.1rem]" />
+      <span dir="ltr" className="font-logo font-extrabold tracking-wide text-ink/80">AMPLIFY <span className="text-[#05B962]">POS</span></span>
     </a>
   );
 }

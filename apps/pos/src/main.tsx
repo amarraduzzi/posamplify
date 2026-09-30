@@ -10,7 +10,7 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!url || !key) {
   // clear message instead of a black screen when the hosting is misconfigured
   root.render(
-    <div style={{ padding: 32, fontFamily: 'sans-serif', color: '#F3ECDD' }}>
+    <div style={{ padding: 32, fontFamily: 'sans-serif', color: '#ECF2FA' }}>
       <h1>Configuration incomplète</h1>
       <p>Variable manquante : {!url && 'VITE_SUPABASE_URL '}{!key && 'VITE_SUPABASE_ANON_KEY'}</p>
       <p>Ajoutez-la dans Cloudflare (Settings &gt; Variables and secrets), puis relancez le déploiement.</p>

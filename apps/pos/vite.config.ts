@@ -14,7 +14,7 @@ export default defineConfig({
       injectRegister: false,
       manifest: {
         name: 'Amplify POS · Caisse', short_name: 'Caisse', display: 'standalone',
-        background_color: '#080c16', theme_color: '#080c16', lang: 'fr',
+        background_color: '#020F20', theme_color: '#020F20', lang: 'fr',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
       workbox: {

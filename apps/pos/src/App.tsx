@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Armchair, Receipt, History as HistoryIcon, BarChart3, Lock, Printer, Wifi, WifiOff, ShoppingBag, Bike, Settings } from 'lucide-react';
-import { inkFor } from '@resto/shared';
 import { usePos, type OrderTarget } from './store';
 import { Login } from './components/Login';
 import { StaffGate } from './components/StaffGate';
@@ -16,13 +15,6 @@ import { t } from './lib/i18n';
 
 type Tab = 'tables' | 'live' | 'history' | 'reports';
 
-function hexToChannels(hex: string) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? '');
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
-}
-
 export default function App() {
   const pos = usePos();
   const [tab, setTab] = useState<Tab>('tables');
@@ -33,14 +25,8 @@ export default function App() {
 
   useEffect(() => { const i = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(i); }, []);
 
-  // restaurant brand color
+  // the till always wears the Amplify colors; the restaurant's own color is for its guest menu
   useEffect(() => {
-    const c = pos.restaurant?.branding?.primary_color;
-    const ch = c && hexToChannels(c);
-    if (ch) {
-      document.documentElement.style.setProperty('--brand', ch);
-      document.documentElement.style.setProperty('--brand-ink', inkFor(c!) === '#ffffff' ? '255 255 255' : '20 20 20');
-    }
     if (pos.restaurant) document.title = `${t('Caisse')} · ${pos.restaurant.name}`;
   }, [pos.restaurant]);
 
@@ -194,7 +180,7 @@ function Toasts() {
   return (
     <div className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
       {toasts.map(x => (
-        <div key={x.id} className={`pop rounded-2xl px-5 py-3 font-semibold shadow-2xl ${x.tone === 'error' ? 'bg-danger text-white' : x.tone === 'ok' ? 'bg-ok text-[#04130b]' : 'panel text-ink'}`}>{x.text}</div>
+        <div key={x.id} className={`pop rounded-2xl px-5 py-3 font-semibold shadow-2xl ${x.tone === 'error' ? 'bg-danger text-white' : x.tone === 'ok' ? 'bg-ok text-[#032A2A]' : 'panel text-ink'}`}>{x.text}</div>
       ))}
     </div>
   );

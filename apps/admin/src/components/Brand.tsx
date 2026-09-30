@@ -1,6 +1,8 @@
+import { useMemo, useState } from 'react';
+import { AMPLIFY, amplifyMarkSvg } from '@resto/shared';
 const STAR = 'M12 1.2L15.16 4.36H19.64V8.84L22.8 12L19.64 15.16V19.64H15.16L12 22.8L8.84 19.64H4.36V15.16L1.2 12L4.36 8.84V4.36H8.84Z';
 
-/** Eight-pointed star (khatam), the Amplify POS mark. */
+/** Eight-pointed star (khatam): the Moroccan ornament used across the screens. */
 export function Star8({ className = '', filled = true, stroke = 1.2 }: { className?: string; filled?: boolean; stroke?: number }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
@@ -9,18 +11,23 @@ export function Star8({ className = '', filled = true, stroke = 1.2 }: { classNa
   );
 }
 
-/** Logo: gold star with a small inner star cut out, plus the wordmark. */
-export function AmplifyLogo({ className = '', size = 'md', cut = 'text-night' }: { className?: string; size?: 'sm' | 'md' | 'lg'; cut?: string }) {
-  const s = size === 'lg' ? 'h-11 w-11' : size === 'sm' ? 'h-7 w-7' : 'h-9 w-9';
-  const t = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-base' : 'text-lg';
+let seq = 0;
+/** The Amplify mark (sound bars + growth arrow). tone: 'dark' = on a dark background (white bars). */
+export function AmplifyMark({ className = '', tone = 'dark' }: { className?: string; tone?: 'dark' | 'light' }) {
+  const [id] = useState(() => `am${++seq}`);
+  const html = useMemo(() => amplifyMarkSvg({ bars: tone === 'dark' ? '#FFFFFF' : AMPLIFY.navy, id }), [tone, id]);
+  return <span className={`inline-block ${className}`} aria-hidden dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** Logo: the mark plus the wordmark AMPLIFY POS, in the Amplify colors. */
+export function AmplifyLogo({ className = '', size = 'md', tone = 'dark' }: { className?: string; size?: 'sm' | 'md' | 'lg'; tone?: 'dark' | 'light' }) {
+  const m = size === 'lg' ? 'h-12 w-[3.65rem]' : size === 'sm' ? 'h-7 w-[2.15rem]' : 'h-9 w-[2.75rem]';
+  const t = size === 'lg' ? 'text-[1.6rem]' : size === 'sm' ? 'text-[0.95rem]' : 'text-[1.2rem]';
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <span className={`relative grid place-items-center ${s}`}>
-        <Star8 className="absolute inset-0 h-full w-full text-brand" />
-        <Star8 className={`relative h-[42%] w-[42%] ${cut}`} />
-      </span>
-      <span className={`font-display font-semibold leading-none ${t}`}>
-        Amplify <span className="text-brand">POS</span>
+    <div className={`flex items-center gap-2.5 ${className}`} dir="ltr">
+      <AmplifyMark tone={tone} className={`shrink-0 ${m}`} />
+      <span className={`font-logo font-extrabold leading-none tracking-[0.02em] ${t} ${tone === 'dark' ? 'text-white' : 'text-[#002E5F]'}`}>
+        AMPLIFY <span className="text-[#05B962]">POS</span>
       </span>
     </div>
   );
