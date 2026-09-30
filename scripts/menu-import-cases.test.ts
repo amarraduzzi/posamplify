@@ -1,7 +1,7 @@
 // Menu import parser on realistic exports: node --test --experimental-strip-types scripts/menu-import-cases.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsv, detect, buildRows, issuesOf, parsePrice, decodeText } from '../apps/admin/src/lib/menuImport.ts';
+import { parseCsv, detect, buildRows, issuesOf, parsePrice, decodeText, suggestCategory } from '../apps/admin/src/lib/menuImport.ts';
 
 const run = (csv: string) => { const rows = parseCsv(csv); const m = detect(rows); return { m, out: buildRows(rows, m, 'fr', 'Menu') }; };
 
@@ -59,4 +59,12 @@ test('checks: missing price blocks, doubles and existing dishes are flagged', ()
   const { out } = run('Catégorie;Article;Prix\nPlats;Tajine;75\nPlats;Tajine;75\nPlats;Harira;\nPlats;Couscous;90\n');
   const is = issuesOf(out, [{ category: { fr: 'plats' }, name: { fr: 'COUSCOUS' } }]);
   assert.deepEqual(out.map(r => is.get(r.id)), [[], ['duplicate'], ['no_price'], ['exists']]);
+});
+
+test('existing category suggested by shared words', () => {
+  const cats = [{ id: 'b', name: { fr: 'Burgers' } }, { id: 't', name: { fr: 'Tacos' } }, { id: 'j', name: { fr: 'Jus & Cocktails' } }];
+  assert.equal(suggestCategory({ fr: 'Beef Burgers', ar: 'برغر' }, cats)?.id, 'b');
+  assert.equal(suggestCategory({ fr: 'Chicken Burger' }, cats)?.id, 'b');
+  assert.equal(suggestCategory({ fr: 'Jus frais' }, cats)?.id, 'j');
+  assert.equal(suggestCategory({ fr: 'Desserts' }, cats), null);
 });

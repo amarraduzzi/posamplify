@@ -398,4 +398,10 @@ export const AR: Record<string, string> = {
   "{n} nouvelles": "{n} جديدة",
   "{n} nouvelles catégories.": "{n} فئات جديدة.",
   "{n} à vérifier": "{n} للتحقق",
+  "Ajouter à": "إضافة إلى",
+  "Appliquer": "تطبيق",
+  "Même prix pour tous": "نفس السعر للجميع",
+  "suggéré": "مقترح",
+  "{n} sans prix :": "{n} بدون سعر:",
+  "Mettre dans « {c} » ?": "وضعها في «{c}»؟",
 };

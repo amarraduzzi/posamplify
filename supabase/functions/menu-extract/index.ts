@@ -36,7 +36,11 @@ Règles strictes :
 - Les prix sont en dirhams (DH/MAD). Donne un nombre (ex. 25 ou 12.5), sans devise.
 - Si un article a plusieurs tailles ou formules avec des prix différents (Petit/Grand, S/M/L, 1 pers./2 pers., Verre/Bouteille), mets-les dans "variants" et laisse "price" à null.
 - Garde les catégories de la carte (Boissons chaudes, Pizzas, Desserts...). Si la carte n'en a pas, regroupe logiquement.
-- Donne chaque nom en français (fr), en arabe (ar) et en anglais (en). Garde l'orthographe de la carte pour la langue d'origine, traduis les autres simplement. Les noms propres de plats (Tajine, Pastilla, Harira...) restent tels quels en fr et en.
+- Donne chaque nom en français (fr), en arabe (ar) et en anglais (en).
+- Les noms de plats sont des noms commerciaux : en fr et en, recopie-les EXACTEMENT comme sur la carte, même s'ils sont en anglais ("Cheese Burger", "Chicken Paradise", "Spicy Tandoori" restent tels quels). Ne les traduis pas en français. Exception : un nom purement descriptif dans une autre langue que fr/en (ex. seulement en arabe) est traduit simplement.
+- En arabe (ar) : si la carte a déjà l'arabe, recopie-le. Sinon écris le nom en arabe de façon naturelle pour un client marocain (translittération pour les noms commerciaux : "تشيز برغر", "كريسبي تشيكن" ; traduction pour les noms descriptifs : "عصير البرتقال").
+- Les noms de catégories suivent la même règle.
+- Les plats traditionnels (Tajine, Pastilla, Harira...) restent tels quels en fr et en.
 - "description" : seulement si la carte en donne une (ingrédients...), sinon chaîne vide. Ne traduis pas la description, garde-la dans la langue de la carte.
 - "icon" : un seul emoji adapté à la catégorie. "station" : "bar" pour les boissons, sinon "kitchen".
 - Si les photos se chevauchent, ne répète pas un article deux fois.`;

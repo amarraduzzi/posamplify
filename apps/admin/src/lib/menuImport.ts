@@ -19,6 +19,8 @@ export interface DraftRow {
   price: number | null;          // centimes, null = unknown
   variants: DraftVariant[];
   include: boolean;
+  target?: string;               // existing category id chosen by the owner
+  orig?: I18n;                   // category as read, to go back to "new category"
 }
 export interface Mapping { headerRow: number; roles: Role[]; priceNames: string[] }
 
@@ -284,6 +286,20 @@ export function fromAi(categories: unknown[], langs: string[]): DraftRow[] {
 // ---------------------------------------------------------------------------
 // checks and the payload for import_menu()
 // ---------------------------------------------------------------------------
+
+/** The existing category that most looks like this one ("Beef Burgers" -> "Burgers"), or null. */
+export function suggestCategory<C extends { id: string; name: I18n }>(cat: I18n, existing: C[]): C | null {
+  const words = (v: I18n) => new Set(Object.values(v).flatMap(x => norm(x).split(' ')).filter(w => w.length >= 3).map(w => w.replace(/s$/, '')));
+  const mine = words(cat);
+  let best: C | null = null, score = 0;
+  for (const c of existing) {
+    const theirs = words(c.name);
+    const common = [...mine].filter(w => theirs.has(w)).length;
+    const sc = common / Math.max(1, theirs.size);
+    if (common && sc > score) { score = sc; best = c; }
+  }
+  return best;
+}
 
 export type Issue = 'no_name' | 'no_price' | 'zero_price' | 'duplicate' | 'exists' | 'too_long';
 

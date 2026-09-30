@@ -67,6 +67,7 @@ try {
       categories: [
         { name: { fr: 'Jus frais', ar: 'عصائر طازجة', en: 'Fresh juices' }, icon: '🍹', station: 'bar', items: [
           { name: { fr: "Jus d'orange", ar: 'عصير البرتقال', en: 'Orange juice' }, description: '', price: 15 },
+          { name: { fr: 'Citronnade', ar: 'ليموناضة', en: 'Lemonade' }, description: '', price: null },
           { name: { fr: 'Panaché maison', ar: 'باناشي', en: 'Mixed juice' }, description: 'Banane, fraise, avocat', price: null,
             variants: [{ name: { fr: 'Verre', ar: 'كأس', en: 'Glass' }, price: 20 }, { name: { fr: 'Grand', ar: 'كبير', en: 'Large' }, price: 28 }] },
         ] },
@@ -78,9 +79,18 @@ try {
   await page.getByRole('button', { name: 'Importer', exact: true }).click();
   await dlg().locator('input[type=file][accept*=pdf]').setInputFiles(`${OUT}/carte.png`);
   await dlg().getByText(/Lu par l'IA/).waitFor();
+  // "Jus frais" looks like Dom's "Jus & Cocktails": suggested, not forced
+  assert.match(await dlg().getByLabel('Ajouter à').locator('option').nth(1).textContent(), /Jus & Cocktails ★/);
+  assert.equal(await dlg().getByLabel('Ajouter à').inputValue(), '');
+  await dlg().getByText('1 sans prix :').waitFor();
+  await dlg().getByPlaceholder('Même prix pour tous').fill('12');
+  await dlg().getByRole('button', { name: 'Appliquer' }).click();
+  await dlg().getByText('Tout est prêt.').waitFor();
   await shot('13-preview-photo');
-  await dlg().getByRole('button', { name: /Importer 2 articles/ }).click();
-  await dlg().getByText(/2 articles importés/).waitFor();
+  await dlg().getByRole('button', { name: /Importer 3 articles/ }).click();
+  await dlg().getByText(/3 articles importés/).waitFor();
+  const [cit] = await q(`select price_cents from public.menu_items where restaurant_id = $1 and name->>'fr' = 'Citronnade' order by created_at desc limit 1`, [rid]);
+  assert.equal(Number(cit.price_cents), 1200);
   await dlg().getByRole('button', { name: 'Voir le menu' }).click();
   const [pan] = await q(`select i.*, c.station from public.menu_items i join public.categories c on c.id = i.category_id where i.restaurant_id = $1 and i.name->>'fr' = 'Panaché maison'`, [rid]);
   assert.equal(pan.station, 'bar'); assert.equal(Number(pan.price_cents), 2000);
@@ -94,7 +104,7 @@ try {
   await dlg().getByText('Imports précédents').waitFor();
   await shot('15-history');
   await dlg().getByRole('button', { name: 'Annuler', exact: true }).first().click();
-  await page.getByText('2 articles retirés.').waitFor();
+  await page.getByText('3 articles retirés.').waitFor();
   assert.equal(await count(), before);
   assert.deepEqual(errors, []);
   console.log('E2E IMPORT OK');

@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Camera, Check, Download, FileSpreadsheet, Loader2, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, errorMessage, rpc, toCents, fromCents } from '../lib/api';
 import { fileForAi } from '../lib/image';
@@ -12,7 +13,7 @@ import { useAdminCtx } from '../store';
 import type { Category, I18n, Item, Restaurant } from '../lib/types';
 import { Btn, Modal, inputCls } from './ui';
 import {
-  BLOCKING, ROLES, buildRows, decodeText, detect, fromAi, issuesOf, norm, parseCsv, payload, templateCsv,
+  BLOCKING, ROLES, buildRows, suggestCategory, decodeText, detect, fromAi, issuesOf, norm, parseCsv, payload, templateCsv,
   type Cell, type DraftRow, type Issue, type Mapping, type Role,
 } from '../lib/menuImport';
 
@@ -35,6 +36,7 @@ export function ImportMenu({ r, cats, items, onClose, onDone }: { r: Restaurant;
   const langs = r.languages.length ? r.languages : ['fr'];
   const latin = langs.find(l => l !== 'ar') ?? 'fr';
   const showAr = langs.includes('ar') && latin !== 'ar';
+  const tn = (n: I18n) => tr(n, langs[0]);
   const [step, setStep] = useState<Step>('choose');
   const [source, setSource] = useState<'file' | 'photo'>('file');
   const [fileName, setFileName] = useState('');
@@ -149,6 +151,20 @@ export function ImportMenu({ r, cats, items, onClose, onDone }: { r: Restaurant;
   const renameCat = (group: DraftRow[], lang: string, v: string) => {
     const ids = new Set(group.map(x => x.id));
     setRows(rs => rs.map(x => (ids.has(x.id) ? { ...x, category: { ...x.category, [lang]: v } } : x)));
+  };
+
+  const setTarget = (group: DraftRow[], id: string) => {
+    const ids = new Set(group.map(x => x.id));
+    const c = cats.find(x => x.id === id);
+    setRows(rs => rs.map(x => (!ids.has(x.id) ? x : c
+      ? { ...x, orig: x.orig ?? x.category, category: c.name, target: c.id, icon: c.icon ?? '' }
+      : { ...x, category: x.orig ?? x.category, target: undefined, orig: undefined })));
+  };
+  const fillPrice = (group: DraftRow[], v: string) => {
+    const cents = toCents(v);
+    if (!v.trim() || !cents) return;
+    const ids = new Set(group.map(x => x.id));
+    setRows(rs => rs.map(x => (ids.has(x.id) && !x.variants.length && x.price == null ? { ...x, price: cents } : x)));
   };
 
   // ---------------------------------------------------------------- screens
@@ -268,14 +284,48 @@ export function ImportMenu({ r, cats, items, onClose, onDone }: { r: Restaurant;
               const shownRows = onlyIssues ? g.filter(x => issues.get(x.id)!.length) : g;
               if (!shownRows.length) return null;
               const c0 = g[0].category;
+              const target = g[0].target ?? '';
+              const exact = !target && cats.find(c => Object.values(c.name).some(v => Object.values(c0).some(w => norm(v) === norm(w))));
+              const sugg = !target && !exact ? suggestCategory(g[0].orig ?? c0, cats) : null;
+              const missing = g.filter(x => x.include && !x.variants.length && x.price == null).length;
               return (
                 <section key={g[0].id} className="overflow-hidden rounded-2xl border border-line/[0.08]">
                   <div className="flex flex-wrap items-center gap-2 bg-surface-2 px-3 py-2">
                     <span className="text-lg">{g[0].icon}</span>
-                    <input aria-label={t('Catégorie')} className={`${inputCls} max-w-[220px] py-1.5 font-bold`} value={c0[latin] ?? ''} placeholder={Object.values(c0)[0]} onChange={e => renameCat(g, latin, e.target.value)} />
-                    {showAr && <input aria-label={t('Catégorie en arabe')} dir="rtl" className={`${inputCls} max-w-[200px] py-1.5`} value={c0.ar ?? ''} placeholder="بالعربية" onChange={e => renameCat(g, 'ar', e.target.value)} />}
+                    {target || exact
+                      ? <span className="font-bold"><bdi>{tn(exact ? exact.name : c0)}</bdi></span>
+                      : <>
+                          <input aria-label={t('Catégorie')} className={`${inputCls} max-w-[220px] py-1.5 font-bold`} value={c0[latin] ?? ''} placeholder={Object.values(c0)[0]} onChange={e => renameCat(g, latin, e.target.value)} />
+                          {showAr && <input aria-label={t('Catégorie en arabe')} dir="rtl" className={`${inputCls} max-w-[200px] py-1.5`} value={c0.ar ?? ''} placeholder="بالعربية" onChange={e => renameCat(g, 'ar', e.target.value)} />}
+                        </>}
                     <span className="ms-auto text-xs text-muted">{t('{n} articles', { n: g.length })}</span>
                   </div>
+                  {(cats.length > 0 && !exact || missing > 0) && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-line/[0.06] bg-surface-2/60 px-3 py-2 text-sm">
+                      {cats.length > 0 && !exact && (
+                        <label className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-muted">{t('Ajouter à')}</span>
+                          <select aria-label={t('Ajouter à')} className={`${inputCls} w-auto py-1.5 ${sugg ? 'border-brand' : ''}`} value={target} onChange={e => setTarget(g, e.target.value)}>
+                            <option value="">{t('Nouvelle catégorie')}</option>
+                            {sugg && <option value={sugg.id}>{tn(sugg.name)} ★ {t('suggéré')}</option>}
+                            {cats.filter(c => c.id !== sugg?.id).map(c => <option key={c.id} value={c.id}>{tn(c.name)}</option>)}
+                          </select>
+                        </label>
+                      )}
+                      {sugg && !target && (
+                        <button type="button" onClick={() => setTarget(g, sugg.id)} className="rounded-full bg-brand/15 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/25">
+                          {t('Mettre dans « {c} » ?', { c: tn(sugg.name) })}
+                        </button>
+                      )}
+                      {missing > 0 && (
+                        <form className="ms-auto flex items-center gap-2" onSubmit={e => { e.preventDefault(); const f = e.currentTarget.elements.namedItem('p') as HTMLInputElement; fillPrice(g, f.value); f.value = ''; }}>
+                          <span className="text-muted">{t('{n} sans prix :', { n: missing })}</span>
+                          <input name="p" aria-label={t('Même prix pour tous')} inputMode="decimal" placeholder={t('Même prix pour tous')} className={`${inputCls} w-40 py-1.5`} />
+                          <Btn type="submit" tone="ghost" className="px-3 py-1.5">{t('Appliquer')}</Btn>
+                        </form>
+                      )}
+                    </div>
+                  )}
                   <ul className="divide-y divide-line/10">
                     {shownRows.map(x => {
                       const is = issues.get(x.id)!;
