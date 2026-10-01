@@ -396,6 +396,16 @@ function usePosState() {
   const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id'>>) =>
     enqueue([{ kind: 'updateOrder', id, patch }]), [enqueue]);
   const deleteLine = useCallback((id: string) => enqueue([{ kind: 'deleteLine', id }]), [enqueue]);
+  /** Kitchen screen: lines ready (or recalled). When the whole order is ready, the order becomes "ready". */
+  const markReady = useCallback((o: Order, ids: string[], ready: boolean) => {
+    const at = ready ? now() : null;
+    const ops: Op[] = [{ kind: 'markReady', ids, at }];
+    const done = new Set(ids);
+    const allReady = o.order_lines.every(l => (done.has(l.id) ? ready : !!l.ready_at));
+    if (ready && allReady && (o.status === 'new' || o.status === 'preparing')) ops.push({ kind: 'updateOrder', id: o.id, patch: { status: 'ready' } });
+    if (!ready && o.status === 'ready') ops.push({ kind: 'updateOrder', id: o.id, patch: { status: 'preparing' } });
+    enqueue(ops);
+  }, [enqueue]);
 
   /** Pays an order. Online: fiscal ticket right away. Offline: provisional receipt, the fiscal ticket is issued on reconnection. */
   const pay = useCallback(async (o: Order, payments: { method: string; amount_cents: number; tip_cents: number }[],
@@ -467,7 +477,7 @@ function usePosState() {
     live, online, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,
-    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, pay, printBill, reprintDoc, openDrawer,
+    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, markReady, pay, printBill, reprintDoc, openDrawer,
   };
 }
 

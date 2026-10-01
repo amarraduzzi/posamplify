@@ -39,6 +39,8 @@ export interface Line {
   name: string; unit_price_cents: number; quantity: number; line_total_cents: number;
   station: string; note: string | null; kitchen_sent_at: string | null; created_at: string;
   modifiers?: ChosenMod[];
+  /** the kitchen screen marked it ready */
+  ready_at?: string | null;
   /** sent from a device without printer: a till with a printer prints the bon */
   print_requested_at?: string | null;
 }

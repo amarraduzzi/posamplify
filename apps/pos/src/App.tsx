@@ -13,6 +13,7 @@ import { Star8, initials } from './components/Brand';
 import { SyncPanel } from './components/SyncPanel';
 import { t } from './lib/i18n';
 import { useIsPhone } from './lib/phone';
+import { KitchenScreen, KdsSetup, kdsConfig, setKdsConfig, type KdsConfig } from './components/KitchenScreen';
 
 type Tab = 'tables' | 'live' | 'history' | 'reports';
 
@@ -24,6 +25,9 @@ export default function App() {
   const [showSync, setShowSync] = useState(false);
   const [now, setNow] = useState(Date.now());
   const phone = useIsPhone();
+  // this device is a kitchen / bar screen (no staff login, no idle lock)
+  const [kds, setKds] = useState<KdsConfig | null>(() => kdsConfig());
+  const [kdsSetup, setKdsSetup] = useState(false);
 
   useEffect(() => { const i = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(i); }, []);
 
@@ -56,7 +60,11 @@ export default function App() {
       </div>
     </Center>
   );
-  if (!pos.staff) return <StaffGate />;
+  if (kds) return <KitchenScreen config={kds} onExit={() => { setKdsConfig(null); setKds(null); }} />;
+  if (!pos.staff) return <>
+    <StaffGate onKitchen={() => setKdsSetup(true)} />
+    {kdsSetup && <KdsSetup onClose={() => setKdsSetup(false)} onStart={c => { setKdsConfig(c); setKds(c); setKdsSetup(false); }} />}
+  </>;
 
   const r = pos.restaurant;
   const occupied = new Set(pos.orders.filter(o => o.table_id).map(o => o.table_id)).size;

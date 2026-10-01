@@ -12,7 +12,7 @@ import { getLang, t } from '../lib/i18n';
 import { LangSwitch } from './LangSwitch';
 
 /** Staff pick their name and type their PIN. Shown at start and after the idle lock. */
-export function StaffGate() {
+export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
   const pos = usePos();
   const [who, setWho] = useState<Staff | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,7 +91,10 @@ export function StaffGate() {
           <Clock3 className="h-4 w-4 text-brand" /> {t('Pointer arrivée / départ')}
         </button>
       )}
-      <button onClick={pos.logout} className="relative text-xs text-muted/60 hover:text-ink">{t('Déconnecter ce poste')}</button>
+      <div className="relative flex items-center gap-4 text-xs text-muted/60">
+        {onKitchen && <button onClick={onKitchen} className="hover:text-ink">{t('Écran cuisine')}</button>}
+        <button onClick={pos.logout} className="hover:text-ink">{t('Déconnecter ce poste')}</button>
+      </div>
       {clocking && <ClockIn onClose={() => setClocking(false)} />}
     </div>
   );
