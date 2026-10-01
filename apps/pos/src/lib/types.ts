@@ -18,6 +18,8 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
+  /** customer file and loyalty points: off unless the owner switched them on */
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number };
 }
 
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
@@ -52,6 +54,7 @@ export interface Order {
   external_ref: string | null; note: string | null; staff_id: string | null;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
+  customer_id?: string | null; discount_kind?: 'loyalty' | null;
   /** Set on the till for orders taken offline, until the server gives a ticket number. */
   local_ref?: string;
 }

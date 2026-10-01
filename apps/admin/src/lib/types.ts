@@ -10,6 +10,7 @@ export interface Restaurant {
   default_vat_bp: number;
   products?: ('pos' | 'profit')[];
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean }

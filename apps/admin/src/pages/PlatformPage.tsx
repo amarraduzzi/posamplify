@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, UserPlus } from 'lucide-react';
+import { Plus, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -17,6 +17,7 @@ export function PlatformPage() {
   const [list, setList] = useState<Restaurant[]>([]);
   const [creating, setCreating] = useState(false);
   const [member, setMember] = useState<Restaurant | null>(null);
+  const [removing, setRemoving] = useState<Restaurant | null>(null);
   const load = async () => { try { setList(check(await supabase.from('restaurants').select('*').order('created_at')) as Restaurant[]); } catch (e) { a.fail(e); } };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const status = async (r: Restaurant, s: string, days?: number) => {
@@ -43,6 +44,7 @@ export function PlatformPage() {
                     {r.status !== 'active' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'active')}>{t('Activer')}</Btn>}
                     {r.status === 'trial' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'trial', 14)}>{t('+14 j')}</Btn>}
                     {r.status !== 'paused' && <Btn tone="danger" className="px-2.5 py-1.5" onClick={() => status(r, 'paused')}>{t('Suspendre')}</Btn>}
+                    {(r.status === 'paused' || r.status === 'cancelled' || r.is_demo) && <Btn tone="danger" className="px-2.5 py-1.5" aria-label={t('Supprimer {name}', { name: r.name })} onClick={() => setRemoving(r)}><Trash2 className="h-4 w-4" /></Btn>}
                   </div>
                 </td>
               </tr>
@@ -50,9 +52,10 @@ export function PlatformPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")}</p>
+      <p className="mt-3 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")} {t('Supprimer définitivement : possible une fois suspendu.')}</p>
       {creating && <CreateRestaurant onClose={() => setCreating(false)} onDone={async () => { setCreating(false); await load(); await a.reload(); }} />}
       {member && <AddMember r={member} onClose={() => setMember(null)} />}
+      {removing && <DeleteRestaurant r={removing} onClose={() => setRemoving(null)} onDone={async () => { setRemoving(null); await load(); await a.reload(); }} />}
     </div>
   );
 }
@@ -101,6 +104,36 @@ function AddMember({ r, onClose }: { r: Restaurant; onClose: () => void }) {
             <option value="device">{t('Caisse (poste)')}</option><option value="manager">{t('Manager (menu, personnel, tables)')}</option><option value="owner">{t('Propriétaire (tout)')}</option>
           </select>
         </Field>
+      </div>
+    </Modal>
+  );
+}
+
+/** Delete a client for good: everything goes, including the fiscal tickets and the till logins. */
+function DeleteRestaurant({ r, onClose, onDone }: { r: Restaurant; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const [typed, setTyped] = useState('');
+  const [tickets, setTickets] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    supabase.from('fiscal_documents').select('id', { count: 'exact', head: true }).eq('restaurant_id', r.id)
+      .then(res => setTickets(res.count ?? 0));
+  }, [r.id]);
+  const ok = typed.trim().toLowerCase() === r.slug;
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await rpc('admin_delete_restaurant', { p_restaurant_id: r.id, p_confirm_slug: typed });
+      a.toast(t('{name} supprimé définitivement', { name: r.name })); onDone();
+    } catch (e) { a.fail(e); setBusy(false); }
+  };
+  return (
+    <Modal title={t('Supprimer {name} ?', { name: r.name })} onClose={onClose}
+      footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Annuler')}</Btn><Btn tone="danger" disabled={!ok || busy} onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer définitivement')}</Btn></div>}>
+      <div className="space-y-4">
+        <p>{t('Tout est effacé : menu, tables, ventes, tickets, stock, équipe, clients et les connexions des caisses. Impossible à annuler.')}</p>
+        {!!tickets && <p className="rounded-xl bg-danger/10 p-3 text-sm font-semibold text-danger">{t('Ce restaurant a {n} ticket(s) fiscal(aux). Le commerçant doit garder ses ventes 10 ans : exportez-les d’abord (Ventes, export comptable) et envoyez-les-lui.', { n: tickets })}</p>}
+        <Field label={t('Tapez « {slug} » pour confirmer', { slug: r.slug })}><input className={inputCls} value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" /></Field>
       </div>
     </Modal>
   );

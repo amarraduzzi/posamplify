@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -14,7 +14,7 @@ import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
 
-type Dialog = null | 'pay' | 'split' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
+type Dialog = null | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -38,6 +38,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const [payId, setPayId] = useState<string | null>(null);
   // paying one part of a split bill: afterwards, back to what is left
   const [partOf, setPartOf] = useState<string | null>(null);
+  // the customer of this order, as the server returned it (points to spend)
+  const [cust, setCust] = useState<Customer | null>(null);
+  const loyalty = r.loyalty ?? {};
   const [busy, setBusy] = useState(false);
   const [cat, setCat] = useState<string>(pos.categories[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -138,6 +141,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const nothing = !order && !draft.length;
 
   const banners = <>
+    {loyalty.customers && order && (
+      <CustomerBar order={order} cust={cust} loyalty={loyalty} onPick={() => setDialog('customer')} onRedeemed={c => setCust(c)} />
+    )}
         {pendingQr && (
           <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
             <QrCode className="h-4 w-4" /> {t('Commande client à accepter')}
@@ -220,6 +226,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           if (!rest) onClose();
           else onRetarget(rest.table_id ? { kind: 'table', tableId: rest.table_id } : { kind: 'order', orderId: rest.id });
         }} />}
+      {dialog === 'customer' && order && <CustomerDialog order={order} onClose={() => setDialog(null)} onDone={c => { setCust(c); setDialog(null); }} />}
       {dialog === 'split' && order && <SplitDialog order={order} lineName={lineName} onClose={() => setDialog(null)}
         onPayAll={() => { setDialog(null); payNow(); }}
         onPart={id => { setPartOf(order.id); setPayId(id); setDialog('pay'); }} />}
@@ -727,6 +734,101 @@ function SplitDialog({ order, lineName, onClose, onPayAll, onPart }: {
           <p className="mt-4 text-sm text-muted">{t('Encaissez ensuite le total en « Mixte » ou en espèces : un seul ticket pour la table.')}</p>
         </div>
       )}
+    </Modal>
+  );
+}
+
+interface Customer { id: string; name: string | null; phone: string; points: number; visits: number }
+
+/** The customer chip on the ticket: who, points, and the reward when there are enough points. */
+function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
+  order: Order; cust: Customer | null; loyalty: NonNullable<import('../lib/types').Restaurant['loyalty']>; onPick: () => void; onRedeemed: (c: Customer) => void;
+}) {
+  const pos = usePos();
+  const [busy, setBusy] = useState(false);
+  const need = loyalty.reward_points ?? 100;
+  const known = cust && cust.id === order.customer_id ? cust : null;
+  const canRedeem = !!loyalty.enabled && !!known && known.points >= need && !Number(order.discount_cents)
+    && Number(order.subtotal_cents) > (loyalty.reward_cents ?? 5000);
+  const redeem = async () => {
+    if (!pos.requireOnline() || !known) return;
+    setBusy(true);
+    try {
+      const res = await db.rpc<{ points: number }>('pos_redeem_points', { p_order_id: order.id });
+      await pos.reloadOrders();
+      onRedeemed({ ...known, points: res.points });
+      pos.toast(t('Récompense utilisée'), 'ok');
+    } catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface-2/60 px-4 py-2 text-sm">
+      <UserRound className="h-4 w-4 text-brand" />
+      {order.customer_id
+        ? <span className="font-semibold">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</span>
+        : <span className="text-muted">{t('Pas de client')}</span>}
+      {order.discount_kind === 'loyalty' && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
+      <span className="ms-auto flex gap-2">
+        {canRedeem && <button disabled={busy} onClick={redeem} className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A]"><Gift className="h-3.5 w-3.5" /> {t('Utiliser {p} pts (−{m})', { p: need, m: mad(loyalty.reward_cents ?? 5000) })}</button>}
+        <button onClick={onPick} className="rounded-lg bg-surface px-2.5 py-1 text-xs font-bold text-brand">{order.customer_id ? t('Changer') : t('Client')}</button>
+      </span>
+    </div>
+  );
+}
+
+/** Find a customer by phone, or add a new one, and attach them to the order. */
+function CustomerDialog({ order, onClose, onDone }: { order: Order; onClose: () => void; onDone: (c: Customer) => void }) {
+  const pos = usePos();
+  const r = pos.restaurant!;
+  const [phone, setPhone] = useState(order.customer_phone ?? '');
+  const [found, setFound] = useState<Customer | null | undefined>(undefined);
+  const [name, setName] = useState('');
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const search = async () => {
+    if (!pos.requireOnline()) return;
+    setBusy(true);
+    try { const c = await db.rpc<Customer | null>('pos_find_customer', { p_restaurant_id: r.id, p_phone: phone }); setFound(c); setName(c?.name ?? ''); }
+    catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
+  const attach = async () => {
+    if (!pos.requireOnline()) return;
+    setBusy(true);
+    try {
+      const c = await db.rpc<Customer>('pos_attach_customer', { p_order_id: order.id, p_phone: phone, p_name: name.trim() || null, p_marketing_ok: found ? null : ok });
+      await pos.reloadOrders();
+      pos.toast(t('Client associé'), 'ok');
+      onDone(c);
+    } catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={t('Client')} onClose={onClose}
+      footer={found !== undefined ? <div className="flex justify-end"><Btn tone="brand" disabled={busy} onClick={attach}>{t('Associer à la commande')}</Btn></div> : undefined}>
+      <div className="space-y-4">
+        <Field label={t('Téléphone')}>
+          <div className="flex gap-2">
+            <input autoFocus className={inputCls} inputMode="tel" value={phone} onChange={e => { setPhone(e.target.value); setFound(undefined); }} placeholder="06…"
+              onKeyDown={e => { if (e.key === 'Enter' && phone.replace(/\D/g, '').length >= 9) search(); }} />
+            <Btn disabled={busy || phone.replace(/\D/g, '').length < 9} onClick={search}>{t('Chercher')}</Btn>
+          </div>
+        </Field>
+        {found && (
+          <div className="rounded-2xl bg-surface-2 p-4">
+            <p className="text-lg font-bold">{found.name || t('Sans nom')}</p>
+            <p className="text-sm text-muted">{t('{v} visite(s)', { v: found.visits })}{r.loyalty?.enabled ? ` · ${t('{n} points', { n: found.points })}` : ''}</p>
+          </div>
+        )}
+        {found === null && (
+          <>
+            <p className="text-sm text-muted">{t('Nouveau client.')}</p>
+            <Field label={t('Prénom (facultatif)')}><input className={inputCls} maxLength={60} value={name} onChange={e => setName(e.target.value)} /></Field>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={ok} onChange={e => setOk(e.target.checked)} />
+              <span>{t('Le client accepte de recevoir nos offres sur WhatsApp')}<span className="block text-xs text-muted">{t('Demandez-lui. Sans son accord, son numéro sert seulement aux points.')}</span></span></label>
+          </>
+        )}
+      </div>
     </Modal>
   );
 }

@@ -140,6 +140,15 @@ await row.getByText('Suspendu').waitFor();
 await shot('08-platform');
 const [j] = await q(`select status from restaurants where slug = $1`, [`le-jardin-${tag}`]);
 assert.equal(j.status, 'paused');
+// delete for good: only after typing the slug
+await row.getByRole('button', { name: `Supprimer Le Jardin ${tag}` }).click();
+const del = dlg().getByRole('button', { name: 'Supprimer définitivement' });
+assert.equal(await del.isDisabled(), true);
+await dlg().locator('input').fill(`le-jardin-${tag}`);
+await shot('09-delete');
+await del.click();
+await page.getByText(`Le Jardin ${tag} supprimé définitivement`).waitFor();
+assert.equal((await q(`select count(*)::int n from restaurants where slug = $1`, [`le-jardin-${tag}`]))[0].n, 0);
 
 assert.deepEqual(errors, [], 'browser errors: ' + errors.join('\n'));
 console.log('ADMIN E2E OK');

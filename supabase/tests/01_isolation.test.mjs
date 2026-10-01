@@ -25,6 +25,8 @@ before(async () => {
   const [mgB] = await as(w.users.ownerB, `insert into public.modifier_groups (restaurant_id, name) values ($1, '{"fr":"Extras B"}') returning id`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.modifier_options (restaurant_id, group_id, name, price_cents) values ($1, $2, '{"fr":"Fromage B"}', 100)`, [w.B.r.id, mgB.id]);
   await as(w.users.ownerB, `insert into public.item_modifier_groups (restaurant_id, menu_item_id, group_id) values ($1, $2, $3)`, [w.B.r.id, w.B.items.pizza.id, mgB.id]);
+  const [cuB] = await as(w.users.ownerB, `insert into public.customers (restaurant_id, phone, name) values ($1, '0600000000', 'Client B') returning id`, [w.B.r.id]);
+  await sql(`insert into public.loyalty_ledger (restaurant_id, customer_id, points, reason) values ($1, $2, 5, 'adjust')`, [w.B.r.id, cuB.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
