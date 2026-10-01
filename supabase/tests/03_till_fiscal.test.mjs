@@ -278,3 +278,4 @@ test('phone orders: lines asked to print are claimed by one till only', async ()
   await assert.rejects(rpc(w.users.deviceB, 'claim_kitchen_lines', [rid]), /not allowed/);
   await rpc(dev, 'cancel_order', [o.id, 'test', w.A.staff.karim.id, '9999']);
 });
+

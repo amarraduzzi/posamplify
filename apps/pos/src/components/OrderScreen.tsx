@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, ChevronUp, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -14,7 +14,7 @@ import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
 
-type Dialog = null | 'pay' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
+type Dialog = null | 'pay' | 'split' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -36,6 +36,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const [draft, setDraft] = useState<DraftLine[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [payId, setPayId] = useState<string | null>(null);
+  // paying one part of a split bill: afterwards, back to what is left
+  const [partOf, setPartOf] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [cat, setCat] = useState<string>(pos.categories[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -200,6 +202,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
           <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
           <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> {t('Addition')}</Btn>
+          <Btn disabled={busy || !order || !order.order_lines.length || draft.length > 0} onClick={() => setDialog('split')}><Users className="h-4 w-4" /> {t('Partager')}</Btn>
           <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> {t('Remise')}</Btn>
           <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
           <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> {t('Renvoyer bon')}</Btn>
@@ -209,7 +212,17 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     </>;
   const dialogs = <>
       {/* ------------------------------------------------ dialogs */}
-      {dialog === 'pay' && payId && <PaymentModal orderId={payId} label={label} onClose={() => setDialog(null)} onPaid={onClose} />}
+      {dialog === 'pay' && payId && <PaymentModal orderId={payId} label={partOf ? `${label} · ${t('part')}` : label} onClose={() => setDialog(null)}
+        onPaid={() => {
+          if (!partOf) { onClose(); return; }
+          const rest = pos.orders.find(o => o.id === partOf);
+          setPartOf(null); setPayId(null); setDialog(null);
+          if (!rest) onClose();
+          else onRetarget(rest.table_id ? { kind: 'table', tableId: rest.table_id } : { kind: 'order', orderId: rest.id });
+        }} />}
+      {dialog === 'split' && order && <SplitDialog order={order} lineName={lineName} onClose={() => setDialog(null)}
+        onPayAll={() => { setDialog(null); payNow(); }}
+        onPart={id => { setPartOf(order.id); setPayId(id); setDialog('pay'); }} />}
       {dialog === 'discount' && order && <DiscountDialog order={order} onClose={() => setDialog(null)} />}
       {dialog === 'cancel' && order && <CancelDialog order={order} onClose={() => setDialog(null)} onDone={onClose} />}
       {dialog === 'move' && order && <MoveDialog order={order} onClose={() => setDialog(null)} onMoved={id => { setDialog(null); onRetarget({ kind: 'table', tableId: id }); }} />}
@@ -644,6 +657,76 @@ function PickDialog({ item, lang, nameOf, onClose, onPick }: {
           </section>
         ))}
       </div>
+    </Modal>
+  );
+}
+
+/** Split the bill: by items (that part is paid on its own ticket) or in equal parts (amount per person). */
+function SplitDialog({ order, lineName, onClose, onPayAll, onPart }: {
+  order: Order; lineName: (l: Line) => string; onClose: () => void; onPayAll: () => void; onPart: (orderId: string) => void;
+}) {
+  const pos = usePos();
+  const [mode, setMode] = useState<'items' | 'equal'>('items');
+  const [qty, setQty] = useState<Record<string, number>>({});
+  const [people, setPeople] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const total = Number(order.total_cents);
+  const part = order.order_lines.reduce((s, l) => s + (qty[l.id] ?? 0) * Number(l.unit_price_cents), 0);
+  const chosen = Object.entries(qty).filter(([, q]) => q > 0);
+  const each = Math.ceil(total / people / 100) * 100; // rounded up to the dirham
+  const bump = (l: Line, d: number) => setQty(q => ({ ...q, [l.id]: Math.max(0, Math.min(l.quantity, (q[l.id] ?? 0) + d)) }));
+  const payPart = async () => {
+    if (!pos.requireOnline()) return;
+    setBusy(true);
+    try {
+      const res = await db.rpc<{ order_id: string }>('pos_split_order', { p_order_id: order.id, p_lines: chosen.map(([line_id, quantity]) => ({ line_id, quantity })) });
+      await pos.reloadOrders();
+      onPart(res.order_id);
+    } catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal wide title={t('Partager l’addition')} onClose={onClose}
+      footer={mode === 'items'
+        ? <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted">{t('Cette part')} <b className="text-lg text-ink tabular">{mad(part)}</b></span>
+            <Btn tone="ok" disabled={busy || !chosen.length || part >= total + Number(order.discount_cents)} onClick={payPart} className="px-6 py-3">{t('Encaisser cette part')}</Btn></div>
+        : <div className="flex justify-end"><Btn tone="ok" onClick={onPayAll} className="px-6 py-3">{t('Encaisser le total {m}', { m: mad(total) })}</Btn></div>}>
+      <div className="mb-4 flex gap-2">
+        {([['items', t('Par article')], ['equal', t('En parts égales')]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setMode(k)} className={`flex-1 rounded-xl py-2.5 font-bold ${mode === k ? 'gold-fill text-brand-ink' : 'bg-surface-2'}`}>{l}</button>
+        ))}
+      </div>
+      {mode === 'items' ? (
+        <>
+          {Number(order.discount_cents) > 0 && <p className="mb-3 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">{t('Une remise est appliquée sur cette addition : partagez avant la remise, ou encaissez le total.')}</p>}
+          <p className="mb-3 text-sm text-muted">{t('Choisissez ce que cette personne paie. Elle reçoit son propre ticket ; le reste reste sur la table.')}</p>
+          <ul className="divide-y divide-line/[0.07]">
+            {order.order_lines.map(l => (
+              <li key={l.id} className="flex items-center gap-3 py-2">
+                <div className="min-w-0 flex-1"><p className="font-semibold leading-tight">{lineName(l)}</p><p className="text-xs text-muted tabular">{l.quantity} × {mad(l.unit_price_cents)}</p></div>
+                <div className="flex items-center gap-1">
+                  <button aria-label={t('Moins')} onClick={() => bump(l, -1)} className="grid h-10 w-10 place-items-center rounded-lg bg-surface-2"><Minus className="h-4 w-4" /></button>
+                  <span className="w-10 text-center font-bold tabular">{qty[l.id] ?? 0}</span>
+                  <button aria-label={t('Plus')} onClick={() => bump(l, 1)} className="grid h-10 w-10 place-items-center rounded-lg bg-surface-2"><Plus className="h-4 w-4" /></button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div className="py-4 text-center">
+          <p className="text-sm text-muted">{t('Nombre de personnes')}</p>
+          <div className="mt-2 flex items-center justify-center gap-4">
+            <button aria-label={t('Moins')} onClick={() => setPeople(p => Math.max(2, p - 1))} className="grid h-12 w-12 place-items-center rounded-xl bg-surface-2"><Minus className="h-5 w-5" /></button>
+            <span className="w-16 font-display text-4xl font-semibold tabular">{people}</span>
+            <button aria-label={t('Plus')} onClick={() => setPeople(p => Math.min(30, p + 1))} className="grid h-12 w-12 place-items-center rounded-xl bg-surface-2"><Plus className="h-5 w-5" /></button>
+          </div>
+          <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Par personne')}</p>
+          <p className="font-display text-5xl font-semibold text-brand tabular">{mad(each)}</p>
+          {each * people !== total && <p className="mt-1 text-sm text-muted">{t('Arrondi au dirham. Le dernier paie {m}.', { m: mad(total - each * (people - 1)) })}</p>}
+          <p className="mt-4 text-sm text-muted">{t('Encaissez ensuite le total en « Mixte » ou en espèces : un seul ticket pour la table.')}</p>
+        </div>
+      )}
     </Modal>
   );
 }
