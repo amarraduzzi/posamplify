@@ -6,13 +6,16 @@ export interface CartLine {
   key: string;
   item_id: string;
   variant_id: string | null;
+  /** chosen extras / menu options (ids) */
+  modifiers?: string[];
   quantity: number;
   note: string;
 }
 
 const MAX_QTY = 20;
-const lineKey = (itemId: string, variantId: string | null, note: string) =>
-  `${itemId}|${variantId ?? ''}|${note.trim().toLowerCase()}`;
+const lineKey = (itemId: string, variantId: string | null, note: string, mods: string[] = []) =>
+  `${itemId}|${variantId ?? ''}|${[...mods].sort().join(',')}|${note.trim().toLowerCase()}`;
+export const optionsOf = (it: PublicItem) => new Map((it.modifier_groups ?? []).flatMap(g => g.options.map(o => [o.id, o] as const)));
 
 /** Cart kept per restaurant for 3 hours, so a refresh or a closed tab loses nothing. */
 export function useCart(slug: string, menu: PublicMenu | null) {
@@ -28,6 +31,8 @@ export function useCart(slug: string, menu: PublicMenu | null) {
     setLines(ls => ls.filter(l => {
       const it = byId.get(l.item_id);
       if (!it || !it.available) return false;
+      const opts = optionsOf(it);
+      if ((l.modifiers ?? []).some(id => !opts.has(id))) return false;
       if (it.variants.length > 0) return it.variants.some(v => v.id === l.variant_id);
       return l.variant_id === null;
     }));
@@ -39,15 +44,17 @@ export function useCart(slug: string, menu: PublicMenu | null) {
     const it = itemsById.get(l.item_id);
     if (!it) return 0;
     const v = it.variants.find(x => x.id === l.variant_id);
-    return Number(v ? v.price_cents : it.price_cents);
+    const opts = optionsOf(it);
+    const extra = (l.modifiers ?? []).reduce((s, id) => s + Number(opts.get(id)?.price_cents ?? 0), 0);
+    return Number(v ? v.price_cents : it.price_cents) + extra;
   };
 
-  const add = (item: PublicItem, variantId: string | null, quantity: number, note = '') => {
-    const key = lineKey(item.id, variantId, note);
+  const add = (item: PublicItem, variantId: string | null, quantity: number, note = '', modifiers: string[] = []) => {
+    const key = lineKey(item.id, variantId, note, modifiers);
     setLines(ls => {
       const found = ls.find(l => l.key === key);
       if (found) return ls.map(l => (l.key === key ? { ...l, quantity: Math.min(MAX_QTY, l.quantity + quantity) } : l));
-      return [...ls, { key, item_id: item.id, variant_id: variantId, quantity: Math.min(MAX_QTY, quantity), note: note.trim() }];
+      return [...ls, { key, item_id: item.id, variant_id: variantId, modifiers, quantity: Math.min(MAX_QTY, quantity), note: note.trim() }];
     });
   };
   const setQty = (key: string, quantity: number) =>

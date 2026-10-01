@@ -27,7 +27,10 @@ interface Report {
   items: ReportItem[];
 }
 
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// the restaurant's business day (after midnight it is still "yesterday" until the day cut-off);
+// the server tells it with the forecast, the calendar day is only the fallback
+let businessDay: string | null = null;
+const today = () => { if (businessDay) return businessDay; const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const num = (s: string) => Number(String(s).replace(',', '.').replace(/\s/g, ''));
 const shown = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
 const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short' });
@@ -76,6 +79,7 @@ export function StockPage({ r }: { r: Restaurant }) {
       ]);
       const cs = check(c) as Count[];
       const ls = cs.length ? check(await supabase.from('stock_count_lines').select('count_id, ingredient_id, qty').eq('restaurant_id', r.id).in('count_id', cs.map(x => x.id))) as Line[] : [];
+      businessDay = f.today;
       setIngs(check(g) as Ingredient[]); setCounts(cs); setLines(ls); setBuys(check(p) as Purchase[]); setFc(f);
     } catch (e) { a.fail(e); setIngs([]); }
   }, [r.id, a]);

@@ -360,7 +360,7 @@ function usePosState() {
     const lines: NewLine[] = draft.map(d => ({
       id: uid(), restaurant_id: restaurant.id, order_id: orderId!, menu_item_id: d.item_id, variant_id: d.variant_id,
       name: d.name, unit_price_cents: d.unit_price_cents, quantity: d.quantity, station: d.station,
-      note: d.note || null, staff_id: staff?.id ?? null, created_at: now(),
+      note: d.note || null, staff_id: staff?.id ?? null, created_at: now(), modifiers: d.modifiers ?? [],
     }));
     if (lines.length) ops.push({ kind: 'addLines', order_id: orderId, lines });
     enqueue(ops);

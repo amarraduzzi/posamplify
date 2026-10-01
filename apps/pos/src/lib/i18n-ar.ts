@@ -332,4 +332,10 @@ export const AR: Record<string, string> = {
   "L’encaissement se fait à la caisse.": "الأداء يتم في الصندوق.",
   "Tables": "الطاولات",
   "Ticket · {n} article(s)": "التذكرة · {n} مادة",
+  "Choisissez : {g}": "اختاروا: {g}",
+  "Taille": "الحجم",
+  "au moins {n}": "على الأقل {n}",
+  "facultatif": "اختياري",
+  "jusqu’à {n}": "حتى {n}",
+  "{n} au choix": "{n} للاختيار",
 };

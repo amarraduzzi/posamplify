@@ -14,23 +14,36 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
   t: Strings;
   canOrder: boolean;
   onClose: () => void;
-  onAdd: (variantId: string | null, qty: number, note: string) => void;
+  onAdd: (variantId: string | null, qty: number, note: string, modifiers: string[]) => void;
 }) {
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
   const [imgFailed, setImgFailed] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
 
   useEffect(() => {
     setVariantId(item?.variants[0]?.id ?? null);
     setQty(1);
     setNote('');
     setImgFailed(false);
+    setPicked([]);
   }, [item]);
 
   if (!item) return null;
   const variant = item.variants.find(v => v.id === variantId);
-  const unit = Number(variant ? variant.price_cents : item.price_cents);
+  const groups = item.modifier_groups ?? [];
+  const extra = groups.flatMap(g => g.options).filter(o => picked.includes(o.id)).reduce((s, o) => s + Number(o.price_cents), 0);
+  const unit = Number(variant ? variant.price_cents : item.price_cents) + extra;
+  const countIn = (g: typeof groups[number]) => g.options.filter(o => picked.includes(o.id)).length;
+  const missing = groups.find(g => countIn(g) < g.min);
+  const toggle = (g: typeof groups[number], id: string) => setPicked(p => {
+    if (p.includes(id)) return p.filter(x => x !== id);
+    // one choice only: picking another replaces it
+    if (g.max === 1) return [...p.filter(x => !g.options.some(o => o.id === x)), id];
+    if (g.max != null && countIn(g) >= g.max) return p;
+    return [...p, id];
+  });
   const desc = tr(item.description, lang, fallbacks);
   const hasPhoto = !!item.image_url && !imgFailed;
 
@@ -58,10 +71,11 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
           <Stepper value={qty} onChange={setQty} />
           <button
             type="button"
-            onClick={() => onAdd(variant?.id ?? null, qty, note)}
-            className="flex-1 h-13 rounded-full bg-brand text-brand-ink font-semibold flex items-center justify-between px-5 glow-brand press"
+            onClick={() => onAdd(variant?.id ?? null, qty, note, picked)}
+            disabled={!!missing}
+            className="flex-1 h-13 disabled:opacity-50 rounded-full bg-brand text-brand-ink font-semibold flex items-center justify-between px-5 glow-brand press"
           >
-            <span>{t.addToCart}</span>
+            <span>{missing ? `${t.choose} : ${tr(missing.name, lang, fallbacks)}` : t.addToCart}</span>
             <span className="tabular-nums">{formatMoney(unit * qty, currency, lang)}</span>
           </button>
         </div>
@@ -95,6 +109,33 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
           </div>
         </fieldset>
       )}
+
+      {groups.map(g => (
+        <fieldset key={g.id} className="mt-6">
+          <legend className="mb-3 flex w-full items-baseline justify-between gap-3">
+            <span className="text-xs font-bold uppercase tracking-[0.15em] text-muted">{tr(g.name, lang, fallbacks)}</span>
+            <span className={`text-xs font-semibold ${countIn(g) < g.min ? 'text-brand' : 'text-muted'}`}>
+              {g.min > 0 ? (g.max === g.min ? t.pickExactly(g.min) : t.pickAtLeast(g.min)) : g.max ? t.pickUpTo(g.max) : t.optional}
+            </span>
+          </legend>
+          <div className="space-y-2">
+            {g.options.map(o => {
+              const on = picked.includes(o.id);
+              return (
+                <label key={o.id} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer transition-all ${on ? 'border-brand bg-brand/8 ring-1 ring-brand' : 'border-line hover:border-brand/40'}`}>
+                  <span className="relative grid place-items-center size-5 shrink-0">
+                    <input type={g.max === 1 ? 'radio' : 'checkbox'} name={`g-${g.id}`} checked={on} onChange={() => toggle(g, o.id)}
+                      className={`appearance-none size-5 border-2 border-line checked:border-brand checked:bg-brand transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${g.max === 1 ? 'rounded-full' : 'rounded-md'}`} />
+                    {on && <Check className="absolute size-3 text-brand-ink pointer-events-none" strokeWidth={3.5} aria-hidden />}
+                  </span>
+                  <span className="flex-1 font-medium">{tr(o.name, lang, fallbacks)}</span>
+                  {Number(o.price_cents) > 0 && <span className="font-semibold tabular-nums">+ {formatMoney(Number(o.price_cents), currency, lang)}</span>}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
 
       {canOrder && item.available && (
         <label className="block mt-5">

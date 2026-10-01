@@ -37,6 +37,9 @@ export interface PublicRestaurant {
 
 export interface PublicCategory { id: string; name: I18n; icon: string | null }
 export interface PublicVariant { id: string; name: I18n; price_cents: number }
+export interface PublicModOption { id: string; name: I18n; price_cents: number }
+/** Extras / set-menu choices of a dish: pick between min and max options (max null = no limit). */
+export interface PublicModGroup { id: string; name: I18n; min: number; max: number | null; options: PublicModOption[] }
 export interface PublicItem {
   id: string;
   category_id: string;
@@ -47,6 +50,7 @@ export interface PublicItem {
   tags: string[];
   available: boolean;
   variants: PublicVariant[];
+  modifier_groups?: PublicModGroup[];
 }
 
 export interface PublicMenu {
@@ -66,7 +70,7 @@ export interface PlaceOrderInput {
   table_token?: string | null;
   customer?: { name?: string; phone?: string; address?: string };
   note?: string;
-  items: { item_id: string; variant_id?: string | null; quantity: number; note?: string }[];
+  items: { item_id: string; variant_id?: string | null; modifiers?: string[]; quantity: number; note?: string }[];
 }
 
 export interface PlaceOrderResult {

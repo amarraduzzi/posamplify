@@ -100,6 +100,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
                   <div className="flex-1 min-w-0">
                     <p className="font-medium leading-snug">{tr(it.name, lang, fallbacks)}</p>
                     {v && <p className="text-sm text-muted">{tr(v.name, lang, fallbacks)}</p>}
+                    {!!l.modifiers?.length && <p className="text-sm text-muted">+ {l.modifiers.map(id => { const o = (it.modifier_groups ?? []).flatMap(g => g.options).find(x => x.id === id); return o ? tr(o.name, lang, fallbacks) : ''; }).filter(Boolean).join(', ')}</p>}
                     {l.note && <p className="text-sm text-muted italic truncate">“{l.note}”</p>}
                     <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
                   </div>

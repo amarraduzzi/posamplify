@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { CashMovement, Category, DayReport, FiscalDoc, Item, Order, Restaurant, Staff, Table, Variant } from './types';
+import type { CashMovement, Category, DayReport, FiscalDoc, Item, Order, Restaurant, Staff, Table, Variant, ModGroup, ModOption } from './types';
 
 /** Raises the database error message (our machine readable codes). */
 export function check<T>(r: { data: T | null; error: { message: string; details?: string | null; code?: string } | null; status?: number }): T {
@@ -21,19 +21,26 @@ export async function myRestaurants(userId: string): Promise<{ restaurant: Resta
 }
 
 export async function loadStatic(rid: string) {
-  const [staff, tables, cats, items, variants] = await Promise.all([
+  const [staff, tables, cats, items, variants, groups, options, links] = await Promise.all([
     supabase.from('staff').select('id,name,role,active').eq('restaurant_id', rid).eq('active', true).order('name'),
     supabase.from('dining_tables').select('id,label,zone,sort_order,active').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('label'),
     supabase.from('categories').select('id,name,icon,station,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('menu_items').select('id,category_id,name,price_cents,station,available,sort_order,image_url').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('item_variants').select('id,menu_item_id,name,price_cents,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('price_cents'),
+    supabase.from('modifier_groups').select('id,name,min_select,max_select,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
+    supabase.from('modifier_options').select('id,group_id,name,price_cents,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
+    supabase.from('item_modifier_groups').select('menu_item_id,group_id,sort_order').eq('restaurant_id', rid).order('sort_order'),
   ]);
+  const opts = check(options) as ModOption[];
+  const gs = (check(groups) as Omit<ModGroup, 'options'>[]).map(g => ({ ...g, options: opts.filter(o => o.group_id === g.id) })).filter(g => g.options.length);
+  const ls = check(links) as { menu_item_id: string; group_id: string; sort_order: number }[];
   const vs = check(variants) as Variant[];
   return {
     staff: check(staff) as Staff[],
     tables: (check(tables) as Table[]).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label, 'fr', { numeric: true })),
     categories: check(cats) as Category[],
-    items: (check(items) as Omit<Item, 'variants'>[]).map(i => ({ ...i, variants: vs.filter(v => v.menu_item_id === i.id) })) as Item[],
+    items: (check(items) as Omit<Item, 'variants'>[]).map(i => ({ ...i, variants: vs.filter(v => v.menu_item_id === i.id),
+      groups: ls.filter(l => l.menu_item_id === i.id).map(l => gs.find(g => g.id === l.group_id)).filter((g): g is ModGroup => !!g) })) as Item[],
   };
 }
 

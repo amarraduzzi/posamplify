@@ -21,7 +21,7 @@ try {
      returning id`, [rid, name, base, unit, qty, price, cat]))[0].id;
   const poulet = await ing('Poulet fermier', 'g', 'kg', 1000, 6000, 'viande');
   const huile = await ing('Huile de tournesol', 'ml', 'litre', 1000, 2000, 'epicerie');
-  const [cA] = await q(`insert into stock_counts (restaurant_id, counted_on) values ($1, current_date - 1) returning id`, [rid]);
+  const [cA] = await q(`insert into stock_counts (restaurant_id, counted_on) values ($1, (select app.business_date(r) from restaurants r where r.id = $1) - 1) returning id`, [rid]);
   await q(`insert into stock_count_lines (restaurant_id, count_id, ingredient_id, qty) values ($1,$2,$3,5000), ($1,$2,$4,2000)`, [rid, cA.id, poulet, huile]);
   await q(`update stock_counts set status = 'closed', closed_at = now() where id = $1`, [cA.id]);
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera } from 'lucide-react';
+import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera, ListPlus } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
@@ -9,6 +9,7 @@ import type { Category, I18n, Item, Restaurant, Variant } from '../lib/types';
 import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
 import { ImportMenu } from '../components/ImportMenu';
+import { ModifiersManager } from '../components/ModifiersManager';
 
 // tag labels (the stored value is the key), shown through t()
 // i18n:values
@@ -26,6 +27,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [editCat, setEditCat] = useState<Category | 'new' | null>(null);
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
+  const [mods, setMods] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +72,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} ps-9`} placeholder={t('Chercher un article')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        <Btn tone="ghost" onClick={() => setMods(true)}><ListPlus className="h-4 w-4" /> {t('Suppléments et formules')}</Btn>
         <Btn tone="ghost" onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
       </div>
       {items.length < 5 && (
@@ -137,6 +140,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
         </section>
       </div>
 
+      {mods && <ModifiersManager r={r} cats={cats} items={items} onClose={() => setMods(false)} />}
       {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}
       {editCat && <CategoryEditor r={r} cat={editCat === 'new' ? null : editCat} count={cats.length} onClose={() => setEditCat(null)} onSaved={async id => { setEditCat(null); await load(); if (id) setSel(id); }} />}
       {editItem && <ItemEditor r={r} cats={cats} item={editItem === 'new' ? null : editItem} catId={sel} count={shown.length}

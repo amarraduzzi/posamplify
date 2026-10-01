@@ -92,9 +92,11 @@ export default function App() {
     return id;
   };
 
-  const addToCart = (item: PublicItem, variantId: string | null, qty: number, note = '') => {
+  const addToCart = (item: PublicItem, variantId: string | null, qty: number, note = '', modifiers: string[] = []) => {
     setError(null);
-    cart.add(item, variantId, qty, note);
+    // a dish with choices to make opens its sheet instead of a blind quick add
+    if (!variantId && !modifiers.length && (item.modifier_groups ?? []).some(g => g.min > 0)) { setOpenItem(item); return; }
+    cart.add(item, variantId, qty, note, modifiers);
     setBump(b => b + 1);
   };
 
@@ -111,7 +113,7 @@ export default function App() {
         table_token: isDineIn ? menu.table?.token ?? null : null,
         customer: isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
         note: checkout.note.trim() || undefined,
-        items: cart.lines.map(l => ({ item_id: l.item_id, variant_id: l.variant_id, quantity: l.quantity, note: l.note || undefined })),
+        items: cart.lines.map(l => ({ item_id: l.item_id, variant_id: l.variant_id, modifiers: l.modifiers?.length ? l.modifiers : undefined, quantity: l.quantity, note: l.note || undefined })),
       });
       const order: TrackedOrder = { order_id: res.order_id, ticket_number: res.ticket_number,
                                     total_cents: Number(res.total_cents), placed_at: Date.now() };
@@ -442,7 +444,7 @@ export default function App() {
         t={t}
         canOrder={canOrder}
         onClose={() => setOpenItem(null)}
-        onAdd={(variantId, qty, note) => { if (openItem) addToCart(openItem, variantId, qty, note); setOpenItem(null); }}
+        onAdd={(variantId, qty, note, mods) => { if (openItem) { setError(null); cart.add(openItem, variantId, qty, note, mods); setBump(b => b + 1); } setOpenItem(null); }}
       />
       <CartSheet
         open={cartOpen}

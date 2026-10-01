@@ -65,7 +65,7 @@ export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrd
   const desc = tr(item.description, lang, fallbacks);
   const soldOut = !item.available;
   const priceLabel = formatMoney(minPrice(item), currency, lang);
-  const add = item.variants.length ? onOpen : onQuickAdd;
+  const add = item.variants.length || item.modifier_groups?.length ? onOpen : onQuickAdd;
 
   return (
     <li className="animate-rise" style={{ ['--i' as string]: Math.min(index, 8) }}>
@@ -150,7 +150,7 @@ export function FeaturedCard({ item, index, lang, fallbacks, currency, t, qty, c
         </span>
       </button>
       {canOrder && (
-        <AddButton label={`${t.add}: ${name}`} onClick={item.variants.length ? onOpen : onQuickAdd}
+        <AddButton label={`${t.add}: ${name}`} onClick={item.variants.length || item.modifier_groups?.length ? onOpen : onQuickAdd}
           className="absolute bottom-3 end-3 !size-9" />
       )}
     </div>

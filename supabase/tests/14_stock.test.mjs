@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { pool, sql, as, rpc, world, tillOrder } from './helpers.mjs';
 
 let w, A, poulet, huile, cA, cB;
-before(async () => { w = await world(); A = w.A; });
+// the business day = the calendar day (these tests use current_date), also when run just after midnight
+before(async () => { w = await world(); A = w.A; await sql(`update public.restaurants set day_cutoff_hour = 0 where id = $1`, [A.r.id]); });
 after(() => pool.end());
 
 const count = async (m, rid, day, lines) => {

@@ -6,7 +6,7 @@ import * as db from '../lib/data';
 import { mad, time, uid } from '../lib/format';
 import { ticketRef } from '../lib/print';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
-import type { DraftLine, Item, Line, Order } from '../lib/types';
+import type { ChosenMod, DraftLine, Item, Line, ModGroup, Order } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import { PaymentModal } from './PaymentModal';
@@ -14,7 +14,7 @@ import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
 
-type Dialog = null | 'pay' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { variants: Item } | { lineNote: string };
+type Dialog = null | 'pay' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -72,14 +72,18 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   }, [pos.items, cat, query]);
   const stationOf = (i: Item) => i.station ?? pos.categories.find(c => c.id === i.category_id)?.station ?? 'kitchen';
 
-  const addItem = (i: Item, variantId: string | null = null) => {
-    if (i.variants.length && !variantId) { setDialog({ variants: i }); return; }
+  const addItem = (i: Item, variantId: string | null = null, mods: ChosenMod[] | null = null) => {
+    // sizes or options to choose: ask first (the same names and prices as the server will write)
+    if ((i.variants.length && !variantId) || (i.groups?.length && mods === null)) { setDialog({ pick: i }); return; }
     const v = i.variants.find(x => x.id === variantId);
-    const name = tr(i.name, lang) + (v ? ` (${tr(v.name, lang)})` : '');
+    const chosen = mods ?? [];
+    const name = tr(i.name, lang) + (v ? ` (${tr(v.name, lang)})` : '') + (chosen.length ? ` + ${chosen.map(m => m.name).join(', ')}` : '');
+    const price = Number(v ? v.price_cents : i.price_cents) + chosen.reduce((s, m) => s + Number(m.price_cents), 0);
+    const sig = chosen.map(m => m.id).sort().join(',');
     setDraft(d => {
-      const same = d.find(x => x.item_id === i.id && x.variant_id === variantId && !x.note);
+      const same = d.find(x => x.item_id === i.id && x.variant_id === variantId && !x.note && (x.modifiers ?? []).map(m => m.id).sort().join(',') === sig);
       if (same) return d.map(x => x === same ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...d, { key: uid(), item_id: i.id, variant_id: variantId, name, unit_price_cents: Number(v ? v.price_cents : i.price_cents), quantity: 1, note: '', station: stationOf(i) }];
+      return [...d, { key: uid(), item_id: i.id, variant_id: variantId, name: name.slice(0, 120), unit_price_cents: price, quantity: 1, note: '', station: stationOf(i), modifiers: chosen }];
     });
   };
   const bump = (key: string, delta: number) => setDraft(d => d.flatMap(x => x.key !== key ? [x] : x.quantity + delta <= 0 ? [] : [{ ...x, quantity: x.quantity + delta }]));
@@ -219,16 +223,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <p>{t("{n} article(s) n'ont pas encore été envoyés.", { n: draft.length })}</p>
         </Modal>
       )}
-      {dialog && typeof dialog === 'object' && 'variants' in dialog && (
-        <Modal title={nameOf(dialog.variants.name)} onClose={() => setDialog(null)}>
-          <div className="grid grid-cols-2 gap-2">
-            {dialog.variants.variants.map(v => (
-              <Btn key={v.id} className="flex-col py-4" onClick={() => { addItem(dialog.variants, v.id); setDialog(null); }}>
-                <span>{nameOf(v.name)}</span><span className="text-brand tabular">{mad(v.price_cents)}</span>
-              </Btn>
-            ))}
-          </div>
-        </Modal>
+      {dialog && typeof dialog === 'object' && 'pick' in dialog && (
+        <PickDialog item={dialog.pick} lang={lang} nameOf={nameOf} onClose={() => setDialog(null)}
+          onPick={(variantId, mods) => { addItem(dialog.pick, variantId, mods); setDialog(null); }} />
       )}
       {dialog && typeof dialog === 'object' && 'lineNote' in dialog && (
         <LineNoteDialog initial={draft.find(d => d.key === dialog.lineNote)?.note ?? ''} onClose={() => setDialog(null)}
@@ -567,6 +564,86 @@ function VoidDialog({ line, onClose }: { line: Line; onClose: () => void }) {
         <p className="mb-3 text-center text-sm text-muted">{t('Déjà envoyé en cuisine : validation manager nécessaire.')}</p>
         <ManagerApproval onApprove={approve} busy={busy} error={error} />
       </> : <p className="text-center text-sm text-muted">{t('Déjà envoyé en cuisine : la validation manager demande une connexion internet.')}</p>) : <Btn tone="danger" className="w-full" onClick={() => remove().catch(pos.fail)}>{t('Retirer')}</Btn>}
+    </Modal>
+  );
+}
+
+/** Size and options of a dish (extras, cooking, set-menu choices), with min/max per group. */
+function PickDialog({ item, lang, nameOf, onClose, onPick }: {
+  item: Item; lang: string; nameOf: (n: Record<string, string>) => string; onClose: () => void;
+  onPick: (variantId: string | null, mods: ChosenMod[]) => void;
+}) {
+  const [variant, setVariant] = useState<string | null>(item.variants[0]?.id ?? null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const groups = item.groups ?? [];
+  const countIn = (g: ModGroup) => g.options.filter(o => picked.includes(o.id)).length;
+  const toggle = (g: ModGroup, id: string) => setPicked(p => {
+    if (p.includes(id)) return p.filter(x => x !== id);
+    if (g.max_select === 1) return [...p.filter(x => !g.options.some(o => o.id === x)), id];
+    if (g.max_select != null && countIn(g) >= g.max_select) return p;
+    return [...p, id];
+  });
+  const missing = groups.find(g => countIn(g) < g.min_select);
+  const v = item.variants.find(x => x.id === variant);
+  // in the restaurant's main language: that is what the kitchen bon and the ticket print
+  const mods: ChosenMod[] = groups.flatMap(g => g.options.filter(o => picked.includes(o.id)).map(o => ({ id: o.id, name: tr(o.name, lang), price_cents: Number(o.price_cents) })));
+  const total = Number(v ? v.price_cents : item.price_cents) + mods.reduce((s, m) => s + m.price_cents, 0);
+  // only sizes, nothing else to choose: one tap adds it
+  if (!groups.length) {
+    return (
+      <Modal title={nameOf(item.name)} onClose={onClose}>
+        <div className="grid grid-cols-2 gap-2">
+          {item.variants.map(x => (
+            <Btn key={x.id} className="flex-col py-4" onClick={() => onPick(x.id, [])}>
+              <span>{nameOf(x.name)}</span><span className="text-brand tabular">{mad(x.price_cents)}</span>
+            </Btn>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+  return (
+    <Modal wide title={nameOf(item.name)} onClose={onClose}
+      footer={<div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted">{missing ? t('Choisissez : {g}', { g: nameOf(missing.name) }) : ''}</span>
+        <Btn tone="brand" disabled={!!missing} onClick={() => onPick(item.variants.length ? variant : null, mods)} className="px-6 py-3 text-base">{t('Ajouter')} · {mad(total)}</Btn>
+      </div>}>
+      <div className="space-y-5">
+        {item.variants.length > 0 && (
+          <section>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-muted">{t('Taille')}</p>
+            <div className="flex flex-wrap gap-2">
+              {item.variants.map(x => (
+                <button key={x.id} onClick={() => setVariant(x.id)} className={`rounded-2xl px-4 py-3 font-bold ${variant === x.id ? 'gold-fill text-brand-ink' : 'bg-surface-2'}`}>
+                  {nameOf(x.name)} <span className="tabular opacity-80">{mad(x.price_cents)}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {groups.map(g => (
+          <section key={g.id}>
+            <p className="mb-2 flex justify-between text-xs font-bold uppercase tracking-[0.15em] text-muted">
+              <span>{nameOf(g.name)}</span>
+              <span className={countIn(g) < g.min_select ? 'text-brand' : ''}>
+                {g.min_select > 0 ? (g.max_select === g.min_select ? t('{n} au choix', { n: g.min_select }) : t('au moins {n}', { n: g.min_select })) : g.max_select ? t('jusqu’à {n}', { n: g.max_select }) : t('facultatif')}
+              </span>
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {g.options.map(o => {
+                const on = picked.includes(o.id);
+                return (
+                  <button key={o.id} onClick={() => toggle(g, o.id)}
+                    className={`rounded-2xl px-3 py-3 text-start font-bold leading-tight ${on ? 'gold-fill text-brand-ink' : 'bg-surface-2'}`}>
+                    {nameOf(o.name)}
+                    {Number(o.price_cents) > 0 && <span className="block text-sm tabular opacity-80">+ {mad(o.price_cents)}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
     </Modal>
   );
 }

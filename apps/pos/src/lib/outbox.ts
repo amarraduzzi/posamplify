@@ -26,6 +26,8 @@ export interface NewLine {
   id: string; restaurant_id: string; order_id: string; menu_item_id: string | null; variant_id: string | null;
   name: string; unit_price_cents: number; quantity: number; station: string; note: string | null;
   staff_id: string | null; created_at: string;
+  /** chosen options: the server re-checks and re-prices them */
+  modifiers?: { id: string; name: string; price_cents: number }[];
 }
 export interface PayRequest {
   order_id: string; payments: { method: string; amount_cents: number; tip_cents: number }[];
@@ -107,7 +109,7 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
           const line: Line = {
             id: l.id, order_id: l.order_id, menu_item_id: l.menu_item_id, variant_id: l.variant_id, name: l.name,
             unit_price_cents: l.unit_price_cents, quantity: l.quantity, line_total_cents: l.unit_price_cents * l.quantity,
-            station: l.station, note: l.note, kitchen_sent_at: null, created_at: l.created_at,
+            station: l.station, note: l.note, kitchen_sent_at: null, created_at: l.created_at, modifiers: l.modifiers ?? [],
           };
           o.order_lines.push(line); lineOwner.set(l.id, o); touched.add(o);
         }
