@@ -13,7 +13,8 @@ import { PlatformPage } from './pages/PlatformPage';
 import { Onboarding } from './pages/Onboarding';
 import { DevicesPage } from './pages/DevicesPage';
 import { BriefingPage } from './pages/BriefingPage';
-import { AmplifyLogo, PatternBackdrop, Star8 } from './components/Brand';
+import { LoginShowcase } from './components/LoginShowcase';
+import { AmplifyLogo, PatternBackdrop } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
 import { dateLocale, t } from './lib/i18n';
 import { useCaptcha } from './lib/captcha';
@@ -200,28 +201,25 @@ function Login() {
   };
   return (
     <div className="flex h-full">
-      <section className="night relative hidden flex-1 flex-col justify-between overflow-hidden p-12 lg:flex">
-        <PatternBackdrop />
-        <AmplifyLogo size="lg" product={product} className="relative" />
-        <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{t('Fait pour le Maroc')}</p>
-          <h2 className="mt-4 font-display text-5xl font-semibold leading-[1.08]">{t('Le plus beau menu QR et la caisse la plus simple de votre ville.')}</h2>
-          <ul className="mt-8 space-y-3 text-white/75">
-            {[t('Menu en français, arabe et anglais, avec photos'), t('Caisse, tickets cuisine et bar, rapports Z'), t('Fonctionne même sans internet')].map(x => (
-              <li key={x} className="flex items-center gap-3"><Star8 className="h-4 w-4 shrink-0 text-brand" />{x}</li>
-            ))}
-          </ul>
-        </div>
-        <p className="relative text-sm text-white/40">{t('14 jours gratuits · sans engagement')}</p>
-      </section>
-      <div className="grid flex-1 place-items-center p-6 lg:max-w-xl">
+      <LoginShowcase product={product} />
+      <div className="lg-side grid flex-1 place-items-center p-6 lg:max-w-xl">
         <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
           <div className="mb-10 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
             <AmplifyLogo tone="light" product={product} className="lg:hidden" />
             <LangSwitch />
           </div>
           <div>
-            <h1 className="font-display text-4xl font-semibold">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
+            {mode !== 'forgot' && (
+              <div className="mb-6 grid grid-cols-2 rounded-full bg-[rgb(var(--ink)/.06)] p-1 text-sm font-semibold" role="tablist">
+                {(['login', 'signup'] as const).map(m => (
+                  <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => switchTo(m)}
+                    className={`h-10 rounded-full transition-colors ${mode === m ? 'bg-[#001E3E] text-white shadow' : 'text-muted hover:text-ink'}`}>
+                    {m === 'login' ? t('Se connecter') : t('Créer un compte')}
+                  </button>
+                ))}
+              </div>
+            )}
+            <h1 className="lg-h text-5xl">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
             <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : mode === 'forgot' ? t('Indiquez votre e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.') : t('Menu QR, caisse et gestion. 14 jours gratuits, sans engagement.')}</p>
           </div>
           <Field label={t('E-mail')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
@@ -237,9 +235,9 @@ function Login() {
           {info && <p className="rounded-xl bg-ok/10 px-3 py-2 text-sm font-semibold text-ok">{info}</p>}
           {cap.widget}
           <Btn tone="brand" className="h-12 w-full text-base" disabled={busy || !cap.ready}>{busy ? '…' : !cap.ready ? t('Vérification anti-robot…') : mode === 'login' ? t('Se connecter') : mode === 'forgot' ? t('Envoyer le lien') : t('Créer mon compte')}</Btn>
-          <button type="button" onClick={() => switchTo(mode === 'login' ? 'signup' : 'login')} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">
-            {mode === 'login' ? t('Nouveau restaurant ? Créer un compte') : t('Déjà un compte ? Se connecter')}
-          </button>
+          {mode === 'forgot'
+            ? <button type="button" onClick={() => switchTo('login')} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">{t('Déjà un compte ? Se connecter')}</button>
+            : <p className="text-center text-sm font-semibold text-muted lg:hidden"><span className="text-brand">★</span> {t('14 jours gratuits · sans engagement')}</p>}
         </form>
       </div>
     </div>

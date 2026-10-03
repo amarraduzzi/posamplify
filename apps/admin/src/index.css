@@ -1,5 +1,6 @@
 @import "@fontsource-variable/plus-jakarta-sans";
 @import "@fontsource-variable/montserrat";
+@import "@fontsource-variable/archivo/wdth.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
@@ -69,3 +70,23 @@ body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-font-smoothin
 .scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .2) transparent; }
 .scroll-thin::-webkit-scrollbar { width: 6px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / .2); border-radius: 6px; }
+
+/* Login screen, in the style of the company site */
+.lg-show { background: linear-gradient(160deg, #002E5F 0%, #001E3E 55%, #00162E 100%); }
+.lg-grid { opacity: .07; background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 48px 48px; mask-image: radial-gradient(ellipse at 70% 50%, black, transparent 75%); }
+.lg-h { font-family: "Archivo Variable", "IBM Plex Sans Arabic", system-ui, sans-serif; font-stretch: 62%; font-weight: 800; text-transform: uppercase; line-height: .9; letter-spacing: -.005em; }
+[dir="rtl"] .lg-h { font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; font-stretch: 100%; font-weight: 700; text-transform: none; line-height: 1.2; letter-spacing: 0; }
+.lg-side { background: radial-gradient(500px 300px at 100% 0%, rgb(var(--brand-hi) / .10), transparent 70%); }
+@media (prefers-reduced-motion: no-preference) {
+  .lg-rise { animation: lg-rise .8s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes lg-rise { from { transform: translateY(105%); } }
+  .lg-in { animation: lg-in .6s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes lg-in { from { opacity: 0; transform: translateY(10px); } }
+  .lg-card { animation: lg-in .8s .4s cubic-bezier(.2,.8,.2,1) both, lg-float 7s 1.2s ease-in-out infinite; }
+  @keyframes lg-float { 50% { transform: translateY(-8px); } }
+  .lg-new { animation: lg-new .55s cubic-bezier(.3,1.4,.5,1) both; }
+  @keyframes lg-new { from { opacity: 0; transform: translateY(-14px) scale(.96); } }
+  .lg-num { animation: lg-num .4s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes lg-num { from { opacity: .3; transform: translateY(30%); } }
+}
+[dir="rtl"] .lg-num { font-family: "Archivo Variable", system-ui, sans-serif; font-stretch: 62%; font-weight: 800; line-height: .9; }
