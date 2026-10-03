@@ -72,7 +72,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
     setBusy(true);
     try {
       await rpc('admin_create_restaurant', { p_slug: slug, p_name: name.trim(), p_owner_email: email.trim() || null, p_is_demo: demo });
-      a.toast(t('Restaurant créé (essai de 30 jours)')); onDone();
+      a.toast(t('Restaurant créé (essai de 14 jours)')); onDone();
     } catch (e) { a.fail(e); }
     setBusy(false);
   };

@@ -212,7 +212,7 @@ function Login() {
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-white/40">{t('30 jours gratuits · sans engagement')}</p>
+        <p className="relative text-sm text-white/40">{t('14 jours gratuits · sans engagement')}</p>
       </section>
       <div className="grid flex-1 place-items-center p-6 lg:max-w-xl">
         <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
@@ -222,7 +222,7 @@ function Login() {
           </div>
           <div>
             <h1 className="font-display text-4xl font-semibold">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
-            <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : mode === 'forgot' ? t('Indiquez votre e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.') : t('Menu QR, caisse et gestion. 30 jours gratuits, sans engagement.')}</p>
+            <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : mode === 'forgot' ? t('Indiquez votre e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.') : t('Menu QR, caisse et gestion. 14 jours gratuits, sans engagement.')}</p>
           </div>
           <Field label={t('E-mail')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
           {mode !== 'forgot' && (

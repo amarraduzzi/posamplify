@@ -25,13 +25,14 @@ async function asAnon(u, text, params = []) {
 }
 const pair = (u, code) => asAnon(u, `select public.pair_device($1) r`, [code]).then(r => r[0].r);
 
-test('a new user creates their own restaurant on a 30 day trial', async () => {
+test('a new user creates their own restaurant on a 14 day trial, ending at 04:00 Morocco time', async () => {
   const [u] = await sql(`insert into auth.users (email) values ($1) returning id`, [`new-${w.tag}@t.ma`]);
   const slug = `mon-resto-${w.tag}`;
   assert.equal(await rpc(u, 'slug_available', [slug]), true);
   const rid = await rpc(u, 'signup_restaurant', ['Mon Resto', slug, 'Fès']);
-  const [r] = await as(u, `select slug, status, trial_ends_at > now() + interval '29 days' ok, timezone from public.restaurants where id = $1`, [rid]);
-  assert.deepEqual(r, { slug, status: 'trial', ok: true, timezone: 'UTC' });
+  const [r] = await as(u, `select slug, status, trial_ends_at between now() + interval '14 days' and now() + interval '15 days 5 hours' ok,
+     extract(hour from trial_ends_at at time zone 'Africa/Casablanca') = 4 four, timezone from public.restaurants where id = $1`, [rid]);
+  assert.deepEqual(r, { slug, status: 'trial', ok: true, four: true, timezone: 'UTC' });
   assert.equal(await rpc(u, 'slug_available', [slug]), false);
   await assert.rejects(rpc(u, 'signup_restaurant', ['Autre', slug, null]), /slug_taken/);
   await assert.rejects(rpc(u, 'signup_restaurant', ['Autre', 'Bad Slug', null]), /slug_taken/);

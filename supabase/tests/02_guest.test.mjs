@@ -145,7 +145,12 @@ test('paused restaurant or ended trial: menu visible, ordering off', async () =>
     `insert into public.orders (restaurant_id, client_id, business_date, ticket_number, source, order_type)
      values ($1, $2, current_date, 0, 'pos', 'takeaway')`, [w.B.r.id, uuid()]), /row-level security/);
 
+  // trial ended 1 day ago: still in the 3 days of grace, ordering keeps working
   await sql(`update public.restaurants set status = 'trial', trial_ends_at = now() - interval '1 day' where id = $1`, [w.B.r.id]);
+  m = await rpc(null, 'get_menu', [w.B.r.slug, null]);
+  assert.equal(m.ordering_enabled, true);
+  // grace over: read only
+  await sql(`update public.restaurants set status = 'trial', trial_ends_at = now() - interval '4 days' where id = $1`, [w.B.r.id]);
   await assert.rejects(place(w.B.r.slug, order()), /ordering_unavailable/);
 
   await sql(`update public.restaurants set status = 'trial', trial_ends_at = now() + interval '5 days' where id = $1`, [w.B.r.id]);

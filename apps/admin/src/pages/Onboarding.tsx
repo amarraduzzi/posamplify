@@ -99,7 +99,7 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
   return (
     <Card>
       <h1 className="mb-1 font-display text-3xl font-semibold">{t('Bienvenue !')}</h1>
-      <p className="mb-6 text-muted">{t("Créons votre restaurant. Vous avez 30 jours d'essai gratuit, sans engagement.")}</p>
+      <p className="mb-6 text-muted">{t("Créons votre restaurant. Vous avez 14 jours d'essai gratuit, sans engagement.")}</p>
       <div className="space-y-4">
         <Field label={t('Nom du restaurant')}><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(slugify(e.target.value)); }} /></Field>
         <Field label={t('Ville')}><input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="Rabat" /></Field>
