@@ -15,7 +15,7 @@ const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionna
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
 // the old landing pages send visitors there. Restaurant menus (/<slug>) are never redirected.
 // default: the company site; VITE_MARKETING_URL='' keeps the old landing pages here
-const MARKETING = ((import.meta.env.VITE_MARKETING_URL as string | undefined) ?? 'https://amplifygrowthstudio.com').replace(/\/$/, '');
+const MARKETING = ((import.meta.env.VITE_MARKETING_URL as string | undefined) ?? 'https://www.amplifygrowthstudio.com').replace(/\/$/, '');
 const TARGET = { pos: '/amplify-pos/', profit: '/amplify-profit/', features: '/amplify-pos/fonctionnalites/' } as const;
 const redirecting = !!(site && MARKETING);
 if (site && MARKETING) location.replace(`${MARKETING}${TARGET[site]}${location.hash}`);
