@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2 } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -27,8 +27,9 @@ import { CustomersPage } from './pages/CustomersPage';
 import { OnlinePage } from './pages/OnlinePage';
 import { BookingPage } from './pages/BookingPage';
 import { PromotionsPage } from './pages/PromotionsPage';
+import { GroupPage } from './pages/GroupPage';
 
-type Page = 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -72,6 +73,7 @@ function Screens() {
   const hasProfit = !!r && products.includes('profit');
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
+    { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
@@ -137,6 +139,7 @@ function Screens() {
           {!r && !a.isAdmin && <p className="text-muted">{t('Ce compte ne gère aucun restaurant.')}</p>}
           {r && r.status === 'paused' && <p className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">{t('Abonnement suspendu : consultation seulement.')}</p>}
           {r && current === 'briefing' && <BriefingPage key={r.id} r={r} />}
+          {current === 'group' && <GroupPage />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}

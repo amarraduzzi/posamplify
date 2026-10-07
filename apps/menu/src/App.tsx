@@ -25,6 +25,8 @@ export default function App() {
   const [state, setState] = useState<LoadState>(tenant.slug ? 'loading' : 'notfound');
   const [menu, setMenu] = useState<PublicMenu | null>(null);
   const [lang, setLang] = useState('fr');
+  // the restaurant's own ordering kiosk: ?borne=<token> (from the manager space > Caisses)
+  const kiosk = useMemo(() => { const k = new URLSearchParams(window.location.search).get('borne'); return k && /^[A-Za-z0-9]{16,40}$/.test(k) ? k : null; }, []);
 
   const loadMenu = useCallback(async () => {
     if (!tenant.slug) return;
@@ -45,14 +47,14 @@ export default function App() {
   const [sheet, setSheet] = useState<null | 'book' | 'wait'>(null);
   const [resa, setResa] = useState<string | null>(() => new URLSearchParams(window.location.search).get('resa'));
   useEffect(() => {
-    if (!tenant.slug || tenant.tableToken) return;
+    if (!tenant.slug || tenant.tableToken || kiosk) return;
     getBookingInfo(tenant.slug).then(b => {
       setBooking(b);
       const q = new URLSearchParams(window.location.search);
       if (b?.enabled && q.has('reserver')) setSheet('book');
       else if (b?.waitlist && q.has('file')) setSheet('wait');
     }).catch(() => {});
-  }, [tenant]);
+  }, [tenant, kiosk]);
   const myResa = useMemo(() => (slug ? savedReservations(slug) : []), [slug, resa]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Language: saved choice, else the phone's language, else the restaurant's first language.
@@ -76,7 +78,7 @@ export default function App() {
   // ---------------------------------------------------------------------------
   // Ordering
   // ---------------------------------------------------------------------------
-  const types = menu ? availableOrderTypes(menu) : [];
+  const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : menu ? availableOrderTypes(menu) : [];
   const defaultType: OrderType = menu?.table && types.includes('dine_in')
     ? 'dine_in' : (types.find(x => x !== 'dine_in') ?? 'dine_in');
   const [checkout, setCheckout] = useState<Checkout>(() => ({
@@ -87,7 +89,7 @@ export default function App() {
 
   // Guests can order when the restaurant accepts orders and there is a way to
   // order from here: a table QR code, or takeaway/delivery.
-  const canOrder = !!menu?.ordering_enabled && (!!menu.table || types.some(x => x !== 'dine_in'));
+  const canOrder = !!menu?.ordering_enabled && (!!kiosk || !!menu.table || types.some(x => x !== 'dine_in'));
 
   const [openItem, setOpenItem] = useState<PublicItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -118,6 +120,24 @@ export default function App() {
     return id;
   };
 
+  // kiosk: after an order, show the number then start again; a basket left alone is emptied
+  const [kioskDone, setKioskDone] = useState<number | null>(null);
+  const kioskReset = useCallback(() => {
+    setKioskDone(null); setCartOpen(false); setOpenItem(null); setError(null); cart.clear();
+    setCheckout({ orderType: 'dine_in', note: '', name: '', phone: '', address: '' });
+    window.scrollTo({ top: 0 });
+  }, [cart]);
+  useEffect(() => {
+    if (!kiosk) return;
+    let last = Date.now();
+    const touch = () => { last = Date.now(); };
+    const evs = ['pointerdown', 'keydown', 'scroll'] as const;
+    evs.forEach(e => window.addEventListener(e, touch, { passive: true }));
+    const iv = setInterval(() => { if (Date.now() - last > 120_000 && (cart.count > 0 || cartOpen || openItem)) { last = Date.now(); kioskReset(); } }, 5000);
+    return () => { evs.forEach(e => window.removeEventListener(e, touch)); clearInterval(iv); };
+  }, [kiosk, cart.count, cartOpen, openItem, kioskReset]);
+  useEffect(() => { if (kioskDone == null) return; const tm = setTimeout(kioskReset, 15_000); return () => clearTimeout(tm); }, [kioskDone, kioskReset]);
+
   const addToCart = (item: PublicItem, variantId: string | null, qty: number, note = '', modifiers: string[] = []) => {
     setError(null);
     // a dish with choices to make opens its sheet instead of a blind quick add
@@ -136,14 +156,16 @@ export default function App() {
       const res = await placeOrder(slug, {
         client_id: clientId,
         order_type: checkout.orderType,
-        table_token: isDineIn ? menu.table?.token ?? null : null,
-        customer: isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
+        table_token: isDineIn && !kiosk ? menu.table?.token ?? null : null,
+        customer: kiosk ? (checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
+        kiosk: kiosk ?? undefined,
         note: checkout.note.trim() || undefined,
-        wanted_at: !isDineIn && checkout.wantedAt ? checkout.wantedAt : undefined,
+        wanted_at: !isDineIn && !kiosk && checkout.wantedAt ? checkout.wantedAt : undefined,
         location: checkout.orderType === 'delivery' && checkout.location ? checkout.location : undefined,
         promo_code: checkout.promo?.code,
         items: cart.lines.map(l => ({ item_id: l.item_id, variant_id: l.variant_id, modifiers: l.modifiers?.length ? l.modifiers : undefined, quantity: l.quantity, note: l.note || undefined })),
       });
+      if (kiosk) { drop(`pending:${slug}`); setBusy(false); cart.clear(); setCartOpen(false); setKioskDone(res.ticket_number); return; }
       const order: TrackedOrder = { order_id: res.order_id, ticket_number: res.ticket_number,
                                     total_cents: Number(res.total_cents), placed_at: Date.now() };
       save(`order:${slug}`, order);
@@ -333,7 +355,7 @@ export default function App() {
                 </span>
               )}
             </div>
-            {booking && (booking.enabled || booking.waitlist) && (
+            {!kiosk && booking && (booking.enabled || booking.waitlist) && (
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-rise" style={{ ['--i' as string]: 5 }}>
                 {booking.enabled && <button onClick={() => setSheet('book')} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-ink glow-brand press"><CalendarDays className="size-4" />{bookingStrings(lang).book}</button>}
                 {booking.waitlist && <button onClick={() => setSheet('wait')} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-5 py-2.5 text-sm font-semibold backdrop-blur-md press"><Hourglass className="size-4" />{bookingStrings(lang).waitlist}</button>}
@@ -355,7 +377,7 @@ export default function App() {
           {menu.ordering_enabled && !canOrder && (
             <p className="rounded-2xl card px-4 py-3 text-sm">{t.scanTable}</p>
           )}
-          {tracked && !trackerOpen && (
+          {!kiosk && tracked && !trackerOpen && (
             <button onClick={() => setTrackerOpen(true)}
               className="w-full flex items-center gap-3 rounded-2xl card px-3 py-3 text-start press">
               <span className="relative grid place-items-center size-11 rounded-full bg-brand text-brand-ink">
@@ -452,7 +474,7 @@ export default function App() {
             <Divider />
             <p className="font-display text-lg font-semibold">{r.name}</p>
             {r.phone && <a href={`tel:${r.phone}`} dir="ltr" className="text-sm text-muted">{r.phone}</a>}
-            <div className="mt-4"><ReviewButton url={r.branding?.review_url} label={t.reviewCta} hint={t.reviewHint} /></div>
+            {!kiosk && <div className="mt-4"><ReviewButton url={r.branding?.review_url} label={t.reviewCta} hint={t.reviewHint} /></div>}
             <div className="mt-4"><PoweredBy label={t.poweredBy} /></div>
           </footer>
         </main>
@@ -501,14 +523,25 @@ export default function App() {
         onSubmit={submit}
         busy={busy}
         error={error}
+        kiosk={!!kiosk}
       />
+      {kioskDone != null && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-bg/95 p-8 text-center backdrop-blur-md animate-rise">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.3em] text-brand">{t.kioskNumber}</p>
+            <p className="font-display text-[9rem] font-semibold leading-none text-brand tabular-nums">{kioskDone}</p>
+            <p className="mt-4 text-xl">{t.kioskPay}</p>
+            <button onClick={kioskReset} className="mt-10 h-16 rounded-full bg-brand px-10 text-lg font-semibold text-brand-ink glow-brand press">{t.kioskNew}</button>
+          </div>
+        </div>
+      )}
       {sheet === 'book' && booking && menu && (
         <BookingSheet slug={slug} lang={lang} tz={menu.restaurant.timezone} maxParty={booking.max_party} daysAhead={booking.days_ahead} note={booking.note}
           onClose={() => setSheet(null)} onBooked={tok => { setSheet(null); setResa(tok); }} />
       )}
       {sheet === 'wait' && <WaitlistSheet slug={slug} lang={lang} onClose={() => setSheet(null)} onJoined={tok => { setSheet(null); setResa(tok); }} />}
       {resa && <ReservationSheet token={resa} lang={lang} onClose={() => setResa(null)} />}
-      {tracked && trackerOpen && (
+      {!kiosk && tracked && trackerOpen && (
         <OrderTracker
           order={tracked}
           t={t}

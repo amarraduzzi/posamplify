@@ -87,6 +87,8 @@ export interface PlaceOrderInput {
   location?: { lat: number; lng: number };
   items: { item_id: string; variant_id?: string | null; modifiers?: string[]; quantity: number; note?: string }[];
   promo_code?: string;
+  /** the restaurant's ordering kiosk token */
+  kiosk?: string;
 }
 
 export interface PlaceOrderResult {

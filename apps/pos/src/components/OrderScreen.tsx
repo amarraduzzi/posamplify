@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket } from 'lucide-react';
-import { tr } from '@resto/shared';
+import { promoPrice, tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
 import { mad, time, uid } from '../lib/format';
@@ -14,6 +14,7 @@ import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
 import { useHappyHours } from '../lib/promo';
+import { show } from '../lib/display';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
@@ -65,7 +66,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   useEffect(() => { if (order) setSeen(true); else if (seen && target.kind === 'order' && dialog !== 'pay') onClose(); }, [order, seen, target.kind, onClose, dialog]);
 
   const label = order ? pos.labelOf(order) : table ? t('Table {n}', { n: table.label }) : kind === 'glovo' ? 'Glovo' : kind === 'delivery' ? t('Livraison') : t('À emporter');
-  const draftTotal = draft.reduce((s, d) => s + d.unit_price_cents * d.quantity, 0);
+  // a happy hour is applied by the database when the line is sent: show the same price before that
+  const dUnit = (d: DraftLine) => {
+    const it = d.item_id ? pos.items.find(i => i.id === d.item_id) : null;
+    const mods = (d.modifiers ?? []).reduce((s, m) => s + Number(m.price_cents), 0);
+    return it ? promoPrice(d.unit_price_cents - mods, hh(it.id, it.category_id)) + mods : d.unit_price_cents;
+  };
+  const draftTotal = draft.reduce((s, d) => s + dUnit(d) * d.quantity, 0);
   const subtotal = Number(order?.subtotal_cents ?? 0) + draftTotal;
   const discount = Number(order?.discount_cents ?? 0);
   const total = subtotal - discount;
@@ -141,6 +148,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   });
 
   const nothing = !order && !draft.length;
+  // the screen turned to the guest follows this ticket
+  useEffect(() => {
+    show(r, nothing ? { mode: 'idle' } : { mode: 'order', label, subtotal, discount, promo: order?.discount_kind === 'promo', total,
+      lines: [...(order?.order_lines ?? []).map(l => ({ q: l.quantity, name: lineName(l), total: Number(l.line_total_cents), list: l.list_price_cents ? Number(l.list_price_cents) * l.quantity : undefined })),
+              ...draft.map(d => ({ q: d.quantity, name: lineName(d), total: dUnit(d) * d.quantity, list: dUnit(d) < d.unit_price_cents ? d.unit_price_cents * d.quantity : undefined }))] });
+  }, [order, draft, label]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => show(r, { mode: 'idle' }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const banners = <>
     {loyalty.customers && order && (
@@ -190,7 +204,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <p className="font-semibold leading-tight">{lineName(d)}</p>
                   <button onClick={() => setDialog({ lineNote: d.key })} className="text-xs text-brand">{d.note ? `“${d.note}”` : t('+ précision')}</button>
                 </div>
-                <span className="font-semibold tabular">{mad(d.unit_price_cents * d.quantity)}</span>
+                <span className="font-semibold tabular">{mad(dUnit(d) * d.quantity)}</span>
               </li>
             ))}
           </ul>

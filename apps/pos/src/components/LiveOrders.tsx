@@ -56,7 +56,7 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
       {pos.orders.map(o => {
         const m = minutesSince(o.created_at);
         const pending = o.source === 'qr' && o.status === 'new';
-        const online = o.source === 'qr' && !o.table_id && o.order_type !== 'dine_in';
+        const online = o.source === 'qr' && !o.table_id && o.order_type !== 'dine_in' && o.external_ref !== 'borne';
         const next = o.status === 'new' && !pending ? { to: 'preparing' as OrderStatus, label: 'En préparation', Icon: ChefHat } : NEXT[o.status];
         return (
           <article key={o.id} className={`rise panel flex flex-col overflow-hidden rounded-3xl ${pending ? 'blink !border-qr' : ''}`}>

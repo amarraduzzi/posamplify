@@ -61,7 +61,7 @@ export function availableOrderTypes(menu: PublicMenu): OrderType[] {
   return out;
 }
 
-export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error }: {
+export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false }: {
   open: boolean;
   onClose: () => void;
   menu: PublicMenu;
@@ -74,12 +74,13 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   onSubmit: () => void;
   busy: boolean;
   error: string | null;
+  kiosk?: boolean;
 }) {
   const currency = menu.restaurant.currency;
-  const types = availableOrderTypes(menu);
+  const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : availableOrderTypes(menu);
   const on = menu.online;
   const tz = menu.restaurant.timezone;
-  const online = checkout.orderType !== 'dine_in';
+  const online = checkout.orderType !== 'dine_in' && !kiosk;
   const times = useMemo(() => (online && on?.schedule !== false ? slots(menu) : []), [online, menu, on?.schedule]);
   const closed = online && on ? !on.open_now : false;
   const paused = online && !!on?.paused;
@@ -112,8 +113,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
       p => { setLocState('idle'); setCheckout({ ...checkout, location: { lat: Math.round(p.coords.latitude * 1e6) / 1e6, lng: Math.round(p.coords.longitude * 1e6) / 1e6 } }); },
       () => setLocState('fail'), { enableHighAccuracy: true, timeout: 10000 });
   };
-  const needsTable = checkout.orderType === 'dine_in' && !menu.table;
-  const needsCustomer = checkout.orderType !== 'dine_in';
+  const needsTable = checkout.orderType === 'dine_in' && !menu.table && !kiosk;
+  const needsCustomer = checkout.orderType !== 'dine_in' && !kiosk;
   const customerOk = !needsCustomer || (checkout.name.trim() && checkout.phone.trim()
     && (checkout.orderType !== 'delivery' || checkout.address.trim()));
   const timeOk = !online || !closed || later;
@@ -150,7 +151,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
             <span>{busy ? t.sending : t.placeOrder}</span>
             <span className="tabular-nums">{formatMoney(cart.total + fee - off, currency, lang)}</span>
           </button>
-          <p className="text-center text-xs text-muted">{checkout.orderType === 'takeaway' ? t.payOnPickup : delivery ? t.payOnDelivery : t.payAtCounter}</p>
+          <p className="text-center text-xs text-muted">{kiosk ? t.kioskPay : checkout.orderType === 'takeaway' ? t.payOnPickup : delivery ? t.payOnDelivery : t.payAtCounter}</p>
           </>}
         </div>
       ) : undefined}
@@ -290,6 +291,11 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
               )}
               {codeErr && <p className="mt-1.5 text-sm text-danger">{codeErr}</p>}
             </div>
+          )}
+
+          {kiosk && (
+            <input value={checkout.name} onChange={e => set({ name: e.target.value.slice(0, 40) })} placeholder={t.kioskName}
+              className="mt-4 w-full h-14 rounded-2xl border border-line bg-surface px-4 text-lg outline-none focus:border-brand placeholder:text-muted" />
           )}
 
           <label className="block mt-4">

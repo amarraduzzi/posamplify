@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Printer, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
+import { Printer, LogOut, Monitor } from 'lucide-react';
+import { displayCode, setDisplay } from '../lib/display';
 import { usePos } from '../store';
 import * as P from '../lib/print';
 import { Btn, Modal } from './ui';
@@ -41,8 +43,33 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={photos}
           onChange={e => { const on = e.target.checked; setPhotos(on); localStorage.setItem('pos-photos', on ? 'on' : 'off'); }} />
       </label>
+      <DisplaySetup />
       <h3 className="mb-2 mt-6 font-bold">{t('Poste')}</h3>
       <Btn tone="danger" onClick={pos.logout}><LogOut className="h-4 w-4" /> {t('Déconnecter ce poste')}</Btn>
     </Modal>
   );
+}
+
+/** Customer display: a tablet (QR to scan) or a second monitor on this PC. */
+function DisplaySetup() {
+  const [code, setCode] = useState(displayCode());
+  const [qr, setQr] = useState('');
+  const link = code ? `${location.origin}/?ecran=${code}` : '';
+  useEffect(() => { if (link) QRCode.toDataURL(link, { margin: 1, width: 360 }).then(setQr).catch(() => {}); else setQr(''); }, [link]);
+  return <>
+    <h3 className="mb-2 mt-6 font-bold">{t('Écran client')}</h3>
+    <label className="flex cursor-pointer items-center justify-between rounded-xl bg-surface-2 px-3 py-3">
+      <span>{t('Afficher la commande au client')}<span className="block text-xs text-muted">{t('Sur une tablette tournée vers le client, ou un 2e écran branché à ce PC.')}</span></span>
+      <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={!!code} onChange={e => setCode(setDisplay(e.target.checked))} />
+    </label>
+    {code && (
+      <div className="mt-2 flex items-center gap-4 rounded-xl bg-surface-2 p-3">
+        {qr && <img src={qr} alt="" className="h-28 w-28 rounded-lg bg-white p-1" />}
+        <div className="space-y-2 text-sm">
+          <p>{t('Tablette : scannez ce QR avec la tablette, puis laissez la page ouverte.')}</p>
+          <Btn className="py-1.5" onClick={() => window.open(link, 'ecran-client', 'popup')}><Monitor className="h-4 w-4" /> {t('Ouvrir sur ce PC (2e écran)')}</Btn>
+        </div>
+      </div>
+    )}
+  </>;
 }

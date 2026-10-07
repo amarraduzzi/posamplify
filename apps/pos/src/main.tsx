@@ -16,6 +16,11 @@ if (!url || !key) {
       <p>Ajoutez-la dans Cloudflare (Settings &gt; Variables and secrets), puis relancez le déploiement.</p>
     </div>,
   );
+} else if (/^[a-z0-9]{8,40}$/.test(new URLSearchParams(location.search).get('ecran') ?? '')) {
+  // the customer display: no login, no till
+  const code = new URLSearchParams(location.search).get('ecran')!;
+  const Display = lazy(async () => ({ default: (await import('./components/CustomerDisplay')).CustomerDisplay }));
+  root.render(<StrictMode><Suspense fallback={null}><Display code={code} /></Suspense></StrictMode>);
 } else {
   document.addEventListener('pointerdown', unlockAudio, { passive: true });
   // keep the till app on this PC so it opens without internet (not in dev: it would cache stale code)

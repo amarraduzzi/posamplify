@@ -533,4 +533,10 @@ export const AR: Record<string, string> = {
   "Retirer le code": "حذف الرمز",
   "Retirer le code promo": "حذف رمز التخفيض",
   "Téléphone du client (si le code est limité à une fois par client)": "هاتف الزبون (إذا كان الرمز مرة واحدة لكل زبون)",
+  "Afficher la commande au client": "عرض الطلب للزبون",
+  "Ouvrir sur ce PC (2e écran)": "فتح على هذا الحاسوب (شاشة ثانية)",
+  "Sur une tablette tournée vers le client, ou un 2e écran branché à ce PC.": "على لوحة موجهة للزبون، أو شاشة ثانية موصولة بهذا الحاسوب.",
+  "Tablette : scannez ce QR avec la tablette, puis laissez la page ouverte.": "اللوحة: امسحوا هذا الرمز باللوحة واتركوا الصفحة مفتوحة.",
+  "Écran client": "شاشة الزبون",
+  "Borne": "شاشة الطلب",
 };

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Trash2, Plus } from 'lucide-react';
+import { Monitor, Trash2, Plus, Copy, ExternalLink, RefreshCw, Tablet } from 'lucide-react';
+import QRCode from 'qrcode';
+import { MENU_URL } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -56,6 +58,7 @@ export function DevicesPage({ r }: { r: Restaurant }) {
           </li>
         ))}
       </ul>
+      <KioskCard r={r} />
       {adding && (
         <Modal title={t('Relier une caisse')} onClose={() => { setAdding(false); load(); }}>
           <div className="space-y-4">
@@ -64,6 +67,42 @@ export function DevicesPage({ r }: { r: Restaurant }) {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+/** Ordering kiosk: a tablet at the entrance that runs the menu in kiosk mode with a secret link. */
+function KioskCard({ r }: { r: Restaurant }) {
+  const a = useAdminCtx();
+  const [qr, setQr] = useState('');
+  const link = r.kiosk_token ? `${MENU_URL}/${r.slug}?borne=${r.kiosk_token}` : '';
+  useEffect(() => { if (link) QRCode.toDataURL(link, { margin: 1, width: 400 }).then(setQr).catch(() => {}); }, [link]);
+  const set = async (on: boolean) => {
+    const tok = on ? Array.from(crypto.getRandomValues(new Uint8Array(20)), b => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'[b % 55]).join('') : null;
+    try { check(await supabase.from('restaurants').update({ kiosk_token: tok }).eq('id', r.id).select('id')); await a.reload(); a.toast(t('Enregistré')); } catch (e) { a.fail(e); }
+  };
+  const copy = async () => { try { await navigator.clipboard.writeText(link); a.toast(t('Copié')); } catch { a.toast(t('Copie impossible'), 'error'); } };
+  return (
+    <div className="mt-8 card rounded-3xl p-5">
+      <h2 className="flex items-center gap-2 font-display text-xl font-semibold"><Tablet className="h-5 w-5 text-brand" />{t('Borne de commande')}</h2>
+      <p className="mt-1 text-sm text-muted">{t('Une tablette à l’entrée où les clients commandent seuls, sur place ou à emporter. Ils reçoivent un numéro et paient à la caisse. Les commandes arrivent comme les commandes QR.')}</p>
+      {!r.kiosk_token ? (
+        a.canEditProfile && <Btn tone="brand" className="mt-4" onClick={() => set(true)}><Plus className="h-4 w-4" /> {t('Activer la borne')}</Btn>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          {qr && <img src={qr} alt="" className="h-28 w-28 rounded-xl bg-white p-1" />}
+          <div className="min-w-0 flex-1 space-y-2 text-sm">
+            <p>{t('Ouvrez ce lien sur la tablette de la borne (scannez le QR), puis mettez le navigateur en plein écran. Gardez ce lien privé.')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Btn className="py-1.5" onClick={copy}><Copy className="h-4 w-4" /> {t('Copier')}</Btn>
+              <a href={link} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-1.5 font-semibold"><ExternalLink className="h-4 w-4" /> {t('Voir')}</a>
+              {a.canEditProfile && <Btn className="py-1.5" onClick={() => set(true)}><RefreshCw className="h-4 w-4" /> {t('Nouveau lien')}</Btn>}
+              {a.canEditProfile && <Btn tone="danger" className="py-1.5" onClick={() => set(false)}>{t('Désactiver')}</Btn>}
+            </div>
+          </div>
+        </div>
+      )}
+      <p className="mt-4 rounded-xl bg-surface-2 p-3 text-sm text-muted"><Monitor className="me-1 inline h-4 w-4" />{t('Écran client : se règle sur la caisse, dans Réglages du poste > Écran client.')}</p>
     </div>
   );
 }

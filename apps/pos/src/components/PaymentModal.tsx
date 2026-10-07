@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { show } from '../lib/display';
 import { Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText, NotebookPen, UserRound } from 'lucide-react';
 import { usePos, type PayResult } from '../store';
 import * as db from '../lib/data';
@@ -48,6 +49,10 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   const tipC = mode === 'cash' ? (keepChange ? extra : 0) : mode === 'account' ? 0 : toCents(tip);
   const change = mode === 'cash' ? (keepChange ? 0 : extra) : 0;
   const cashC = Math.min(total, toCents(cashPart));
+  useEffect(() => {
+    if (done) show(pos.restaurant, { mode: 'thanks', change: done.change });
+    else if (mode === 'cash' && received) show(pos.restaurant, { mode: 'pay', total, given: receivedC, change: Math.max(0, receivedC - total) });
+  }, [done, mode, received, total]); // eslint-disable-line react-hooks/exhaustive-deps
   const cardC = total - cashC;
 
   const quick = [total, ...[50, 100, 200, 500].map(x => x * 100).filter(x => x > total)].slice(0, 4);
