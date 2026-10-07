@@ -125,6 +125,19 @@ export function billTicket(r: Restaurant, o: Order, label: string, tz: string): 
   return out;
 }
 
+/** Receipt for a customer paying back (part of) the ardoise. Not a fiscal document: the sale already had its ticket. */
+export function accountReceipt(r: Restaurant, x: { name: string | null; phone: string; amount_cents: number; method: string; balance_cents: number; at: string; staff?: string }): TicketLine[] {
+  const out = header(r);
+  out.push(rule(), { text: 'REGLEMENT ARDOISE', bold: true, center: true }, { text: dateTime(x.at, r.timezone), center: true }, rule());
+  out.push({ text: `Client : ${x.name || x.phone}` });
+  if (x.staff) out.push({ text: `Encaisse par : ${x.staff}` });
+  out.push(rule());
+  out.push(...rows(`Paye (${METHOD[x.method] ?? x.method})`, `${amount(x.amount_cents)} MAD`, { bold: true, large: true }));
+  out.push(...rows('Reste a payer', `${amount(x.balance_cents)} MAD`, { bold: true }));
+  out.push(rule(), { text: 'Document non fiscal. Les ventes', center: true }, { text: 'figurent sur les tickets d\'origine.', center: true });
+  return out;
+}
+
 /** "#12" once the server numbered the order, "H3" for an order taken offline and not sent yet. */
 export const ticketRef = (o: Pick<Order, 'ticket_number' | 'local_ref'>) =>
   o.ticket_number ? `#${o.ticket_number}` : o.local_ref ?? '#-';
@@ -201,6 +214,11 @@ export function reportTicket(r: Restaurant, rep: DayReport, title: string): Tick
   out.push(rule());
   for (const [m, c] of Object.entries(rep.payments)) add(METHOD[m] ?? m, amount(c));
   add('Pourboires', amount(rep.tips_cents));
+  if (rep.account_sales_cents) add('Ventes a l\'ardoise', amount(rep.account_sales_cents));
+  if (rep.account_received_cents) {
+    add('Ardoises reglees', amount(rep.account_received_cents));
+    for (const [m, c] of Object.entries(rep.account_received ?? {})) add(`  ${METHOD[m] ?? m}`, amount(c));
+  }
   out.push(rule());
   add('Fond de caisse', amount(rep.cash_float_cents));
   add('Sorties de caisse', amount(rep.cash_payouts_cents));

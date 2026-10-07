@@ -23,6 +23,8 @@ const M: Record<string, string> = {
   too_many_restaurants: 'Limite de 3 restaurants par compte atteinte. Contactez-nous.',
   name_required: 'Indiquez le nom du restaurant.',
   cannot_remove_yourself: 'Vous ne pouvez pas retirer votre propre accès.',
+  'customer has an open balance': "Ce client a encore une ardoise ouverte : soldez-la (ou corrigez le solde) avant de le supprimer.",
+  reason_required: 'Indiquez un motif.',
 };
 // i18n:end
 export function errorMessage(e: unknown): string {

@@ -13,7 +13,7 @@ interface Rep { business_date: string; tickets: number; revenue_ttc_cents: numbe
 interface Doc { doc_number: string; doc_type: string; issued_at: string; total_ttc_cents: number; total_ht_cents: number; total_vat_cents: number; payments: { method: string; amount: number }[] }
 // French payment labels: used as-is in the CSV (accountants), through t() on screen
 // i18n:values
-const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', other: 'Autre' };
+const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', other: 'Autre', account: 'Ardoise' };
 // i18n:end
 
 export function ReportsPage({ r }: { r: Restaurant }) {

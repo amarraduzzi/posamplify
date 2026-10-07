@@ -738,7 +738,7 @@ function SplitDialog({ order, lineName, onClose, onPayAll, onPart }: {
   );
 }
 
-interface Customer { id: string; name: string | null; phone: string; points: number; visits: number }
+interface Customer { id: string; name: string | null; phone: string; points: number; visits: number; credit_allowed?: boolean; credit_limit_cents?: number | null; balance_cents?: number }
 
 /** The customer chip on the ticket: who, points, and the reward when there are enough points. */
 function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
@@ -767,6 +767,7 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
       {order.customer_id
         ? <span className="font-semibold">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</span>
         : <span className="text-muted">{t('Pas de client')}</span>}
+      {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
       {order.discount_kind === 'loyalty' && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
       <span className="ms-auto flex gap-2">
         {canRedeem && <button disabled={busy} onClick={redeem} className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A]"><Gift className="h-3.5 w-3.5" /> {t('Utiliser {p} pts (−{m})', { p: need, m: mad(loyalty.reward_cents ?? 5000) })}</button>}
@@ -818,6 +819,9 @@ function CustomerDialog({ order, onClose, onDone }: { order: Order; onClose: () 
           <div className="rounded-2xl bg-surface-2 p-4">
             <p className="text-lg font-bold">{found.name || t('Sans nom')}</p>
             <p className="text-sm text-muted">{t('{v} visite(s)', { v: found.visits })}{r.loyalty?.enabled ? ` · ${t('{n} points', { n: found.points })}` : ''}</p>
+            {found.credit_allowed !== undefined && (found.credit_allowed || Number(found.balance_cents ?? 0) !== 0) && (
+              <p className="mt-1 text-sm">{t('Ardoise')} : <b className="tabular">{mad(Number(found.balance_cents ?? 0))}</b>{found.credit_allowed ? <span className="text-muted"> / {t('plafond {m}', { m: mad(Number(found.credit_limit_cents ?? 0)) })}</span> : null}</p>
+            )}
           </div>
         )}
         {found === null && (

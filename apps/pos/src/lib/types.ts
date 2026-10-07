@@ -19,7 +19,7 @@ export interface Restaurant {
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
   /** customer file and loyalty points: off unless the owner switched them on */
-  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
 }
 
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
@@ -80,6 +80,7 @@ export interface DayReport {
   open_orders: number; cancelled_orders: number;
   by_staff: { staff_id: string | null; name: string | null; revenue_ttc_cents: number }[];
   closed?: boolean; counted_cash_cents?: number | null; cash_diff_cents?: number | null;
+  account_sales_cents?: number; account_received_cents?: number; account_received?: Record<string, number>;
 }
 
 export interface CashMovement { id: string; kind: 'float' | 'payout' | 'deposit'; amount_cents: number; reason: string; staff_id: string | null; created_at: string }

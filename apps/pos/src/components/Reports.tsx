@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw } from 'lucide-react';
+import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw, NotebookPen, CreditCard, Landmark, CheckCircle2 } from 'lucide-react';
 import { usePos } from '../store';
 import * as db from '../lib/data';
 import * as P from '../lib/print';
@@ -15,7 +15,8 @@ export function ReportsView() {
   const r = pos.restaurant!;
   const [rep, setRep] = useState<DayReport | null>(null);
   const [moves, setMoves] = useState<CashMovement[]>([]);
-  const [dialog, setDialog] = useState<null | 'float' | 'payout' | 'z'>(null);
+  const [dialog, setDialog] = useState<null | 'float' | 'payout' | 'z' | 'account'>(null);
+  const creditOn = !!r.loyalty?.customers && !!r.loyalty?.credit;
   const load = async () => {
     try {
       const x = await db.dayReport(r.id);
@@ -39,6 +40,7 @@ export function ReportsView() {
         <Btn onClick={load} aria-label={t('Actualiser')}><RefreshCw className="h-4 w-4" /></Btn>
         <Btn onClick={pos.openDrawer}><Archive className="h-4 w-4" /> {t('Ouvrir le tiroir')}</Btn>
         <Btn onClick={() => setDialog('float')} disabled={rep.closed}><Banknote className="h-4 w-4" /> {t('Fond de caisse')}</Btn>
+        {creditOn && <Btn onClick={() => setDialog('account')} disabled={rep.closed}><NotebookPen className="h-4 w-4" /> {t('Ardoises')}</Btn>}
         <Btn tone="danger" onClick={() => setDialog('payout')} disabled={rep.closed}><ArrowDownCircle className="h-4 w-4" /> {t('Sortie de caisse')}</Btn>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -51,6 +53,7 @@ export function ReportsView() {
         <K label={t('Remises')} value={mad(rep.discounts_cents)} />
         <K label={t('Avoirs ({n})', { n: rep.credit_notes })} value={mad(rep.credit_notes_cents)} />
         <K label={t('TVA collectée')} value={mad(rep.vat_cents)} />
+        {creditOn && <K label={t('Ardoises réglées')} value={mad(rep.account_received_cents ?? 0)} />}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <section className="panel rounded-3xl p-5">
@@ -70,6 +73,7 @@ export function ReportsView() {
         <Btn tone="brand" disabled={rep.closed} onClick={() => setDialog('z')}><Lock className="h-4 w-4" /> {t('Clôturer la journée (Z)')}</Btn>
       </div>
       {(dialog === 'float' || dialog === 'payout') && <CashDialog kind={dialog} onClose={() => setDialog(null)} onDone={() => { setDialog(null); load(); }} />}
+      {dialog === 'account' && <AccountDialog onClose={() => setDialog(null)} onDone={() => load()} />}
       {dialog === 'z' && <ZDialog rep={rep} onClose={() => setDialog(null)} onDone={async x => { setDialog(null); await printRep('RAPPORT Z', x); load(); }} />}
     </div>
   );
@@ -157,6 +161,99 @@ function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void
           <p className="mb-3 text-sm">{t('Espèces comptées :')} <b className="tabular">{mad(toCents(counted))}</b> <button className="ms-2 text-brand underline" onClick={() => setStep('count')}>{t('Modifier')}</button></p>
           <ManagerApproval onApprove={approve} busy={busy} error={error} />
         </>)}
+    </Modal>
+  );
+}
+
+interface AcctCustomer { id: string; name: string | null; phone: string; credit_allowed?: boolean; credit_limit_cents?: number | null; balance_cents?: number }
+type SettleMethod = 'cash' | 'card' | 'transfer';
+
+/** A customer pays back (part of) the ardoise: find by phone, amount, method, receipt. */
+function AccountDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const pos = usePos();
+  const r = pos.restaurant!;
+  const [phone, setPhone] = useState('');
+  const [c, setC] = useState<AcctCustomer | null | undefined>(undefined);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<SettleMethod>('cash');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<{ amount_cents: number; balance_cents: number; method: string } | null>(null);
+  const bal = Number(c?.balance_cents ?? 0);
+  const amt = toCents(amount);
+  const search = async () => {
+    if (!pos.requireOnline()) return;
+    setBusy(true); setError(null);
+    try {
+      const x = await db.rpc<AcctCustomer | null>('pos_find_customer', { p_restaurant_id: r.id, p_phone: phone });
+      setC(x); setAmount(x && Number(x.balance_cents ?? 0) > 0 ? String(Number(x.balance_cents) / 100) : '');
+    } catch (e) { setError(errorMessage(e)); }
+    setBusy(false);
+  };
+  const settle = async () => {
+    if (!c || !pos.requireOnline()) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await db.rpc<{ balance_cents: number; amount_cents: number; method: string; at: string }>('pos_account_payment', {
+        p_restaurant_id: r.id, p_customer_id: c.id, p_amount_cents: amt, p_method: method, p_staff_id: pos.staff?.id ?? null });
+      setDone(res);
+      if (pos.printerOk) {
+        try {
+          await P.print(P.receiptPrinter(pos.settings), 'Reglement ardoise',
+            P.accountReceipt(r, { name: c.name, phone: c.phone, amount_cents: Number(res.amount_cents), method, balance_cents: Number(res.balance_cents), at: res.at, staff: pos.staff?.name }),
+            { drawer: method === 'cash' });
+        } catch (e) { pos.fail(e); }
+      }
+      onDone();
+    } catch (e) { setError(errorMessage(e)); }
+    setBusy(false);
+  };
+  if (done) return (
+    <Modal title={t('Ardoise réglée')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={onClose}>{t('Terminé')}</Btn></div>}>
+      <div className="py-4 text-center">
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-ok/15 pop"><CheckCircle2 className="h-12 w-12 text-ok" /></span>
+        <p className="mt-3 text-lg font-bold">{c?.name || c?.phone}</p>
+        <p className="text-muted">{t('Payé {m} ({w})', { m: mad(Number(done.amount_cents)), w: methodLabel(done.method) })}</p>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-muted">{t('Reste à payer')}</p>
+        <p className="font-display text-5xl font-semibold text-brand tabular">{mad(Number(done.balance_cents))}</p>
+      </div>
+    </Modal>
+  );
+  const methods: { id: SettleMethod; label: string; Icon: typeof Banknote }[] = [
+    { id: 'cash', label: t('Espèces'), Icon: Banknote }, { id: 'card', label: t('Carte'), Icon: CreditCard }, { id: 'transfer', label: t('Virement'), Icon: Landmark }];
+  return (
+    <Modal title={t('Régler une ardoise')} onClose={onClose}
+      footer={<div className="flex items-center justify-between gap-3">
+        {error ? <p className="text-sm font-semibold text-danger">{error}</p> : <span className="text-sm text-muted">{t('Pas un nouveau ticket : la vente a déjà son ticket fiscal.')}</span>}
+        <Btn tone="ok" disabled={busy || !c || amt <= 0 || amt > bal} onClick={settle}>{t('Encaisser {m}', { m: mad(amt) })}</Btn>
+      </div>}>
+      <div className="space-y-4">
+        <Field label={t('Téléphone du client')}>
+          <div className="flex gap-2">
+            <input autoFocus className={inputCls} inputMode="tel" value={phone} placeholder="06…" onChange={e => { setPhone(e.target.value); setC(undefined); }}
+              onKeyDown={e => { if (e.key === 'Enter' && phone.replace(/\D/g, '').length >= 9) search(); }} />
+            <Btn disabled={busy || phone.replace(/\D/g, '').length < 9} onClick={search}>{t('Chercher')}</Btn>
+          </div>
+        </Field>
+        {c === null && <p className="text-sm text-muted">{t('Aucun client avec ce numéro.')}</p>}
+        {c && <>
+          <div className="flex items-center justify-between rounded-2xl bg-surface-2 p-4">
+            <div><p className="text-lg font-bold">{c.name || t('Sans nom')}</p><p dir="ltr" className="text-sm text-muted rtl:text-end">{c.phone}</p></div>
+            <div className="text-end"><p className="text-xs font-bold uppercase tracking-wider text-muted">{t('Doit')}</p><p className="font-display text-3xl font-semibold text-brand tabular">{mad(bal)}</p></div>
+          </div>
+          {bal <= 0 ? <p className="text-sm text-muted">{t('Rien à régler.')}</p> : <>
+            <Field label={t('Montant payé (MAD)')}><input className={inputCls} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
+            <div className="grid grid-cols-3 gap-2">
+              {methods.map(m => (
+                <button key={m.id} onClick={() => setMethod(m.id)} className={`flex items-center justify-center gap-2 rounded-2xl py-3 font-bold transition ${method === m.id ? 'gold-fill text-brand-ink' : 'border border-line/[0.06] bg-surface-2 hover:bg-surface-3'}`}>
+                  <m.Icon className="h-5 w-5" />{m.label}
+                </button>
+              ))}
+            </div>
+            {amt > bal && <p className="text-sm font-semibold text-danger">{t('Le montant dépasse ce que le client doit.')}</p>}
+          </>}
+        </>}
+      </div>
     </Modal>
   );
 }

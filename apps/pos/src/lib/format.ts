@@ -19,7 +19,7 @@ export const dateTime = (iso: string, tz: string) =>
 export const minutesSince = (iso: string, now = Date.now()) => Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
 // French labels (also used on printed tickets). On screen, wrap them in t().
 // i18n:values
-export const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', other: 'Autre' };
+export const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', other: 'Autre', account: 'Ardoise' };
 export const TYPE: Record<string, string> = { dine_in: 'Sur place', takeaway: 'À emporter', delivery: 'Livraison' };
 export const STATUS: Record<string, string> = { new: 'Nouvelle', preparing: 'En préparation', ready: 'Prête', served: 'Servie', cancelled: 'Annulée' };
 // i18n:end
