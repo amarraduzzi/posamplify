@@ -45,6 +45,7 @@ create index if not exists customer_account_ledger_day_idx
 
 alter table public.customer_account_ledger enable row level security;
 grant select on public.customer_account_ledger to authenticated;
+drop policy if exists customer_account_ledger_select on public.customer_account_ledger;
 create policy customer_account_ledger_select on public.customer_account_ledger for select to authenticated
   using (restaurant_id = any ((select app.my_restaurants('manager'))::uuid[]));
 
