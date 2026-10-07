@@ -466,4 +466,5 @@ export const AR: Record<string, string> = {
   "Périmé": "منتهي الصلاحية",
   "Repas du personnel": "وجبة الموظفين",
   "Erreur en cuisine": "خطأ في المطبخ",
+  "Formule Essentiel : une seule caisse. Retirez l’ancienne dans l’espace gérant, ou passez à la formule Restaurant.": "الصيغة الأساسية: صندوق واحد فقط. احذفوا القديم في فضاء المسير، أو انتقلوا إلى صيغة المطعم.",
 };

@@ -64,6 +64,7 @@ const fr = {
   errors: {
     restaurant_not_found: 'Restaurant introuvable.',
     ordering_unavailable: 'La commande en ligne est indisponible pour le moment.',
+    qr_ordering_off: 'Ce menu est à consulter : commandez auprès du serveur.',
     order_type_unavailable: 'Ce mode de commande n’est pas disponible.',
     invalid_table: 'Ce QR code de table n’est plus valide. Demandez au personnel.',
     customer_required: 'Merci d’indiquer votre prénom et votre téléphone.',
@@ -139,6 +140,7 @@ const en: Strings = {
   errors: {
     restaurant_not_found: 'Restaurant not found.',
     ordering_unavailable: 'Online ordering is unavailable right now.',
+    qr_ordering_off: 'This menu is to read: please order with the staff.',
     order_type_unavailable: 'This order type is not available.',
     invalid_table: 'This table QR code is no longer valid. Please ask the staff.',
     customer_required: 'Please enter your first name and phone number.',
@@ -212,6 +214,7 @@ const ar: Strings = {
   errors: {
     restaurant_not_found: 'المطعم غير موجود.',
     ordering_unavailable: 'الطلب عبر الإنترنت غير متاح حاليا.',
+    qr_ordering_off: 'هذه القائمة للاطلاع: اطلبوا من النادل.',
     order_type_unavailable: 'طريقة الطلب هذه غير متاحة.',
     invalid_table: 'رمز الطاولة لم يعد صالحا. يرجى سؤال الموظفين.',
     customer_required: 'يرجى إدخال الاسم ورقم الهاتف.',

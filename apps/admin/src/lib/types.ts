@@ -9,6 +9,7 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
   products?: ('pos' | 'profit')[];
+  pos_plan?: 'essentiel' | 'restaurant';
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };

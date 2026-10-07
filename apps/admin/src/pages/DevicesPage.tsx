@@ -30,9 +30,12 @@ export function DevicesPage({ r }: { r: Restaurant }) {
   };
   const tills = members.filter(m => m.role === 'device');
   const people = members.filter(m => m.role !== 'device');
+  // Essentiel: one till; it can be paired again, a second one needs the Restaurant plan
+  const full = r.pos_plan === 'essentiel' && tills.length >= 1;
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Caisses')}</h1><Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Relier une caisse')}</Btn></div>
+      <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Caisses')}</h1><Btn tone="brand" disabled={full} onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Relier une caisse')}</Btn></div>
+      {full && <p className="mb-4 rounded-2xl bg-warn/10 px-4 py-3 text-sm font-semibold text-warn">{t('Formule Essentiel : 1 caisse. Pour relier une autre caisse ou des téléphones de serveurs, passez à la formule Restaurant (écrivez-nous sur WhatsApp). Pour remplacer cette caisse, retirez-la d’abord.')}</p>}
       <p className="mb-4 text-sm text-muted">{t("Chaque ordinateur, tablette ou téléphone de serveur est relié avec un code à usage unique. Si un appareil est perdu ou volé, retirez-le ici : il perd immédiatement l'accès.")}</p>
       <ul className="mb-8 divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {tills.map(m => (

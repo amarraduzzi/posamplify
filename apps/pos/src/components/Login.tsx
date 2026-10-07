@@ -15,6 +15,7 @@ const CODE_ERRORS: Record<string, string> = {
   invalid_code: "Code invalide ou expiré. Demandez un nouveau code dans l'espace gérant.",
   already_member: 'Ce compte gère déjà ce restaurant.',
   ordering_unavailable: 'Abonnement du restaurant suspendu.',
+  plan_device_limit: 'Formule Essentiel : une seule caisse. Retirez l’ancienne dans l’espace gérant, ou passez à la formule Restaurant.',
 };
 // i18n:end
 

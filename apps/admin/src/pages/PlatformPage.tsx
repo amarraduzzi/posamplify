@@ -26,18 +26,42 @@ export function PlatformPage() {
       a.toast(t('{name} : {status}', { name: r.name, status: t(STATUS[s]) })); await load(); await a.reload();
     } catch (e) { a.fail(e); }
   };
+  const setProducts = async (r: Restaurant, products: string[], plan?: 'essentiel' | 'restaurant') => {
+    if (!products.length) { a.toast(t('Gardez au moins un produit.'), 'error'); return; }
+    try {
+      const res = await rpc<{ products: string[]; pos_plan: string; devices: number }>('admin_set_products', { p_restaurant_id: r.id, p_products: products, p_pos_plan: plan ?? null });
+      a.toast(res.pos_plan === 'essentiel' && res.devices > 1 && res.products.includes('pos')
+        ? t('{name} : Essentiel, mais {n} caisses déjà reliées. Retirez-en pour n’en garder qu’une.', { name: r.name, n: res.devices })
+        : t('{name} : mis à jour', { name: r.name }));
+      await load(); await a.reload();
+    } catch (e) { a.fail(e); }
+  };
   return (
     <div>
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
       <div className="overflow-x-auto card rounded-3xl">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-start text-muted"><tr><th className="px-4 py-2 text-start">{t('Restaurant')}</th><th className="text-start">{t('Statut')}</th><th className="text-start">{t("Fin d'essai")}</th><th className="px-4 text-end">{t('Actions')}</th></tr></thead>
+          <thead className="bg-surface-2 text-start text-muted"><tr><th className="px-4 py-2 text-start">{t('Restaurant')}</th><th className="text-start">{t('Statut')}</th><th className="text-start">{t("Fin d'essai")}</th><th className="text-start">{t('Produits')}</th><th className="px-4 text-end">{t('Actions')}</th></tr></thead>
           <tbody>
             {list.map(r => (
               <tr key={r.id} className="border-t border-line/10">
                 <td className="px-4 py-2.5"><p className="font-semibold">{r.name}</p><p className="text-xs text-muted">{r.slug}{r.is_demo ? ` · ${t('démo')}` : ''}</p></td>
                 <td><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${r.status === 'active' ? 'bg-ok/15 text-ok' : r.status === 'trial' ? 'bg-warn/15 text-warn' : 'bg-danger/10 text-danger'}`}>{t(STATUS[r.status])}</span></td>
                 <td className="tabular">{r.trial_ends_at && r.status === 'trial' ? new Date(r.trial_ends_at).toLocaleDateString(dateLocale()) : '—'}</td>
+                <td className="py-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(['pos', 'profit'] as const).map(k => {
+                      const on = (r.products ?? []).includes(k);
+                      return <button key={k} onClick={() => setProducts(r, on ? (r.products ?? []).filter(x => x !== k) : [...(r.products ?? []), k], r.pos_plan)}
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : 'Profit'}</button>;
+                    })}
+                    {(r.products ?? []).includes('pos') && (
+                      <select aria-label={t('Formule POS')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, r.products ?? ['pos'], e.target.value as 'essentiel' | 'restaurant')}>
+                        <option value="essentiel">{t('Essentiel')}</option><option value="restaurant">{t('Restaurant')}</option>
+                      </select>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 py-2 text-end">
                   <div className="flex flex-wrap justify-end gap-1">
                     <Btn className="px-2.5 py-1.5" aria-label={t('Accès à {name}', { name: r.name })} onClick={() => setMember(r)}><UserPlus className="h-4 w-4" /></Btn>

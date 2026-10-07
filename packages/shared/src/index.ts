@@ -121,7 +121,7 @@ export const isRtl = (lang: Lang) => RTL_LANGS.has(lang);
 export const ERROR_CODES = [
   'restaurant_not_found', 'ordering_unavailable', 'order_type_unavailable', 'invalid_table',
   'customer_required', 'item_unavailable', 'item_sold_out', 'variant_required', 'rate_limited',
-  'invalid_request', 'network',
+  'invalid_request', 'network', 'qr_ordering_off',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

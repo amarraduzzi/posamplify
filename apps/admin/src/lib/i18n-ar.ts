@@ -1090,4 +1090,11 @@ export const AR: Record<string, string> = {
   "Sam": "السبت",
   "Dim": "الأحد",
   "stock en direct": "مخزون مباشر",
+  "Essentiel": "الأساسية",
+  "Formule Essentiel : 1 caisse. Pour relier une autre caisse ou des téléphones de serveurs, passez à la formule Restaurant (écrivez-nous sur WhatsApp). Pour remplacer cette caisse, retirez-la d’abord.": "الصيغة الأساسية: صندوق واحد. لربط صندوق آخر أو هواتف النوادل، انتقلوا إلى صيغة المطعم (راسلونا عبر واتساب). لتعويض هذا الصندوق، احذفوه أولا.",
+  "Formule POS": "صيغة الصندوق",
+  "Gardez au moins un produit.": "احتفظوا بمنتج واحد على الأقل.",
+  "Produits": "المنتجات",
+  "{name} : Essentiel, mais {n} caisses déjà reliées. Retirez-en pour n’en garder qu’une.": "{name}: الأساسية، لكن {n} صناديق مربوطة. احذفوا بعضها للإبقاء على واحد.",
+  "{name} : mis à jour": "{name}: تم التحديث",
 };
