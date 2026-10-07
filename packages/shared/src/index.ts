@@ -55,6 +55,8 @@ export interface PublicItem {
   available: boolean;
   variants: PublicVariant[];
   modifier_groups?: PublicModGroup[];
+  /** happy hour now: percent off the dish in basis points (options keep their price) */
+  promo_bp?: number | null;
 }
 
 export interface PublicMenu {
@@ -65,6 +67,10 @@ export interface PublicMenu {
   online?: PublicOnline;
   categories: PublicCategory[];
   items: PublicItem[];
+  /** happy hours running now (value in basis points, until = end time HH:MM:SS) */
+  promotions?: { name: string; value: number; until: string | null }[];
+  /** the restaurant has promo codes guests can type */
+  codes?: boolean;
 }
 
 export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
@@ -80,6 +86,7 @@ export interface PlaceOrderInput {
   wanted_at?: string;
   location?: { lat: number; lng: number };
   items: { item_id: string; variant_id?: string | null; modifiers?: string[]; quantity: number; note?: string }[];
+  promo_code?: string;
 }
 
 export interface PlaceOrderResult {
@@ -135,6 +142,7 @@ export const ERROR_CODES = [
   'restaurant_not_found', 'ordering_unavailable', 'order_type_unavailable', 'invalid_table',
   'customer_required', 'item_unavailable', 'item_sold_out', 'variant_required', 'rate_limited',
   'invalid_request', 'network', 'qr_ordering_off', 'closed', 'online_paused', 'below_minimum',
+  'promo_invalid', 'promo_minimum', 'promo_used_up', 'promo_already_used', 'promo_phone_required',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -175,3 +183,6 @@ export function inkFor(hex: string): string {
   return onLight >= onDark ? '#141414' : '#ffffff';
 }
 export * from './brand';
+
+/** Price of a dish during a happy hour, rounded like the database. */
+export const promoPrice = (cents: number, bp: number | null | undefined) => (bp ? cents - Math.round(cents * bp / 10000) : cents);

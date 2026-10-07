@@ -39,6 +39,10 @@ export const placeOrder = (slug: string, order: PlaceOrderInput) =>
 export const getOrderStatus = (orderId: string) =>
   call<OrderStatusResult | null>('get_order_status', { p_order_id: orderId });
 
+export interface PromoInfo { code: string; name: string; discount_type: 'percent' | 'amount'; value: number; min_order_cents: number }
+export const checkPromo = (slug: string, code: string, subtotal: number) =>
+  call<PromoInfo>('check_promo_code', { p_slug: slug, p_code: code, p_subtotal_cents: subtotal });
+
 // ---- reservations and waitlist
 export interface BookingInfo { enabled: boolean; waitlist: boolean; max_party: number; days_ahead: number; note: string | null; name: string; timezone: string }
 export interface ReservationStatus {

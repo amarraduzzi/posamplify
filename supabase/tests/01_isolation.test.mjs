@@ -33,6 +33,7 @@ before(async () => {
   const [poB] = await as(w.users.ownerB, `insert into public.purchase_orders (restaurant_id, supplier_id) values ($1, $2) returning id`, [w.B.r.id, suB.id]);
   await as(w.users.ownerB, `insert into public.purchase_order_lines (restaurant_id, order_id, ingredient_id, units) values ($1, $2, $3, 2)`, [w.B.r.id, poB.id, gB.id]);
   await as(w.users.deviceB, `insert into public.reservations (restaurant_id, kind, starts_at, party_size, name) values ($1, 'booking', now() + interval '1 day', 2, 'Client B')`, [w.B.r.id]);
+  await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',
@@ -61,7 +62,7 @@ test('only the intended functions are callable by guests', async () => {
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
     order by 1`);
-  assert.deepEqual(rows.map(r => r.proname), ['book_table', 'booking_slots', 'get_booking_info', 'get_menu', 'get_order_status', 'place_order', 'reservation_cancel', 'reservation_status', 'waitlist_join']);
+  assert.deepEqual(rows.map(r => r.proname), ['book_table', 'booking_slots', 'check_promo_code', 'get_booking_info', 'get_menu', 'get_order_status', 'place_order', 'reservation_cancel', 'reservation_status', 'waitlist_join']);
 });
 
 test('restaurant A users see zero rows of restaurant B, in every tenant table', async () => {

@@ -44,6 +44,8 @@ export interface Line {
   name: string; unit_price_cents: number; quantity: number; line_total_cents: number;
   station: string; note: string | null; kitchen_sent_at: string | null; created_at: string;
   modifiers?: ChosenMod[];
+  /** price before a happy hour (set by the database) */
+  list_price_cents?: number | null; promo_id?: string | null;
   /** the kitchen screen marked it ready */
   ready_at?: string | null;
   /** sent from a device without printer: a till with a printer prints the bon */
@@ -57,7 +59,7 @@ export interface Order {
   external_ref: string | null; note: string | null; staff_id: string | null;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
-  customer_id?: string | null; discount_kind?: 'loyalty' | null;
+  customer_id?: string | null; discount_kind?: 'loyalty' | 'promo' | null; promo_id?: string | null;
   /** own online ordering: time asked for, ready time given by the till, guest's location */
   wanted_at?: string | null; eta_at?: string | null; delivery_location?: { lat: number; lng: number } | null;
   /** Set on the till for orders taken offline, until the server gives a ticket number. */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
-import { formatMoney, tr, type PublicItem } from '@resto/shared';
+import { formatMoney, promoPrice, tr, type PublicItem } from '@resto/shared';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import { TagPills } from './ItemRow';
@@ -34,7 +34,7 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
   const variant = item.variants.find(v => v.id === variantId);
   const groups = item.modifier_groups ?? [];
   const extra = groups.flatMap(g => g.options).filter(o => picked.includes(o.id)).reduce((s, o) => s + Number(o.price_cents), 0);
-  const unit = Number(variant ? variant.price_cents : item.price_cents) + extra;
+  const unit = promoPrice(Number(variant ? variant.price_cents : item.price_cents), item.promo_bp) + extra;
   const countIn = (g: typeof groups[number]) => g.options.filter(o => picked.includes(o.id)).length;
   const missing = groups.find(g => countIn(g) < g.min);
   const toggle = (g: typeof groups[number], id: string) => setPicked(p => {
@@ -62,7 +62,7 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
         <div>
           <h2 className="font-display text-[1.7rem] font-semibold leading-tight">{tr(item.name, lang, fallbacks)}</h2>
           {!item.variants.length && (
-            <p className="mt-1 text-lg font-bold text-brand tabular-nums">{formatMoney(unit, currency, lang)}</p>
+            <p className="mt-1 text-lg font-bold text-brand tabular-nums">{item.promo_bp ? <span className="me-2 text-sm font-medium text-muted line-through">{formatMoney(unit - promoPrice(Number(item.price_cents), item.promo_bp) + Number(item.price_cents), currency, lang)}</span> : null}{formatMoney(unit, currency, lang)}</p>
           )}
         </div>
       }
@@ -102,7 +102,7 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
                     {on && <Check className="absolute size-3 text-brand-ink pointer-events-none" strokeWidth={3.5} aria-hidden />}
                   </span>
                   <span className="flex-1 font-medium">{tr(v.name, lang, fallbacks)}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(Number(v.price_cents), currency, lang)}</span>
+                  <span className="font-semibold tabular-nums">{item.promo_bp ? <span className="me-1.5 text-xs font-medium text-muted line-through">{formatMoney(Number(v.price_cents), currency, lang)}</span> : null}{formatMoney(promoPrice(Number(v.price_cents), item.promo_bp), currency, lang)}</span>
                 </label>
               );
             })}

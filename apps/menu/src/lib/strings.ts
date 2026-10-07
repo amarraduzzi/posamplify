@@ -85,6 +85,11 @@ const fr = {
   featured: 'Nos incontournables',
   from: 'dès',
   welcome: 'Bienvenue',
+  happyHour: (pct: string, until: string) => `Happy hour : -${pct} %${until ? ` jusqu’à ${until}` : ''}`,
+  promoCode: 'Code promo',
+  apply: 'Appliquer',
+  promoApplied: (name: string) => `Code « ${name} » appliqué`,
+  discount: 'Réduction',
   tags: { popular: 'Populaire', spicy: 'Épicé', new: 'Nouveau', vegetarian: 'Végétarien' } as Record<string, string>,
   errors: {
     restaurant_not_found: 'Restaurant introuvable.',
@@ -102,6 +107,11 @@ const fr = {
     closed: 'Le restaurant est fermé à cette heure. Choisissez un autre moment.',
     online_paused: 'Les commandes en ligne sont en pause pour quelques minutes.',
     below_minimum: 'Le minimum pour la livraison n’est pas atteint.',
+    promo_invalid: 'Ce code n’existe pas ou n’est pas valable maintenant.',
+    promo_minimum: 'Votre commande n’atteint pas le minimum de ce code.',
+    promo_used_up: 'Ce code a déjà été utilisé le nombre maximum de fois.',
+    promo_already_used: 'Vous avez déjà utilisé ce code.',
+    promo_phone_required: 'Indiquez votre téléphone pour utiliser ce code.',
   } as Record<ErrorCode, string>,
 };
 
@@ -189,6 +199,11 @@ const en: Strings = {
   featured: 'Must try',
   from: 'from',
   welcome: 'Welcome',
+  happyHour: (pct: string, until: string) => `Happy hour: -${pct}%${until ? ` until ${until}` : ''}`,
+  promoCode: 'Promo code',
+  apply: 'Apply',
+  promoApplied: (name: string) => `Code “${name}” applied`,
+  discount: 'Discount',
   tags: { popular: 'Popular', spicy: 'Spicy', new: 'New', vegetarian: 'Vegetarian' },
   errors: {
     restaurant_not_found: 'Restaurant not found.',
@@ -206,6 +221,11 @@ const en: Strings = {
     closed: 'The restaurant is closed at that time. Pick another time.',
     online_paused: 'Online orders are paused for a few minutes.',
     below_minimum: 'The delivery minimum is not reached.',
+    promo_invalid: 'This code does not exist or is not valid right now.',
+    promo_minimum: 'Your order does not reach the minimum for this code.',
+    promo_used_up: 'This code has reached its maximum number of uses.',
+    promo_already_used: 'You have already used this code.',
+    promo_phone_required: 'Enter your phone number to use this code.',
   },
 };
 
@@ -291,6 +311,11 @@ const ar: Strings = {
   featured: 'الأكثر طلبا',
   from: 'ابتداء من',
   welcome: 'مرحبا بكم',
+  happyHour: (pct: string, until: string) => `ساعة التخفيض: ‎-${pct}%${until ? ` حتى ${until}` : ''}`,
+  promoCode: 'رمز التخفيض',
+  apply: 'تطبيق',
+  promoApplied: (name: string) => `تم تطبيق الرمز «${name}»`,
+  discount: 'تخفيض',
   tags: { popular: 'الأكثر طلبا', spicy: 'حار', new: 'جديد', vegetarian: 'نباتي' },
   errors: {
     restaurant_not_found: 'المطعم غير موجود.',
@@ -308,6 +333,11 @@ const ar: Strings = {
     closed: 'المطعم مغلق في هذا الوقت. اختاروا وقتا آخر.',
     online_paused: 'الطلبات عبر الإنترنت متوقفة لبضع دقائق.',
     below_minimum: 'لم يتم بلوغ الحد الأدنى للتوصيل.',
+    promo_invalid: 'هذا الرمز غير موجود أو غير صالح الآن.',
+    promo_minimum: 'طلبك لم يبلغ الحد الأدنى لهذا الرمز.',
+    promo_used_up: 'تم استعمال هذا الرمز الحد الأقصى من المرات.',
+    promo_already_used: 'سبق لك استعمال هذا الرمز.',
+    promo_phone_required: 'أدخل رقم هاتفك لاستعمال هذا الرمز.',
   },
 };
 

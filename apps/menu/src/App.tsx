@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass } from 'lucide-react';
+import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
 import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo } from './lib/api';
 import { BookingSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
@@ -141,6 +141,7 @@ export default function App() {
         note: checkout.note.trim() || undefined,
         wanted_at: !isDineIn && checkout.wantedAt ? checkout.wantedAt : undefined,
         location: checkout.orderType === 'delivery' && checkout.location ? checkout.location : undefined,
+        promo_code: checkout.promo?.code,
         items: cart.lines.map(l => ({ item_id: l.item_id, variant_id: l.variant_id, modifiers: l.modifiers?.length ? l.modifiers : undefined, quantity: l.quantity, note: l.note || undefined })),
       });
       const order: TrackedOrder = { order_id: res.order_id, ticket_number: res.ticket_number,
@@ -149,7 +150,7 @@ export default function App() {
       if (!isDineIn) save('customer', { name: checkout.name, phone: checkout.phone, address: checkout.address });
       setTracked(order);
       drop(`pending:${slug}`);
-      setCheckout(c => ({ ...c, note: '', wantedAt: '', location: null }));
+      setCheckout(c => ({ ...c, note: '', wantedAt: '', location: null, promo: null }));
       setBusy(false);
       cart.clear();
       setCartOpen(false);
@@ -162,6 +163,7 @@ export default function App() {
       }
       const details = e instanceof ApiError ? e.details : undefined;
       let message = t.errors[code];
+      if (code.startsWith('promo_') && code !== 'promo_phone_required') setCheckout(c => ({ ...c, promo: null }));
       if (['item_sold_out', 'item_unavailable', 'variant_required'].includes(code) && details) {
         const it = cart.itemsById.get(details);
         if (it) message = `${tr(it.name, lang, fallbacks)} : ${message}`;
@@ -342,6 +344,11 @@ export default function App() {
         </header>
 
         <div className="px-5 space-y-3">
+          {!!menu.promotions?.length && (
+            <p className="flex items-center gap-2 rounded-2xl bg-[#3F9B5B]/12 px-4 py-3 text-sm font-semibold text-[#3F9B5B] animate-rise">
+              <Sparkles className="size-4 shrink-0" />{t.happyHour(String(menu.promotions[0].value / 100), menu.promotions[0].until ? menu.promotions[0].until.slice(0, 5) : '')}
+            </p>
+          )}
           {!menu.ordering_enabled && (
             <p className="rounded-2xl card px-4 py-3 text-sm">{t.orderingOff}</p>
           )}

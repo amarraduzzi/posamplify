@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Flame, Sparkles, Star, Leaf } from 'lucide-react';
-import { formatMoney, tr, type PublicItem } from '@resto/shared';
+import { formatMoney, promoPrice, tr, type PublicItem } from '@resto/shared';
 import type { Strings } from '../lib/strings';
 
 const TAG_ICON: Record<string, typeof Flame> = { spicy: Flame, new: Sparkles, popular: Star, vegetarian: Leaf };
@@ -64,7 +64,7 @@ export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrd
   const name = tr(item.name, lang, fallbacks);
   const desc = tr(item.description, lang, fallbacks);
   const soldOut = !item.available;
-  const priceLabel = formatMoney(minPrice(item), currency, lang);
+  const priceLabel = formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang);
   const add = item.variants.length || item.modifier_groups?.length ? onOpen : onQuickAdd;
 
   return (
@@ -88,8 +88,10 @@ export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrd
           <div className="mt-auto pt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="font-bold text-brand tabular-nums">
               {item.variants.length > 1 && <span className="text-muted font-medium text-xs me-1">{t.from}</span>}
+              {item.promo_bp ? <span className="me-1.5 text-xs font-medium text-muted line-through">{formatMoney(minPrice(item), currency, lang)}</span> : null}
               {priceLabel}
             </span>
+            {!soldOut && item.promo_bp ? <span className="rounded-full bg-[#3F9B5B]/12 px-2 py-0.5 text-[11px] font-bold text-[#3F9B5B]" dir="ltr">-{item.promo_bp / 100}%</span> : null}
             {soldOut
               ? <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-muted">{t.soldOut}</span>
               : <TagPills tags={item.tags} t={t} />}
@@ -145,7 +147,8 @@ export function FeaturedCard({ item, index, lang, fallbacks, currency, t, qty, c
           <span className="block font-display text-[17px] font-semibold leading-tight line-clamp-2">{name}</span>
           <span className="mt-1 block text-sm font-semibold tabular-nums text-white/85">
             {item.variants.length > 1 && <span className="text-xs font-medium me-1 text-white/70">{t.from}</span>}
-            {formatMoney(minPrice(item), currency, lang)}
+            {item.promo_bp ? <span className="me-1 text-xs font-medium text-white/60 line-through">{formatMoney(minPrice(item), currency, lang)}</span> : null}
+            {formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang)}
           </span>
         </span>
       </button>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { PublicItem, PublicMenu } from '@resto/shared';
+import { promoPrice, type PublicItem, type PublicMenu } from '@resto/shared';
 import { load, save } from './storage';
 
 export interface CartLine {
@@ -46,7 +46,14 @@ export function useCart(slug: string, menu: PublicMenu | null) {
     const v = it.variants.find(x => x.id === l.variant_id);
     const opts = optionsOf(it);
     const extra = (l.modifiers ?? []).reduce((s, id) => s + Number(opts.get(id)?.price_cents ?? 0), 0);
-    return Number(v ? v.price_cents : it.price_cents) + extra;
+    return promoPrice(Number(v ? v.price_cents : it.price_cents), it.promo_bp) + extra;
+  };
+  /** price without the happy hour, to show it struck through */
+  const listPriceOf = (l: CartLine) => {
+    const it = itemsById.get(l.item_id);
+    if (!it?.promo_bp) return priceOf(l);
+    const v = it.variants.find(x => x.id === l.variant_id);
+    return priceOf(l) - promoPrice(Number(v ? v.price_cents : it.price_cents), it.promo_bp) + Number(v ? v.price_cents : it.price_cents);
   };
 
   const add = (item: PublicItem, variantId: string | null, quantity: number, note = '', modifiers: string[] = []) => {
@@ -67,6 +74,6 @@ export function useCart(slug: string, menu: PublicMenu | null) {
   const total = lines.reduce((s, l) => s + priceOf(l) * l.quantity, 0);
   const qtyOfItem = (itemId: string) => lines.filter(l => l.item_id === itemId).reduce((n, l) => n + l.quantity, 0);
 
-  return { lines, add, setQty, removeItem, clear, count, total, priceOf, itemsById, qtyOfItem };
+  return { lines, add, setQty, removeItem, clear, count, total, priceOf, listPriceOf, itemsById, qtyOfItem };
 }
 export type Cart = ReturnType<typeof useCart>;

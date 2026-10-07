@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -13,12 +13,14 @@ import { PaymentModal } from './PaymentModal';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
+import { useHappyHours } from '../lib/promo';
 
-type Dialog = null | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
+type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
   const r = pos.restaurant!;
+  const hh = useHappyHours(r.id, r.timezone);
   // line names (kitchen bons, receipts) stay in the restaurant's main language;
   // the screen shows names in the till's language when the menu has them
   const lang = r.languages[0] ?? 'fr';
@@ -173,7 +175,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   {l.note && <p className="text-xs italic text-muted">{l.note}</p>}
                   <p className="text-xs text-muted">{l.kitchen_sent_at ? t('Envoyé') : l.print_requested_at ? t('Envoyé (bon à la caisse)') : <span className="text-warn">{t('Pas encore envoyé')}</span>}</p>
                 </div>
-                <span className="font-semibold tabular">{mad(l.line_total_cents)}</span>
+                <span className="text-end font-semibold tabular">{Number(l.list_price_cents) > Number(l.unit_price_cents) && <span className="block text-xs font-normal text-muted line-through">{mad(Number(l.list_price_cents) * l.quantity)}</span>}{mad(l.line_total_cents)}</span>
                 <button onClick={() => setDialog({ void: l })} aria-label={t('Retirer')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger/15 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
               </li>
             ))}
@@ -198,7 +200,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <div className="space-y-1 border-t border-line/[0.07] bg-bg/30 px-5 py-4 text-sm">
           {discount > 0 && <>
             <p className="flex justify-between text-muted"><span>{t('Sous-total')}</span><span className="tabular">{mad(subtotal)}</span></p>
-            <p className="flex justify-between text-ok"><span>{t('Remise')}</span><span className="tabular">-{mad(discount)}</span></p>
+            <p className="flex justify-between text-ok"><span>{order?.discount_kind === 'promo' ? t('Code promo') : t('Remise')}</span><span className="tabular">-{mad(discount)}</span></p>
           </>}
           <p className="flex items-baseline justify-between"><span className="text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Total')}</span><span className="font-display text-4xl font-semibold text-brand tabular">{mad(total)}</span></p>
         </div>
@@ -211,6 +213,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <Btn disabled={busy || !order || !order.order_lines.length || draft.length > 0} onClick={() => setDialog('split')}><Users className="h-4 w-4" /> {t('Partager')}</Btn>
           <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> {t('Remise')}</Btn>
           <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
+          <Btn disabled={busy || !order || !order.order_lines.length} onClick={() => pos.requireOnline() && setDialog('promo')}><Ticket className="h-4 w-4" /> {order?.discount_kind === 'promo' ? t('Retirer le code') : t('Code promo')}</Btn>
           <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> {t('Renvoyer bon')}</Btn>
           {order?.table_id && <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>}
           <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {t('Annuler')}</Btn>
@@ -231,6 +234,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         onPayAll={() => { setDialog(null); payNow(); }}
         onPart={id => { setPartOf(order.id); setPayId(id); setDialog('pay'); }} />}
       {dialog === 'discount' && order && <DiscountDialog order={order} onClose={() => setDialog(null)} />}
+      {dialog === 'promo' && order && <PromoDialog order={order} onClose={() => setDialog(null)} />}
       {dialog === 'cancel' && order && <CancelDialog order={order} onClose={() => setDialog(null)} onDone={onClose} />}
       {dialog === 'move' && order && <MoveDialog order={order} onClose={() => setDialog(null)} onMoved={id => { setDialog(null); onRetarget({ kind: 'table', tableId: id }); }} />}
       {dialog === 'note' && order && <NoteDialog order={order} onClose={() => setDialog(null)} />}
@@ -304,6 +308,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
                     <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}</span>
+                    {i.available && hh(i.id, i.category_id) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hh(i.id, i.category_id) / 100}%</span>}
                     {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
                   {inDraft > 0
@@ -405,6 +410,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                     <span className="text-sm font-bold leading-tight">{nameOf(i.name)}</span>
                     <span className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-brand tabular">
                       {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}
+                      {i.available && hh(i.id, i.category_id) > 0 && <span className="rounded-full bg-ok px-2 py-0.5 text-[11px] font-bold text-[#032A2A]">-{hh(i.id, i.category_id) / 100}%</span>}
                       {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger text-white' : 'bg-warn text-[#1B1300]'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                     </span>
                   </span>
@@ -471,6 +477,41 @@ function DiscountDialog({ order, onClose }: { order: Order; onClose: () => void 
       <p className="mb-4 text-center">{t('Remise :')} <b className="tabular">{mad(cents)}</b> · {t('Nouveau total')} <b className="tabular">{mad(sub - cents)}</b></p>
       <p className="mb-2 text-center text-sm font-semibold text-muted">{t('Validation manager')}</p>
       <ManagerApproval onApprove={approve} busy={busy} error={error} />
+    </Modal>
+  );
+}
+
+function PromoDialog({ order, onClose }: { order: Order; onClose: () => void }) {
+  const pos = usePos();
+  const r = pos.restaurant!;
+  const [code, setCode] = useState('');
+  const [phone, setPhone] = useState(order.customer_phone ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const active = order.discount_kind === 'promo';
+  const run = async () => {
+    setBusy(true); setError(null);
+    try {
+      if (active) await db.rpc('pos_remove_promo', { p_order_id: order.id });
+      else {
+        if (phone.trim() && phone.trim() !== (order.customer_phone ?? '')) await db.rpc('pos_attach_customer', { p_order_id: order.id, p_phone: phone.trim(), p_name: order.customer_name, p_marketing_ok: null });
+        const res = await db.rpc<{ discount_cents: number }>('pos_apply_promo', { p_order_id: order.id, p_code: code.trim() });
+        pos.toast(t('Code appliqué : -{m}', { m: mad(Number(res.discount_cents)) }), 'ok');
+      }
+      await pos.reloadOrders(); onClose();
+    } catch (e) { setError(errorMessage(e)); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={active ? t('Retirer le code promo') : t('Code promo')} onClose={onClose}
+      footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Fermer')}</Btn><Btn tone={active ? 'danger' : 'brand'} disabled={busy || (!active && code.trim().length < 3)} onClick={run}>{active ? t('Retirer') : t('Appliquer')}</Btn></div>}>
+      {active ? <p>{t('Le code promo de cette commande ({m}) sera retiré.', { m: mad(Number(order.discount_cents)) })}</p> : (
+        <div className="space-y-3">
+          <Field label={t('Code')}><input autoFocus className={`${inputCls} font-mono text-lg uppercase`} value={code} maxLength={20} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && code.trim().length >= 3 && run()} /></Field>
+          {r.loyalty?.customers && <Field label={t('Téléphone du client (si le code est limité à une fois par client)')}><input className={inputCls} inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="06…" /></Field>}
+        </div>
+      )}
+      {error && <p className="mt-3 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
     </Modal>
   );
 }

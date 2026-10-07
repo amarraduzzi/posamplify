@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Bike, Clock, LocateFixed, PauseCircle, QrCode, ShoppingBag } from 'lucide-react';
-import { formatMoney, tr, type OrderType, type PublicMenu } from '@resto/shared';
+import { AlertCircle, Bike, Clock, LocateFixed, PauseCircle, QrCode, ShoppingBag, Ticket, X } from 'lucide-react';
+import { errorCode, formatMoney, tr, type OrderType, type PublicMenu } from '@resto/shared';
+import { checkPromo, type PromoInfo } from '../lib/api';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import type { Cart } from '../lib/cart';
@@ -15,7 +16,13 @@ export interface Checkout {
   /** '' = as soon as possible, otherwise the ISO time asked for */
   wantedAt?: string;
   location?: { lat: number; lng: number } | null;
+  /** a promo code checked by the server */
+  promo?: PromoInfo | null;
 }
+
+/** Same rule as the database: a percentage of the ticket (delivery line included), or a fixed amount. */
+export const promoDiscount = (p: PromoInfo | null | undefined, base: number) =>
+  !p || base < p.min_order_cents ? 0 : p.discount_type === 'percent' ? Math.round(base * p.value / 10000) : Math.min(p.value, base);
 
 /** Local weekday and HH:MM of a moment in the restaurant's time zone. */
 function localParts(d: Date, tz: string) {
@@ -81,6 +88,17 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   const fee = delivery && on && on.delivery_fee_cents > 0 && (on.delivery_free_from_cents == null || cart.total < on.delivery_free_from_cents) ? on.delivery_fee_cents : 0;
   const belowMin = delivery && !!on && on.delivery_min_cents > 0 && cart.total < on.delivery_min_cents;
   const [locState, setLocState] = useState<'idle' | 'busy' | 'fail'>('idle');
+  const promo = checkout.promo ?? null;
+  const off = promoDiscount(promo, cart.total + fee);
+  const [code, setCode] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeErr, setCodeErr] = useState<string | null>(null);
+  const applyCode = async () => {
+    setCodeBusy(true); setCodeErr(null);
+    try { const p = await checkPromo(menu.restaurant.slug, code.trim(), cart.total + fee); setCheckout({ ...checkout, promo: p }); setCode(''); }
+    catch (e) { setCodeErr(t.errors[errorCode(e)]); }
+    setCodeBusy(false);
+  };
   // closed now: preselect the first time it opens again
   useEffect(() => {
     if (open && online && closed && !later && times.length) setCheckout({ ...checkout, wantedAt: times[0].toISOString() });
@@ -130,7 +148,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
             className="w-full h-14 rounded-full bg-brand text-brand-ink font-semibold text-[15px] flex items-center justify-between px-6 glow-brand disabled:opacity-45 disabled:shadow-none press"
           >
             <span>{busy ? t.sending : t.placeOrder}</span>
-            <span className="tabular-nums">{formatMoney(cart.total + fee, currency, lang)}</span>
+            <span className="tabular-nums">{formatMoney(cart.total + fee - off, currency, lang)}</span>
           </button>
           <p className="text-center text-xs text-muted">{checkout.orderType === 'takeaway' ? t.payOnPickup : delivery ? t.payOnDelivery : t.payAtCounter}</p>
           </>}
@@ -159,7 +177,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
                     {v && <p className="text-sm text-muted">{tr(v.name, lang, fallbacks)}</p>}
                     {!!l.modifiers?.length && <p className="text-sm text-muted">+ {l.modifiers.map(id => { const o = (it.modifier_groups ?? []).flatMap(g => g.options).find(x => x.id === id); return o ? tr(o.name, lang, fallbacks) : ''; }).filter(Boolean).join(', ')}</p>}
                     {l.note && <p className="text-sm text-muted italic truncate">“{l.note}”</p>}
-                    <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
+                    <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{cart.listPriceOf(l) > cart.priceOf(l) && <span className="me-1.5 text-xs font-medium text-muted line-through">{formatMoney(cart.listPriceOf(l) * l.quantity, currency, lang)}</span>}{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
                   </div>
                   <Stepper size="sm" min={0} value={l.quantity} onChange={q => cart.setQty(l.key, q)} removeLabel={t.remove} />
                 </li>
@@ -245,6 +263,32 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
                 </button>
               )}
               {checkout.orderType === 'delivery' && locState === 'fail' && <p className="text-xs text-muted">{t.locationFail}</p>}
+            </div>
+          )}
+
+          {menu.codes && (
+            <div className="mt-4">
+              {promo ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-brand/10 px-4 py-3 text-sm">
+                  <Ticket className="size-4.5 shrink-0 text-brand" />
+                  <span className="flex-1 min-w-0">
+                    <b className="block">{t.promoApplied(promo.code)}</b>
+                    {off > 0 ? <span className="text-muted">{t.discount} <b className="tabular-nums text-brand">-{formatMoney(off, currency, lang)}</b></span>
+                      : <span className="text-danger">{t.errors.promo_minimum}</span>}
+                  </span>
+                  <button type="button" aria-label={t.remove} onClick={() => setCheckout({ ...checkout, promo: null })} className="grid size-8 place-items-center rounded-full bg-surface-2"><X className="size-4" /></button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input value={code} onChange={e => { setCode(e.target.value.replace(/[^A-Za-z0-9_-]/g, '').toUpperCase().slice(0, 20)); setCodeErr(null); }}
+                    onKeyDown={e => { if (e.key === 'Enter' && code.length >= 3) applyCode(); }}
+                    placeholder={t.promoCode} dir="ltr" autoCapitalize="characters"
+                    className="h-12 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 font-mono uppercase outline-none focus:border-brand placeholder:font-sans placeholder:normal-case placeholder:text-muted" />
+                  <button type="button" disabled={code.length < 3 || codeBusy} onClick={applyCode}
+                    className="h-12 rounded-2xl border border-line px-4 text-sm font-semibold disabled:opacity-40 press">{codeBusy ? '…' : t.apply}</button>
+                </div>
+              )}
+              {codeErr && <p className="mt-1.5 text-sm text-danger">{codeErr}</p>}
             </div>
           )}
 
