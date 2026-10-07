@@ -34,6 +34,8 @@ before(async () => {
   await as(w.users.ownerB, `insert into public.purchase_order_lines (restaurant_id, order_id, ingredient_id, units) values ($1, $2, $3, 2)`, [w.B.r.id, poB.id, gB.id]);
   await as(w.users.deviceB, `insert into public.reservations (restaurant_id, kind, starts_at, party_size, name) values ($1, 'booking', now() + interval '1 day', 2, 'Client B')`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);
+  await as(w.users.ownerB, `insert into public.staff_schedule (restaurant_id, staff_id, day, start_time, end_time) values ($1, $2, current_date, '09:00', '17:00')`, [w.B.r.id, w.B.staff.sara.id]);
+  await sql(`insert into public.tip_payouts (restaurant_id, period_from, period_to, rule, total_cents, lines) values ($1, current_date, current_date, 'equal', 0, '[]')`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
   await rpc(w.users.ownerB, 'import_menu', [w.B.r.id, 'file', 'b.csv',

@@ -25,6 +25,8 @@ const M: Record<string, string> = {
   cannot_remove_yourself: 'Vous ne pouvez pas retirer votre propre accès.',
   'customer has an open balance': "Ce client a encore une ardoise ouverte : soldez-la (ou corrigez le solde) avant de le supprimer.",
   reason_required: 'Indiquez un motif.',
+  tips_already_shared: 'Cette période a déjà été partagée (en tout ou en partie).',
+  no_hours: 'Personne n’a pointé sur cette période.',
 };
 // i18n:end
 export function errorMessage(e: unknown): string {
