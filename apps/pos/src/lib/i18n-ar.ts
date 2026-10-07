@@ -539,4 +539,5 @@ export const AR: Record<string, string> = {
   "Tablette : scannez ce QR avec la tablette, puis laissez la page ouverte.": "اللوحة: امسحوا هذا الرمز باللوحة واتركوا الصفحة مفتوحة.",
   "Écran client": "شاشة الزبون",
   "Borne": "شاشة الطلب",
+  "Envoyer au patron": "إرسال إلى المالك",
 };

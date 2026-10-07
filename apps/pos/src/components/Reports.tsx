@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw, NotebookPen, CreditCard, Landmark, CheckCircle2, PackageX, Minus, Plus, Search } from 'lucide-react';
+import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw, NotebookPen, CreditCard, Landmark, CheckCircle2, PackageX, Minus, Plus, Search, MessageCircle } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { usePos } from '../store';
 import * as db from '../lib/data';
@@ -109,6 +109,28 @@ function CashDialog({ kind, onClose, onDone }: { kind: 'float' | 'payout'; onClo
   );
 }
 
+/** The Z report as a WhatsApp message to the owner (the number set in the manager space > En direct). */
+function zWhatsApp(r: { name: string; owner_whatsapp?: string | null } | null, z: DayReport): string | null {
+  let n = (r?.owner_whatsapp ?? '').replace(/\D/g, '');
+  if (!n) return null;
+  if (n.length === 10 && n.startsWith('0')) n = '212' + n.slice(1);
+  const M: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', account: 'Ardoise' };
+  const diff = Number(z.cash_diff_cents ?? 0);
+  const lines = [
+    `*${r!.name} · Rapport Z ${z.business_date}*`,
+    `Chiffre d'affaires : ${mad(z.revenue_ttc_cents)} (${z.tickets} tickets)`,
+    ...Object.entries(z.payments ?? {}).map(([k, v]) => `· ${M[k] ?? k} : ${mad(Number(v))}`),
+    `Remises : ${mad(z.discounts_cents)}`,
+    z.credit_notes ? `Avoirs : ${z.credit_notes} (${mad(Math.abs(z.credit_notes_cents))})` : '',
+    z.cancelled_orders ? `Commandes annulées : ${z.cancelled_orders}` : '',
+    z.tips_cents ? `Pourboires : ${mad(z.tips_cents)}` : '',
+    z.cash_payouts_cents ? `Sorties de caisse : ${mad(z.cash_payouts_cents)}` : '',
+    `Espèces attendues : ${mad(z.expected_cash_cents)} · comptées : ${mad(z.counted_cash_cents ?? 0)}`,
+    `Écart de caisse : ${diff > 0 ? '+' : ''}${mad(diff)}${Math.abs(diff) > 1000 ? ' ⚠️' : ' ✅'}`,
+  ].filter(Boolean);
+  return `https://wa.me/${n}?text=${encodeURIComponent(lines.join('\n'))}`;
+}
+
 function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void; onDone: (x: DayReport) => void }) {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
@@ -133,7 +155,9 @@ function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void
     const tone = Math.abs(diff) <= 1000 ? 'text-ok' : diff < 0 ? 'text-danger' : 'text-warn';
     return (
       <Modal title={t('Journée clôturée')} onClose={() => onDone(done)}
-        footer={<div className="flex justify-end"><Btn tone="brand" onClick={() => onDone(done)}><Printer className="h-4 w-4" /> {t('Imprimer le rapport Z')}</Btn></div>}>
+        footer={<div className="flex flex-wrap justify-end gap-2">
+          {zWhatsApp(pos.restaurant, done) && <a href={zWhatsApp(pos.restaurant, done)!} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-[#063B1E]"><MessageCircle className="h-4 w-4" /> {t('Envoyer au patron')}</a>}
+          <Btn tone="brand" onClick={() => onDone(done)}><Printer className="h-4 w-4" /> {t('Imprimer le rapport Z')}</Btn></div>}>
         <dl className="space-y-2 text-lg">
           <div className="flex justify-between"><dt>{t('Espèces comptées')}</dt><dd className="font-bold tabular">{mad(done.counted_cash_cents ?? 0)}</dd></div>
           <div className="flex justify-between"><dt>{t('Espèces attendues')}</dt><dd className="font-bold tabular">{mad(done.expected_cash_cents)}</dd></div>

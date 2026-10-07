@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -29,8 +29,9 @@ import { BookingPage } from './pages/BookingPage';
 import { PromotionsPage } from './pages/PromotionsPage';
 import { GroupPage } from './pages/GroupPage';
 import { PlanningPage } from './pages/PlanningPage';
+import { LivePage } from './pages/LivePage';
 
-type Page = 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -73,6 +74,7 @@ function Screens() {
   const hasPos = !!r && products.includes('pos');
   const hasProfit = !!r && products.includes('profit');
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
+    { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
     { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
@@ -143,6 +145,7 @@ function Screens() {
           {r && current === 'briefing' && <BriefingPage key={r.id} r={r} />}
           {current === 'group' && <GroupPage />}
           {r && current === 'planning' && <PlanningPage key={r.id} r={r} />}
+          {r && current === 'live' && <LivePage key={r.id} r={r} />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
