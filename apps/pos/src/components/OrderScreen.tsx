@@ -304,6 +304,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
                     <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}</span>
+                    {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
                   {inDraft > 0
                     ? <span className="grid h-9 min-w-9 place-items-center rounded-full bg-brand px-2 font-bold text-brand-ink tabular">{inDraft}</span>
@@ -402,8 +403,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   )}
                   <span className="flex flex-1 flex-col justify-between gap-1 p-3">
                     <span className="text-sm font-bold leading-tight">{nameOf(i.name)}</span>
-                    <span className="text-sm font-bold text-brand tabular">
+                    <span className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-brand tabular">
                       {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}
+                      {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger text-white' : 'bg-warn text-[#1B1300]'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                     </span>
                   </span>
                   {inDraft > 0 && <span className="absolute end-2 top-2 grid h-7 min-w-7 place-items-center rounded-full bg-brand px-1.5 text-sm font-bold text-brand-ink shadow-lg tabular">{inDraft}</span>}

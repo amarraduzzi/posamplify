@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw, NotebookPen, CreditCard, Landmark, CheckCircle2 } from 'lucide-react';
+import { Printer, Lock, ArrowDownCircle, Banknote, Archive, RefreshCw, NotebookPen, CreditCard, Landmark, CheckCircle2, PackageX, Minus, Plus, Search } from 'lucide-react';
+import { tr } from '@resto/shared';
 import { usePos } from '../store';
 import * as db from '../lib/data';
 import * as P from '../lib/print';
@@ -15,7 +16,8 @@ export function ReportsView() {
   const r = pos.restaurant!;
   const [rep, setRep] = useState<DayReport | null>(null);
   const [moves, setMoves] = useState<CashMovement[]>([]);
-  const [dialog, setDialog] = useState<null | 'float' | 'payout' | 'z' | 'account'>(null);
+  const [dialog, setDialog] = useState<null | 'float' | 'payout' | 'z' | 'account' | 'waste'>(null);
+  const stockOn = !!r.products?.includes('profit');
   const creditOn = !!r.loyalty?.customers && !!r.loyalty?.credit;
   const load = async () => {
     try {
@@ -40,6 +42,7 @@ export function ReportsView() {
         <Btn onClick={load} aria-label={t('Actualiser')}><RefreshCw className="h-4 w-4" /></Btn>
         <Btn onClick={pos.openDrawer}><Archive className="h-4 w-4" /> {t('Ouvrir le tiroir')}</Btn>
         <Btn onClick={() => setDialog('float')} disabled={rep.closed}><Banknote className="h-4 w-4" /> {t('Fond de caisse')}</Btn>
+        {stockOn && <Btn onClick={() => setDialog('waste')}><PackageX className="h-4 w-4" /> {t('Perte')}</Btn>}
         {creditOn && <Btn onClick={() => setDialog('account')} disabled={rep.closed}><NotebookPen className="h-4 w-4" /> {t('Ardoises')}</Btn>}
         <Btn tone="danger" onClick={() => setDialog('payout')} disabled={rep.closed}><ArrowDownCircle className="h-4 w-4" /> {t('Sortie de caisse')}</Btn>
       </div>
@@ -73,6 +76,7 @@ export function ReportsView() {
         <Btn tone="brand" disabled={rep.closed} onClick={() => setDialog('z')}><Lock className="h-4 w-4" /> {t('Clôturer la journée (Z)')}</Btn>
       </div>
       {(dialog === 'float' || dialog === 'payout') && <CashDialog kind={dialog} onClose={() => setDialog(null)} onDone={() => { setDialog(null); load(); }} />}
+      {dialog === 'waste' && <WasteDialog onClose={() => setDialog(null)} />}
       {dialog === 'account' && <AccountDialog onClose={() => setDialog(null)} onDone={() => load()} />}
       {dialog === 'z' && <ZDialog rep={rep} onClose={() => setDialog(null)} onDone={async x => { setDialog(null); await printRep('RAPPORT Z', x); load(); }} />}
     </div>
@@ -253,6 +257,81 @@ function AccountDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
             {amt > bal && <p className="text-sm font-semibold text-danger">{t('Le montant dépasse ce que le client doit.')}</p>}
           </>}
         </>}
+      </div>
+    </Modal>
+  );
+}
+
+// i18n:values
+const REASONS = ['Tombé', 'Brûlé', 'Retour client', 'Périmé', 'Repas du personnel', 'Erreur en cuisine'];
+// i18n:end
+
+/** A dish that was lost (dropped, burnt, sent back): its ingredients leave the live stock, with who and why. */
+function WasteDialog({ onClose }: { onClose: () => void }) {
+  const pos = usePos();
+  const r = pos.restaurant!;
+  const nameOf = (n: Record<string, string>) => tr(n, pos.lang, r.languages);
+  const [q, setQ] = useState('');
+  const [pick, setPick] = useState<{ id: string; variant: string | null } | null>(null);
+  const [qty, setQty] = useState(1);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const f = q.trim().toLowerCase();
+  const list = pos.items.filter(i => !f || nameOf(i.name).toLowerCase().includes(f)).slice(0, 60);
+  const item = pick ? pos.itemById.get(pick.id) : null;
+  const save = async () => {
+    if (!pick || !pos.requireOnline()) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await db.rpc<{ cost_cents: number }>('pos_stock_waste', { p_restaurant_id: r.id, p_menu_item_id: pick.id, p_variant_id: pick.variant, p_qty: qty, p_reason: reason.trim(), p_staff_id: pos.staff?.id ?? null });
+      pos.toast(t('Perte notée ({m})', { m: mad(Number(res.cost_cents)) }), 'ok');
+      void pos.refreshStock();
+      onClose();
+    } catch (e) { setError(/no_recipe/.test(String((e as Error).message)) ? t('Ce plat n’a pas encore de fiche technique (Marges, dans l’espace gérant).') : errorMessage(e)); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={t('Noter une perte')} onClose={onClose} wide
+      footer={<div className="flex items-center justify-between gap-3">
+        {error ? <p className="text-sm font-semibold text-danger">{error}</p> : <span className="text-sm text-muted">{t('Les ingrédients sortent du stock. Visible par le gérant, avec votre nom.')}</span>}
+        <Btn tone="brand" disabled={busy || !pick || reason.trim().length < 2} onClick={save}><PackageX className="h-4 w-4" /> {t('Noter la perte')}</Btn>
+      </div>}>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input autoFocus className={`${inputCls} ps-9`} placeholder={t('Chercher un plat')} value={q} onChange={e => setQ(e.target.value)} />
+          </div>
+          <ul className="scroll-thin max-h-80 space-y-1 overflow-y-auto">
+            {list.map(i => (i.variants.length ? i.variants.map(v => ({ i, v })) : [{ i, v: null }]).map(({ i: it, v }) => {
+              const on = pick?.id === it.id && pick.variant === (v?.id ?? null);
+              return (
+                <li key={it.id + (v?.id ?? '')}>
+                  <button onClick={() => setPick({ id: it.id, variant: v?.id ?? null })} className={`w-full rounded-xl px-3 py-2.5 text-start font-semibold transition ${on ? 'gold-fill text-brand-ink' : 'bg-surface-2 hover:bg-surface-3'}`}>
+                    {nameOf(it.name)}{v ? <span className={on ? '' : 'text-muted'}> · {nameOf(v.name)}</span> : null}
+                  </button>
+                </li>
+              );
+            }))}
+          </ul>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-surface-2 p-4 text-center">
+            <p className="text-sm text-muted">{item ? nameOf(item.name) : t('Choisissez le plat')}</p>
+            <div className="mt-3 flex items-center justify-center gap-4">
+              <button aria-label="-" onClick={() => setQty(n => Math.max(1, n - 1))} className="grid h-12 w-12 place-items-center rounded-full bg-surface-3"><Minus className="h-5 w-5" /></button>
+              <span className="w-16 font-display text-5xl font-semibold tabular">{qty}</span>
+              <button aria-label="+" onClick={() => setQty(n => Math.min(100, n + 1))} className="grid h-12 w-12 place-items-center rounded-full bg-surface-3"><Plus className="h-5 w-5" /></button>
+            </div>
+          </div>
+          <Field label={t('Raison')}>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {REASONS.map(x => <button key={x} onClick={() => setReason(t(x))} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${reason === t(x) ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted hover:text-ink'}`}>{t(x)}</button>)}
+            </div>
+            <input className={inputCls} maxLength={120} value={reason} onChange={e => setReason(e.target.value)} placeholder={t('Ou écrivez la raison')} />
+          </Field>
+        </div>
       </div>
     </Modal>
   );

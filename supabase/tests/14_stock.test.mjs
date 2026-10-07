@@ -123,11 +123,15 @@ test('stock now and what to buy: with the till (sales) and without (counts)', as
 
   // sales after the count lower the estimate; a purchase raises it
   await sql(`update public.stock_counts set counted_on = counted_on - 1 where id in ($1, $2)`, [cA.id, cB.id]);
+  // (moving counts by hand bypasses the live stock: look at the estimate from the counts alone)
+  const [{ stock_qty: live }] = await sql(`select stock_qty from public.ingredients where id = $1`, [poulet.id]);
+  await sql(`update public.ingredients set stock_qty = null where id = $1`, [poulet.id]);
   f = await rpc(m, 'stock_forecast', [rid]);
   p = f.items.find(i => i.ingredient_id === poulet.id);
   assert.equal(Number(p.estimate), 2000 + 3000 - 800, 'counted yesterday + bought today - sold today');
   assert.equal(Number(p.bought_since), 3000);
   await sql(`update public.stock_counts set counted_on = counted_on + 1 where id in ($1, $2)`, [cA.id, cB.id]);
+  await sql(`update public.ingredients set stock_qty = $2 where id = $1`, [poulet.id, live]);
 
   // without the till: use per day from the counts, 6 kg a day -> urgent
   await sql(`update public.restaurants set products = '{profit}', profit_settings = '{"order_days": 3}' where id = $1`, [rid]);

@@ -2,14 +2,14 @@
 // and see what was really used, and with Amplify POS: what disappeared without
 // being sold (waste, free food, theft), per ingredient and in dirhams.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Lock, Plus, Search, Send, ShoppingBasket, Trash2, Unlock } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { BaseUnit, Ingredient, Restaurant } from '../lib/types';
 import { CATEGORIES, SIZE_UNIT, fmtQty, pct } from '../lib/profit';
-import { Btn, Field, Modal, inputCls } from '../components/ui';
+import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 
 interface Count { id: string; counted_on: string; status: 'open' | 'closed'; note: string | null; closed_at: string | null }
 interface Line { count_id: string; ingredient_id: string; qty: number }
@@ -45,7 +45,7 @@ interface FItem {
   status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted';
 }
 interface Forecast { today: string; uses_pos: boolean; order_days: number; sales_days: number | null; items: FItem[] }
-type Tab = 'buy' | 'gaps' | 'history';
+type Tab = 'live' | 'buy' | 'gaps' | 'history';
 /** Line prefilled into a delivery: quantity in purchase units, price paid */
 export interface Prefill { ingredient_id: string; qty: number; total_cents: number | null }
 
@@ -63,7 +63,7 @@ export function StockPage({ r }: { r: Restaurant }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [buys, setBuys] = useState<Purchase[]>([]);
   const [fc, setFc] = useState<Forecast | null>(null);
-  const [tab, setTab] = useState<Tab>('buy');
+  const [tab, setTab] = useState<Tab>('live');
   const [sheet, setSheet] = useState<string | null>(null);
   const [buying, setBuying] = useState<Prefill[] | null>(null);
   const [pair, setPair] = useState<[string, string] | null>(null);
@@ -143,7 +143,7 @@ export function StockPage({ r }: { r: Restaurant }) {
     </div>
   );
 
-  const TABS: [Tab, string][] = [['buy', t('Stock et achats à faire')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
+  const TABS: [Tab, string][] = [['live', t('En direct')], ['buy', t('Stock et achats à faire')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -167,6 +167,8 @@ export function StockPage({ r }: { r: Restaurant }) {
               className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition ${tab === k ? 'bg-night text-white' : 'text-muted hover:bg-surface-2'}`}>{label}</button>
           ))}
         </div>
+
+        {tab === 'live' && <LiveView r={r} ings={ings} onChanged={load} />}
 
         {tab === 'buy' && (fc && fc.items.some(i => i.counted != null)
           ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} />
@@ -651,6 +653,227 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
         </div>
         <Btn tone="ghost" onClick={() => setRows(rs => [...rs, blank()])}><Plus className="h-4 w-4" /> {t('Ajouter un produit')}</Btn>
       </div>
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------ live stock
+interface LiveDish { id: string; name: Record<string, string>; available: boolean; sold_out_by_stock: boolean; portions: number }
+interface LiveItem {
+  ingredient_id: string; name: string; name_ar: string | null; category: string; base_unit: BaseUnit; purchase_unit: string; purchase_qty: number;
+  purchase_price_cents: number | null; stock_qty: number; stock_min: number | null; stock_since: string | null; updated_at: string | null;
+  value_cents: number | null; sold_today: number; waste_today: number; status: 'out' | 'low' | 'ok'; dishes: LiveDish[];
+}
+interface Live { today: string; auto_sold_out: boolean; items: LiveItem[]; untracked: number; waste_today_cents: number; value_cents: number }
+interface Move { id: number; kind: string; qty: number; stock_after: number; business_date: string; doc_number: string | null; note: string | null; created_at: string }
+// i18n:values
+const MOVE: Record<string, string> = { sale: 'Vente', refund: 'Avoir', purchase: 'Achat', waste: 'Perte', count: 'Comptage', adjust: 'Correction' };
+// i18n:end
+const dishName = (n: Record<string, string>) => n?.fr || n?.ar || n?.en || Object.values(n ?? {})[0] || '';
+
+/** Every sale, purchase, loss and count moves the stock at once: the picture right now. */
+function LiveView({ r, ings, onChanged }: { r: Restaurant; ings: Ingredient[]; onChanged: () => void }) {
+  const a = useAdminCtx();
+  const [live, setLive] = useState<Live | null>(null);
+  const [at, setAt] = useState<Date | null>(null);
+  const [pulse, setPulse] = useState(0);
+  const [act, setAct] = useState<null | { kind: 'set' | 'waste' | 'min' | 'moves'; g: LiveItem | Ingredient }>(null);
+  const [q, setQ] = useState('');
+  const load = useCallback(async () => {
+    try { setLive(await rpc<Live>('stock_live', { p_restaurant_id: r.id })); setAt(new Date()); setPulse(n => n + 1); } catch (e) { a.fail(e); }
+  }, [r.id, a]);
+  useEffect(() => {
+    load();
+    // live: a change of any ingredient of this restaurant (a sale at the till) refreshes the screen
+    const ch = supabase.channel(`stock-${r.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ingredients', filter: `restaurant_id=eq.${r.id}` }, () => load())
+      .subscribe();
+    const id = window.setInterval(load, 30000);
+    return () => { window.clearInterval(id); supabase.removeChannel(ch); };
+  }, [load, r.id]);
+
+  const saveAuto = async (v: boolean) => {
+    try {
+      check(await supabase.from('restaurants').update({ profit_settings: { ...(r.profit_settings ?? {}), auto_sold_out: v } }).eq('id', r.id).select('id'));
+      r.profit_settings = { ...(r.profit_settings ?? {}), auto_sold_out: v };
+      a.toast(t('Enregistré')); load();
+    } catch (e) { a.fail(e); }
+  };
+  if (!live) return <p className="text-muted">{t('Chargement…')}</p>;
+  const f = q.trim().toLowerCase();
+  const items = live.items.filter(i => !f || i.name.toLowerCase().includes(f));
+  const alarms = live.items.filter(i => i.status !== 'ok').length;
+  const untracked = ings.filter(g => g.stock_qty == null && (!f || g.name.toLowerCase().includes(f)));
+  const soldOut = new Map<string, LiveDish>();
+  live.items.forEach(i => i.dishes.forEach(d => { if (!d.available) soldOut.set(d.id, d); }));
+
+  return (
+    <div className="space-y-5">
+      <div className="night relative overflow-hidden rounded-[2rem] p-6 md:p-7">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="me-auto flex items-center gap-2 text-sm font-semibold">
+            <span className="relative flex h-2.5 w-2.5"><span key={pulse} className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70 [animation-iteration-count:2]" /><span className="relative h-2.5 w-2.5 rounded-full bg-brand" /></span>
+            {t('En direct')}{at ? <span className="text-white/50">· {t('mis à jour à {h}', { h: at.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }) })}</span> : null}
+          </p>
+          <div className="rounded-2xl bg-white/5 px-3 py-2 ring-1 ring-white/10">
+            <Toggle checked={live.auto_sold_out} onChange={saveAuto} disabled={!a.canEditProfile && a.role !== 'manager'} label={t('Plat épuisé automatiquement')} />
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[[t('Valeur du stock'), mad(live.value_cents), ''], [t('Produits suivis'), String(live.items.length), live.untracked ? t('{n} pas encore suivis', { n: live.untracked }) : ''],
+            [t('En alerte'), String(alarms), alarms ? t('épuisés ou sous le minimum') : t('tout va bien')], [t('Pertes aujourd’hui'), mad(live.waste_today_cents), '']].map(([l, v, h], i) => (
+            <div key={i} className={`rounded-2xl p-4 ${i === 2 && alarms ? 'bg-danger/20 ring-1 ring-danger/40' : 'bg-white/5'}`}>
+              <p className="text-xs text-white/60">{l}</p>
+              <p className="mt-1 font-display text-3xl font-semibold tabular">{v}</p>
+              {h && <p className="mt-0.5 text-xs text-white/50">{h}</p>}
+            </div>
+          ))}
+        </div>
+        {soldOut.size > 0 && (
+          <p className="mt-4 flex flex-wrap items-center gap-2 text-sm"><Zap className="h-4 w-4 text-warn" /><span className="text-white/70">{t('Épuisés en ce moment :')}</span>
+            {[...soldOut.values()].map(d => <span key={d.id} className="rounded-full bg-white/10 px-2.5 py-0.5 font-semibold">{dishName(d.name)}{d.sold_out_by_stock ? ' ⚡' : ''}</span>)}</p>
+        )}
+        <p className="mt-4 text-xs text-white/45">{t('Chaque vente payée retire les ingrédients de la fiche technique, options comprises. Un avoir les remet. Un comptage remet les compteurs à la réalité.')}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-64">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input className={`${inputCls} ps-9`} placeholder={t('Chercher un produit')} value={q} onChange={e => setQ(e.target.value)} />
+        </div>
+      </div>
+
+      {!live.items.length && (
+        <div className="card rounded-3xl p-8 text-center">
+          <Activity className="mx-auto h-10 w-10 text-brand" />
+          <p className="mt-3 font-display text-xl font-semibold">{t('Démarrez le stock en direct')}</p>
+          <p className="mx-auto mt-1 max-w-lg text-muted">{t('Un produit est suivi en direct dès qu’il est compté une fois. Faites un comptage, ou indiquez ci-dessous ce que vous avez maintenant.')}</p>
+        </div>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {items.map(i => {
+          const qty = Number(i.stock_qty), min = i.stock_min != null ? Number(i.stock_min) : null;
+          const ref = Math.max(min ? min * 2.5 : 0, qty, Number(i.sold_today) * 3, 1);
+          const pctFill = Math.max(0, Math.min(100, (qty / ref) * 100));
+          const tone = i.status === 'out' ? 'bg-danger' : i.status === 'low' ? 'bg-warn' : 'bg-ok';
+          return (
+            <article key={i.ingredient_id} className={`card rounded-3xl p-5 ${i.status === 'out' ? 'ring-2 ring-danger/50' : i.status === 'low' ? 'ring-2 ring-warn/50' : ''}`}>
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{i.name}</p>
+                  <p className="text-xs text-muted">{t(CATEGORIES[i.category] ?? i.category)}{i.value_cents ? ` · ${mad(i.value_cents)}` : ''}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${i.status === 'out' ? 'bg-danger/15 text-danger' : i.status === 'low' ? 'bg-warn/15 text-warn' : 'bg-ok/15 text-ok'}`}>
+                  {i.status === 'out' ? t('Épuisé') : i.status === 'low' ? t('Stock bas') : t('OK')}</span>
+              </div>
+              <p key={qty} className="pop mt-3 font-display text-4xl font-semibold tabular">{fmtQty(Math.max(0, qty), i.base_unit)}{qty < 0 && <span className="ms-2 align-middle text-sm font-semibold text-danger">{t('(négatif : un achat oublié ?)')}</span>}</p>
+              <span className="mt-2 block h-2 overflow-hidden rounded-full bg-surface-2"><span className={`block h-full rounded-full transition-[width] duration-700 ${tone}`} style={{ width: `${pctFill}%` }} /></span>
+              <p className="mt-1.5 flex justify-between text-xs text-muted">
+                <span>{t('Vendu aujourd’hui : {q}', { q: fmtQty(Number(i.sold_today), i.base_unit) })}{Number(i.waste_today) > 0 ? ` · ${t('perdu {q}', { q: fmtQty(Number(i.waste_today), i.base_unit) })}` : ''}</span>
+                {min != null && <span>{t('min. {q}', { q: fmtQty(min, i.base_unit) })}</span>}
+              </p>
+              {i.dishes.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {i.dishes.slice(0, 6).map(d => (
+                    <span key={d.id} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${!d.available ? 'bg-danger/10 text-danger line-through' : d.portions <= 5 ? 'bg-warn/10 text-warn' : 'bg-surface-2 text-muted'}`}>
+                      {dishName(d.name)} · {d.available ? t('{n} portions', { n: d.portions }) : t('épuisé')}</span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 flex gap-1.5">
+                <Btn className="flex-1 px-2 py-1.5 text-sm" onClick={() => setAct({ kind: 'set', g: i })}><SlidersHorizontal className="h-4 w-4" /> {t('Ajuster')}</Btn>
+                <Btn className="flex-1 px-2 py-1.5 text-sm" onClick={() => setAct({ kind: 'waste', g: i })}><Trash2 className="h-4 w-4" /> {t('Perte')}</Btn>
+                <Btn className="px-2 py-1.5 text-sm" aria-label={t('Minimum')} title={t('Minimum')} onClick={() => setAct({ kind: 'min', g: i })}><AlertTriangle className="h-4 w-4" /></Btn>
+                <Btn className="px-2 py-1.5 text-sm" aria-label={t('Historique')} title={t('Historique')} onClick={() => setAct({ kind: 'moves', g: i })}><History className="h-4 w-4" /></Btn>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {untracked.length > 0 && (
+        <section className="card rounded-3xl p-6">
+          <h2 className="font-display text-xl font-semibold">{t('Pas encore suivis ({n})', { n: untracked.length })}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Indiquez ce que vous avez maintenant : le produit est suivi en direct à partir de là.')}</p>
+          <ul className="divide-y divide-line/10">
+            {untracked.slice(0, 40).map(g => (
+              <li key={g.id} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1 truncate font-semibold">{g.name}</span>
+                <Btn className="px-3 py-1.5 text-sm" onClick={() => setAct({ kind: 'set', g })}><Plus className="h-4 w-4" /> {t('Démarrer')}</Btn>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {act && act.kind !== 'moves' && <StockAction kind={act.kind} g={act.g} onClose={() => setAct(null)} onDone={() => { setAct(null); load(); onChanged(); }} />}
+      {act && act.kind === 'moves' && <MovesModal g={act.g as LiveItem} onClose={() => setAct(null)} />}
+    </div>
+  );
+}
+
+function StockAction({ kind, g, onClose, onDone }: { kind: 'set' | 'waste' | 'min'; g: LiveItem | Ingredient; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const big = SIZE_UNIT[g.base_unit];
+  const cur = 'stock_qty' in g && g.stock_qty != null ? Number(g.stock_qty) : null;
+  const [val, setVal] = useState(kind === 'min' && g.stock_min != null ? shown(Number(g.stock_min) / big.f) : kind === 'set' && cur != null ? shown(Math.max(0, cur) / big.f) : '');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const gid = 'ingredient_id' in g ? g.ingredient_id : g.id;
+  const qty = num(val) * big.f;
+  const ok = val.trim() !== '' && Number.isFinite(qty) && qty >= 0 && (kind !== 'waste' || (qty > 0 && note.trim().length >= 2));
+  const save = async () => {
+    setBusy(true);
+    try {
+      if (kind === 'set') await rpc('stock_set', { p_ingredient_id: gid, p_qty: qty, p_note: note.trim() || null });
+      else if (kind === 'waste') await rpc('stock_waste', { p_ingredient_id: gid, p_qty: qty, p_reason: note.trim() });
+      else check(await supabase.from('ingredients').update({ stock_min: val.trim() ? qty : null }).eq('id', gid).select('id'));
+      a.toast(t('Enregistré')); onDone();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  const title = kind === 'set' ? (cur == null ? t('Démarrer le suivi') : t('Ajuster le stock')) : kind === 'waste' ? t('Noter une perte') : t('Minimum d’alerte');
+  return (
+    <Modal title={`${title} · ${g.name}`} onClose={onClose}
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !ok} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      <div className="space-y-4">
+        {cur != null && <p className="text-sm text-muted">{t('Stock actuel : {q}', { q: fmtQty(cur, g.base_unit) })}</p>}
+        <Field label={kind === 'set' ? t('Quantité réelle maintenant ({u})', { u: big.u }) : kind === 'waste' ? t('Quantité perdue ({u})', { u: big.u }) : t('Alerte sous ({u})', { u: big.u })}>
+          <input autoFocus className={inputCls} inputMode="decimal" value={val} onChange={e => setVal(e.target.value)} />
+        </Field>
+        {kind !== 'min' && <Field label={kind === 'waste' ? t('Raison') : t('Note (facultatif)')}><input className={inputCls} maxLength={200} value={note} onChange={e => setNote(e.target.value)} placeholder={kind === 'waste' ? t('Périmé, abîmé, renversé…') : t('Livraison du matin…')} /></Field>}
+        {kind === 'set' && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Gardé dans l’historique. Pour une livraison, utilisez plutôt « Noter un achat » : le prix se met aussi à jour.')}</p>}
+        {kind === 'min' && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Sous ce seuil, le produit passe en alerte. Laissez vide pour aucune alerte.')}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+function MovesModal({ g, onClose }: { g: LiveItem; onClose: () => void }) {
+  const a = useAdminCtx();
+  const [list, setList] = useState<Move[] | null>(null);
+  useEffect(() => {
+    supabase.from('stock_moves').select('id,kind,qty,stock_after,business_date,doc_number,note,created_at').eq('ingredient_id', g.ingredient_id).order('id', { ascending: false }).limit(80)
+      .then(res => { try { setList(check(res) as Move[]); } catch (e) { a.fail(e); setList([]); } });
+  }, [g.ingredient_id, a]);
+  return (
+    <Modal title={`${t('Historique')} · ${g.name}`} onClose={onClose} wide>
+      {!list ? <p className="text-muted">{t('Chargement…')}</p> : !list.length ? <p className="text-muted">{t('Aucun mouvement.')}</p> : (
+        <table className="w-full text-sm">
+          <thead className="text-xs uppercase tracking-wider text-muted"><tr><th className="py-2 text-start">{t('Quand')}</th><th className="text-start">{t('Mouvement')}</th><th className="text-end">{t('Quantité')}</th><th className="text-end">{t('Stock après')}</th></tr></thead>
+          <tbody className="divide-y divide-line/10">
+            {list.map(m => (
+              <tr key={m.id}>
+                <td className="py-2 pe-3 text-muted">{new Date(m.created_at).toLocaleString(dateLocale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td className="py-2"><span className="font-semibold">{t(MOVE[m.kind] ?? m.kind)}</span>{m.doc_number ? ` · ${m.doc_number}` : ''}{m.note ? <span className="text-muted"> · {m.note}</span> : null}</td>
+                <td className={`py-2 text-end font-semibold tabular ${Number(m.qty) < 0 ? 'text-danger' : 'text-ok'}`}>{Number(m.qty) > 0 ? '+' : '−'}{fmtQty(Math.abs(Number(m.qty)), g.base_unit)}</td>
+                <td className="py-2 text-end tabular">{fmtQty(Number(m.stock_after), g.base_unit)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </Modal>
   );
 }

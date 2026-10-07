@@ -268,7 +268,24 @@ function usePosState() {
   // ---- derived --------------------------------------------------------------
   const tableById = useMemo(() => new Map(tables.map(t => [t.id, t])), [tables]);
   const staffById = useMemo(() => new Map(staffList.map(s => [s.id, s])), [staffList]);
-  const itemById = useMemo(() => new Map(items.map(i => [i.id, i])), [items]);
+  // ---- live stock: dishes sold out by stock and the ones with few portions left (Amplify Profit)
+  const [stockLevels, setStockLevels] = useState<{ low: Record<string, number>; sold_out: string[] } | null>(null);
+  const refreshStock = useCallback(async () => {
+    if (!rid || !restaurant?.products?.includes('profit') || !onlineRef.current) return;
+    try { setStockLevels(await db.rpc<{ low: Record<string, number>; sold_out: string[] }>('pos_stock_levels', { p_restaurant_id: rid })); } catch { /* keep the last known */ }
+  }, [rid, restaurant?.products]);
+  useEffect(() => {
+    setStockLevels(null); refreshStock();
+    const id = window.setInterval(refreshStock, 60000);
+    return () => window.clearInterval(id);
+  }, [refreshStock]);
+  const liveItems = useMemo(() => {
+    if (!stockLevels) return items;
+    const out = new Set(stockLevels.sold_out);
+    return items.map(i => (out.has(i.id) === !i.available ? i : { ...i, available: !out.has(i.id) }));
+  }, [items, stockLevels]);
+  const stockLow = stockLevels?.low ?? {};
+  const itemById = useMemo(() => new Map(liveItems.map(i => [i.id, i])), [liveItems]);
   const pendingQr = useMemo(() => orders.filter(o => o.source === 'qr' && o.status === 'new'), [orders]);
   const labelOf = useCallback((o: Order) => P.orderLabel(o, o.table_id ? tableById.get(o.table_id)?.label : null, t), [tableById]);
   /** Same label in French, for printed tickets. */
@@ -430,6 +447,7 @@ function usePosState() {
     }
     const drawer = payments.some(p => p.method === 'cash');
     if (q?.state === 'done' && q.result) {
+      void refreshStock();
       if (printerOk) {
         try {
           await P.print(P.receiptPrinter(settings), `Ticket ${q.result.doc_number}`,
@@ -446,7 +464,7 @@ function usePosState() {
       } catch (e) { fail(e); }
     }
     return { provisional: P.ticketRef(o) };
-  }, [restaurant, staff, printerOk, settings, labelOf, printLabel, enqueue, settle, changeQueue, fail]);
+  }, [restaurant, staff, printerOk, settings, labelOf, printLabel, enqueue, settle, changeQueue, fail, refreshStock]);
 
   const printBill = useCallback(async (o: Order) => {
     if (!restaurant) return;
@@ -473,7 +491,7 @@ function usePosState() {
 
   return {
     lang, setLang, session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
-    staffList, tables, categories, items, orders, staff, setStaff,
+    staffList, tables, categories, items: liveItems, stockLow, refreshStock, orders, staff, setStaff,
     live, online, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,

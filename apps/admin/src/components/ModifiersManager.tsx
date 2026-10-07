@@ -1,12 +1,13 @@
 // Extras and set menus: groups of options ("Suppléments", "Cuisson", "Boisson de la formule")
 // linked to dishes. Prices are added by the database when a dish is ordered.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChefHat, Pencil, Plus, Trash2 } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
 import { useAdminCtx } from '../store';
-import type { Category, I18n, Item, Restaurant } from '../lib/types';
+import type { Category, I18n, Ingredient, Item, Restaurant } from '../lib/types';
+import { fmtQty } from '../lib/profit';
 import { Btn, Field, I18nInput, Modal, inputCls } from './ui';
 import { t } from '../lib/i18n';
 
@@ -79,6 +80,8 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
   const a = useAdminCtx();
   const lang = r.languages[0] ?? 'fr';
   const [name, setName] = useState<I18n>(group?.name ?? {});
+  const profit = !!r.products?.includes('profit');
+  const [recipe, setRecipe] = useState<{ id: string; name: string } | null>(null);
   const initialKind: Kind = !group ? 'extras' : group.min_select === 0 && group.max_select == null ? 'extras' : group.min_select === 1 && group.max_select === 1 ? 'one' : 'custom';
   const [kind, setKind] = useState<Kind>(initialKind);
   const [min, setMin] = useState(String(group?.min_select ?? 0));
@@ -150,9 +153,10 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
         <Field group label={t('Options')}>
           <div className="space-y-2">
             {opts.map((o, k) => (
-              <div key={k} className="grid grid-cols-[1fr_110px_auto] items-start gap-2">
+              <div key={k} className={`grid items-start gap-2 ${profit ? 'grid-cols-[1fr_110px_auto_auto]' : 'grid-cols-[1fr_110px_auto]'}`}>
                 <I18nInput compact value={o.name} onChange={v => setOpts(x => x.map((y, j) => (j === k ? { ...y, name: v } : y)))} langs={r.languages.length ? r.languages : ['fr']} max={60} ariaLabel={t('Option {n}', { n: k + 1 })} />
                 <input className={inputCls} inputMode="decimal" placeholder={t('+ DH')} aria-label={t('Prix en plus (DH)')} value={o.price} onChange={e => setOpts(x => x.map((y, j) => (j === k ? { ...y, price: e.target.value } : y)))} />
+                {profit && <button aria-label={t('Fiche technique')} title={o.id ? t('Fiche technique (stock et coût)') : t('Enregistrez d’abord l’option')} disabled={!o.id} onClick={() => o.id && setRecipe({ id: o.id, name: tr(o.name, lang) })} className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30"><ChefHat className="h-4 w-4" /></button>}
                 <button aria-label={t('Supprimer')} onClick={() => setOpts(x => x.filter((_, j) => j !== k))} className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
@@ -179,6 +183,74 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
         </Field>
         {group && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} /> {t('Actif')}</label>}
       </div>
+      {recipe && <OptionRecipe r={r} option={recipe} onClose={() => setRecipe(null)} />}
+    </Modal>
+  );
+}
+
+/** What one option adds to the plate ("extra cheese" = 30 g of cheese): the live stock takes it out with each sale. */
+function OptionRecipe({ r, option, onClose }: { r: Restaurant; option: { id: string; name: string }; onClose: () => void }) {
+  const a = useAdminCtx();
+  const [ings, setIngs] = useState<Ingredient[]>([]);
+  const [lines, setLines] = useState<{ id?: string; ingredient_id: string; qty: string }[] | null>(null);
+  const [orig, setOrig] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [g, l] = await Promise.all([
+          supabase.from('ingredients').select('*').eq('restaurant_id', r.id).eq('active', true).order('name'),
+          supabase.from('recipe_lines').select('id, ingredient_id, qty').eq('restaurant_id', r.id).eq('modifier_option_id', option.id).order('sort_order'),
+        ]);
+        setIngs(check(g) as Ingredient[]);
+        const ls = check(l) as { id: string; ingredient_id: string; qty: number }[];
+        setOrig(ls.map(x => x.id)); setLines(ls.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: String(Number(x.qty)).replace('.', ',') })));
+      } catch (e) { a.fail(e); onClose(); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r.id, option.id]);
+  const byId = new Map(ings.map(g => [g.id, g]));
+  const n = (s: string) => Number(s.replace(',', '.'));
+  const save = async () => {
+    if (!lines || lines.some(l => !(n(l.qty) > 0))) { a.toast(t('Indiquez une quantité pour chaque ingrédient.'), 'error'); return; }
+    setBusy(true);
+    try {
+      const keep = new Set(lines.filter(l => l.id).map(l => l.id));
+      const gone = orig.filter(id => !keep.has(id));
+      if (gone.length) check(await supabase.from('recipe_lines').delete().in('id', gone).select('id'));
+      for (const [i, l] of lines.entries()) {
+        if (l.id) check(await supabase.from('recipe_lines').update({ qty: n(l.qty), sort_order: (i + 1) * 10 }).eq('id', l.id).select('id'));
+        else check(await supabase.from('recipe_lines').insert({ restaurant_id: r.id, modifier_option_id: option.id, ingredient_id: l.ingredient_id, qty: n(l.qty), sort_order: (i + 1) * 10 }).select('id'));
+      }
+      a.toast(t('Fiche enregistrée')); onClose();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={t('Fiche technique · {n}', { n: option.name })} onClose={onClose}
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !lines} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      {!lines ? <p className="text-muted">{t('Chargement…')}</p> : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">{t('Ce que cette option ajoute dans l’assiette. Le stock en direct le retire à chaque vente.')}</p>
+          {lines.map((l, k) => {
+            const g = byId.get(l.ingredient_id);
+            return (
+              <div key={k} className="grid grid-cols-[1fr_120px_auto] items-center gap-2">
+                <span className="truncate font-semibold">{g?.name ?? '—'}</span>
+                <span className="relative">
+                  <input className={`${inputCls} pe-9`} inputMode="decimal" aria-label={t('Quantité')} value={l.qty} onChange={e => setLines(x => x!.map((y, j) => (j === k ? { ...y, qty: e.target.value } : y)))} />
+                  <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted">{g?.base_unit}</span>
+                </span>
+                <button aria-label={t('Supprimer')} onClick={() => setLines(x => x!.filter((_, j) => j !== k))} className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            );
+          })}
+          <select className={inputCls} value="" onChange={e => { const g = byId.get(e.target.value); if (g) setLines(x => [...(x ?? []), { ingredient_id: g.id, qty: g.base_unit === 'pc' ? '1' : '30' }]); }}>
+            <option value="">{t('+ Ajouter un ingrédient')}</option>
+            {ings.filter(g => !lines.some(l => l.ingredient_id === g.id)).map(g => <option key={g.id} value={g.id}>{g.name}{g.stock_qty != null ? ` (${fmtQty(Number(g.stock_qty), g.base_unit)})` : ''}</option>)}
+          </select>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -27,6 +27,7 @@ before(async () => {
   await as(w.users.ownerB, `insert into public.item_modifier_groups (restaurant_id, menu_item_id, group_id) values ($1, $2, $3)`, [w.B.r.id, w.B.items.pizza.id, mgB.id]);
   const [cuB] = await as(w.users.ownerB, `insert into public.customers (restaurant_id, phone, name) values ($1, '0600000000', 'Client B') returning id`, [w.B.r.id]);
   await sql(`insert into public.loyalty_ledger (restaurant_id, customer_id, points, reason) values ($1, $2, 5, 'adjust')`, [w.B.r.id, cuB.id]);
+  await sql(`insert into public.stock_moves (restaurant_id, ingredient_id, kind, qty, stock_after, business_date) select $1, id, 'adjust', 1, 1, current_date from public.ingredients where restaurant_id = $1 limit 1`, [w.B.r.id]);
   await sql(`insert into public.customer_account_ledger (restaurant_id, customer_id, kind, amount_cents, business_date, balance_after) values ($1, $2, 'adjust', 100, current_date, 0)`, [w.B.r.id, cuB.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
