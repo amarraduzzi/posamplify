@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Armchair, Receipt, History as HistoryIcon, BarChart3, Lock, Printer, Wifi, WifiOff, ShoppingBag, Bike, Settings } from 'lucide-react';
+import { Armchair, Receipt, History as HistoryIcon, BarChart3, Lock, Printer, Wifi, WifiOff, ShoppingBag, Bike, Settings , CalendarDays } from 'lucide-react';
 import { usePos, type OrderTarget } from './store';
 import { Login } from './components/Login';
 import { StaffGate } from './components/StaffGate';
@@ -13,12 +13,14 @@ import { Star8, initials } from './components/Brand';
 import { SyncPanel } from './components/SyncPanel';
 import { t } from './lib/i18n';
 import { useIsPhone } from './lib/phone';
+import { ReservationsView, useReservations } from './components/Reservations';
 import { KitchenScreen, KdsSetup, kdsConfig, setKdsConfig, type KdsConfig } from './components/KitchenScreen';
 
-type Tab = 'tables' | 'live' | 'history' | 'reports';
+type Tab = 'tables' | 'live' | 'resa' | 'history' | 'reports';
 
 export default function App() {
   const pos = usePos();
+  const resa = useReservations(null);
   const [tab, setTab] = useState<Tab>('tables');
   const [target, setTarget] = useState<OrderTarget | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -72,6 +74,7 @@ export default function App() {
   const tabs: { id: Tab; label: string; Icon: typeof Armchair; badge?: number }[] = [
     { id: 'tables', label: t('Tables {a}/{b}', { a: occupied, b: pos.tables.length }), Icon: Armchair },
     { id: 'live', label: t('Commandes ({n})', { n: pos.orders.length }), Icon: Receipt, badge: pos.pendingQr.length },
+    ...(resa.on ? [{ id: 'resa' as Tab, label: t('Réservations'), Icon: CalendarDays, badge: (resa.list ?? []).filter(x => x.status === 'requested').length }] : []),
     { id: 'history', label: t('Historique'), Icon: HistoryIcon },
     { id: 'reports', label: t('Caisse & rapports'), Icon: BarChart3 },
   ];
@@ -178,6 +181,7 @@ export default function App() {
       <main className="scroll-thin flex-1 overflow-y-auto p-5">
         {tab === 'tables' && <TablesView onOpen={setTarget} />}
         {tab === 'live' && <LiveOrders onOpen={setTarget} />}
+        {tab === 'resa' && (pos.online ? <ReservationsView /> : <OfflineNotice what={t('Les réservations')} />)}
         {tab === 'history' && (pos.online ? <HistoryView /> : <OfflineNotice what={t("L'historique des tickets")} />)}
         {tab === 'reports' && (pos.online ? <ReportsView /> : <OfflineNotice what={t('Les rapports et la caisse')} />)}
       </main>

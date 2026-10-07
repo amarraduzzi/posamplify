@@ -38,3 +38,19 @@ export const placeOrder = (slug: string, order: PlaceOrderInput) =>
 
 export const getOrderStatus = (orderId: string) =>
   call<OrderStatusResult | null>('get_order_status', { p_order_id: orderId });
+
+// ---- reservations and waitlist
+export interface BookingInfo { enabled: boolean; waitlist: boolean; max_party: number; days_ahead: number; note: string | null; name: string; timezone: string }
+export interface ReservationStatus {
+  kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
+  starts_at: string | null; party_size: number; name: string; created_at: string; called_at: string | null; quoted_min: number | null; ahead: number | null;
+  restaurant: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; note: string | null };
+}
+export const getBookingInfo = (slug: string) => call<BookingInfo | null>('get_booking_info', { p_slug: slug });
+export const bookingSlots = (slug: string, date: string, party: number) => call<string[]>('booking_slots', { p_slug: slug, p_date: date, p_party: party });
+export const bookTable = (slug: string, b: { client_id: string; starts_at: string; party_size: number; name: string; phone: string; note?: string }) =>
+  call<{ token: string; status: string; starts_at: string }>('book_table', { p_slug: slug, p_booking: b });
+export const joinWaitlist = (slug: string, e: { client_id: string; party_size: number; name: string; phone: string }) =>
+  call<{ token: string }>('waitlist_join', { p_slug: slug, p_entry: e });
+export const reservationStatus = (token: string) => call<ReservationStatus | null>('reservation_status', { p_token: token });
+export const reservationCancel = (token: string) => call<{ ok: boolean }>('reservation_cancel', { p_token: token });

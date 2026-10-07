@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -25,8 +25,9 @@ import { StockPage } from './pages/StockPage';
 import { TeamPage } from './pages/TeamPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { OnlinePage } from './pages/OnlinePage';
+import { BookingPage } from './pages/BookingPage';
 
-type Page = 'online' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'online' | 'booking' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -77,6 +78,7 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos },
+    { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos },
     { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
@@ -140,6 +142,7 @@ function Screens() {
           {r && current === 'team' && <TeamPage key={r.id} r={r} />}
           {r && current === 'customers' && <CustomersPage key={r.id} r={r} />}
           {r && current === 'online' && <OnlinePage key={r.id} r={r} />}
+          {r && current === 'booking' && <BookingPage key={r.id} r={r} />}
           {r && current === 'charges' && <ChargesPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}

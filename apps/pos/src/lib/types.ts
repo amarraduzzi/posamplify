@@ -19,6 +19,7 @@ export interface Restaurant {
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
   accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
+  booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number };
   /** customer file and loyalty points: off unless the owner switched them on */
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
