@@ -35,6 +35,10 @@ export interface PublicRestaurant {
   accept_delivery: boolean;
 }
 
+export interface PublicOnline {
+  prep_minutes: number; delivery_fee_cents: number; delivery_min_cents: number; delivery_free_from_cents: number | null;
+  delivery_area: string | null; schedule: boolean; paused: boolean; paused_until: string | null; open_now: boolean;
+}
 export interface PublicCategory { id: string; name: I18n; icon: string | null }
 export interface PublicVariant { id: string; name: I18n; price_cents: number }
 export interface PublicModOption { id: string; name: I18n; price_cents: number }
@@ -57,6 +61,8 @@ export interface PublicMenu {
   restaurant: PublicRestaurant;
   ordering_enabled: boolean;
   table: { label: string; token: string } | null;
+  /** own online ordering (take-away / delivery): preparation time, delivery terms, pause, open now */
+  online?: PublicOnline;
   categories: PublicCategory[];
   items: PublicItem[];
 }
@@ -70,6 +76,9 @@ export interface PlaceOrderInput {
   table_token?: string | null;
   customer?: { name?: string; phone?: string; address?: string };
   note?: string;
+  /** ISO time asked for (take-away / delivery later); none = as soon as possible */
+  wanted_at?: string;
+  location?: { lat: number; lng: number };
   items: { item_id: string; variant_id?: string | null; modifiers?: string[]; quantity: number; note?: string }[];
 }
 
@@ -86,6 +95,10 @@ export interface OrderStatusResult {
   ticket_number: number;
   total_cents: number;
   created_at: string;
+  order_type?: OrderType;
+  eta_at?: string | null;
+  wanted_at?: string | null;
+  restaurant_phone?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +134,7 @@ export const isRtl = (lang: Lang) => RTL_LANGS.has(lang);
 export const ERROR_CODES = [
   'restaurant_not_found', 'ordering_unavailable', 'order_type_unavailable', 'invalid_table',
   'customer_required', 'item_unavailable', 'item_sold_out', 'variant_required', 'rate_limited',
-  'invalid_request', 'network', 'qr_ordering_off',
+  'invalid_request', 'network', 'qr_ordering_off', 'closed', 'online_paused', 'below_minimum',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

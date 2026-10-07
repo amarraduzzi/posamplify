@@ -40,7 +40,7 @@ export type Op =
   | { kind: 'markSent'; ids: string[]; at: string }
   | { kind: 'requestPrint'; ids: string[]; at: string }
   | { kind: 'markReady'; ids: string[]; at: string | null }
-  | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id'>> }
+  | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at'>> }
   | { kind: 'updateLine'; id: string; patch: Partial<Pick<Line, 'quantity' | 'note'>> }
   | { kind: 'deleteLine'; id: string }
   | { kind: 'pay'; req: PayRequest };

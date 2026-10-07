@@ -4,7 +4,8 @@ export interface Restaurant {
   id: string; slug: string; name: string; status: 'trial' | 'active' | 'paused' | 'cancelled'; trial_ends_at: string | null; is_demo: boolean;
   timezone: string; currency: string; languages: string[]; day_cutoff_hour: number;
   branding: { primary_color?: string; theme?: 'dark' | 'light'; logo_url?: string; cover_url?: string; tagline?: I18n; font_display?: string; review_url?: string; review_on_receipt?: boolean };
-  opening_hours: Record<string, unknown>;
+  opening_hours: Record<string, [string, string][]>;
+  online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;

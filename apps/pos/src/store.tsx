@@ -394,7 +394,7 @@ function usePosState() {
   }, [restaurant, staff, enqueue, settle, sendToKitchen]);
 
   /** Accept a guest (QR) order: join the table's running bill if there is one, print the bons. Needs the internet (QR orders come from it). */
-  const acceptQr = useCallback(async (o: Order) => {
+  const acceptQr = useCallback(async (o: Order, etaMinutes?: number) => {
     try {
       let target = o;
       const others = o.table_id ? current().filter(x => x.table_id === o.table_id && x.id !== o.id && x.source !== 'qr') : [];
@@ -402,7 +402,8 @@ function usePosState() {
         await db.rpc('pos_merge_orders', { p_target: others[0].id, p_sources: [o.id] });
         target = { ...others[0], order_lines: [...others[0].order_lines, ...o.order_lines] };
       }
-      enqueue([{ kind: 'updateOrder', id: target.id, patch: { status: 'preparing' } }]);
+      const eta = etaMinutes ? new Date(Math.max(Date.now() + etaMinutes * 60000, o.wanted_at ? Date.parse(o.wanted_at) : 0)).toISOString() : undefined;
+      enqueue([{ kind: 'updateOrder', id: target.id, patch: { status: 'preparing', ...(eta ? { eta_at: eta } : {}) } }]);
       await sendToKitchen(target, o.order_lines);
       await reloadOrders();
       toast(t('Commande {ref} acceptée', { ref: P.ticketRef(o) }), 'ok');
@@ -410,7 +411,7 @@ function usePosState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enqueue, sendToKitchen, reloadOrders, toast, fail]);
 
-  const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id'>>) =>
+  const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at'>>) =>
     enqueue([{ kind: 'updateOrder', id, patch }]), [enqueue]);
   const deleteLine = useCallback((id: string) => enqueue([{ kind: 'deleteLine', id }]), [enqueue]);
   /** Kitchen screen: lines ready (or recalled). When the whole order is ready, the order becomes "ready". */

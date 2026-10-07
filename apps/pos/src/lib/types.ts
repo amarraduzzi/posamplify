@@ -18,7 +18,9 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
+  accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
   /** customer file and loyalty points: off unless the owner switched them on */
+  online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
 }
 
@@ -55,6 +57,8 @@ export interface Order {
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
   customer_id?: string | null; discount_kind?: 'loyalty' | null;
+  /** own online ordering: time asked for, ready time given by the till, guest's location */
+  wanted_at?: string | null; eta_at?: string | null; delivery_location?: { lat: number; lng: number } | null;
   /** Set on the till for orders taken offline, until the server gives a ticket number. */
   local_ref?: string;
 }

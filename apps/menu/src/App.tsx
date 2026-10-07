@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight } from 'lucide-react';
 import { errorCode, formatMoney, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getMenu, placeOrder, ApiError } from './lib/api';
+import { getMenu, getOrderStatus, placeOrder, ApiError } from './lib/api';
 import { resolveTenant } from './lib/tenant';
 import { useCart } from './lib/cart';
 import { LANG_LABEL, strings } from './lib/strings';
@@ -80,6 +80,16 @@ export default function App() {
   const [bump, setBump] = useState(0);
   const [tracked, setTracked] = useState<TrackedOrder | null>(() => load<TrackedOrder>(`order:${slug}`, 3 * 3600_000));
   const [trackerOpen, setTrackerOpen] = useState(false);
+  // a tracking link sent on WhatsApp by the restaurant: ?suivi=<order id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('suivi');
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
+    getOrderStatus(id).then(s => {
+      if (!s) return;
+      const o: TrackedOrder = { order_id: id, ticket_number: s.ticket_number, total_cents: Number(s.total_cents), placed_at: Date.parse(s.created_at) };
+      setTracked(o); setTrackerOpen(true);
+    }).catch(() => {});
+  }, []);
 
   // One id per order attempt: a retry after a network error (even after a
   // page refresh) reuses it as long as the cart is unchanged, so the
@@ -113,6 +123,8 @@ export default function App() {
         table_token: isDineIn ? menu.table?.token ?? null : null,
         customer: isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
         note: checkout.note.trim() || undefined,
+        wanted_at: !isDineIn && checkout.wantedAt ? checkout.wantedAt : undefined,
+        location: checkout.orderType === 'delivery' && checkout.location ? checkout.location : undefined,
         items: cart.lines.map(l => ({ item_id: l.item_id, variant_id: l.variant_id, modifiers: l.modifiers?.length ? l.modifiers : undefined, quantity: l.quantity, note: l.note || undefined })),
       });
       const order: TrackedOrder = { order_id: res.order_id, ticket_number: res.ticket_number,
@@ -121,7 +133,7 @@ export default function App() {
       if (!isDineIn) save('customer', { name: checkout.name, phone: checkout.phone, address: checkout.address });
       setTracked(order);
       drop(`pending:${slug}`);
-      setCheckout(c => ({ ...c, note: '' }));
+      setCheckout(c => ({ ...c, note: '', wantedAt: '', location: null }));
       setBusy(false);
       cart.clear();
       setCartOpen(false);
@@ -469,6 +481,7 @@ export default function App() {
           tableLabel={menu.table?.label ?? null}
           restaurantName={r.name}
           reviewUrl={r.branding?.review_url}
+          timezone={r.timezone}
           onClose={() => setTrackerOpen(false)}
         />
       )}

@@ -1,7 +1,7 @@
 import { ReviewButton } from './ReviewButton';
 import { useEffect, useState } from 'react';
-import { Check, ChefHat, BellRing, UtensilsCrossed, XCircle } from 'lucide-react';
-import { formatMoney, type OrderStatus } from '@resto/shared';
+import { Check, ChefHat, BellRing, UtensilsCrossed, XCircle, MessageCircle, Clock } from 'lucide-react';
+import { formatMoney, type OrderStatus, type OrderStatusResult } from '@resto/shared';
 import { getOrderStatus } from '../lib/api';
 import type { Strings } from '../lib/strings';
 import { Divider, Star8 } from './Ornament';
@@ -15,8 +15,9 @@ const STEPS: { key: OrderStatus; Icon: typeof Check }[] = [
   { key: 'served', Icon: UtensilsCrossed },
 ];
 
-export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, reviewUrl, onClose }: {
+export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, reviewUrl, timezone, onClose }: {
   reviewUrl?: string;
+  timezone?: string;
   order: TrackedOrder;
   t: Strings;
   lang: string;
@@ -26,6 +27,7 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
   onClose: () => void;
 }) {
   const [status, setStatus] = useState<OrderStatus>('new');
+  const [info, setInfo] = useState<OrderStatusResult | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -33,7 +35,7 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
     const tick = async () => {
       try {
         const s = await getOrderStatus(order.order_id);
-        if (!stop && s) setStatus(s.status);
+        if (!stop && s) { setStatus(s.status); setInfo(s); }
         if (s && (s.status === 'served' || s.status === 'cancelled')) return;
       } catch { /* offline: keep polling */ }
       if (!stop) timer = window.setTimeout(tick, document.hidden ? 20000 : 7000);
@@ -43,6 +45,12 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
   }, [order.order_id]);
 
   const current = STEPS.findIndex(s => s.key === status);
+  const online = !!info?.order_type && info.order_type !== 'dine_in';
+  const hm = (iso: string) => new Intl.DateTimeFormat(lang === 'ar' ? 'ar-MA-u-nu-latn' : lang, { timeZone: timezone, hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  const when = info?.eta_at ? (info.order_type === 'delivery' ? t.deliveredAround(hm(info.eta_at)) : t.readyAround(hm(info.eta_at)))
+    : info?.wanted_at ? t.askedFor(hm(info.wanted_at)) : null;
+  const digits = (info?.restaurant_phone ?? '').replace(/\D/g, '');
+  const wa = digits.startsWith('00') ? digits.slice(2) : digits.startsWith('0') ? '212' + digits.slice(1) : digits;
   const cancelled = status === 'cancelled';
 
   return (
@@ -66,6 +74,11 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
             <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted">{t.ticket}</p>
             <p dir="ltr" className="mt-1 font-display text-7xl font-semibold tabular-nums text-gradient-brand leading-none py-1">#{order.ticket_number}</p>
             <Divider className="mt-4" />
+            {online && (
+              <p className={`mt-4 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${info?.eta_at ? 'bg-brand/15 text-brand' : 'bg-surface-2 text-muted'}`}>
+                <Clock className="size-4" />{when ?? t.waitingConfirm}
+              </p>
+            )}
             <p className="mt-4 text-sm text-muted">
               {tableLabel ? <>{t.table} <bdi className="font-semibold text-ink">{tableLabel}</bdi> · </> : ''}
               <bdi className="font-semibold text-ink">{formatMoney(order.total_cents, currency, lang)}</bdi>
@@ -105,7 +118,13 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
         )}
 
         {status === 'served' && <div className="mt-8 animate-rise"><ReviewButton url={reviewUrl} label={t.reviewCta} hint={t.reviewHint} /></div>}
-        <p className="mt-auto pt-6 text-center text-sm text-muted">{t.payAtCounter}</p>
+        {online && wa && !cancelled && status !== 'served' && (
+          <a href={`https://wa.me/${wa}?text=${encodeURIComponent(`${t.ticket} #${order.ticket_number}`)}`} target="_blank" rel="noopener"
+            className="mt-8 flex h-12 items-center justify-center gap-2 rounded-full border border-line font-semibold press">
+            <MessageCircle className="size-5 text-brand" />{t.contactWhatsApp}
+          </a>
+        )}
+        <p className="mt-auto pt-6 text-center text-sm text-muted">{info?.order_type === 'takeaway' ? t.payOnPickup : info?.order_type === 'delivery' ? t.payOnDelivery : t.payAtCounter}</p>
         <button
           type="button"
           onClick={onClose}
