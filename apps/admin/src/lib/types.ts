@@ -14,6 +14,7 @@ export interface Restaurant {
   pos_plan?: 'essentiel' | 'restaurant';
   kiosk_token?: string | null;
   owner_whatsapp?: string | null;
+  site?: { enabled?: boolean; theme?: 'nuit' | 'riad' | 'moderne'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string; domain?: string };
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };

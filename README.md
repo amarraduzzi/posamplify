@@ -97,6 +97,14 @@ Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `d
 - Output directory: `apps/admin/dist`
 - Variabelen: dezelfde drie, plus `VITE_MENU_URL` (adres van de klant-app, standaard `https://menu.amplifygrowthstudio.com`), nodig voor de QR-codes.
 
+## Restaurantsites publiceren (vierde Cloudflare Pages-project)
+
+- Root directory: `apps/site`, geen build command, output directory: `public`
+- De sites worden gerenderd door `apps/site/functions/[[path]].ts` (server-side, voor Google)
+- Variabelen: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MENU_URL`
+- Adres: `site.amplifygrowthstudio.com/<slug>`; een eigen domein van een restaurant voeg je toe bij Custom domains van dit project, en vul je in bij Beheer > Site web
+- Lokaal testen: `node scripts/local/site-dev.mjs` en open `http://localhost:5180/<slug>`
+
 ## Supabase-instellingen voor onboarding
 
 - Authentication > Sign In / Providers > **Allow anonymous sign-ins**: aan (kassa's koppelen met een code).

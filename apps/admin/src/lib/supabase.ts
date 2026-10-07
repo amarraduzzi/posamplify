@@ -6,3 +6,4 @@ export const supabase = createClient(
 );
 export const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
 export const POS_URL = ((import.meta.env.VITE_POS_URL as string) || 'https://caisse.amplifygrowthstudio.com').replace(/\/$/, '');
+export const SITE_URL = ((import.meta.env.VITE_SITE_URL as string) || 'https://site.amplifygrowthstudio.com').replace(/\/$/, '');

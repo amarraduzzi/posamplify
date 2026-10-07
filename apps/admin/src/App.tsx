@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL } from './lib/supabase';
 import { errorMessage } from './lib/api';
@@ -30,8 +30,9 @@ import { PromotionsPage } from './pages/PromotionsPage';
 import { GroupPage } from './pages/GroupPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { LivePage } from './pages/LivePage';
+import { SitePage } from './pages/SitePage';
 
-type Page = 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -84,6 +85,7 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
+    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
@@ -146,6 +148,7 @@ function Screens() {
           {current === 'group' && <GroupPage />}
           {r && current === 'planning' && <PlanningPage key={r.id} r={r} />}
           {r && current === 'live' && <LivePage key={r.id} r={r} />}
+          {r && current === 'site' && <SitePage key={r.id} r={r} />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}

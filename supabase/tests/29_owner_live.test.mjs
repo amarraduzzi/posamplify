@@ -25,3 +25,15 @@ test('owner_live: revenue, open orders and alerts', async () => {
   await assert.rejects(rpc(dev, 'owner_live', [rid]), /not_allowed|not allowed/);
   await as(w.users.ownerA, `update public.restaurants set owner_whatsapp = '+212 600 000 000' where id = $1`, [rid]);
 });
+
+test('get_site: by slug or own domain, noindex until switched on', async () => {
+  const s0 = await rpc(null, 'get_site', [A.r.slug, null]);
+  assert.equal(s0.noindex, true);
+  assert.ok(s0.items.length > 0);
+  await as(w.users.ownerA, `update public.restaurants set site = '{"enabled": true, "domain": "www.resto-a.ma", "theme": "riad"}' where id = $1`, [rid]);
+  const s1 = await rpc(null, 'get_site', [null, 'resto-a.ma']);
+  assert.equal(s1.noindex, false);
+  assert.equal(s1.site.theme, 'riad');
+  assert.equal(await rpc(null, 'get_site', [null, 'autre.ma']), null);
+  await assert.rejects(as(w.users.ownerB, `update public.restaurants set site = '{"domain": "WWW.resto-a.ma"}' where id = $1`, [w.B.r.id]), /restaurants_site_domain_idx|duplicate/);
+});
