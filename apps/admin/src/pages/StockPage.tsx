@@ -2,7 +2,7 @@
 // and see what was really used, and with Amplify POS: what disappeared without
 // being sold (waste, free food, theft), per ingredient and in dirhams.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -42,10 +42,10 @@ interface FItem {
   purchase_unit: string; purchase_qty: number; purchase_price_cents: number | null; supplier: string | null;
   counted_on: string | null; counted: number | null; bought_since: number; estimate: number | null; below_zero: boolean;
   daily: number | null; daily_source: 'sales' | 'counts' | null; days_left: number | null; to_buy: number | null; to_buy_cents: number | null;
-  status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted';
+  status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted'; live?: boolean;
 }
 interface Forecast { today: string; uses_pos: boolean; order_days: number; sales_days: number | null; items: FItem[] }
-type Tab = 'live' | 'buy' | 'gaps' | 'history';
+type Tab = 'live' | 'buy' | 'orders' | 'gaps' | 'history';
 /** Line prefilled into a delivery: quantity in purchase units, price paid */
 export interface Prefill { ingredient_id: string; qty: number; total_cents: number | null }
 
@@ -143,7 +143,7 @@ export function StockPage({ r }: { r: Restaurant }) {
     </div>
   );
 
-  const TABS: [Tab, string][] = [['live', t('En direct')], ['buy', t('Stock et achats à faire')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
+  const TABS: [Tab, string][] = [['live', t('En direct')], ['buy', t('Stock et achats à faire')], ['orders', t('Commandes fournisseurs')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -170,9 +170,11 @@ export function StockPage({ r }: { r: Restaurant }) {
 
         {tab === 'live' && <LiveView r={r} ings={ings} onChanged={load} />}
 
-        {tab === 'buy' && (fc && fc.items.some(i => i.counted != null)
-          ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} />
+        {tab === 'buy' && (fc && fc.items.some(i => i.counted != null || i.live)
+          ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} onOrders={() => setTab('orders')} />
           : steps)}
+
+        {tab === 'orders' && <OrdersView r={r} ings={ings} onChanged={load} />}
 
         {tab === 'gaps' && (rep ? <ReportView rep={rep} closed={closed} cmp={cmp!} setPair={setPair} /> : steps)}
 
@@ -234,7 +236,7 @@ export function StockPage({ r }: { r: Restaurant }) {
 }
 
 // ------------------------------------------------------------ stock now and what to buy
-function BuyView({ r, fc, onBuy, onChanged }: { r: Restaurant; fc: Forecast; onBuy: (p: Prefill[]) => void; onChanged: () => void }) {
+function BuyView({ r, fc, onBuy, onChanged, onOrders }: { r: Restaurant; fc: Forecast; onBuy: (p: Prefill[]) => void; onChanged: () => void; onOrders: () => void }) {
   const a = useAdminCtx();
   const need = fc.items.filter(i => (i.status === 'urgent' || i.status === 'order') && buyUnits(i) > 0);
   const [pick, setPick] = useState<Set<string>>(() => new Set(need.map(i => i.ingredient_id)));
@@ -254,8 +256,13 @@ function BuyView({ r, fc, onBuy, onChanged }: { r: Restaurant; fc: Forecast; onB
     } catch (e) { a.fail(e); }
   };
   const listText = () => [t('Commande {r}', { r: r.name }), ...chosen.map(i => `- ${i.name} : ${String(buyUnits(i)).replace('.', ',')} ${i.purchase_unit}`)].join('\n');
-  const whatsapp = () => window.open(`https://wa.me/?text=${encodeURIComponent(listText())}`, '_blank', 'noopener');
   const copy = async () => { try { await navigator.clipboard.writeText(listText()); a.toast(t('Liste copiée')); } catch { a.toast(t('Copie impossible'), 'error'); } };
+  const makeOrders = async () => {
+    try {
+      const res = await rpc<{ orders: string[] }>('po_from_forecast', { p_restaurant_id: r.id, p_ingredient_ids: chosen.map(i => i.ingredient_id) });
+      a.toast(t('{n} bon(s) de commande prêt(s)', { n: res.orders.length })); onOrders();
+    } catch (e) { a.fail(e); }
+  };
   const toggle = (id: string) => setPick(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const badge = (i: FItem) => {
@@ -291,9 +298,9 @@ function BuyView({ r, fc, onBuy, onChanged }: { r: Restaurant; fc: Forecast; onB
 
       {need.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Btn tone="brand" disabled={!chosen.length} onClick={() => onBuy(chosen.map(i => ({ ingredient_id: i.ingredient_id, qty: buyUnits(i), total_cents: i.purchase_price_cents != null ? Math.round(buyUnits(i) * i.purchase_price_cents) : null })))}>
+          <Btn tone="brand" disabled={!chosen.length} onClick={makeOrders}><ClipboardList className="h-4 w-4" /> {t('Créer les bons de commande ({n})', { n: chosen.length })}</Btn>
+          <Btn disabled={!chosen.length} onClick={() => onBuy(chosen.map(i => ({ ingredient_id: i.ingredient_id, qty: buyUnits(i), total_cents: i.purchase_price_cents != null ? Math.round(buyUnits(i) * i.purchase_price_cents) : null })))}>
             <ShoppingBasket className="h-4 w-4" /> {t('Noter comme acheté ({n})', { n: chosen.length })}</Btn>
-          <Btn disabled={!chosen.length} onClick={whatsapp}><Send className="h-4 w-4" /> {t('Envoyer par WhatsApp')}</Btn>
           <Btn tone="ghost" disabled={!chosen.length} onClick={copy}><Copy className="h-4 w-4" /> {t('Copier la liste')}</Btn>
         </div>
       )}
@@ -318,7 +325,7 @@ function BuyView({ r, fc, onBuy, onChanged }: { r: Restaurant; fc: Forecast; onB
                   <td className="px-4 py-2.5">{can && <input type="checkbox" aria-label={i.name} checked={pick.has(i.ingredient_id)} onChange={() => toggle(i.ingredient_id)} className="h-4 w-4 accent-[rgb(var(--brand))]" />}</td>
                   <td className="px-2 py-2.5">
                     <p className="font-semibold">{i.name}</p>
-                    <p className="text-xs text-muted">{t('compté le {d}', { d: day(i.counted_on!) })}{Number(i.bought_since) > 0 ? ` · ${t('+ achats')}` : ''}</p>
+                    <p className="text-xs text-muted">{i.live ? t('stock en direct') : t('compté le {d}', { d: day(i.counted_on!) })}{Number(i.bought_since) > 0 ? ` · ${t('+ achats')}` : ''}</p>
                   </td>
                   <td className="px-3 py-2.5 text-end">
                     <span className="me-2 font-semibold tabular">{fmtQty(Number(i.estimate ?? 0), i.base_unit)}</span>{badge(i)}
@@ -874,6 +881,335 @@ function MovesModal({ g, onClose }: { g: LiveItem; onClose: () => void }) {
           </tbody>
         </table>
       )}
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------ suppliers and purchase orders
+interface Supplier { id: string; name: string; phone: string | null; email: string | null; contact: string | null; delivery_days: number[]; lead_days: number; note: string | null; active: boolean }
+interface PoLine { id?: string; ingredient_id: string; units: number; unit_price_cents: number | null; received_units?: number | null; received_cents?: number | null; sort_order?: number }
+interface Po { id: string; supplier_id: string | null; doc_number: string; status: 'draft' | 'sent' | 'received' | 'cancelled'; expected_on: string | null; note: string | null;
+  sent_at: string | null; received_at: string | null; received_on: string | null; created_at: string; purchase_order_lines: PoLine[] }
+// i18n:values
+const PO_STATUS: Record<Po['status'], string> = { draft: 'Brouillon', sent: 'Envoyée', received: 'Reçue', cancelled: 'Annulée' };
+const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+// i18n:end
+const PO_TONE: Record<Po['status'], string> = { draft: 'bg-surface-2 text-muted', sent: 'bg-warn/15 text-warn', received: 'bg-ok/15 text-ok', cancelled: 'bg-danger/10 text-danger line-through' };
+const poTotal = (o: Pick<Po, 'purchase_order_lines' | 'status'>) => o.purchase_order_lines.reduce((s, l) =>
+  s + (o.status === 'received' ? Number(l.received_cents ?? 0) : l.unit_price_cents != null ? Number(l.units) * l.unit_price_cents : 0), 0);
+/** "06 61 00 00 00" -> "212661000000" (wa.me wants international digits) */
+const intlPhone = (v: string) => { const d = v.replace(/\D/g, ''); return !d ? '' : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
+const units = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
+
+function OrdersView({ r, ings, onChanged }: { r: Restaurant; ings: Ingredient[]; onChanged: () => void }) {
+  const a = useAdminCtx();
+  const [list, setList] = useState<Po[] | null>(null);
+  const [sups, setSups] = useState<Supplier[]>([]);
+  const [open, setOpen] = useState<Po | 'new' | null>(null);
+  const [manage, setManage] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      const [o, s] = await Promise.all([
+        supabase.from('purchase_orders').select('*, purchase_order_lines(*)').eq('restaurant_id', r.id).order('created_at', { ascending: false }).limit(60),
+        supabase.from('suppliers').select('*').eq('restaurant_id', r.id).order('name'),
+      ]);
+      setList(check(o) as Po[]); setSups(check(s) as Supplier[]);
+    } catch (e) { a.fail(e); setList([]); }
+  }, [r.id, a]);
+  useEffect(() => { load(); }, [load]);
+  const supName = (id: string | null) => sups.find(s => s.id === id)?.name ?? t('Sans fournisseur');
+  if (!list) return <p className="text-muted">{t('Chargement…')}</p>;
+  const openOnes = list.filter(o => o.status === 'draft' || o.status === 'sent');
+  const toReceive = list.filter(o => o.status === 'sent');
+  const month = list.filter(o => o.status === 'received' && o.received_on?.slice(0, 7) === today().slice(0, 7)).reduce((s, o) => s + poTotal(o), 0);
+  return (
+    <div className="space-y-5">
+      <div className="night grid gap-4 rounded-[2rem] p-6 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center md:p-7">
+        {[[t('En cours'), String(openOnes.length), t('brouillons et envoyées')], [t('À réceptionner'), String(toReceive.length), toReceive[0]?.expected_on ? t('prochaine : {d}', { d: day(toReceive[0].expected_on) }) : ''],
+          [t('Achats reçus ce mois'), mad(Math.round(month)), t('par bons de commande')]].map(([l, v, h], i) => (
+          <div key={i}><p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">{l}</p><p className="mt-1 font-display text-4xl font-semibold tabular">{v}</p><p className="text-sm text-white/55">{h}</p></div>
+        ))}
+        <div className="flex flex-wrap gap-2 md:flex-col">
+          <Btn tone="brand" onClick={() => setOpen('new')}><Plus className="h-4 w-4" /> {t('Nouvelle commande')}</Btn>
+          <Btn onClick={() => setManage(true)}><Truck className="h-4 w-4" /> {t('Fournisseurs ({n})', { n: sups.length })}</Btn>
+        </div>
+      </div>
+      {!list.length ? (
+        <div className="card rounded-3xl p-8 text-center text-muted">
+          <ClipboardList className="mx-auto h-10 w-10 text-brand" />
+          <p className="mt-3 font-display text-xl font-semibold text-ink">{t('Aucune commande pour le moment')}</p>
+          <p className="mx-auto mt-1 max-w-lg">{t('Dans « Stock et achats à faire », cochez les produits et créez les bons de commande en un clic : un par fournisseur, prêts à envoyer sur WhatsApp.')}</p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden rounded-3xl">
+          <ul className="divide-y divide-line/10">
+            {list.map(o => (
+              <li key={o.id}>
+                <button onClick={() => setOpen(o)} className="flex w-full items-center gap-4 px-5 py-3.5 text-start hover:bg-surface-2/60">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-brand">{o.status === 'received' ? <PackageCheck className="h-5 w-5" /> : o.status === 'sent' ? <Send className="h-5 w-5" /> : <ClipboardList className="h-5 w-5" />}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{supName(o.supplier_id)} <span className="font-normal text-muted">· {o.doc_number}</span></span>
+                    <span className="block text-xs text-muted">{t('{n} produits', { n: o.purchase_order_lines.length })}{o.expected_on && o.status !== 'received' ? ` · ${t('livraison prévue {d}', { d: day(o.expected_on) })}` : ''}{o.received_on ? ` · ${t('reçue le {d}', { d: day(o.received_on) })}` : ''}</span>
+                  </span>
+                  <span className="font-semibold tabular">{mad(Math.round(poTotal(o)))}</span>
+                  <span className={`w-24 rounded-full px-2.5 py-0.5 text-center text-xs font-bold ${PO_TONE[o.status]}`}>{t(PO_STATUS[o.status])}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {open && <OrderModal r={r} ings={ings} sups={sups} po={open === 'new' ? null : open} onClose={() => setOpen(null)} onSaved={() => { load(); onChanged(); }} />}
+      {manage && <SuppliersModal r={r} ings={ings} sups={sups} onClose={() => setManage(false)} onSaved={() => { load(); onChanged(); }} />}
+    </div>
+  );
+}
+
+function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; sups: Supplier[]; po: Po | null; onClose: () => void; onSaved: () => void }) {
+  const a = useAdminCtx();
+  const editable = !po || po.status === 'draft' || po.status === 'sent';
+  const [sup, setSup] = useState<string>(po?.supplier_id ?? '');
+  const [expected, setExpected] = useState(po?.expected_on ?? '');
+  const [note, setNote] = useState(po?.note ?? '');
+  const [lines, setLines] = useState<{ id?: string; ingredient_id: string; units: string; price: string }[]>(() =>
+    (po?.purchase_order_lines ?? []).slice().sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0)).map(l => ({ id: l.id, ingredient_id: l.ingredient_id, units: units(Number(l.units)), price: l.unit_price_cents != null ? shown(l.unit_price_cents / 100) : '' })));
+  const [receiving, setReceiving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const byId = new Map(ings.map(g => [g.id, g]));
+  const supplier = sups.find(s => s.id === sup);
+  const total = lines.reduce((s, l) => s + (l.price.trim() ? num(l.units) * toCents(l.price) : 0), 0);
+  const valid = lines.length > 0 && lines.every(l => num(l.units) > 0);
+
+  const persist = async (status?: Po['status']): Promise<string | null> => {
+    if (!valid) { a.toast(t('Indiquez une quantité pour chaque produit.'), 'error'); return null; }
+    const head = { supplier_id: sup || null, expected_on: expected || null, note: note.trim() || null, ...(status ? { status } : {}) };
+    let id = po?.id;
+    if (id) check(await supabase.from('purchase_orders').update(head).eq('id', id).select('id'));
+    else id = (check(await supabase.from('purchase_orders').insert({ ...head, restaurant_id: r.id }).select('id')) as { id: string }[])[0].id;
+    const keep = new Set(lines.filter(l => l.id).map(l => l.id));
+    const gone = (po?.purchase_order_lines ?? []).filter(l => !keep.has(l.id)).map(l => l.id!);
+    if (gone.length) check(await supabase.from('purchase_order_lines').delete().in('id', gone).select('id'));
+    for (const [i, l] of lines.entries()) {
+      const row = { units: num(l.units), unit_price_cents: l.price.trim() ? toCents(l.price) : null, sort_order: (i + 1) * 10 };
+      if (l.id) check(await supabase.from('purchase_order_lines').update(row).eq('id', l.id).select('id'));
+      else check(await supabase.from('purchase_order_lines').insert({ ...row, restaurant_id: r.id, order_id: id, ingredient_id: l.ingredient_id }).select('id'));
+    }
+    return id!;
+  };
+  const save = async () => { setBusy(true); try { if (await persist()) { a.toast(t('Enregistré')); onSaved(); onClose(); } } catch (e) { a.fail(e); } setBusy(false); };
+  const message = () => {
+    const ls = lines.map(l => { const g = byId.get(l.ingredient_id); return `- ${g?.name ?? ''} : ${l.units} ${g?.purchase_unit ?? ''}`; });
+    return [t('Bonjour{n},', { n: supplier?.contact ? ` ${supplier.contact}` : '' }), t('Commande {d} de {r} :', { d: po?.doc_number ?? '', r: r.name }).replace('  ', ' '), '', ...ls, '',
+      expected ? t('Livraison souhaitée : {d}', { d: day(expected) }) : '', note.trim(), t('Merci de confirmer.')].filter(x => x !== '').join('\n');
+  };
+  const send = async () => {
+    setBusy(true);
+    try {
+      const id = await persist('sent');
+      if (id) {
+        const phone = supplier?.phone ? intlPhone(supplier.phone) : '';
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message())}`, '_blank', 'noopener');
+        a.toast(t('Commande marquée comme envoyée')); onSaved(); onClose();
+      }
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  const cancel = async () => {
+    if (!po) { onClose(); return; }
+    try { check(await supabase.from('purchase_orders').update({ status: 'cancelled' }).eq('id', po.id).select('id')); a.toast(t('Commande annulée')); onSaved(); onClose(); } catch (e) { a.fail(e); }
+  };
+  if (receiving && po) return <ReceiveModal po={po} ings={ings} supName={supplier?.name} onClose={() => setReceiving(false)} onDone={() => { onSaved(); onClose(); }} />;
+
+  const sorted = ings.filter(g => !lines.some(l => l.ingredient_id === g.id)).sort((x, y) => (x.supplier_id === sup ? 0 : 1) - (y.supplier_id === sup ? 0 : 1) || x.name.localeCompare(y.name));
+  return (
+    <Modal wide title={po ? `${po.doc_number} · ${t(PO_STATUS[po.status])}` : t('Nouvelle commande')} onClose={onClose}
+      footer={<div className="flex flex-wrap items-center gap-2">
+        {editable && po && <Btn tone="ghost" className="text-danger" onClick={cancel}><X className="h-4 w-4" /> {t('Annuler la commande')}</Btn>}
+        <span className="me-auto text-sm text-muted">{t('Total estimé')} <b className="text-ink tabular">{mad(Math.round(po?.status === 'received' ? poTotal(po) : total))}</b></span>
+        {editable && <Btn disabled={busy} onClick={save}>{t('Enregistrer')}</Btn>}
+        {editable && <Btn disabled={busy || !valid} onClick={send}><MessageCircle className="h-4 w-4" /> {po?.status === 'sent' ? t('Renvoyer sur WhatsApp') : t('Envoyer sur WhatsApp')}</Btn>}
+        {po && editable && <Btn tone="brand" disabled={busy} onClick={() => setReceiving(true)}><PackageCheck className="h-4 w-4" /> {t('Réceptionner')}</Btn>}
+      </div>}>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('Fournisseur')}>
+            <select className={inputCls} value={sup} disabled={!editable} onChange={e => setSup(e.target.value)}>
+              <option value="">{t('Sans fournisseur (marché, souk…)')}</option>
+              {sups.filter(s => s.active || s.id === sup).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field label={t('Livraison prévue')}><input type="date" className={inputCls} disabled={!editable} value={expected} onChange={e => setExpected(e.target.value)} /></Field>
+        </div>
+        {supplier && !supplier.phone && editable && <p className="flex items-center gap-2 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn"><Phone className="h-4 w-4" /> {t('Pas de numéro WhatsApp pour ce fournisseur : WhatsApp vous laissera choisir le contact.')}</p>}
+        <div className="overflow-x-auto rounded-2xl border border-line/10">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted"><tr>
+              <th className="px-3 py-2 text-start">{t('Produit')}</th><th className="px-3 py-2 text-end">{t('Quantité')}</th><th className="px-3 py-2 text-end">{t('Prix unitaire (DH)')}</th><th className="px-3 py-2 text-end">{po?.status === 'received' ? t('Reçu') : t('Total')}</th><th className="w-10" />
+            </tr></thead>
+            <tbody className="divide-y divide-line/10">
+              {lines.map((l, k) => {
+                const g = byId.get(l.ingredient_id), got = po?.purchase_order_lines.find(x => x.id === l.id);
+                return (
+                  <tr key={l.id ?? `n${k}`}>
+                    <td className="px-3 py-2"><p className="font-semibold">{g?.name ?? '—'}</p>{g?.stock_qty != null && <p className="text-xs text-muted">{t('Stock actuel : {q}', { q: fmtQty(Number(g.stock_qty), g.base_unit) })}</p>}</td>
+                    <td className="px-3 py-2"><div className="flex items-center justify-end gap-1.5"><input className={`${inputCls} w-20 text-end`} inputMode="decimal" disabled={!editable} value={l.units} onChange={e => setLines(x => x.map((y, j) => (j === k ? { ...y, units: e.target.value } : y)))} /><span className="w-16 truncate text-xs text-muted">{g?.purchase_unit}</span></div></td>
+                    <td className="px-3 py-2"><input className={`${inputCls} ms-auto w-24 text-end`} inputMode="decimal" disabled={!editable} value={l.price} placeholder="—" onChange={e => setLines(x => x.map((y, j) => (j === k ? { ...y, price: e.target.value } : y)))} /></td>
+                    <td className="px-3 py-2 text-end tabular">{po?.status === 'received' ? (got?.received_units != null ? `${units(Number(got.received_units))} · ${got.received_cents != null ? mad(Number(got.received_cents)) : '—'}` : '—') : l.price.trim() ? mad(Math.round(num(l.units) * toCents(l.price))) : '—'}</td>
+                    <td className="px-1">{editable && <button aria-label={t('Supprimer')} onClick={() => setLines(x => x.filter((_, j) => j !== k))} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-4 w-4" /></button>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {editable && (
+          <select className={inputCls} value="" onChange={e => { const g = byId.get(e.target.value); if (g) setLines(x => [...x, { ingredient_id: g.id, units: '1', price: g.purchase_price_cents != null ? shown(g.purchase_price_cents / 100) : '' }]); }}>
+            <option value="">{t('+ Ajouter un produit')}</option>
+            {sorted.map(g => <option key={g.id} value={g.id}>{g.name}{g.supplier_id && g.supplier_id === sup ? ' ★' : ''}</option>)}
+          </select>
+        )}
+        <Field label={t('Note pour le fournisseur')}><input className={inputCls} maxLength={300} disabled={!editable} value={note} onChange={e => setNote(e.target.value)} placeholder={t('Livrer avant 10 h, entrée par l’arrière…')} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: Ingredient[]; supName?: string; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const byId = new Map(ings.map(g => [g.id, g]));
+  const [rows, setRows] = useState(() => po.purchase_order_lines.slice().sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0)).map(l => ({
+    line_id: l.id!, ingredient_id: l.ingredient_id, ordered: Number(l.units), units: units(Number(l.units)),
+    total: l.unit_price_cents != null ? shown(Math.round(Number(l.units) * l.unit_price_cents) / 100) : '' })));
+  const [date, setDate] = useState(today());
+  const [busy, setBusy] = useState(false);
+  const [alerts, setAlerts] = useState<{ name: string; purchase_unit: string; old_cents: number; new_cents: number; bp: number }[] | null>(null);
+  const sum = rows.reduce((s, x) => s + (x.total.trim() ? toCents(x.total) : 0), 0);
+  const save = async () => {
+    if (rows.some(x => !(num(x.units) >= 0))) { a.toast(t('Indiquez la quantité.'), 'error'); return; }
+    setBusy(true);
+    try {
+      const res = await rpc<{ purchases: number; price_alerts: typeof alerts }>('po_receive', { p_order_id: po.id, p_received_on: date, p_after_count: true,
+        p_lines: rows.map(x => ({ line_id: x.line_id, units: num(x.units), total_cents: x.total.trim() ? toCents(x.total) : null })) });
+      a.toast(t('Livraison reçue : stock et prix mis à jour'));
+      if (res.price_alerts?.length) setAlerts(res.price_alerts); else onDone();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  if (alerts) return (
+    <Modal title={t('Attention aux prix')} onClose={onDone} footer={<div className="flex justify-end"><Btn tone="brand" onClick={onDone}>{t('Compris')}</Btn></div>}>
+      <p className="mb-3 text-sm text-muted">{t('Ces produits coûtent plus cher que la dernière fois. Le coût de vos plats est déjà mis à jour : vérifiez vos marges.')}</p>
+      <ul className="divide-y divide-line/10">
+        {alerts.map(x => <li key={x.name} className="flex items-center justify-between py-2"><span className="font-semibold">{x.name}</span>
+          <span className="tabular"><span className="text-muted line-through">{mad(Number(x.old_cents))}</span> → <b>{mad(Number(x.new_cents))}</b> / {x.purchase_unit} <span className="ms-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">+{(x.bp / 100).toFixed(0)} %</span></span></li>)}
+      </ul>
+    </Modal>
+  );
+  return (
+    <Modal wide title={t('Réceptionner {d}', { d: po.doc_number })} onClose={onClose}
+      footer={<div className="flex items-center gap-3"><span className="me-auto text-sm text-muted">{t('Payé')} <b className="text-ink tabular">{mad(sum)}</b></span>
+        <Btn tone="ghost" onClick={onClose}>{t('Retour')}</Btn><Btn tone="brand" disabled={busy} onClick={save}><PackageCheck className="h-4 w-4" /> {t('Confirmer la réception')}</Btn></div>}>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <p className="self-end text-sm text-muted">{supName ?? t('Sans fournisseur')} · {t('{n} produits', { n: rows.length })}</p>
+          <Field label={t('Reçu le')}><input type="date" className={inputCls} value={date} max={today()} onChange={e => setDate(e.target.value)} /></Field>
+        </div>
+        <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Corrigez ce qui est vraiment arrivé et le prix payé. Mettez 0 pour un produit non livré. Le stock monte tout de suite.')}</p>
+        <div className="space-y-2">
+          {rows.map((x, k) => {
+            const g = byId.get(x.ingredient_id), diff = num(x.units) !== x.ordered;
+            return (
+              <div key={x.line_id} className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-2xl border p-3 ${diff ? 'border-warn/50 bg-warn/5' : 'border-line/10'}`}>
+                <span><span className="block font-semibold">{g?.name}</span><span className="text-xs text-muted">{t('commandé : {q}', { q: `${units(x.ordered)} ${g?.purchase_unit ?? ''}` })}</span></span>
+                <span className="flex items-center gap-1.5"><input aria-label={t('Quantité reçue')} className={`${inputCls} w-20 text-end`} inputMode="decimal" value={x.units} onChange={e => setRows(rs => rs.map((y, j) => (j === k ? { ...y, units: e.target.value } : y)))} /><span className="w-14 truncate text-xs text-muted">{g?.purchase_unit}</span></span>
+                <input aria-label={t('Prix payé (DH)')} className={`${inputCls} w-28 text-end`} inputMode="decimal" placeholder={t('payé (DH)')} value={x.total} onChange={e => setRows(rs => rs.map((y, j) => (j === k ? { ...y, total: e.target.value } : y)))} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function SuppliersModal({ r, ings, sups, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; sups: Supplier[]; onClose: () => void; onSaved: () => void }) {
+  const [edit, setEdit] = useState<Supplier | 'new' | null>(sups.length ? null : 'new');
+  if (edit) return <SupplierEditor r={r} ings={ings} s={edit === 'new' ? null : edit} onClose={() => (sups.length ? setEdit(null) : onClose())} onSaved={() => { onSaved(); setEdit(null); }} />;
+  return (
+    <Modal title={t('Fournisseurs')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter un fournisseur')}</Btn></div>}>
+      <ul className="divide-y divide-line/10">
+        {sups.map(s => {
+          const n = ings.filter(g => g.supplier_id === s.id).length;
+          return (
+            <li key={s.id}>
+              <button onClick={() => setEdit(s)} className={`flex w-full items-center gap-3 py-3 text-start ${s.active ? '' : 'opacity-50'}`}>
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-brand"><Truck className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold">{s.name}</span>
+                  <span className="block text-xs text-muted">{t('{n} produits', { n })}{s.delivery_days.length ? ` · ${s.delivery_days.map(d => t(WEEKDAYS[d - 1])).join(', ')}` : ''}{s.phone ? ` · +${s.phone}` : ''}</span></span>
+                <Pencil className="h-4 w-4 text-muted" />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </Modal>
+  );
+}
+
+function SupplierEditor({ r, ings, s, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; s: Supplier | null; onClose: () => void; onSaved: () => void }) {
+  const a = useAdminCtx();
+  const [f, setF] = useState({ name: s?.name ?? '', phone: s?.phone ? `+${s.phone}` : '', contact: s?.contact ?? '', email: s?.email ?? '', note: s?.note ?? '', lead: String(s?.lead_days ?? 1), days: s?.delivery_days ?? [], active: s?.active ?? true });
+  const [mine, setMine] = useState<Set<string>>(() => new Set(s ? ings.filter(g => g.supplier_id === s.id).map(g => g.id) : []));
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      const row = { name: f.name.trim(), phone: intlPhone(f.phone) || null, contact: f.contact.trim() || null, email: f.email.trim() || null, note: f.note.trim() || null,
+        lead_days: Math.max(0, Math.min(30, Math.round(Number(f.lead) || 0))), delivery_days: [...f.days].sort(), active: f.active };
+      let id = s?.id;
+      if (id) check(await supabase.from('suppliers').update(row).eq('id', id).select('id'));
+      else id = (check(await supabase.from('suppliers').insert({ ...row, restaurant_id: r.id }).select('id')) as { id: string }[])[0].id;
+      const before = new Set(ings.filter(g => g.supplier_id === id).map(g => g.id));
+      const add = [...mine].filter(x => !before.has(x)), drop = [...before].filter(x => !mine.has(x));
+      if (add.length) check(await supabase.from('ingredients').update({ supplier_id: id }).in('id', add).select('id'));
+      if (drop.length) check(await supabase.from('ingredients').update({ supplier_id: null }).in('id', drop).select('id'));
+      a.toast(t('Enregistré')); onSaved();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  const remove = async () => {
+    if (!s) return;
+    try { check(await supabase.from('suppliers').delete().eq('id', s.id).select('id')); a.toast(t('Fournisseur supprimé')); onSaved(); } catch (e) { a.fail(e); }
+  };
+  return (
+    <Modal wide title={s ? s.name : t('Nouveau fournisseur')} onClose={onClose}
+      footer={<div className="flex justify-between">{s ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer')}</Btn> : <span />}<Btn tone="brand" disabled={busy || !f.name.trim()} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="space-y-3">
+          <Field label={t('Nom')}><input autoFocus className={inputCls} maxLength={80} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={t('Metro, grossiste Hay Riad…')} /></Field>
+          <Field label={t('WhatsApp')} hint={t('Pour envoyer les commandes en un clic.')}><input className={inputCls} dir="ltr" inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="06 61 00 00 00" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('Contact')}><input className={inputCls} maxLength={80} value={f.contact} onChange={e => setF({ ...f, contact: e.target.value })} placeholder={t('Prénom')} /></Field>
+            <Field label={t('Délai (jours)')}><input className={inputCls} inputMode="numeric" value={f.lead} onChange={e => setF({ ...f, lead: e.target.value.replace(/\D/g, '') })} /></Field>
+          </div>
+          <Field group label={t('Jours de livraison')}>
+            <div className="flex flex-wrap gap-1.5">
+              {WEEKDAYS.map((d, i) => { const on = f.days.includes(i + 1); return <button key={d} type="button" onClick={() => setF({ ...f, days: on ? f.days.filter(x => x !== i + 1) : [...f.days, i + 1] })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted'}`}><CalendarDays className="me-1 inline h-3.5 w-3.5" />{t(d)}</button>; })}
+            </div>
+          </Field>
+          <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Paiement à 30 jours, minimum de commande…')} /></Field>
+          {s && <Toggle checked={f.active} onChange={v => setF({ ...f, active: v })} label={t('Actif')} />}
+        </div>
+        <Field group label={t('Ses produits ({n})', { n: mine.size })}>
+          <div className="max-h-96 space-y-1 overflow-y-auto rounded-2xl bg-surface-2 p-3">
+            {ings.map(g => (
+              <label key={g.id} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={mine.has(g.id)} onChange={() => setMine(x => { const n = new Set(x); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })} />
+                <span className="flex-1">{g.name}</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+      </div>
     </Modal>
   );
 }

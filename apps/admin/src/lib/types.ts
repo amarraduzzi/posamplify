@@ -28,7 +28,7 @@ export interface Ingredient {
   id: string; restaurant_id: string; name: string; name_ar: string | null; category: string;
   base_unit: BaseUnit; purchase_unit: string; purchase_qty: number; purchase_price_cents: number | null;
   waste_bp: number; price_estimated: boolean; supplier: string | null; active: boolean; updated_at: string;
-  stock_qty?: number | null; stock_min?: number | null; stock_since?: string | null;
+  stock_qty?: number | null; stock_min?: number | null; stock_since?: string | null; supplier_id?: string | null;
 }
 export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number }
 export interface ProfitDish {
