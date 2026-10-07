@@ -95,13 +95,13 @@ Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `d
 
 - Build command: `npm run build -w @resto/admin`
 - Output directory: `apps/admin/dist`
-- Variabelen: dezelfde drie, plus `VITE_MENU_URL` (adres van de klant-app, bijvoorbeeld `https://posamplify.pages.dev`), nodig voor de QR-codes.
+- Variabelen: dezelfde drie, plus `VITE_MENU_URL` (adres van de klant-app, standaard `https://menu.amplifygrowthstudio.com`), nodig voor de QR-codes.
 
 ## Supabase-instellingen voor onboarding
 
 - Authentication > Sign In / Providers > **Allow anonymous sign-ins**: aan (kassa's koppelen met een code).
 - Authentication > Sign In / Providers > Email > **Confirm email**: uit zolang er geen eigen e-mailserver (SMTP) is ingesteld; het standaard e-mailadres van Supabase verstuurt maar een paar mails per uur.
-- Beheer-app: optioneel `VITE_POS_URL` (adres van de kassa, standaard https://amplify-kassa.pages.dev).
+- Beheer-app: optioneel `VITE_POS_URL` (adres van de kassa, standaard https://caisse.amplifygrowthstudio.com).
 
 ## Testen
 

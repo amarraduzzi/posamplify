@@ -6,8 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLang, t } from './i18n';
 
-// Public site key of the "Amplify POS" widget (hostnames: amplify-admin.pages.dev,
-// amplify-kassa.pages.dev; add a custom domain there when there is one).
+// Public site key of the "Amplify POS" widget (hostnames: app.amplifygrowthstudio.com,
+// caisse.amplifygrowthstudio.com, amplify-admin.pages.dev, amplify-kassa.pages.dev).
 // Not used on localhost (local tests), overridable with VITE_TURNSTILE_SITE_KEY ('' = off).
 const DEFAULT_SITE_KEY = '0x4AAAAAAFKLRxnVCHBd2OHl';
 const LOCAL = /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname);

@@ -14,7 +14,7 @@ import { AmplifyLogo } from './AmplifyMark';
 // Amplify POS website. Served at the root of the menu app (restaurants live under /<slug>),
 // loaded lazily so guests scanning a table QR code never download it.
 
-export const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://amplify-admin.pages.dev';
+export const ADMIN = (import.meta.env.VITE_ADMIN_URL as string | undefined) ?? 'https://app.amplifygrowthstudio.com';
 const DEMO_SLUG = (import.meta.env.VITE_DEMO_SLUG as string | undefined) ?? 'dar-nour'; // fictional demo café (supabase/demo/dar-nour.sql)
 
 // The Amplify colors from the logo: deep navy and green (independent of any restaurant's branding).
