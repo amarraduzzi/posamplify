@@ -110,7 +110,24 @@ export function BriefingPage({ r }: { r: Restaurant }) {
       .then(res => setHasTables((res.count ?? 0) > 0));
   }, [r.id]);
 
-  const list = useMemo(() => (b && today ? signals(b, today, hasTables) : []), [b, today, hasTables]);
+  // stock that will run out and suppliers paid late (Amplify Profit), only on today's briefing
+  const [extra, setExtra] = useState<Signal[]>([]);
+  useEffect(() => {
+    if (!(r.products ?? []).includes('profit') || (date && date !== today)) { setExtra([]); return; }
+    Promise.all([
+      rpc<{ order_days: number; items: { name: string; base_unit: string; days_left: number | null; daily: number; to_buy: number }[] }>('stock_forecast', { p_restaurant_id: r.id }).catch(() => null),
+      rpc<{ name: string; overdue_cents: number; oldest_overdue: string | null }[]>('supplier_balances', { p_restaurant_id: r.id }).catch(() => []),
+    ]).then(([fc, sup]) => {
+      const qty = (q: number, u: string) => u === 'g' && q >= 1000 ? `${Math.ceil(q / 100) / 10} kg` : u === 'ml' && q >= 1000 ? `${Math.ceil(q / 100) / 10} L` : `${Math.ceil(q)} ${u === 'piece' || u === 'pc' ? t('pièce(s)') : u}`;
+      const out: Signal[] = [];
+      for (const i of (fc?.items ?? []).filter(i => i.days_left != null && i.days_left < 2 && i.daily > 0 && i.to_buy > 0).sort((x, y) => x.days_left! - y.days_left!).slice(0, 3))
+        out.push({ level: 'warn', text: t('À ce rythme, il vous reste {d} jour(s) de {p}. Commandez {q} pour couvrir les {n} prochains jours.', { d: String(i.days_left).replace('.', ','), p: i.name, q: qty(i.to_buy, i.base_unit), n: fc!.order_days }) });
+      for (const x of (sup ?? []).filter(x => Number(x.overdue_cents) > 0).slice(0, 2))
+        out.push({ level: 'warn', text: t('Paiement en retard : {m} dus à {s} depuis le {d}.', { m: mad(Number(x.overdue_cents)), s: x.name, d: x.oldest_overdue ? new Date(`${x.oldest_overdue}T12:00:00`).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long' }) : '' }) });
+      setExtra(out);
+    });
+  }, [r.id, r.products, date, today]);
+  const list = useMemo(() => [...extra, ...(b && today ? signals(b, today, hasTables) : [])], [b, today, hasTables, extra]);
   // orders still open (nothing sold, nothing cancelled) are not worth a row
   const staffRows = (b?.staff ?? []).filter(s => s.orders > 0 || s.cancelled > 0);
   if (unavailable) return <Card><h1 className="font-display text-2xl font-semibold">{t('Briefing')}</h1><p className="mt-2 text-muted">{t('Le briefing sera disponible après la prochaine mise à jour de la base de données.')}</p></Card>;
