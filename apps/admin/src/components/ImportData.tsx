@@ -1,18 +1,20 @@
-// Moving over from another system: a CSV or Excel export of customers, ingredients or suppliers.
+// Moving over from another system: a CSV or Excel export of customers, ingredients, suppliers or
+// past sales. Past sales are added up per day (and per product when the export lists them) and
+// kept apart from the fiscal tickets.
 // The columns are recognised by their header (French, English, Arabic), the owner can correct
 // each one, sees what will be imported and what is skipped, then imports in one go.
 // The menu has its own importer (ImportMenu, with photos and variants).
 import { useMemo, useRef, useState } from 'react';
 import { Check, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { check, errorMessage, rpc } from '../lib/api';
+import { check, errorMessage, mad, rpc } from '../lib/api';
 import { decodeText, parseCsv, norm, type Cell } from '../lib/menuImport';
-import { t } from '../lib/i18n';
+import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Modal, inputCls } from './ui';
 
-export type ImportKind = 'customers' | 'ingredients' | 'suppliers';
+export type ImportKind = 'customers' | 'ingredients' | 'suppliers' | 'sales';
 type Rec = Record<string, Cell>;
 interface Field { key: string; label: string; re: RegExp; required?: boolean }
 
@@ -63,10 +65,24 @@ const FIELDS: Record<ImportKind, Field[]> = {
     { key: 'contact', label: 'Contact', re: /contact|interlocut|responsable|person|مسؤول/ },
     { key: 'note', label: 'Remarque', re: /note|remarq|comment|adresse|address|ملاحظ/ },
   ],
+  sales: [
+    { key: 'date', label: 'Date', re: /date|jour|day|تاريخ|يوم/, required: true },
+    { key: 'total', label: 'Montant (DH)', re: /total|montant|amount|chiffre|ttc|revenue|vente|sales|prix|مبلغ|مجموع/, required: true },
+    { key: 'items', label: 'Articles', re: /article|produit|item|product|d[eé]sign|libell|d[eé]tail|plat|منتج/ },
+    { key: 'qty', label: 'Quantité', re: /quantit|qty|qt[eé]|كمية/ },
+    { key: 'tickets', label: 'Nombre de tickets', re: /tickets?|couverts|commandes|orders|transactions/ },
+    { key: 'paid', label: 'Payé', re: /pay[eé]|paid|r[eé]gl|encaiss|مدفوع/ },
+  ],
 };
 // i18n:values
 const LABELS = [
   'Accepte les messages',
+  'Articles',
+  'Date',
+  'Montant (DH)',
+  'Nombre de tickets',
+  'Payé',
+  'Quantité',
   'Anniversaire',
   'Catégorie',
   'Contact',
@@ -88,13 +104,52 @@ const LABELS = [
   'ml',
 ];
 void LABELS;
-const TITLE: Record<ImportKind, string> = { customers: 'Importer vos clients', ingredients: 'Importer vos ingrédients', suppliers: 'Importer vos fournisseurs' };
+const TITLE: Record<ImportKind, string> = { customers: 'Importer vos clients', ingredients: 'Importer vos ingrédients', suppliers: 'Importer vos fournisseurs', sales: 'Importer vos ventes passées' };
 // i18n:end
 const TEMPLATE: Record<ImportKind, string> = {
   customers: 'Téléphone;Nom;Anniversaire;Points de fidélité;Nombre de visites;Total dépensé;Accepte les messages;Remarque\n0661223344;Yassine;02/05/1990;120;8;640;oui;\n',
   ingredients: 'Nom;Unité;Prix;Catégorie;Fournisseur;Stock\nTomates;kg;8;Légumes;Souk Agdal;12\nLait;L;9,5;Laitier;Centrale;20\nOeufs;pièce;1,2;Laitier;;180\n',
   suppliers: 'Nom;Téléphone;E-mail;Contact;Remarque\nSouk Agdal;0661223344;;Hassan;Livre le matin\n',
+  sales: 'Date;Montant;Articles\n01/09/2025 08:12;32;1x Café noir | 1x Thé à la menthe\n01/09/2025 12:40;68;1x Tacos Poulet | 1x Coca Cola\n02/09/2025;4350;\n',
 };
+
+// a sale that was not paid or was cancelled does not count
+const unpaid = (v: Cell) => /^(non|no|false|0|n|annul\w*|cancel\w*|unpaid|impay\w*|rembours\w*|refund\w*|لا)$/.test(norm(v));
+/** "2x Café noir | 1x Thé" -> [{qty 2, name Café noir}, ...]; a plain name counts once (or the qty column) */
+function itemsOf(v: Cell, qty: number | null) {
+  const parts = txt(v).split(/\s*[|;\n]\s*|,\s+(?=\d+\s*[x×*]\s)/).map(x => x.trim()).filter(Boolean);
+  return parts.map(p => {
+    const m = p.match(/^(\d+(?:[.,]\d+)?)\s*[x×*]\s*(.+)$/i);
+    return m ? { qty: Number(m[1].replace(',', '.')), name: m[2].trim() } : { qty: parts.length === 1 && qty != null ? qty : 1, name: p };
+  });
+}
+type SalesAgg = { days: { day: string; revenue_cents: number; tickets: number | null }[]; items: { day: string; name: string; qty: number; revenue_cents: number }[];
+  total: number; tickets: number | null; top: { name: string; qty: number }[] };
+/** the kept lines added up per day and per product */
+function aggregate(recs: Rec[], hasTickets: boolean): SalesAgg {
+  const days = new Map<string, { rev: number; rows: number; tix: number }>(), items = new Map<string, { day: string; name: string; qty: number; revenue_cents: number }>();
+  for (const o of recs) {
+    const day = dateOf(o.date)!, cents = Math.round((num(o.total) ?? 0) * 100);
+    const d = days.get(day) ?? { rev: 0, rows: 0, tix: 0 };
+    d.rev += cents; d.rows += 1; d.tix += num(o.tickets) ?? 0; days.set(day, d);
+    if (o.items == null) continue;
+    const list = itemsOf(o.items, num(o.qty));
+    for (const it of list) {
+      const k = `${day}|${it.name}`, x = items.get(k) ?? { day, name: it.name.slice(0, 120), qty: 0, revenue_cents: 0 };
+      // the amount of a line only belongs to the product when the line has one product
+      x.qty += it.qty; if (list.length === 1) x.revenue_cents += cents; items.set(k, x);
+    }
+  }
+  // one line per sale (several lines a day): each line is a ticket
+  const perSale = [...days.values()].some(d => d.rows > 1);
+  const out = [...days.entries()].sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, d]) => ({ day, revenue_cents: d.rev, tickets: hasTickets ? d.tix : perSale ? d.rows : null }));
+  const top = new Map<string, number>();
+  for (const x of items.values()) top.set(x.name, (top.get(x.name) ?? 0) + x.qty);
+  return { days: out, items: [...items.values()], total: out.reduce((n, d) => n + d.revenue_cents, 0),
+    tickets: out.some(d => d.tickets != null) ? out.reduce((n, d) => n + (d.tickets ?? 0), 0) : null,
+    top: [...top.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, qty]) => ({ name, qty })) };
+}
 
 // "kg", "L", "pièce", "botte" -> recipe unit and how many of it one purchase unit holds
 function unitOf(raw: string): { base: 'g' | 'ml' | 'pc'; qty: number; label: string } {
@@ -139,7 +194,7 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
   const [fileName, setFileName] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ created: number; updated?: number; skipped: number } | null>(null);
+  const [done, setDone] = useState<{ created: number; updated?: number; skipped: number; amplify?: number } | null>(null);
 
   const read = async (f: File) => {
     setErr(''); setFileName(f.name);
@@ -169,6 +224,12 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
         if (!phoneOk(o.phone)) return { o, why: t('Pas de numéro') };
         return { o, why: '' };
       }
+      if (kind === 'sales') {
+        if (!dateOf(o.date)) return { o, why: t('Pas de date') };
+        if (num(o.total) == null) return { o, why: t('Pas de montant') };
+        if (o.paid != null && unpaid(o.paid)) return { o, why: t('Non payée') };
+        return { o, why: '' };
+      }
       const n = norm(o.name);
       if (!n) return { o, why: t('Pas de nom') };
       if (seen.has(n)) return { o, why: t('Existe déjà') };
@@ -177,12 +238,22 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
     });
   }, [recs, kind, existing]); // eslint-disable-line react-hooks/exhaustive-deps
   const good = checked.filter(x => !x.why);
+  const agg = useMemo(() => (kind === 'sales' ? aggregate(good.map(x => x.o), roles.includes('tickets')) : null), [kind, checked, roles]); // eslint-disable-line react-hooks/exhaustive-deps
   const missing = fields.filter(f => f.required && !roles.includes(f.key));
 
   const run = async () => {
     setBusy(true);
     try {
-      if (kind === 'customers') {
+      if (kind === 'sales' && agg) {
+        // 300 days per call, each with its products
+        let days = 0, skipped = 0;
+        for (let i = 0; i < agg.days.length; i += 300) {
+          const part = agg.days.slice(i, i + 300), set = new Set(part.map(d => d.day));
+          const res = await rpc<{ days: number; skipped: number }>('import_sales', { p_restaurant_id: r.id, p_days: part, p_items: agg.items.filter(x => set.has(x.day)) });
+          days += res.days; skipped += res.skipped;
+        }
+        setDone({ created: days, skipped: checked.length - good.length, amplify: skipped });
+      } else if (kind === 'customers') {
         const rows = good.map(({ o }) => ({ phone: txt(o.phone), name: txt(o.name) || null, birthday: dateOf(o.birthday), points: num(o.points) ?? 0, visits: num(o.visits) ?? 0,
           spent_cents: Math.round((num(o.spent) ?? 0) * 100), note: txt(o.note) || null, marketing_ok: o.marketing_ok != null ? yes(o.marketing_ok) : false }));
         let created = 0, updated = 0, skipped = checked.length - good.length;
@@ -236,7 +307,8 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
       {done ? (
         <div className="py-6 text-center">
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ok/15 text-ok"><Check className="h-7 w-7" /></span>
-          <p className="mt-4 font-display text-2xl font-semibold">{t('{n} ajouté(s)', { n: done.created })}</p>
+          <p className="mt-4 font-display text-2xl font-semibold">{kind === 'sales' ? t('{n} jour(s) de ventes importé(s)', { n: done.created }) : t('{n} ajouté(s)', { n: done.created })}</p>
+          {!!done.amplify && <p className="text-muted">{t('{n} jour(s) déjà dans Amplify : gardés tels quels', { n: done.amplify })}</p>}
           {!!done.updated && <p className="text-muted">{t('{n} complété(s) (déjà connus)', { n: done.updated })}</p>}
           {!!done.skipped && <p className="text-muted">{t('{n} ligne(s) ignorée(s)', { n: done.skipped })}</p>}
         </div>
@@ -248,6 +320,7 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
             <span><span className="block font-bold">{t('Choisir un fichier CSV ou Excel')}</span><span className="block text-sm text-muted">.csv, .xlsx</span></span>
           </button>
           <button type="button" onClick={template} className="inline-flex items-center gap-2 text-sm font-semibold text-brand"><Download className="h-4 w-4" /> {t('Télécharger un modèle')}</button>
+          {kind === 'sales' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Un fichier par vente ou par jour. Les ventes sont additionnées par jour (et par produit si la colonne existe). Elles servent à comparer et restent à part : pas de ticket, pas de Z, pas d’export comptable. Réimporter un jour le remplace.')}</p>}
           {kind === 'customers' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Le numéro de téléphone sert de clé : un client déjà connu est complété, rien n’est effacé. Les points et les visites ne baissent jamais.')}</p>}
           {err && <p className="text-sm text-danger">{err}</p>}
         </div>
@@ -269,6 +342,14 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
             </div>
             {missing.length > 0 && <p className="mt-2 text-sm font-semibold text-danger">{t('Choisissez la colonne : {c}', { c: missing.map(f => t(f.label)).join(', ') })}</p>}
           </div>
+          {agg && agg.days.length > 0 && (
+            <div className="grid gap-3 rounded-2xl bg-brand/10 p-4 sm:grid-cols-[auto_auto_auto_1fr]">
+              <div><p className="text-xs text-muted">{t('Période')}</p><p className="font-semibold tabular">{new Date(agg.days[0].day).toLocaleDateString(dateLocale())} – {new Date(agg.days[agg.days.length - 1].day).toLocaleDateString(dateLocale())}</p><p className="text-xs text-muted">{t('{n} jour(s)', { n: agg.days.length })}</p></div>
+              <div><p className="text-xs text-muted">{t("Chiffre d'affaires")}</p><p className="font-display text-2xl font-semibold tabular">{mad(agg.total)}</p></div>
+              <div><p className="text-xs text-muted">{t('Tickets')}</p><p className="font-display text-2xl font-semibold tabular">{agg.tickets ?? '—'}</p></div>
+              {agg.top.length > 0 && <div className="min-w-0"><p className="text-xs text-muted">{t('Les plus vendus')}</p><p className="truncate text-sm">{agg.top.map(x => `${x.name} (${x.qty})`).join(', ')}</p></div>}
+            </div>
+          )}
           <div>
             <p className="mb-2 font-semibold">{t('Aperçu')}</p>
             <div className="overflow-x-auto rounded-2xl ring-1 ring-line/10">

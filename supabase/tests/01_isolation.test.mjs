@@ -39,6 +39,8 @@ before(async () => {
     await sql(`insert into public.supplier_entries (restaurant_id, supplier_id, kind, amount_cents) values ($1, $2, 'payment', 1000)`, [w.B.r.id, sb.id]); }
   await sql(`insert into public.couriers (restaurant_id, name) values ($1, 'Livreur B')`, [w.B.r.id]);
   await sql(`insert into public.site_events (restaurant_id, day, kind, n) values ($1, current_date, 'view', 3)`, [w.B.r.id]);
+  await sql(`insert into public.sales_history_days (restaurant_id, day, revenue_cents) values ($1, date '2025-01-01', 100)`, [w.B.r.id]);
+  await sql(`insert into public.sales_history_items (restaurant_id, day, name, qty) values ($1, date '2025-01-01', 'Plat B', 1)`, [w.B.r.id]);
   await sql(`insert into public.tip_payouts (restaurant_id, period_from, period_to, rule, total_cents, lines) values ($1, current_date, current_date, 'equal', 0, '[]')`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);

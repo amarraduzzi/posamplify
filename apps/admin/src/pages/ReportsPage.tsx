@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
+import { ImportData } from '../components/ImportData';
+import { SalesHistory } from '../components/SalesHistory';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -21,6 +23,8 @@ export function ReportsPage({ r }: { r: Restaurant }) {
   const [date, setDate] = useState('');
   const [rep, setRep] = useState<Rep | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [hv, setHv] = useState(0);
   useEffect(() => {
     (async () => {
       try {
@@ -67,6 +71,8 @@ export function ReportsPage({ r }: { r: Restaurant }) {
           {rep.by_staff.length ? rep.by_staff.map((s, i) => <p key={i} className="flex justify-between py-1"><span>{s.name ?? '—'}</span><span className="tabular">{mad(s.revenue_ttc_cents)}</span></p>) : <p className="text-muted">{t('Aucune vente.')}</p>}
         </Card>
       </>}
+      <SalesHistory r={r} version={hv} onImport={() => setImporting(true)} />
+      {importing && <ImportData kind="sales" r={r} onClose={() => setImporting(false)} onDone={() => setHv(x => x + 1)} />}
     </div>
   );
 }
