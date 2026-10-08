@@ -1,6 +1,6 @@
 // Amplify Profit: the ingredient list with purchase prices.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Sparkles, Check } from 'lucide-react';
+import { Plus, Search, Sparkles, Check, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -9,6 +9,7 @@ import type { Ingredient, Restaurant } from '../lib/types';
 import { CATEGORIES, SIZE_UNIT, unitCost } from '../lib/profit';
 import { IngredientEditor } from '../components/IngredientEditor';
 import { Btn, inputCls } from '../components/ui';
+import { ImportData } from '../components/ImportData';
 
 export function IngredientsPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
@@ -17,6 +18,7 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
   const [q, setQ] = useState('');
   const [onlyEstimated, setOnlyEstimated] = useState(false);
   const [edit, setEdit] = useState<Ingredient | 'new' | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -53,8 +55,10 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} ps-9`} placeholder={t('Chercher')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
         <Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
       </div>
+      {importing && <ImportData kind="ingredients" r={r} existing={(list ?? []).map(g => g.name)} onClose={() => setImporting(false)} onDone={load} />}
 
       {estimated > 0 && (
         <button onClick={() => setOnlyEstimated(v => !v)} className={`mb-4 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-start text-sm transition ${onlyEstimated ? 'border-warn bg-warn/10' : 'border-warn/40 bg-warn/5 hover:bg-warn/10'}`}>

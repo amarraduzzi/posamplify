@@ -1,13 +1,14 @@
 // Customer file and loyalty points. OFF until the owner switches it on: only then
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Printer, Search, ShieldCheck, Users } from 'lucide-react';
+import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Printer, Search, ShieldCheck, Upload, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
+import { ImportData } from '../components/ImportData';
 
 interface Customer {
   id: string; phone: string; name: string | null; birthday: string | null; note: string | null; marketing_ok: boolean;
@@ -25,6 +26,7 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [edit, setEdit] = useState<Customer | null>(null);
   const [settings, setSettings] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     if (!loyalty.customers) { setList([]); return; }
@@ -96,7 +98,9 @@ export function CustomersPage({ r }: { r: Restaurant }) {
           <input className={`${inputCls} ps-9`} placeholder={t('Nom ou téléphone')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
         {a.canEditProfile && <Btn onClick={() => setSettings(true)}><Gift className="h-4 w-4" /> {t('Fidélité et ardoise')}</Btn>}
+        {loyalty.customers && <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>}
       </div>
+      {importing && <ImportData kind="customers" r={r} onClose={() => setImporting(false)} onDone={load} />}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map(([k, l]) => <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${filter === k ? 'bg-night text-white' : 'bg-surface-2 text-muted hover:text-ink'}`}>{l}</button>)}

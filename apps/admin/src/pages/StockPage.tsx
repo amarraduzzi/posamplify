@@ -2,7 +2,7 @@
 // and see what was really used, and with Amplify POS: what disappeared without
 // being sold (waste, free food, theft), per ingredient and in dirhams.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Upload, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -11,6 +11,7 @@ import type { BaseUnit, Ingredient, Restaurant } from '../lib/types';
 import { CATEGORIES, SIZE_UNIT, fmtQty, pct } from '../lib/profit';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { SupplierAccounts } from './SupplierAccounts';
+import { ImportData } from '../components/ImportData';
 
 interface Count { id: string; counted_on: string; status: 'open' | 'closed'; note: string | null; closed_at: string | null }
 interface Line { count_id: string; ingredient_id: string; qty: number }
@@ -1135,9 +1136,11 @@ function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: In
 
 function SuppliersModal({ r, ings, sups, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; sups: Supplier[]; onClose: () => void; onSaved: () => void }) {
   const [edit, setEdit] = useState<Supplier | 'new' | null>(sups.length ? null : 'new');
+  const [importing, setImporting] = useState(false);
+  if (importing) return <ImportData kind="suppliers" r={r} existing={sups.map(s => s.name)} onClose={() => setImporting(false)} onDone={onSaved} />;
   if (edit) return <SupplierEditor r={r} ings={ings} s={edit === 'new' ? null : edit} onClose={() => (sups.length ? setEdit(null) : onClose())} onSaved={() => { onSaved(); setEdit(null); }} />;
   return (
-    <Modal title={t('Fournisseurs')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter un fournisseur')}</Btn></div>}>
+    <Modal title={t('Fournisseurs')} onClose={onClose} footer={<div className="flex justify-end gap-2"><Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter un fournisseur')}</Btn></div>}>
       <ul className="divide-y divide-line/10">
         {sups.map(s => {
           const n = ings.filter(g => g.supplier_id === s.id).length;
