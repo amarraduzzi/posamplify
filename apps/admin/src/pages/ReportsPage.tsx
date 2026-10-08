@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { ImportData } from '../components/ImportData';
 import { SalesHistory } from '../components/SalesHistory';
+import { ProductSales } from '../components/ProductSales';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -25,11 +26,13 @@ export function ReportsPage({ r }: { r: Restaurant }) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [importing, setImporting] = useState(false);
   const [hv, setHv] = useState(0);
+  const [tab, setTab] = useState<'day' | 'products'>('day');
+  const [today, setToday] = useState('');
   useEffect(() => {
     (async () => {
       try {
         const x = await rpc<Rep>('day_report', { p_restaurant_id: r.id, p_business_date: date || null });
-        setRep(x); if (!date) setDate(x.business_date);
+        setRep(x); if (!date) { setDate(x.business_date); setToday(x.business_date); }
         setDocs(check(await supabase.from('fiscal_documents').select('doc_number,doc_type,issued_at,total_ttc_cents,total_ht_cents,total_vat_cents,payments')
           .eq('restaurant_id', r.id).eq('business_date', x.business_date).order('chain_index')) as Doc[]);
       } catch (e) { a.fail(e); }
@@ -48,11 +51,20 @@ export function ReportsPage({ r }: { r: Restaurant }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="me-auto font-display text-3xl font-semibold">{t('Ventes')}</h1>
+        <h1 className="font-display text-3xl font-semibold">{t('Ventes')}</h1>
+        <div role="tablist" className="me-auto flex gap-1 rounded-2xl border border-line/[0.1] bg-surface p-1">
+          {([['day', t('Journée')], ['products', t('Produits')]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition ${tab === k ? 'bg-night text-white' : 'text-muted hover:bg-surface-2'}`}>{label}</button>
+          ))}
+        </div>
+        {tab === 'day' && <>
         <input type="date" aria-label={t('Date')} className={`${inputCls} !w-44`} value={date} onChange={e => setDate(e.target.value)} />
         <Btn onClick={csv} disabled={!docs.length}><Download className="h-4 w-4" /> {t('Export comptable (CSV)')}</Btn>
+        </>}
       </div>
-      {rep && <>
+      {tab === 'products' && today && <ProductSales r={r} today={today} />}
+      {tab === 'day' && rep && <>
         {rep.closed && <p className="rounded-xl bg-surface-2 px-4 py-2 text-sm">{t('Journée clôturée (Z).')}</p>}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <K l={t("Chiffre d'affaires TTC")} v={mad(rep.revenue_ttc_cents)} big />
@@ -71,7 +83,7 @@ export function ReportsPage({ r }: { r: Restaurant }) {
           {rep.by_staff.length ? rep.by_staff.map((s, i) => <p key={i} className="flex justify-between py-1"><span>{s.name ?? '—'}</span><span className="tabular">{mad(s.revenue_ttc_cents)}</span></p>) : <p className="text-muted">{t('Aucune vente.')}</p>}
         </Card>
       </>}
-      <SalesHistory r={r} version={hv} onImport={() => setImporting(true)} />
+      {tab === 'day' && <SalesHistory r={r} version={hv} onImport={() => setImporting(true)} />}
       {importing && <ImportData kind="sales" r={r} onClose={() => setImporting(false)} onDone={() => setHv(x => x + 1)} />}
     </div>
   );
