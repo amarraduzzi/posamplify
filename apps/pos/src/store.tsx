@@ -420,7 +420,7 @@ function usePosState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enqueue, sendToKitchen, reloadOrders, toast, fail]);
 
-  const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at'>>) =>
+  const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at' | 'courier_id' | 'delivery_status'>>) =>
     enqueue([{ kind: 'updateOrder', id, patch }]), [enqueue]);
   const deleteLine = useCallback((id: string) => enqueue([{ kind: 'deleteLine', id }]), [enqueue]);
   /** Kitchen screen: lines ready (or recalled). When the whole order is ready, the order becomes "ready". */

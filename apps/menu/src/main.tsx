@@ -10,7 +10,10 @@ const Landing = lazy(() => import('./landing/Landing'));
 const ProfitLanding = lazy(() => import('./landing/ProfitLanding'));
 const FeaturesLanding = lazy(() => import('./landing/FeaturesLanding'));
 // the website: the bare domain (Amplify POS) and /profit (Amplify Profit); "profit" is a reserved slug
-const slug = resolveTenant().slug;
+// the courier's page (?livreur=<token>), from the till's WhatsApp message
+const courier = new URLSearchParams(location.search).get('livreur');
+const CourierApp = lazy(() => import('./courier/CourierApp'));
+const slug = courier ? 'livreur' : resolveTenant().slug;
 const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
 // the old landing pages send visitors there. Restaurant menus (/<slug>) are never redirected.
@@ -24,6 +27,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );

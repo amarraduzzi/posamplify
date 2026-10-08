@@ -79,6 +79,13 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
                 <Clock className="size-4" />{when ?? t.waitingConfirm}
               </p>
             )}
+            {info?.delivery_code && (
+              <div className="mt-4 rounded-2xl bg-brand/12 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand">{t.deliveryCode}</p>
+                <p dir="ltr" className="font-display text-4xl font-semibold tracking-[0.3em] tabular-nums">{info.delivery_code}</p>
+                <p className="mt-1 text-xs text-muted">{info.delivery_status === 'picked_up' && info.courier ? t.courierOnWay(info.courier) : t.deliveryCodeHint}</p>
+              </div>
+            )}
             <p className="mt-4 text-sm text-muted">
               {tableLabel ? <>{t.table} <bdi className="font-semibold text-ink">{tableLabel}</bdi> · </> : ''}
               <bdi className="font-semibold text-ink">{formatMoney(order.total_cents, currency, lang)}</bdi>

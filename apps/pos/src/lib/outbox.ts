@@ -43,7 +43,7 @@ export type Op =
   | { kind: 'markServed'; ids: string[]; at: string | null }
   | { kind: 'requestPrint'; ids: string[]; at: string }
   | { kind: 'markReady'; ids: string[]; at: string | null }
-  | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at'>> }
+  | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at' | 'courier_id' | 'delivery_status'>> }
   | { kind: 'updateLine'; id: string; patch: Partial<Pick<Line, 'quantity' | 'note'>> }
   | { kind: 'deleteLine'; id: string }
   | { kind: 'pay'; req: PayRequest };

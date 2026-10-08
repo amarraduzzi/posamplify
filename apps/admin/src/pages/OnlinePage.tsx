@@ -9,6 +9,7 @@ import { dateLocale, getLang, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Toggle, inputCls } from '../components/ui';
+import { CouriersCard } from './CouriersCard';
 
 type Hours = Record<string, [string, string][]>;
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -220,6 +221,7 @@ export function OnlinePage({ r }: { r: Restaurant }) {
           {owner && <Btn tone="brand" disabled={busy} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
         </div>
       </Card>
+      {r.accept_delivery && <CouriersCard r={r} />}
       <p className="flex items-center gap-2 text-sm text-muted"><Globe className="h-4 w-4" /><ShoppingBag className="h-4 w-4" /> {t('Le client paie à la livraison ou au retrait.')}</p>
     </div>
   );

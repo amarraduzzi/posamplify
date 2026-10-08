@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { QrCode, Check, ChefHat, BellRing, UtensilsCrossed, Bike, ShoppingBag, MapPin, MessageCircle, Clock, PauseCircle, PlayCircle, Globe } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { QrCode, Check, ChefHat, BellRing, UtensilsCrossed, Bike, ShoppingBag, MapPin, MessageCircle, Clock, PauseCircle, PlayCircle, Globe, KeyRound } from 'lucide-react';
 import * as db from '../lib/data';
 import { usePos, type OrderTarget } from '../store';
 import { mad, minutesSince, statusLabel, time } from '../lib/format';
@@ -20,6 +21,19 @@ const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string; Icon: 
 };
 // i18n:end
 
+interface Courier { id: string; name: string; phone: string | null; token: string }
+// i18n:values
+const DSTATUS: Record<string, string> = { assigned: 'Attribuée', picked_up: 'En route', delivered: 'Livrée', failed: 'Problème' };
+// i18n:end
+/** The restaurant's own couriers (Livreurs, set up in the manager space). */
+function useCouriers(rid: string) {
+  const [list, setList] = useState<Courier[]>([]);
+  useEffect(() => {
+    supabase.from('couriers').select('id,name,phone,token').eq('restaurant_id', rid).eq('active', true).order('name').then(({ data }) => setList((data ?? []) as Courier[]));
+  }, [rid]);
+  return list;
+}
+
 /** All open orders, oldest first: accept guest orders, follow kitchen status. */
 export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -37,9 +51,20 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
       ? (o.order_type === 'delivery' ? t('votre commande {ref} chez {r} est en route.', { ref: ticketRef(o), r: r.name }) : t('votre commande {ref} chez {r} est prête, à tout de suite !', { ref: ticketRef(o), r: r.name }))
       : o.order_type === 'delivery' ? t('votre commande {ref} chez {r} est confirmée. Livraison vers {h}.', { ref: ticketRef(o), r: r.name, h: when })
       : t('votre commande {ref} chez {r} est confirmée. Prête vers {h}.', { ref: ticketRef(o), r: r.name, h: when });
-    return `${hello} ${body}\n${t('Suivi : {l}', { l: link })}`;
+    const code = o.order_type === 'delivery' && o.delivery_code ? `\n${t('Code de livraison : {c} (à donner au livreur)', { c: o.delivery_code })}` : '';
+    return `${hello} ${body}${code}\n${t('Suivi : {l}', { l: link })}`;
   };
   const takesOnline = (r.accept_takeaway || r.accept_delivery) && r.pos_plan !== 'essentiel';
+  const couriers = useCouriers(r.id);
+  const assign = (o: Order, id: string) => pos.updateOrder(o.id, id ? { courier_id: id, delivery_status: 'assigned' } : { courier_id: null, delivery_status: null });
+  /** WhatsApp to the courier: the order and the link to his page */
+  const courierMsg = (o: Order, c: Courier) => [
+    t('Livraison {ref} · {r}', { ref: ticketRef(o), r: r.name }),
+    `${o.customer_name ?? ''} ${o.customer_phone ?? ''}`.trim(), o.delivery_address ?? '',
+    o.delivery_location ? `https://maps.google.com/?q=${o.delivery_location.lat},${o.delivery_location.lng}` : '',
+    o.closed_at ? t('Déjà payée') : t('À encaisser : {m}', { m: mad(o.total_cents) }),
+    t('Vos livraisons : {l}', { l: `${MENU_URL}/?livreur=${c.token}` }),
+  ].filter(Boolean).join('\n');
   if (!pos.orders.length) return (
     <>
       {takesOnline && <OnlineBar />}
@@ -90,6 +115,22 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
                 </li>
               )}
             </ul>
+            {o.order_type === 'delivery' && o.source !== 'glovo' && couriers.length > 0 && !pending && (() => {
+              const c = couriers.find(x => x.id === o.courier_id);
+              return (
+                <div className="flex flex-wrap items-center gap-2 border-t border-line/[0.07] px-4 py-2.5 text-sm">
+                  <Bike className="h-4 w-4 text-brand" />
+                  <select aria-label={t('Livreur')} value={o.courier_id ?? ''} onChange={e => assign(o, e.target.value)} className="rounded-lg bg-surface-2 px-2 py-1 font-semibold">
+                    <option value="">{t('Choisir le livreur')}</option>
+                    {couriers.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                  {o.delivery_status && <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${o.delivery_status === 'failed' ? 'bg-danger/15 text-danger' : o.delivery_status === 'delivered' ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn'}`}>{t(DSTATUS[o.delivery_status])}</span>}
+                  {o.delivery_code && <span className="ms-auto flex items-center gap-1 text-xs text-muted"><KeyRound className="h-3.5 w-3.5" />{o.delivery_code}</span>}
+                  {o.delivery_status === 'failed' && o.delivery_note && <p className="w-full text-xs font-semibold text-danger">{o.delivery_note}</p>}
+                  {c?.phone && <a href={`https://wa.me/${intl(c.phone)}?text=${encodeURIComponent(courierMsg(o, c))}`} target="_blank" rel="noopener" className="w-full rounded-lg bg-ok/10 py-1.5 text-center text-xs font-bold text-ok">{t('Envoyer la course à {n} sur WhatsApp', { n: c.name })}</a>}
+                </div>
+              );
+            })()}
             <div className="flex items-center justify-between gap-2 border-t border-line/[0.07] bg-bg/30 px-4 py-3">
               <span className="font-display text-xl font-semibold tabular">{mad(o.total_cents)}</span>
               {pending && online ? (

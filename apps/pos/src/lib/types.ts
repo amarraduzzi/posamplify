@@ -67,6 +67,8 @@ export interface Order {
   customer_id?: string | null; discount_kind?: 'loyalty' | 'promo' | null; promo_id?: string | null;
   /** own online ordering: time asked for, ready time given by the till, guest's location */
   wanted_at?: string | null; eta_at?: string | null; delivery_location?: { lat: number; lng: number } | null;
+  /** own delivery: courier, status, the guest's 4-digit code (proof of delivery) */
+  courier_id?: string | null; delivery_status?: 'assigned' | 'picked_up' | 'delivered' | 'failed' | null; delivery_code?: string | null; delivery_note?: string | null; picked_up_at?: string | null; delivered_at?: string | null;
   /** Set on the till for orders taken offline, until the server gives a ticket number. */
   local_ref?: string;
 }

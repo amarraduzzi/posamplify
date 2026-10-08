@@ -58,3 +58,17 @@ export const joinWaitlist = (slug: string, e: { client_id: string; party_size: n
   call<{ token: string }>('waitlist_join', { p_slug: slug, p_entry: e });
 export const reservationStatus = (token: string) => call<ReservationStatus | null>('reservation_status', { p_token: token });
 export const reservationCancel = (token: string) => call<{ ok: boolean }>('reservation_cancel', { p_token: token });
+
+// ---- the courier's page (?livreur=<token>)
+export interface CourierOrder {
+  id: string; ticket_number: number; status: 'assigned' | 'picked_up'; customer_name: string | null; customer_phone: string | null;
+  address: string | null; location: { lat: number; lng: number } | null; total_cents: number; paid: boolean; note: string | null;
+  wanted_at: string | null; eta_at: string | null; kitchen_ready: boolean; items: { q: number; name: string }[];
+}
+export interface CourierPage {
+  courier: { name: string }; restaurant: { name: string; phone: string | null; address: string | null; city: string | null; timezone: string };
+  orders: CourierOrder[]; done_today: number; cash_to_return_cents: number;
+}
+export const courierOrders = (token: string) => call<CourierPage>('courier_orders', { p_token: token });
+export const courierUpdate = (token: string, orderId: string, action: 'picked_up' | 'delivered' | 'failed', code?: string, note?: string) =>
+  call<{ ok: boolean; error?: string; tries_left?: number }>('courier_update', { p_token: token, p_order_id: orderId, p_action: action, p_code: code ?? null, p_note: note ?? null });

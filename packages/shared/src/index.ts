@@ -108,6 +108,10 @@ export interface OrderStatusResult {
   eta_at?: string | null;
   wanted_at?: string | null;
   restaurant_phone?: string | null;
+  /** own delivery: the code to give the courier, and his first name */
+  delivery_status?: 'assigned' | 'picked_up' | 'delivered' | 'failed' | null;
+  delivery_code?: string | null;
+  courier?: string | null;
 }
 
 // ---------------------------------------------------------------------------
