@@ -8,6 +8,8 @@ export type Method = 'cash' | 'card' | 'transfer' | 'other';
 
 export interface PosSettings {
   printers?: { receipt?: string; stations?: Record<string, string> };
+  /** kitchen stations beyond Cuisine and Bar (grill, pizza, dessert...) */
+  stations?: { key: string; name: string }[];
   idle_lock_minutes?: number;
   receipt_footer?: string;
 }
@@ -28,7 +30,7 @@ export interface Restaurant {
 
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; sort_order: number; active: boolean }
-export interface Category { id: string; name: I18n; icon: string | null; station: string; sort_order: number }
+export interface Category { id: string; name: I18n; icon: string | null; station: string; sort_order: number; course?: number | null }
 export interface Variant { id: string; menu_item_id: string; name: I18n; price_cents: number; sort_order: number }
 export interface ModOption { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number }
 /** Extras / set-menu choices: pick between min_select and max_select options (null = no limit). */
@@ -47,6 +49,8 @@ export interface Line {
   modifiers?: ChosenMod[];
   /** price before a happy hour (set by the database) */
   list_price_cents?: number | null; promo_id?: string | null;
+  /** course (1 starter, 2 main, 3 dessert); a held line waits for "Envoyer la suite"; served_at: taken to the table */
+  course?: number | null; held?: boolean; served_at?: string | null;
   /** the kitchen screen marked it ready */
   ready_at?: string | null;
   /** sent from a device without printer: a till with a printer prints the bon */
@@ -98,4 +102,5 @@ export interface DraftLine {
   key: string; item_id: string | null; variant_id: string | null; name: string;
   unit_price_cents: number; quantity: number; note: string; station: string;
   modifiers?: ChosenMod[];
+  course?: number | null;
 }

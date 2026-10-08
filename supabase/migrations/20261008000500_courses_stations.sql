@@ -1,16 +1,23 @@
 -- =============================================================================
--- The owner, away from the restaurant
--- * owner_live: today so far (revenue against the same weekday last week at the same hour,
---   open orders, guests waiting, who is clocked in) and what deserves a look today
---   (big discounts, cancellations, dishes removed after the kitchen, cash taken out, stock
---   below minimum, online orders paused, yesterday's cash difference).
--- * restaurants.owner_whatsapp: the number the till sends the Z report to (a WhatsApp link
---   the manager taps; nothing is sent automatically).
+-- Courses and kitchen stations
+-- * categories.course: 1 starter, 2 main, 3 dessert (null = sent right away, e.g. drinks).
+-- * order_lines.course / held: a later course is saved on the bill but held back; the till
+--   sends it with "Envoyer la suite". The kitchen sees what is coming.
+-- * order_lines.served_at: the pass marks a ready dish as taken to the table.
+-- * Stations are free (grill, pizza, dessert...): their names and printers live in
+--   restaurants.pos_settings (stations: [{key, name}], printers.stations: {key: printer}).
 -- =============================================================================
-alter table public.restaurants add column if not exists owner_whatsapp text
-  check (owner_whatsapp is null or owner_whatsapp ~ '^\+?[0-9 ]{8,20}$');
-grant update (owner_whatsapp) on public.restaurants to authenticated;
+alter table public.categories add column if not exists course smallint check (course between 1 and 3);
+alter table public.order_lines
+  add column if not exists course smallint check (course between 1 and 3),
+  add column if not exists held boolean not null default false,
+  add column if not exists served_at timestamptz;
+-- a held line has not been sent yet
+alter table public.order_lines drop constraint if exists order_lines_held_unsent;
+alter table public.order_lines add constraint order_lines_held_unsent check (not held or kitchen_sent_at is null);
+create index if not exists order_lines_held_idx on public.order_lines (order_id) where held;
 
+-- owner_live: "today" follows the business day (after midnight it is still yesterday's service)
 create or replace function public.owner_live(p_restaurant_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare r public.restaurants; today date; last_week date;
@@ -82,5 +89,3 @@ begin
       ) a)
   );
 end $$;
-revoke all on function public.owner_live(uuid) from public, anon;
-grant execute on function public.owner_live(uuid) to authenticated;

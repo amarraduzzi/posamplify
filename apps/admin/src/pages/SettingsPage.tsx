@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Save, ExternalLink, Star, Download } from 'lucide-react';
+import { Save, ExternalLink, Star, Download, Plus, Trash2 } from 'lucide-react';
+import { stationKey, stationsOf, type Station } from '../lib/stations';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { uploadImage } from '../lib/image';
@@ -32,8 +33,10 @@ export function SettingsPage({ r }: { r: Restaurant }) {
     QRCode.toDataURL(u, { width: 600, margin: 2 }).then(setQr).catch(() => setQr(null));
   }, [brand.review_url, reviewOk]);
   const ps = r.pos_settings ?? {};
-  const [pos, setPos] = useState({ receipt: ps.printers?.receipt ?? 'TICKET', kitchen: ps.printers?.stations?.kitchen ?? 'CUISINE', bar: ps.printers?.stations?.bar ?? 'BAR',
+  const [pos, setPos] = useState({ receipt: ps.printers?.receipt ?? 'TICKET',
     idle: String(ps.idle_lock_minutes ?? 10), footer: ps.receipt_footer ?? '' });
+  const [stations, setStations] = useState<Station[]>(() => stationsOf(r));
+  const [newSt, setNewSt] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<typeof f>) => setF(x => ({ ...x, ...p }));
 
@@ -44,7 +47,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
         ...f, name: f.name.trim(), ice: f.ice.trim() || null, legal_name: f.legal_name.trim() || null, tax_id: f.tax_id.trim() || null,
         rc: f.rc.trim() || null, phone: f.phone.trim() || null, address: f.address.trim() || null, city: f.city.trim() || null,
         branding: { ...r.branding, ...brand, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined },
-        pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: { kitchen: pos.kitchen.trim() || 'CUISINE', bar: pos.bar.trim() || 'BAR' } },
+        pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: Object.fromEntries(stations.map(x => [x.key, x.printer.trim() || 'CUISINE'])) },
+          stations: stations.map(x => ({ key: x.key, name: x.name.trim() || x.key })),
           idle_lock_minutes: Math.max(0, Math.min(120, Number(pos.idle) || 0)), receipt_footer: pos.footer.trim() || undefined },
       }).eq('id', r.id).select('id'));
       await a.reload();
@@ -155,11 +159,27 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           <p className="mb-4 text-sm text-muted">{t('Noms exacts des imprimantes dans Windows (programme printhost).')}</p>
           <div className="grid gap-4 md:grid-cols-3">
             <Field label={t('Imprimante tickets')}><input dir="ltr" className={inputCls} value={pos.receipt} onChange={e => setPos({ ...pos, receipt: e.target.value })} /></Field>
-            <Field label={t('Imprimante cuisine')}><input dir="ltr" className={inputCls} value={pos.kitchen} onChange={e => setPos({ ...pos, kitchen: e.target.value })} /></Field>
-            <Field label={t('Imprimante bar')}><input dir="ltr" className={inputCls} value={pos.bar} onChange={e => setPos({ ...pos, bar: e.target.value })} /></Field>
             <Field label={t('Verrouillage après (minutes)')} hint={t('0 = jamais.')}><input className={inputCls} inputMode="numeric" value={pos.idle} onChange={e => setPos({ ...pos, idle: e.target.value.replace(/\D/g, '') })} /></Field>
             <div className="md:col-span-2"><Field label={t('Message en bas du ticket')} hint={t('Imprimé tel quel sur le ticket (caractères latins uniquement).')}><input className={inputCls} maxLength={80} value={pos.footer} onChange={e => setPos({ ...pos, footer: e.target.value })} placeholder="Merci de votre visite, à bientôt !" /></Field></div>
           </div>
+        </Card>
+        <Card>
+          <h2 className="mb-1 font-display text-xl font-semibold">{t('Postes de préparation')}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Chaque poste reçoit ses bons, sur son imprimante et sur son écran cuisine. Ajoutez par exemple Grill, Pizza ou Dessert, puis choisissez le poste de chaque catégorie dans le Menu.')}</p>
+          <div className="space-y-2">
+            {stations.map((x, i) => (
+              <div key={x.key} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                <Field label={i === 0 ? t('Nom du poste') : ''}><input className={inputCls} maxLength={20} value={x.name} onChange={e => setStations(ss => ss.map(y => y.key === x.key ? { ...y, name: e.target.value } : y))} /></Field>
+                <Field label={i === 0 ? t('Imprimante') : ''}><input dir="ltr" className={inputCls} value={x.printer} onChange={e => setStations(ss => ss.map(y => y.key === x.key ? { ...y, printer: e.target.value } : y))} /></Field>
+                {x.key === 'kitchen' || x.key === 'bar' ? <span className="w-10" /> : <Btn tone="danger" aria-label={t('Supprimer')} onClick={() => setStations(ss => ss.filter(y => y.key !== x.key))}><Trash2 className="h-4 w-4" /></Btn>}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <input className={inputCls} maxLength={20} value={newSt} onChange={e => setNewSt(e.target.value)} placeholder={t('Nouveau poste : Grill, Pizza, Dessert…')} />
+            <Btn disabled={!newSt.trim() || stations.some(x => x.key === stationKey(newSt))} onClick={() => { setStations(ss => [...ss, { key: stationKey(newSt), name: newSt.trim(), printer: 'CUISINE' }]); setNewSt(''); }}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
+          </div>
+          <p className="mt-2 text-xs text-muted">{t('Plusieurs postes peuvent partager la même imprimante. Pensez à enregistrer.')}</p>
         </Card>
       </fieldset>
     </div>

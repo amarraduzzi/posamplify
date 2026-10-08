@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket, FastForward } from 'lucide-react';
 import { promoPrice, tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -15,6 +15,7 @@ import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
 import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
+import { courseName } from '../lib/stations';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
 
@@ -84,6 +85,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     if (q) return pos.items.filter(i => Object.values(i.name).some(n => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q)));
     return pos.items.filter(i => i.category_id === cat);
   }, [pos.items, cat, query]);
+  const courseOf = (i: Item) => pos.categories.find(c => c.id === i.category_id)?.course ?? null;
+  const usesCourses = pos.categories.some(c => c.course);
+  const cycleCourse = (key: string) => setDraft(d => d.map(x => x.key === key ? { ...x, course: x.course === 3 ? null : (x.course ?? 0) + 1 } : x));
   const stationOf = (i: Item) => i.station ?? pos.categories.find(c => c.id === i.category_id)?.station ?? 'kitchen';
 
   const addItem = (i: Item, variantId: string | null = null, mods: ChosenMod[] | null = null) => {
@@ -95,9 +99,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     const price = Number(v ? v.price_cents : i.price_cents) + chosen.reduce((s, m) => s + Number(m.price_cents), 0);
     const sig = chosen.map(m => m.id).sort().join(',');
     setDraft(d => {
-      const same = d.find(x => x.item_id === i.id && x.variant_id === variantId && !x.note && (x.modifiers ?? []).map(m => m.id).sort().join(',') === sig);
+      const same = d.find(x => x.item_id === i.id && x.variant_id === variantId && !x.note && (x.course ?? null) === courseOf(i) && (x.modifiers ?? []).map(m => m.id).sort().join(',') === sig);
       if (same) return d.map(x => x === same ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...d, { key: uid(), item_id: i.id, variant_id: variantId, name: name.slice(0, 120), unit_price_cents: price, quantity: 1, note: '', station: stationOf(i), modifiers: chosen }];
+      return [...d, { key: uid(), item_id: i.id, variant_id: variantId, name: name.slice(0, 120), unit_price_cents: price, quantity: 1, note: '', station: stationOf(i), modifiers: chosen, course: courseOf(i) }];
     });
   };
   const bump = (key: string, delta: number) => setDraft(d => d.flatMap(x => x.key !== key ? [x] : x.quantity + delta <= 0 ? [] : [{ ...x, quantity: x.quantity + delta }]));
@@ -148,6 +152,12 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   });
 
   const nothing = !order && !draft.length;
+  const nextCourse = order && order.order_lines.some(l => l.held) ? Math.min(...order.order_lines.filter(l => l.held).map(l => l.course ?? 9)) : null;
+  const fireBtn = nextCourse != null && order ? (
+    <Btn tone="brand" disabled={busy} onClick={() => run(() => pos.fireNext(order))} className="col-span-2 py-3.5 text-base">
+      <FastForward className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer la suite : {c}', { c: courseName(nextCourse) || t('suite') })} ({order.order_lines.filter(l => l.held && (l.course ?? 9) === nextCourse).reduce((n, l) => n + l.quantity, 0)})
+    </Btn>
+  ) : null;
   // the screen turned to the guest follows this ticket
   useEffect(() => {
     show(r, nothing ? { mode: 'idle' } : { mode: 'order', label, subtotal, discount, promo: order?.discount_kind === 'promo', total,
@@ -187,7 +197,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold leading-tight">{lineName(l)}</p>
                   {l.note && <p className="text-xs italic text-muted">{l.note}</p>}
-                  <p className="text-xs text-muted">{l.kitchen_sent_at ? t('Envoyé') : l.print_requested_at ? t('Envoyé (bon à la caisse)') : <span className="text-warn">{t('Pas encore envoyé')}</span>}</p>
+                  <p className="text-xs text-muted">{l.course ? `${courseName(l.course)} · ` : ''}{l.held ? <span className="font-semibold text-brand">{t('En attente de la suite')}</span> : l.kitchen_sent_at ? (l.served_at ? t('Servi') : l.ready_at ? t('Prêt') : t('Envoyé')) : l.print_requested_at ? t('Envoyé (bon à la caisse)') : <span className="text-warn">{t('Pas encore envoyé')}</span>}</p>
                 </div>
                 <span className="text-end font-semibold tabular">{Number(l.list_price_cents) > Number(l.unit_price_cents) && <span className="block text-xs font-normal text-muted line-through">{mad(Number(l.list_price_cents) * l.quantity)}</span>}{mad(l.line_total_cents)}</span>
                 <button onClick={() => setDialog({ void: l })} aria-label={t('Retirer')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-danger/15 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
@@ -202,7 +212,10 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold leading-tight">{lineName(d)}</p>
-                  <button onClick={() => setDialog({ lineNote: d.key })} className="text-xs text-brand">{d.note ? `“${d.note}”` : t('+ précision')}</button>
+                  <span className="flex flex-wrap gap-x-3">
+                    <button onClick={() => setDialog({ lineNote: d.key })} className="text-xs text-brand">{d.note ? `“${d.note}”` : t('+ précision')}</button>
+                    {(usesCourses || d.course) && <button onClick={() => cycleCourse(d.key)} className="rounded-md bg-surface-2 px-1.5 text-xs font-semibold text-muted">{d.course ? courseName(d.course) : t('Sans service')}</button>}
+                  </span>
                 </div>
                 <span className="font-semibold tabular">{mad(dUnit(d) * d.quantity)}</span>
               </li>
@@ -221,6 +234,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     </>;
   const actionsGrid = <>
         <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+          {fireBtn}
           <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
           <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
           <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> {t('Addition')}</Btn>
@@ -351,6 +365,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             <div className="scroll-thin flex-1 overflow-y-auto px-4 py-3">{ticketBody}</div>
             {totalsBox}
             <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+              {fireBtn}
               <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { sendNow(); setSheet(false); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>
               <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
               {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>

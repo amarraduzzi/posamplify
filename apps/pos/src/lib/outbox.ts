@@ -28,6 +28,7 @@ export interface NewLine {
   staff_id: string | null; created_at: string;
   /** chosen options: the server re-checks and re-prices them */
   modifiers?: { id: string; name: string; price_cents: number }[];
+  course?: number | null; held?: boolean;
 }
 export interface PayRequest {
   order_id: string; payments: { method: string; amount_cents: number; tip_cents: number }[];
@@ -38,6 +39,8 @@ export type Op =
   | { kind: 'createOrder'; order: NewOrder }
   | { kind: 'addLines'; order_id: string; lines: NewLine[] }
   | { kind: 'markSent'; ids: string[]; at: string }
+  | { kind: 'fireLines'; ids: string[] }
+  | { kind: 'markServed'; ids: string[]; at: string | null }
   | { kind: 'requestPrint'; ids: string[]; at: string }
   | { kind: 'markReady'; ids: string[]; at: string | null }
   | { kind: 'updateOrder'; id: string; patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at'>> }
@@ -111,6 +114,7 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
             id: l.id, order_id: l.order_id, menu_item_id: l.menu_item_id, variant_id: l.variant_id, name: l.name,
             unit_price_cents: l.unit_price_cents, quantity: l.quantity, line_total_cents: l.unit_price_cents * l.quantity,
             station: l.station, note: l.note, kitchen_sent_at: null, created_at: l.created_at, modifiers: l.modifiers ?? [],
+            course: l.course ?? null, held: !!l.held,
           };
           o.order_lines.push(line); lineOwner.set(l.id, o); touched.add(o);
         }
@@ -135,6 +139,12 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
           const l = o?.order_lines.find(x => x.id === id);
           if (l && !l.kitchen_sent_at) l.kitchen_sent_at = op.at;
         }
+        break;
+      case 'fireLines':
+        for (const id of op.ids) { const l = lineOwner.get(id)?.order_lines.find(x => x.id === id); if (l) l.held = false; }
+        break;
+      case 'markServed':
+        for (const id of op.ids) { const l = lineOwner.get(id)?.order_lines.find(x => x.id === id); if (l) l.served_at = op.at; }
         break;
       case 'updateOrder': {
         const o = byId.get(op.id);
@@ -207,6 +217,12 @@ export async function send(op: Op): Promise<FiscalDoc | undefined> {
       case 'markSent':
         if (op.ids.length) check(await supabase.from('order_lines').update({ kitchen_sent_at: op.at }).in('id', op.ids).is('kitchen_sent_at', null));
         return;
+      case 'fireLines':
+        if (op.ids.length) check(await supabase.from('order_lines').update({ held: false }).in('id', op.ids));
+        return;
+      case 'markServed':
+        if (op.ids.length) check(await supabase.from('order_lines').update({ served_at: op.at }).in('id', op.ids));
+        return;
       case 'updateOrder':
         check(await supabase.from('orders').update(op.patch).eq('id', op.id));
         return;
@@ -243,6 +259,8 @@ export function describe(op: Op, labelOf: (orderId: string) => string): string {
     case 'createOrder': return t('Nouvelle commande {ref}', { ref: op.order.local_ref });
     case 'addLines': return `${t('{n} article(s)', { n: op.lines.reduce((n, l) => n + l.quantity, 0) })} · ${labelOf(op.order_id)}`;
     case 'markSent': return t('Bon cuisine ({n} ligne(s))', { n: op.ids.length });
+    case 'fireLines': return t('Suite envoyée ({n} ligne(s))', { n: op.ids.length });
+    case 'markServed': return t('Servi en salle ({n} ligne(s))', { n: op.ids.length });
     case 'markReady': return op.at ? t('Prêt en cuisine ({n} ligne(s))', { n: op.ids.length }) : t('Rappelé en cuisine ({n} ligne(s))', { n: op.ids.length });
     case 'requestPrint': return t('Bon à imprimer à la caisse ({n} ligne(s))', { n: op.ids.length });
     case 'updateOrder': return `${t('Mise à jour')} · ${labelOf(op.id)}`;

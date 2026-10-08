@@ -5,6 +5,7 @@
 // running, nothing breaks: printing reports "not available".
 import type { DayReport, FiscalDoc, Order, Restaurant, PosSettings } from './types';
 import { amount, dateTime, METHOD, TYPE } from './format';
+import { courseTicket } from './stations';
 
 const HOST = 'http://127.0.0.1:8934';
 
@@ -96,7 +97,8 @@ function header(r: Restaurant, seller?: FiscalDoc['seller']): TicketLine[] {
   return out;
 }
 
-export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null }[], label: string, tz: string, staff?: string): TicketLine[] {
+export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null; course?: number | null }[], label: string, tz: string, staff?: string,
+  later: { quantity: number; name: string; course: number | null }[] = []): TicketLine[] {
   const out: TicketLine[] = [
     { text: station.toUpperCase(), bold: true, large: true, center: true },
     rule('='),
@@ -104,9 +106,16 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
     { text: `${dateTime(new Date().toISOString(), tz)}${staff ? '  ' + staff : ''}` },
     rule(),
   ];
-  for (const l of lines) {
+  let course: number | null | undefined = undefined;
+  for (const l of [...lines].sort((a, b) => (a.course ?? 0) - (b.course ?? 0))) {
+    if (l.course && l.course !== course) out.push({ text: `-- ${courseTicket(l.course)} --`, bold: true, center: true });
+    course = l.course;
     out.push({ text: `${l.quantity}x ${l.name}`, bold: true, large: true });
     if (l.note) out.push({ text: `   > ${l.note}`, bold: true });
+  }
+  if (later.length) {
+    out.push(rule(), { text: 'A SUIVRE (en attente):', bold: true });
+    for (const l of later) out.push({ text: `  ${l.quantity}x ${l.name}${l.course ? ' (' + courseTicket(l.course) + ')' : ''}` });
   }
   if (o.note) { out.push(rule()); out.push({ text: `NOTE: ${o.note}`, bold: true }); }
   out.push(rule('='));

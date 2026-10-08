@@ -10,6 +10,7 @@ import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../c
 import { t } from '../lib/i18n';
 import { ImportMenu } from '../components/ImportMenu';
 import { ModifiersManager } from '../components/ModifiersManager';
+import { COURSES, stationsOf } from '../lib/stations';
 
 // tag labels (the stored value is the key), shown through t()
 // i18n:values
@@ -154,13 +155,14 @@ function CategoryEditor({ r, cat, count, onClose, onSaved }: { r: Restaurant; ca
   const [name, setName] = useState<I18n>(cat?.name ?? {});
   const [icon, setIcon] = useState(cat?.icon ?? '');
   const [station, setStation] = useState(cat?.station ?? 'kitchen');
+  const [course, setCourse] = useState<string>(cat?.course ? String(cat.course) : '');
   const [active, setActive] = useState(cat?.active ?? true);
   const [busy, setBusy] = useState(false);
   const ok = !!name[r.languages[0]]?.trim();
   const save = async () => {
     setBusy(true);
     try {
-      const row = { name, icon: icon || null, station, active };
+      const row = { name, icon: icon || null, station, active, course: course ? Number(course) : null };
       if (cat) check(await supabase.from('categories').update(row).eq('id', cat.id).select('id'));
       const created = cat ? null : (check(await supabase.from('categories').insert({ ...row, restaurant_id: r.id, sort_order: (count + 1) * 10 }).select('id').single()) as { id: string });
       a.toast(t('Catégorie enregistrée')); onSaved(created?.id);
@@ -181,7 +183,13 @@ function CategoryEditor({ r, cat, count, onClose, onSaved }: { r: Restaurant; ca
         </Field>
         <Field label={t('Préparé à')} hint={t('Détermine sur quelle imprimante le bon est envoyé.')}>
           <select className={inputCls} value={station} onChange={e => setStation(e.target.value)}>
-            <option value="kitchen">{t('Cuisine')}</option><option value="bar">{t('Bar')}</option>
+            {stationsOf(r).map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
+          </select>
+        </Field>
+        <Field label={t('Service')} hint={t('Les plats d’un service suivant attendent à la caisse : on les envoie avec « Envoyer la suite ».')}>
+          <select className={inputCls} value={course} onChange={e => setCourse(e.target.value)}>
+            <option value="">{t('Envoyé tout de suite')}</option>
+            {COURSES.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
           </select>
         </Field>
         <Toggle checked={active} onChange={setActive} label={t('Visible sur le menu et la caisse')} />
@@ -283,7 +291,7 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
             </Field>
             <Field label={t('Préparé à')}>
               <select className={inputCls} value={station} onChange={e => setStation(e.target.value)}>
-                <option value="">{t('Comme la catégorie')}</option><option value="kitchen">{t('Cuisine')}</option><option value="bar">{t('Bar')}</option>
+                <option value="">{t('Comme la catégorie')}</option>{stationsOf(r).map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
             </Field>
           </div>

@@ -17,9 +17,9 @@ export interface Restaurant {
   site?: { enabled?: boolean; theme?: 'nuit' | 'riad' | 'moderne'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string; domain?: string };
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
-  pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; idle_lock_minutes?: number; receipt_footer?: string };
+  pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
-export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean }
+export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null }
 export interface Variant { id?: string; menu_item_id?: string; name: I18n; price_cents: number; sort_order: number; active: boolean }
 export interface Item {
   id: string; restaurant_id: string; category_id: string; name: I18n; description: I18n; price_cents: number;

@@ -9,7 +9,7 @@ import { uid } from './lib/format';
 import { readCache, writeCache } from './lib/cache';
 import { applyLang, t, type Lang } from './lib/i18n';
 import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type Queued } from './lib/outbox';
-import type { Category, DraftLine, FiscalDoc, Item, Line, Order, Restaurant, Staff, Table } from './lib/types';
+import type { Category, DraftLine, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
 export type OrderTarget =
   | { kind: 'table'; tableId: string }
@@ -306,10 +306,14 @@ function usePosState() {
 
   // ---- actions --------------------------------------------------------------
   const settings = restaurant?.pos_settings ?? {};
+  // printed in latin letters: the restaurant's own name for the station, else CUISINE / BAR
+  const stationTicket = (st: PosSettings, key: string) => st.stations?.find(x => x.key === key)?.name || (key === 'kitchen' ? 'CUISINE' : key === 'bar' ? 'BAR' : key);
+  // later courses of this station still waiting, printed at the bottom of the bon
+  const heldFor = (o: Order, station: string) => o.order_lines.filter(l => l.held && l.station === station).map(l => ({ quantity: l.quantity, name: l.name, course: l.course ?? null }));
 
   /** Prints the kitchen/bar bons of lines not sent yet, then marks them sent (queued, works offline). */
   const sendToKitchen = useCallback(async (o: Order, lines?: Line[]) => {
-    const unsent = (lines ?? o.order_lines).filter(l => !l.kitchen_sent_at);
+    const unsent = (lines ?? o.order_lines).filter(l => !l.kitchen_sent_at && !l.held);
     if (!unsent.length || !restaurant) return;
     const byStation = new Map<string, Line[]>();
     unsent.forEach(l => byStation.set(l.station, [...(byStation.get(l.station) ?? []), l]));
@@ -323,7 +327,7 @@ function usePosState() {
     if (printerOk) {
       for (const [station, ls] of byStation) {
         try {
-          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, station, ls, printLabel(o), restaurant.timezone, staff?.name));
+          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, stationTicket(settings, station), ls, printLabel(o), restaurant.timezone, staff?.name, heldFor(o, station)));
         } catch (e) { printed = false; fail(e); }
       }
     }
@@ -349,7 +353,7 @@ function usePosState() {
           const o = all.find(x => x.id === ls[0].order_id);
           if (!o) continue;
           const who = staffList.find(s => s.id === ls[0].staff_id)?.name;
-          try { await P.print(P.printerFor(settings, ls[0].station), `Bon ${ls[0].station}`, P.kitchenTicket(o, ls[0].station, ls, printLabel(o), restaurant.timezone, who)); }
+          try { await P.print(P.printerFor(settings, ls[0].station), `Bon ${ls[0].station}`, P.kitchenTicket(o, stationTicket(settings, ls[0].station), ls, printLabel(o), restaurant.timezone, who, heldFor(o, ls[0].station))); }
           catch (e) { fail(e); }
         }
       } catch (e) { if (!isNetworkError(e)) fail(e); }
@@ -374,10 +378,15 @@ function usePosState() {
         created_at: now(), local_ref: nextLocalRef(restaurant.id),
       } });
     }
+    // courses: the lowest course not sent yet goes now, later courses wait for "Envoyer la suite"
+    const fired = Math.max(0, ...(target.order?.order_lines ?? []).filter(l => l.course && !l.held).map(l => l.course!));
+    const firstNew = Math.min(9, ...draft.filter(d => d.course).map(d => d.course!));
+    const upTo = fired || firstNew;
     const lines: NewLine[] = draft.map(d => ({
       id: uid(), restaurant_id: restaurant.id, order_id: orderId!, menu_item_id: d.item_id, variant_id: d.variant_id,
       name: d.name, unit_price_cents: d.unit_price_cents, quantity: d.quantity, station: d.station,
       note: d.note || null, staff_id: staff?.id ?? null, created_at: now(), modifiers: d.modifiers ?? [],
+      course: d.course ?? null, held: !!d.course && d.course > upTo,
     }));
     if (lines.length) ops.push({ kind: 'addLines', order_id: orderId, lines });
     enqueue(ops);
@@ -415,11 +424,22 @@ function usePosState() {
     enqueue([{ kind: 'updateOrder', id, patch }]), [enqueue]);
   const deleteLine = useCallback((id: string) => enqueue([{ kind: 'deleteLine', id }]), [enqueue]);
   /** Kitchen screen: lines ready (or recalled). When the whole order is ready, the order becomes "ready". */
+  /** Sends the next held course of an order to the kitchen. */
+  const fireNext = useCallback(async (o: Order) => {
+    const next = Math.min(...o.order_lines.filter(l => l.held).map(l => l.course ?? 9));
+    const ls = o.order_lines.filter(l => l.held && (l.course ?? 9) === next);
+    if (!ls.length) return;
+    enqueue([{ kind: 'fireLines', ids: ls.map(l => l.id) }]);
+    await sendToKitchen({ ...o, order_lines: o.order_lines.map(l => (ls.includes(l) ? { ...l, held: false } : l)) }, ls.map(l => ({ ...l, held: false })));
+  }, [enqueue, sendToKitchen]);
+  /** The pass: ready dishes taken to the table (or undone). */
+  const markServed = useCallback((ids: string[], served: boolean) => { enqueue([{ kind: 'markServed', ids, at: served ? now() : null }]); }, [enqueue]);
+
   const markReady = useCallback((o: Order, ids: string[], ready: boolean) => {
     const at = ready ? now() : null;
     const ops: Op[] = [{ kind: 'markReady', ids, at }];
     const done = new Set(ids);
-    const allReady = o.order_lines.every(l => (done.has(l.id) ? ready : !!l.ready_at));
+    const allReady = o.order_lines.filter(l => !l.held).every(l => (done.has(l.id) ? ready : !!l.ready_at));
     if (ready && allReady && (o.status === 'new' || o.status === 'preparing')) ops.push({ kind: 'updateOrder', id: o.id, patch: { status: 'ready' } });
     if (!ready && o.status === 'ready') ops.push({ kind: 'updateOrder', id: o.id, patch: { status: 'preparing' } });
     enqueue(ops);
@@ -496,7 +516,7 @@ function usePosState() {
     live, online, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,
-    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, markReady, pay, printBill, reprintDoc, openDrawer,
+    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, markReady, fireNext, markServed, pay, printBill, reprintDoc, openDrawer,
   };
 }
 
