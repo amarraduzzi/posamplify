@@ -1,12 +1,14 @@
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import { Check, Coffee, Soup, Sandwich, FileX, ArrowRight, Printer, ExternalLink, Camera, TrendingUp } from 'lucide-react';
+import { Check, Coffee, Soup, Sandwich, FileX, ArrowRight, Printer, ExternalLink, Camera, TrendingUp, MessageCircle } from 'lucide-react';
+import { ThemePicker } from './SitePage';
+import { uploadImage } from '../lib/image';
 import { ImportMenu } from '../components/ImportMenu';
-import { supabase, MENU_URL, POS_URL } from '../lib/supabase';
+import { supabase, MENU_URL, POS_URL, SITE_URL } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
-import { Btn, Card, Field, inputCls } from '../components/ui';
+import { Btn, Card, Field, ImageField, inputCls } from '../components/ui';
 import { LangSwitch } from '../components/LangSwitch';
 import { dateLocale, getLang, t } from '../lib/i18n';
 
@@ -29,16 +31,16 @@ const TEMPLATES: Record<string, { label: string; Icon: typeof Coffee; cats: C[] 
 };
 // i18n:end
 const slugify = (n: string) => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-type StepKey = 'restaurant' | 'menu' | 'tables' | 'you' | 'till' | 'done';
+type StepKey = 'restaurant' | 'menu' | 'look' | 'tables' | 'you' | 'till' | 'done';
 // i18n:values
-const STEP_LABEL: Record<StepKey, string> = { restaurant: 'Restaurant', menu: 'Menu', tables: 'Tables', you: 'Vous', till: 'Caisse', done: 'Terminé' };
+const STEP_LABEL: Record<StepKey, string> = { restaurant: 'Restaurant', menu: 'Menu', look: 'Votre site', tables: 'Tables', you: 'Vous', till: 'Caisse', done: 'Terminé' };
 // i18n:end
-/** The product chosen on the website (?produit=pos|profit), remembered from the sign-up page. */
-export function signupProducts(): ('pos' | 'profit')[] {
+/** The product chosen on the website (?produit=pos|profit|site), remembered from the sign-up page. */
+export function signupProducts(): ('pos' | 'profit' | 'site')[] {
   const v = localStorage.getItem('signup-product');
-  return v === 'profit' ? ['profit'] : v === 'pos' ? ['pos'] : ['pos', 'profit'];
+  return v === 'profit' ? ['profit'] : v === 'pos' ? ['pos'] : v === 'site' ? ['site'] : ['pos', 'profit'];
 }
-type DonePage = 'menu' | 'tables' | 'profit';
+type DonePage = 'menu' | 'tables' | 'profit' | 'site';
 
 /** First-run wizard for a restaurant that signed up by itself. Amplify Profit alone: no tables, staff or till steps. */
 export function Onboarding({ onDone }: { onDone: (page?: DonePage) => void }) {
@@ -46,7 +48,8 @@ export function Onboarding({ onDone }: { onDone: (page?: DonePage) => void }) {
   const [step, setStep] = useState(() => Number(localStorage.getItem('admin-wizard-step') ?? 0));
   const r = step > 0 ? a.current : null;
   const products = r?.products ?? signupProducts();
-  const keys: StepKey[] = products.includes('pos') ? ['restaurant', 'menu', 'tables', 'you', 'till', 'done'] : ['restaurant', 'menu', 'done'];
+  const site = products.length === 1 && products[0] === 'site';
+  const keys: StepKey[] = products.includes('pos') ? ['restaurant', 'menu', 'tables', 'you', 'till', 'done'] : site ? ['restaurant', 'menu', 'look', 'done'] : ['restaurant', 'menu', 'done'];
   const STEPS = () => keys.map(k => t(STEP_LABEL[k]));
   const key = keys[Math.min(step, keys.length - 1)];
   const go = (n: number) => { localStorage.setItem('admin-wizard-step', String(n)); setStep(n); };
@@ -65,6 +68,7 @@ export function Onboarding({ onDone }: { onDone: (page?: DonePage) => void }) {
       </ol>
       {key === 'restaurant' && <StepRestaurant onNext={next} />}
       {key === 'menu' && r && <StepMenu r={r} onNext={next} />}
+      {key === 'look' && r && <StepLook r={r} onNext={next} />}
       {key === 'tables' && r && <StepTables r={r} onNext={next} />}
       {key === 'you' && r && <StepYou r={r} onNext={next} />}
       {key === 'till' && r && <StepTill r={r} onNext={next} />}
@@ -78,6 +82,8 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
   const a = useAdminCtx();
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
+  const [phone, setPhone] = useState('');
+  const site = signupProducts().join() === 'site';
   const [slug, setSlug] = useState('');
   const [free, setFree] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +97,7 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
     try {
       const id = await rpc<string>('signup_restaurant', { p_name: name.trim(), p_slug: slug, p_city: city.trim() || null, p_products: signupProducts() });
       localStorage.setItem('admin-restaurant', id);
+      if (phone.trim()) check(await supabase.from('restaurants').update({ phone: phone.trim() }).eq('id', id).select('id'));
       await a.reload();
       onNext();
     } catch (e) { a.fail(e); }
@@ -99,15 +106,16 @@ function StepRestaurant({ onNext }: { onNext: () => void }) {
   return (
     <Card>
       <h1 className="mb-1 font-display text-3xl font-semibold">{t('Bienvenue !')}</h1>
-      <p className="mb-6 text-muted">{t("Créons votre restaurant. Vous avez 14 jours d'essai gratuit, sans engagement.")}</p>
+      <p className="mb-6 text-muted">{site ? t('Créons votre site. 14 jours gratuits, sans engagement.') : t("Créons votre restaurant. Vous avez 14 jours d'essai gratuit, sans engagement.")}</p>
       <div className="space-y-4">
         <Field label={t('Nom du restaurant')}><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(slugify(e.target.value)); }} /></Field>
         <Field label={t('Ville')}><input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="Rabat" /></Field>
-        <Field label={t('Adresse de votre menu')} hint={free === false ? t('Cette adresse est déjà prise, choisissez-en une autre.') : `${MENU_URL}/${slug || 'votre-restaurant'}`}>
+        {site && <Field label={t('Numéro WhatsApp du restaurant')} hint={t('Les commandes de votre site arrivent sur ce numéro.')}><input dir="ltr" inputMode="tel" className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="06 12 34 56 78" /></Field>}
+        <Field label={site ? t('Adresse de votre site') : t('Adresse de votre menu')} hint={free === false ? t('Cette adresse est déjà prise, choisissez-en une autre.') : `${site ? SITE_URL : MENU_URL}/${slug || 'votre-restaurant'}`}>
           <input dir="ltr" className={`${inputCls} ${free === false ? 'border-danger' : ''}`} value={slug} onChange={e => setSlug(slugify(e.target.value))} />
         </Field>
       </div>
-      <div className="mt-6 flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || !free} onClick={create}>{t('Créer mon restaurant')} <ArrowRight className="h-4 w-4 rtl:rotate-180" /></Btn></div>
+      <div className="mt-6 flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || !free || (site && !/^\+?[0-9 ]{9,20}$/.test(phone.trim()))} onClick={create}>{site ? t('Créer mon site') : t('Créer mon restaurant')} <ArrowRight className="h-4 w-4 rtl:rotate-180" /></Btn></div>
     </Card>
   );
 }
@@ -153,6 +161,38 @@ function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
       </div>
       {importing && <ImportMenu r={r} cats={[]} items={[]} onDone={() => setImported(true)}
         onClose={() => { setImporting(false); if (imported) onNext(); }} />}
+    </Card>
+  );
+}
+
+function StepLook({ r, onNext }: { r: Restaurant; onNext: () => void }) {
+  const a = useAdminCtx();
+  const [cover, setCover] = useState<string | null>(r.branding.cover_url ?? null);
+  const [logo, setLogo] = useState<string | null>(r.branding.logo_url ?? null);
+  const [theme, setTheme] = useState(r.site?.theme ?? 'riad');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      check(await supabase.from('restaurants').update({
+        branding: { ...r.branding, cover_url: cover || undefined, logo_url: logo || undefined },
+        site: { ...(r.site ?? {}), enabled: true, theme },
+      }).eq('id', r.id).select('id'));
+      await a.reload(); onNext();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Card>
+      <h1 className="mb-1 font-display text-3xl font-semibold">{t('Le style de votre site')}</h1>
+      <p className="mb-6 text-muted">{t('Une belle photo de votre salle, de votre terrasse ou de votre plat phare fait toute la différence. Vous pourrez tout changer ensuite.')}</p>
+      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+        <Field group label={t('Photo principale')}><ImageField aspect="aspect-[16/9]" url={cover} onChange={setCover} upload={f => uploadImage(r.id, 'brand', f, 1600)} /></Field>
+        <Field group label={t('Logo (facultatif)')}><ImageField aspect="aspect-square" url={logo} onChange={setLogo} upload={f => uploadImage(r.id, 'brand', f, 512)} /></Field>
+      </div>
+      <h2 className="mb-3 mt-6 font-semibold">{t('Style')}</h2>
+      <ThemePicker value={theme} onChange={k => k && setTheme(k)} />
+      <div className="mt-6 flex justify-end"><Btn tone="brand" disabled={busy} onClick={save}>{t('Créer mon site')} <ArrowRight className="h-4 w-4 rtl:rotate-180" /></Btn></div>
     </Card>
   );
 }
@@ -252,6 +292,21 @@ function StepTill({ r, onNext }: { r: Restaurant; onNext: () => void }) {
 }
 
 function StepDone({ r, onFinish }: { r: Restaurant; onFinish: (p?: DonePage) => void }) {
+  if ((r.products ?? []).join() === 'site') {
+    const url = `${SITE_URL}/${r.slug}`;
+    return (
+      <Card>
+        <h1 className="mb-1 font-display text-3xl font-semibold">{t('Votre site est en ligne')} 🎉</h1>
+        <p className="mb-4 text-muted">{t('Partagez-le sur Instagram, Google Maps et WhatsApp. Il se met à jour tout seul quand vous changez votre carte.')}</p>
+        <a href={url} target="_blank" rel="noreferrer" dir="ltr" className="mb-6 block truncate rounded-2xl bg-surface-2 px-4 py-3 font-semibold text-brand">{url.replace(/^https:\/\//, '')}</a>
+        <div className="grid gap-3 md:grid-cols-3">
+          <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-ink"><ExternalLink className="h-4 w-4" /> {t('Voir mon site')}</a>
+          <a href={`https://wa.me/?text=${encodeURIComponent(`${r.name} : ${url}`)}`} target="_blank" rel="noopener" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-[#063B1E]"><MessageCircle className="h-4 w-4" /> {t('Partager sur WhatsApp')}</a>
+          <Btn onClick={() => onFinish('site')}>{t('Compléter mon site')}</Btn>
+        </div>
+      </Card>
+    );
+  }
   if (!(r.products ?? ['pos']).includes('pos')) {
     return (
       <Card>

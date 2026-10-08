@@ -10,7 +10,7 @@ export interface Restaurant {
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
-  products?: ('pos' | 'profit')[];
+  products?: ('pos' | 'profit' | 'site')[];
   pos_plan?: 'essentiel' | 'restaurant';
   kiosk_token?: string | null;
   owner_whatsapp?: string | null;
@@ -44,3 +44,5 @@ export interface ProfitDish {
   sold_qty: number; profit_cents: number | null;
 }
 export interface ProfitData { target_food_cost_bp: number; days: number; uses_pos: boolean; dishes: ProfitDish[] }
+/** The restaurant has only Amplify Site (website and menu, no till, no Profit). */
+export const isSiteOnly = (r?: { products?: string[] } | null) => !!r && (r.products ?? []).length === 1 && r.products![0] === 'site';

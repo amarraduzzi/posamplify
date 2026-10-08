@@ -67,17 +67,7 @@ export function SitePage({ r }: { r: Restaurant }) {
         <Card>
           <Toggle checked={!!s.enabled} onChange={v => set({ enabled: v })} label={t('Mettre le site en ligne (visible sur Google)')} />
           <h2 className="mb-3 mt-6 font-display text-xl font-semibold">{t('Style')}</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {THEMES.map(th => (
-              <button key={th.k} type="button" onClick={() => set({ theme: th.k })}
-                className={`rounded-2xl border-2 p-4 text-start transition ${s.theme === th.k ? 'border-brand' : 'border-line/10 hover:border-line/30'}`}>
-                <div className="mb-3 flex h-16 overflow-hidden rounded-xl" style={{ background: th.sw[0] }}>
-                  <div className="m-2 flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="m-2 ms-0 w-10 rounded-full" style={{ background: th.sw[2] }} />
-                </div>
-                <p className="font-semibold">{t(th.name)}</p><p className="text-sm text-muted">{t(th.text)}</p>
-              </button>
-            ))}
-          </div>
+          <ThemePicker value={s.theme} onChange={k => set({ theme: k })} />
           <p className="mt-3 text-sm text-muted">{t('La couleur principale, le logo, la photo de couverture et le slogan viennent de la page Restaurant.')}</p>
         </Card>
 
@@ -146,6 +136,25 @@ export function SitePage({ r }: { r: Restaurant }) {
         </Card>
       </fieldset>
       {owner && <div className="sticky bottom-4 flex justify-end"><Btn tone="brand" disabled={busy || !ok} onClick={save} className="shadow-xl"><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn></div>}
+    </div>
+  );
+}
+
+/** The three styles, each with a small sketch of its layout. */
+export function ThemePicker({ value, onChange }: { value?: Site['theme']; onChange: (k: Site['theme']) => void }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {THEMES.map(th => (
+        <button key={th.k} type="button" onClick={() => onChange(th.k)} aria-pressed={value === th.k}
+          className={`rounded-2xl border-2 p-4 text-start transition ${value === th.k ? 'border-brand' : 'border-line/10 hover:border-line/30'}`}>
+          <div className="mb-3 flex h-20 gap-1.5 overflow-hidden rounded-xl p-2" style={{ background: th.sw[0] }} aria-hidden>
+            {th.k === 'riad' && <><div className="flex-1 space-y-1.5 pt-3"><div className="h-2.5 w-3/4 rounded-sm" style={{ background: th.sw[2] }} /><div className="h-1.5 w-1/2 rounded-sm opacity-40" style={{ background: th.sw[2] }} /></div><div className="w-10 rounded-t-full" style={{ background: th.sw[2] }} /></>}
+            {th.k === 'nuit' && <div className="flex flex-1 flex-col justify-end rounded-lg p-1.5" style={{ background: `linear-gradient(180deg, ${th.sw[1]}, #000)` }}><div className="h-3 w-2/3 rounded-sm" style={{ background: '#ECE4D6' }} /><div className="mt-1 h-1.5 w-1/3 rounded-full" style={{ background: th.sw[2] }} /></div>}
+            {th.k === 'moderne' && <><div className="flex-[2] rounded-lg" style={{ background: '#16181D' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="flex-1 rounded-lg" style={{ background: th.sw[2] }} /></div></>}
+          </div>
+          <p className="font-semibold">{t(th.name)}</p><p className="text-sm text-muted">{t(th.text)}</p>
+        </button>
+      ))}
     </div>
   );
 }

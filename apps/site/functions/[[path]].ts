@@ -1,7 +1,7 @@
 // Restaurant websites (own Cloudflare Pages project, root directory apps/site).
 // * <this project>/<slug>[/menu]           -> the website of that restaurant (preview / no own domain)
 // * a restaurant's own domain (added here) -> its website: /, /menu, /sitemap.xml, /robots.txt
-import { renderSite, renderSitemap, type SiteData } from '../render';
+import { renderPaused, renderSite, renderSitemap, type SiteData } from '../render';
 
 interface Env { VITE_SUPABASE_URL: string; VITE_SUPABASE_ANON_KEY: string; VITE_MENU_URL?: string }
 type Ctx = { request: Request; env: Env; waitUntil: (p: Promise<unknown>) => void };
@@ -44,6 +44,7 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
   try { data = await getSite(ctx.env, slug, own ? null : url.hostname); }
   catch { return new Response('Service momentanément indisponible.', { status: 503, headers: { 'retry-after': '30' } }); }
   if (!data) return text('Site introuvable.', 404);
+  if (data.paused) return new Response(renderPaused(data), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '86400', 'x-robots-tag': 'noindex', 'cache-control': 'public, max-age=300' } });
 
   const origin = own ? url.origin : `https://${data.domain ?? url.hostname}`;
   const c = { base, origin, lang: url.searchParams.get('lang') ?? '', menuUrl: (ctx.env.VITE_MENU_URL || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '') };

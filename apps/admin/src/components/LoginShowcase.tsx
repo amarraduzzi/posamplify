@@ -15,7 +15,8 @@ const EVENTS = (): Ev[] => [
   { table: t('À emporter'), line: t('4 × Jus d’orange'), kind: 'pos', amount: 72 },
 ];
 
-export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' }) {
+export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' | 'SITE' }) {
+  const site = product === 'SITE';
   const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const events = EVENTS();
   const [n, setN] = useState(3);
@@ -44,11 +45,11 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' }) {
             {t('Fait pour le Maroc')}
           </p>
           <h2 className="lg-h mt-6 text-[clamp(3.4rem,5.6vw,6rem)]">
-            <span className="block overflow-hidden"><span className="lg-rise block">{t('Votre service.')}</span></span>
-            <span className="block overflow-hidden"><span className="lg-rise block text-[#05B962]" style={{ animationDelay: '.12s' }}>{t('Sous contrôle.')}</span></span>
+            <span className="block overflow-hidden"><span className="lg-rise block">{site ? t('Votre site web.') : t('Votre service.')}</span></span>
+            <span className="block overflow-hidden"><span className="lg-rise block text-[#05B962]" style={{ animationDelay: '.12s' }}>{site ? t('Prêt ce soir.') : t('Sous contrôle.')}</span></span>
           </h2>
           <ul className="mt-8 space-y-2.5 text-white/80">
-            {[t('Menu QR en français, arabe et anglais'), t('Caisse, bons cuisine et rapports Z'), t('Même quand internet tombe')].map((x, i) => (
+            {(site ? [t('Votre carte depuis une simple photo'), t('Trouvé sur Google, en 3 langues'), t('Les commandes arrivent sur votre WhatsApp')] : [t('Menu QR en français, arabe et anglais'), t('Caisse, bons cuisine et rapports Z'), t('Même quand internet tombe')]).map((x, i) => (
               <li key={x} className="lg-in flex items-center gap-3" style={{ animationDelay: `${.3 + i * .1}s` }}>
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#05B962] text-[#001E3E]"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M5 12l4 4 10-10" /></svg></span>{x}
               </li>
@@ -57,7 +58,7 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' }) {
         </div>
 
         {/* the live card */}
-        <div className="lg-card rounded-[1.75rem] bg-white/[0.06] p-4 ring-1 ring-white/15 backdrop-blur-md" aria-hidden="true">
+        {!site && <div className="lg-card rounded-[1.75rem] bg-white/[0.06] p-4 ring-1 ring-white/15 backdrop-blur-md" aria-hidden="true">
           <div className="flex items-center justify-between px-1 text-xs">
             <span className="font-semibold text-white/70">{t('Aujourd’hui')}</span>
             <span className="flex items-center gap-1.5 rounded-full bg-[#05B962]/15 px-2 py-0.5 font-bold text-[#05B962]"><span className="h-1.5 w-1.5 rounded-full bg-current" />{t('En ligne')}</span>
@@ -79,7 +80,7 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' }) {
               </li>
             ))}
           </ul>
-        </div>
+        </div>}
       </div>
 
       <div className="relative flex items-center justify-between gap-4">

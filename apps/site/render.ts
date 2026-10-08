@@ -23,6 +23,7 @@ export interface SiteData {
     video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean;
   };
   domain: string | null; noindex: boolean; booking: boolean; can_order: boolean;
+  paused?: boolean;
   promotions?: { name: string; value: number; until: string | null }[];
 }
 export interface Ctx { base: string; origin: string; lang: string; menuUrl: string; now?: Date }
@@ -515,6 +516,14 @@ F.addEventListener('submit',e=>{e.preventDefault();if(!c.length)return;const m=F
 lines.push(T.name+' : '+F.name.value.trim());if(m==='delivery')lines.push(T.addr+' : '+F.addr.value.trim());if(F.note.value.trim())lines.push(T.note+' : '+F.note.value.trim());lines.push('',T.foot);
 window.open('https://wa.me/'+D.wa+'?text='+encodeURIComponent(lines.join('\\n')),'_blank','noopener');c=[];save();$('cd').close()});
 draw()})()`;
+
+/** A site-only restaurant that has not paid: a quiet page with its phone number, hidden from Google. */
+export function renderPaused(d: { restaurant: { name: string; phone: string | null; city: string | null } }) {
+  const r = d.restaurant, tel = (r.phone ?? '').replace(/[^\d+]/g, '');
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(r.name)}</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F2F2EE;color:#16181D;font:17px/1.6 system-ui,sans-serif;text-align:center;padding:24px}h1{font-size:34px;margin:0 0 8px}a{display:inline-block;margin-top:18px;padding:12px 22px;border-radius:999px;background:#16181D;color:#fff;text-decoration:none;font-weight:600}</style></head>
+<body><main><h1>${esc(r.name)}</h1><p>${esc(r.city ?? '')}</p><p>Notre site revient très bientôt.</p>${tel ? `<a href="tel:${esc(tel)}">Appeler ${esc(r.phone)}</a>` : ''}</main></body></html>`;
+}
 
 export function renderSitemap(d: SiteData, c: Ctx) {
   const langs = d.restaurant.languages?.length ? d.restaurant.languages : ['fr'];

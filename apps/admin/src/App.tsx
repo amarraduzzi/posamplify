@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate } from 'lucide-react';
+import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket } from 'lucide-react';
 import { useAdminCtx } from './store';
-import { supabase, MENU_URL } from './lib/supabase';
+import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
+import { isSiteOnly } from './lib/types';
 import { errorMessage } from './lib/api';
 import { Btn, Field, inputCls } from './components/ui';
 import { MenuPage } from './pages/MenuPage';
@@ -31,8 +32,9 @@ import { GroupPage } from './pages/GroupPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
+import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -74,6 +76,7 @@ function Screens() {
   const products = r?.products ?? ['pos', 'profit'];
   const hasPos = !!r && products.includes('pos');
   const hasProfit = !!r && products.includes('profit');
+  const siteOnly = isSiteOnly(r);
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
     { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
@@ -85,7 +88,7 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
-    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos },
+    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
@@ -95,6 +98,7 @@ function Screens() {
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
     { id: 'settings', label: t('Restaurant'), Icon: Settings, show: !!r },
+    { id: 'upgrade', label: t('Abonnement'), Icon: Rocket, show: siteOnly && a.role !== 'manager' },
     { id: 'platform', label: t('Plateforme'), Icon: Shield, show: a.isAdmin },
   ];
   const visible = nav.filter(n => n.show).map(n => n.id);
@@ -104,7 +108,7 @@ function Screens() {
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo product={hasPos ? 'POS' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
+        <AmplifyLogo product={hasPos ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
         {/* the middle part scrolls on low screens, so language and logout stay visible */}
         <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
         <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
@@ -126,6 +130,7 @@ function Screens() {
             </button>
           ))}
         </nav>
+        {siteOnly && r && <a href={r.site?.domain ? `https://${r.site.domain}` : `${SITE_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir mon site')}</a>}
         {hasPos && r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
         </div>
         <div className="relative shrink-0 border-t border-white/10 pt-3">
@@ -149,6 +154,7 @@ function Screens() {
           {r && current === 'planning' && <PlanningPage key={r.id} r={r} />}
           {r && current === 'live' && <LivePage key={r.id} r={r} />}
           {r && current === 'site' && <SitePage key={r.id} r={r} />}
+          {r && current === 'upgrade' && <UpgradePage key={r.id} r={r} />}
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
@@ -196,9 +202,10 @@ function Login() {
     const q = new URLSearchParams(location.search);
     if (q.has('inscription')) {
       const p = q.get('produit');
-      try { if (p === 'pos' || p === 'profit') localStorage.setItem('signup-product', p); else localStorage.removeItem('signup-product'); } catch { /* private mode */ }
+      try { if (p === 'pos' || p === 'profit' || p === 'site') localStorage.setItem('signup-product', p); else localStorage.removeItem('signup-product'); } catch { /* private mode */ }
     }
-    return localStorage.getItem('signup-product') === 'profit' ? 'PROFIT' as const : 'POS' as const;
+    const v = localStorage.getItem('signup-product');
+    return v === 'profit' ? 'PROFIT' as const : v === 'site' ? 'SITE' as const : 'POS' as const;
   });
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(null); setInfo(null);

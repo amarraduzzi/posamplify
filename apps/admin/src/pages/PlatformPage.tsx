@@ -50,10 +50,10 @@ export function PlatformPage() {
                 <td className="tabular">{r.trial_ends_at && r.status === 'trial' ? new Date(r.trial_ends_at).toLocaleDateString(dateLocale()) : '—'}</td>
                 <td className="py-2">
                   <div className="flex flex-wrap items-center gap-1">
-                    {(['pos', 'profit'] as const).map(k => {
+                    {(['pos', 'profit', 'site'] as const).map(k => {
                       const on = (r.products ?? []).includes(k);
                       return <button key={k} onClick={() => setProducts(r, on ? (r.products ?? []).filter(x => x !== k) : [...(r.products ?? []), k], r.pos_plan)}
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : 'Profit'}</button>;
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : k === 'profit' ? 'Profit' : 'Site'}</button>;
                     })}
                     {(r.products ?? []).includes('pos') && (
                       <select aria-label={t('Formule POS')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, r.products ?? ['pos'], e.target.value as 'essentiel' | 'restaurant')}>
@@ -90,12 +90,16 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
   const [demo, setDemo] = useState(false);
+  const [kind, setKind] = useState<'all' | 'pos' | 'profit' | 'site'>('all');
+  const [city, setCity] = useState('');
+  const [theme, setTheme] = useState<'riad' | 'nuit' | 'moderne'>('riad');
   const [busy, setBusy] = useState(false);
   const auto = (n: string) => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
   const create = async () => {
     setBusy(true);
     try {
-      await rpc('admin_create_restaurant', { p_slug: slug, p_name: name.trim(), p_owner_email: email.trim() || null, p_is_demo: demo });
+      await rpc('admin_create_restaurant', { p_slug: slug, p_name: name.trim(), p_owner_email: email.trim() || null, p_is_demo: demo,
+        p_products: kind === 'all' ? ['pos', 'profit'] : [kind], p_city: city.trim() || null, p_theme: kind === 'site' ? theme : null });
       a.toast(t('Restaurant créé (essai de 14 jours)')); onDone();
     } catch (e) { a.fail(e); }
     setBusy(false);
@@ -103,7 +107,14 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
   return (
     <Modal title={t('Nouveau restaurant')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || slug.length < 3} onClick={create}>{t('Créer')}</Btn></div>}>
       <div className="space-y-4">
+        <Field group label={t('Produits')}>
+          <div className="flex flex-wrap gap-2">{([['all', 'POS + Profit'], ['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${kind === k ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{l}</button>))}</div>
+        </Field>
         <Field label={t('Nom')}><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(auto(e.target.value)); }} /></Field>
+        <Field label={t('Ville')}><input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="Rabat" /></Field>
+        {kind === 'site' && <Field label={t('Style du site')}><select className={inputCls} value={theme} onChange={e => setTheme(e.target.value as typeof theme)}><option value="riad">Riad</option><option value="nuit">Nuit</option><option value="moderne">Moderne</option></select></Field>}
+        {kind === 'site' && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Démo de site : choisissez ensuite ce restaurant à gauche, importez la carte (Menu) et ajoutez la photo (Restaurant). Le site n’est pas sur Google tant qu’il n’est pas mis en ligne.')}</p>}
         <Field label={t('Adresse du menu')} hint={t('Le menu sera sur …/{slug}', { slug: slug || 'nom-du-restaurant' })}><input dir="ltr" className={inputCls} value={slug} onChange={e => setSlug(auto(e.target.value))} /></Field>
         <Field label={t('E-mail du propriétaire (facultatif)')} hint={t('Le compte doit déjà exister : Supabase > Authentication > Users > Add user.')}><input dir="ltr" className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={demo} onChange={e => setDemo(e.target.checked)} /> {t('Restaurant de démonstration')}</label>

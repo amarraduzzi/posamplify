@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Save, ExternalLink, Star, Download, Plus, Trash2 } from 'lucide-react';
 import { stationKey, stationsOf, type Station } from '../lib/stations';
-import { supabase, MENU_URL } from '../lib/supabase';
+import { supabase, MENU_URL, SITE_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { uploadImage } from '../lib/image';
 import { useAdminCtx } from '../store';
-import type { I18n, Restaurant } from '../lib/types';
+import { isSiteOnly, type I18n, type Restaurant } from '../lib/types';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
 
@@ -15,6 +15,9 @@ const LANGS: [string, string][] = [['fr', 'Français'], ['ar', 'العربية']
 export function SettingsPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
   const ro = !a.canEditProfile;
+  const siteOnly = isSiteOnly(r);
+  // site only: without its own colour, the website uses the colours of its style
+  const [ownColor, setOwnColor] = useState(!siteOnly || !!r.branding.primary_color);
   const [f, setF] = useState({
     name: r.name, phone: r.phone ?? '', address: r.address ?? '', city: r.city ?? '',
     legal_name: r.legal_name ?? '', ice: r.ice ?? '', tax_id: r.tax_id ?? '', rc: r.rc ?? '',
@@ -46,7 +49,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       check(await supabase.from('restaurants').update({
         ...f, name: f.name.trim(), ice: f.ice.trim() || null, legal_name: f.legal_name.trim() || null, tax_id: f.tax_id.trim() || null,
         rc: f.rc.trim() || null, phone: f.phone.trim() || null, address: f.address.trim() || null, city: f.city.trim() || null,
-        branding: { ...r.branding, ...brand, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined },
+        branding: { ...r.branding, ...brand, primary_color: ownColor ? brand.primary_color : undefined, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined },
         pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: Object.fromEntries(stations.map(x => [x.key, x.printer.trim() || 'CUISINE'])) },
           stations: stations.map(x => ({ key: x.key, name: x.name.trim() || x.key })),
           idle_lock_minutes: Math.max(0, Math.min(120, Number(pos.idle) || 0)), receipt_footer: pos.footer.trim() || undefined },
@@ -67,8 +70,9 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       <fieldset disabled={ro} className="space-y-6">
         <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Adresses')}</h2>
+          {siteOnly && <p className="mb-1 text-sm">{t('Site web :')} <a dir="ltr" className="font-semibold text-brand underline" href={r.site?.domain ? `https://${r.site.domain}` : `${SITE_URL}/${r.slug}`} target="_blank" rel="noreferrer">{r.site?.domain || `${SITE_URL}/${r.slug}`} <ExternalLink className="inline h-3 w-3" /></a></p>}
           <p className="text-sm">{t('Menu client :')} <a dir="ltr" className="font-semibold text-brand underline" href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer">{MENU_URL}/{r.slug} <ExternalLink className="inline h-3 w-3" /></a></p>
-          <p className="mt-1 text-sm text-muted">{t('Les QR codes des tables (page Tables) ajoutent le numéro de table à cette adresse.')}</p>
+          {!siteOnly && <p className="mt-1 text-sm text-muted">{t('Les QR codes des tables (page Tables) ajoutent le numéro de table à cette adresse.')}</p>}
         </Card>
         <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Informations')}</h2>
@@ -80,13 +84,14 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-4 font-display text-xl font-semibold">{t('Apparence du menu client')}</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold">{siteOnly ? t('Apparence') : t('Apparence du menu client')}</h2>
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
-              <Field group label={t('Couleur principale')}>
+              {siteOnly && <Toggle checked={ownColor} onChange={setOwnColor} label={t('Choisir ma propre couleur (sinon, celle du style du site)')} />}
+              {ownColor && <Field group label={t('Couleur principale')}>
                 <div className="flex items-center gap-3"><input type="color" aria-label={t('Couleur principale')} value={brand.primary_color} onChange={e => setBrand({ ...brand, primary_color: e.target.value })} className="h-11 w-16 rounded-lg border border-line/15" />
                   <input dir="ltr" aria-label={t('Couleur principale')} className={`${inputCls} !w-32`} value={brand.primary_color} onChange={e => setBrand({ ...brand, primary_color: e.target.value })} /></div>
-              </Field>
+              </Field>}
               <Field group label={t('Thème')}>
                 <div className="flex gap-2">{(['light', 'dark'] as const).map(th => <button key={th} type="button" onClick={() => setBrand({ ...brand, theme: th })} className={`flex-1 rounded-xl py-2.5 font-semibold ${brand.theme === th ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{th === 'light' ? t('Clair') : t('Sombre')}</button>)}</div>
               </Field>
@@ -126,15 +131,15 @@ export function SettingsPage({ r }: { r: Restaurant }) {
             )}
           </div>
         </Card>
-        <Card>
+        {!siteOnly && <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Commandes en ligne')}</h2>
           <div className="flex flex-wrap gap-6">
             <Toggle checked={f.accept_dine_in} onChange={v => set({ accept_dine_in: v })} label={t('Sur place (QR code à table)')} />
             <Toggle checked={f.accept_takeaway} onChange={v => set({ accept_takeaway: v })} label={t('À emporter')} />
             <Toggle checked={f.accept_delivery} onChange={v => set({ accept_delivery: v })} label={t('Livraison')} />
           </div>
-        </Card>
-        <Card>
+        </Card>}
+        {!siteOnly && <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Informations fiscales')}</h2>
           <p className="mb-4 text-sm text-muted">{t('Imprimées sur chaque ticket. Obligatoires pour la facturation électronique DGI.')}</p>
           <div className="grid gap-4 md:grid-cols-2">
@@ -153,8 +158,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
               </select>
             </Field>
           </div>
-        </Card>
-        <Card>
+        </Card>}
+        {!siteOnly && <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Caisse')}</h2>
           <p className="mb-4 text-sm text-muted">{t('Noms exacts des imprimantes dans Windows (programme printhost).')}</p>
           <div className="grid gap-4 md:grid-cols-3">
@@ -162,8 +167,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
             <Field label={t('Verrouillage après (minutes)')} hint={t('0 = jamais.')}><input className={inputCls} inputMode="numeric" value={pos.idle} onChange={e => setPos({ ...pos, idle: e.target.value.replace(/\D/g, '') })} /></Field>
             <div className="md:col-span-2"><Field label={t('Message en bas du ticket')} hint={t('Imprimé tel quel sur le ticket (caractères latins uniquement).')}><input className={inputCls} maxLength={80} value={pos.footer} onChange={e => setPos({ ...pos, footer: e.target.value })} placeholder="Merci de votre visite, à bientôt !" /></Field></div>
           </div>
-        </Card>
-        <Card>
+        </Card>}
+        {!siteOnly && <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Postes de préparation')}</h2>
           <p className="mb-4 text-sm text-muted">{t('Chaque poste reçoit ses bons, sur son imprimante et sur son écran cuisine. Ajoutez par exemple Grill, Pizza ou Dessert, puis choisissez le poste de chaque catégorie dans le Menu.')}</p>
           <div className="space-y-2">
@@ -180,7 +185,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
             <Btn disabled={!newSt.trim() || stations.some(x => x.key === stationKey(newSt))} onClick={() => { setStations(ss => [...ss, { key: stationKey(newSt), name: newSt.trim(), printer: 'CUISINE' }]); setNewSt(''); }}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
           </div>
           <p className="mt-2 text-xs text-muted">{t('Plusieurs postes peuvent partager la même imprimante. Pensez à enregistrer.')}</p>
-        </Card>
+        </Card>}
       </fieldset>
     </div>
   );
