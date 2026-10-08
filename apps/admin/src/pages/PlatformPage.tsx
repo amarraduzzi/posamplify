@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, UserPlus } from 'lucide-react';
+import { MessageCircle, Plus, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -77,6 +77,7 @@ export function PlatformPage() {
         </table>
       </div>
       <p className="mt-3 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")} {t('Supprimer définitivement : possible une fois suspendu.')}</p>
+      <SiteLeads />
       {creating && <CreateRestaurant onClose={() => setCreating(false)} onDone={async () => { setCreating(false); await load(); await a.reload(); }} />}
       {member && <AddMember r={member} onClose={() => setMember(null)} />}
       {removing && <DeleteRestaurant r={removing} onClose={() => setRemoving(null)} onDone={async () => { setRemoving(null); await load(); await a.reload(); }} />}
@@ -171,5 +172,49 @@ function DeleteRestaurant({ r, onClose, onDone }: { r: Restaurant; onClose: () =
         <Field label={t('Tapez « {slug} » pour confirmer', { slug: r.slug })}><input className={inputCls} value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" /></Field>
       </div>
     </Modal>
+  );
+}
+
+type Lead = { id: string; name: string; slug: string; city: string | null; phone: string | null; owner_whatsapp: string | null; products: string[]; status: string; views: number; wa_order: number; calls: number; directions: number; online: number };
+const intl = (p?: string | null) => { let d = (p ?? '').replace(/[^\d]/g, '').replace(/^00/, ''); if (/^0[5-7]\d{8}$/.test(d)) d = `212${d.slice(1)}`; return /^\d{9,15}$/.test(d) ? d : ''; };
+
+/** The restaurants whose website brings guests (30 days), warmest first, with the monthly WhatsApp summary to send them. */
+function SiteLeads() {
+  const a = useAdminCtx();
+  const [rows, setRows] = useState<Lead[] | null>(null);
+  useEffect(() => { rpc<Lead[]>('admin_site_leads', { p_days: 30 }).then(setRows).catch(() => setRows([])); }, []);
+  if (!rows?.length) return null;
+  const summary = (l: Lead) => {
+    const siteOnly = l.products.length === 1 && l.products[0] === 'site';
+    return [t('Bonjour {name}, voici le bilan de votre site sur les 30 derniers jours :', { name: l.name }), '',
+      t('{n} visites', { n: l.views }), t('{n} appels', { n: l.calls }), t('{n} demandes d’itinéraire', { n: l.directions }),
+      ...(l.wa_order ? [t('{n} commandes WhatsApp', { n: l.wa_order })] : []), ...(l.online ? [t('{n} commandes et réservations en ligne', { n: l.online })] : []), '',
+      ...(siteOnly && l.wa_order >= 5 ? [t('Vos clients commandent déjà depuis votre site. Avec Amplify POS, ces commandes arriveraient directement en caisse et en cuisine. 14 jours gratuits : on en parle ?'), ''] : []),
+      t('L’équipe Amplify')].join('\n');
+  };
+  return (
+    <div className="mt-10">
+      <h2 className="mb-1 font-display text-2xl font-semibold">{t('Sites : les plus actifs (30 jours)')}</h2>
+      <p className="mb-4 text-sm text-muted">{t('Les sites avec des commandes WhatsApp sont les meilleurs clients pour Amplify POS. Envoyez le bilan du mois sur WhatsApp, c’est aussi le bon moment pour en parler.')}</p>
+      <div className="card overflow-x-auto rounded-3xl">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-muted"><tr><th className="px-4 py-2 text-start">{t('Restaurant')}</th><th className="text-end">{t('Visites')}</th><th className="text-end">{t('WhatsApp')}</th><th className="text-end">{t('Appels')}</th><th className="text-end">{t('Itinéraires')}</th><th className="text-end">{t('En ligne')}</th><th className="px-4 text-end">{t('Bilan')}</th></tr></thead>
+          <tbody>{rows.map(l => {
+            const to = intl(l.owner_whatsapp || l.phone), siteOnly = l.products.length === 1 && l.products[0] === 'site';
+            return (
+              <tr key={l.id} className="border-t border-line/10">
+                <td className="px-4 py-2.5"><p className="font-semibold">{l.name}{siteOnly && <span className="ms-2 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-bold text-brand">Site</span>}</p><p className="text-xs text-muted">{l.city ?? l.slug}</p></td>
+                <td className="text-end tabular">{l.views}</td>
+                <td className={`text-end tabular ${siteOnly && l.wa_order >= 5 ? 'font-bold text-ok' : ''}`}>{l.wa_order}</td>
+                <td className="text-end tabular">{l.calls}</td><td className="text-end tabular">{l.directions}</td><td className="text-end tabular">{l.online}</td>
+                <td className="px-4 py-2 text-end">{to
+                  ? <a href={`https://wa.me/${to}?text=${encodeURIComponent(summary(l))}`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-[#063B1E]"><MessageCircle className="h-4 w-4" /> {t('Envoyer')}</a>
+                  : <button type="button" className="text-xs text-muted underline" onClick={async () => { try { await navigator.clipboard.writeText(summary(l)); a.toast(t('Copié')); } catch { a.toast(t('Copie impossible'), 'error'); } }}>{t('Copier (pas de numéro)')}</button>}</td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+    </div>
   );
 }

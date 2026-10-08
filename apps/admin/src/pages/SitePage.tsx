@@ -9,6 +9,7 @@ import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
+import { SiteStats } from '../components/SiteStats';
 
 type Site = NonNullable<Restaurant['site']>;
 // i18n:values
@@ -62,6 +63,8 @@ export function SitePage({ r }: { r: Restaurant }) {
         <Btn className="px-3 py-1.5 text-sm" onClick={copy}><Copy className="h-4 w-4" /> {t('Copier')}</Btn>
         <a href={preview} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/15"><ExternalLink className="h-4 w-4" /> {t('Voir le site')}</a>
       </div>
+
+      <SiteStats r={r} />
 
       <fieldset disabled={!owner} className="space-y-5">
         <Card>

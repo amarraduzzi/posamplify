@@ -20,10 +20,27 @@ async function getSite(env: Env, slug: string | null, host: string | null): Prom
   return (await res.json()) as SiteData | null;
 }
 
+async function track(env: Env, slug: string | null, host: string | null, kind: string) {
+  const key = env.VITE_SUPABASE_ANON_KEY;
+  await fetch(`${env.VITE_SUPABASE_URL}/rest/v1/rpc/site_track`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: key, ...(key.startsWith('eyJ') ? { authorization: `Bearer ${key}` } : {}) },
+    body: JSON.stringify({ p_slug: slug, p_host: host, p_kind: kind }),
+  });
+}
+
 export const onRequest = async (ctx: Ctx): Promise<Response> => {
   const url = new URL(ctx.request.url);
-  if (ctx.request.method !== 'GET' && ctx.request.method !== 'HEAD') return text('Méthode non autorisée', 405);
   const own = OWN.test(url.hostname);
+  // a counter from the page (statistics without cookies): /<slug>/e or /e on an own domain
+  if (ctx.request.method === 'POST') {
+    const m = own ? url.pathname.match(/^\/([a-z0-9-]{2,40})\/e$/) : url.pathname === '/e' ? [] : null;
+    if (!m) return text('Méthode non autorisée', 405);
+    const kind = (await ctx.request.text()).slice(0, 20);
+    ctx.waitUntil(track(ctx.env, own ? m[1] : null, own ? null : url.hostname, kind).catch(() => {}));
+    return new Response(null, { status: 204 });
+  }
+  if (ctx.request.method !== 'GET' && ctx.request.method !== 'HEAD') return text('Méthode non autorisée', 405);
   let slug: string | null = null, base = '', rest = url.pathname;
   if (own) {
     if (url.pathname === '/' ) return Response.redirect('https://www.amplifygrowthstudio.com/', 302);

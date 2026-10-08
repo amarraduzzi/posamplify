@@ -38,6 +38,7 @@ before(async () => {
   { const [sb] = await sql(`insert into public.suppliers (restaurant_id, name) values ($1, 'Fournisseur B') returning id`, [w.B.r.id]);
     await sql(`insert into public.supplier_entries (restaurant_id, supplier_id, kind, amount_cents) values ($1, $2, 'payment', 1000)`, [w.B.r.id, sb.id]); }
   await sql(`insert into public.couriers (restaurant_id, name) values ($1, 'Livreur B')`, [w.B.r.id]);
+  await sql(`insert into public.site_events (restaurant_id, day, kind, n) values ($1, current_date, 'view', 3)`, [w.B.r.id]);
   await sql(`insert into public.tip_payouts (restaurant_id, period_from, period_to, rule, total_cents, lines) values ($1, current_date, current_date, 'equal', 0, '[]')`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.fixed_costs (restaurant_id, name, amount_cents) values ($1, 'Loyer B', 100)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.month_figures (restaurant_id, month, revenue_ttc_cents) values ($1, date_trunc('month', now())::date, 100)`, [w.B.r.id]);
@@ -67,7 +68,7 @@ test('only the intended functions are callable by guests', async () => {
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
     order by 1`);
-  assert.deepEqual(rows.map(r => r.proname), ['book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'place_order', 'reservation_cancel', 'reservation_status', 'waitlist_join']);
+  assert.deepEqual(rows.map(r => r.proname), ['book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'place_order', 'reservation_cancel', 'reservation_status', 'site_track', 'waitlist_join']);
 });
 
 test('restaurant A users see zero rows of restaurant B, in every tenant table', async () => {

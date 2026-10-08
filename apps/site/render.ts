@@ -420,7 +420,11 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
 <label class="fld"><span>${t.note}</span><input name="note" maxlength="140"></label>
 <button class="btn wa" type="submit" style="width:100%;min-height:54px;font-size:16px">${icon('wa')}${t.send}</button><p class="hint">${t.waHint}</p></form></div></dialog>
 <script>${BASKET_JS}</script>` : '';
-  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}</body></html>`;
+  // statistics without cookies: a counter per day (visit, menu, call, directions, order, booking, WhatsApp basket)
+  const track = `<script>(()=>{const E=${JSON.stringify(`${c.base}/e`)},M=${JSON.stringify(c.menuUrl).replace(/</g, '\\u003c')},S='v:'+${JSON.stringify(r.slug)};const s=k=>{try{navigator.sendBeacon?navigator.sendBeacon(E,k):fetch(E,{method:'POST',body:k,keepalive:true})}catch(e){}};window.__ev=s;if(navigator.webdriver)return;
+let seen=0;try{seen=sessionStorage.getItem(S);sessionStorage.setItem(S,1)}catch(e){}if(!seen)s('view');${page === 'menu' ? "s('menu');" : ''}
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.href;if(h.startsWith('tel:'))s('call');else if(/google\\.[a-z.]+\\/maps|maps\\.app\\.goo\\.gl|goo\\.gl\\/maps/.test(h))s('directions');else if(h.startsWith(M))s(/reserver/.test(h)?'book':'order')},true)})()</script>`;
+  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}${track}</body></html>`;
 
   if (page === 'menu') {
     const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id));
@@ -514,7 +518,7 @@ $('cf').onclick=()=>{draw();$('cd').showModal()};
 const F=$('cform');F.addEventListener('change',()=>{const d=F.mode.value==='delivery';$('faddr').hidden=!d;F.addr.required=d});
 F.addEventListener('submit',e=>{e.preventDefault();if(!c.length)return;const m=F.mode.value,lines=[T.hello.replace('{r}',D.name),''];c.forEach(l=>lines.push(l.q+' × '+label(l)+' ('+fmt(unit(l)*l.q)+')'));lines.push('',T.total+' : '+fmt(total()),T[m]);
 lines.push(T.name+' : '+F.name.value.trim());if(m==='delivery')lines.push(T.addr+' : '+F.addr.value.trim());if(F.note.value.trim())lines.push(T.note+' : '+F.note.value.trim());lines.push('',T.foot);
-window.open('https://wa.me/'+D.wa+'?text='+encodeURIComponent(lines.join('\\n')),'_blank','noopener');c=[];save();$('cd').close()});
+window.__ev&&window.__ev('wa_order');window.open('https://wa.me/'+D.wa+'?text='+encodeURIComponent(lines.join('\\n')),'_blank','noopener');c=[];save();$('cd').close()});
 draw()})()`;
 
 /** A site-only restaurant that has not paid: a quiet page with its phone number, hidden from Google. */
