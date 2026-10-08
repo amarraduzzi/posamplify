@@ -13,9 +13,9 @@ import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../co
 type Site = NonNullable<Restaurant['site']>;
 // i18n:values
 const THEMES: { k: Site['theme']; name: string; text: string; sw: [string, string, string] }[] = [
-  { k: 'nuit', name: 'Nuit', text: 'Sombre et chic, pour un café ou un restaurant le soir.', sw: ['#0E0D0B', '#1A1815', '#C9A15A'] },
-  { k: 'riad', name: 'Riad', text: 'Chaleureux, tons sable et terre cuite.', sw: ['#F5EDE1', '#FFFAF2', '#B5562F'] },
-  { k: 'moderne', name: 'Moderne', text: 'Clair et net, pour un snack, un brunch ou une chaîne.', sw: ['#FFFFFF', '#F3F5F7', '#0F766E'] },
+  { k: 'nuit', name: 'Nuit', text: 'Plein écran et cinéma : grande photo ou vidéo, plats en bande défilante. Pour un lieu du soir.', sw: ['#12100E', '#1C1915', '#C9A15A'] },
+  { k: 'riad', name: 'Riad', text: 'Arches, zellige et carte à l’ancienne. Pour une cuisine marocaine ou un lieu de caractère.', sw: ['#EFE3D1', '#F7EEE1', '#1E5B4F'] },
+  { k: 'moderne', name: 'Moderne', text: 'Clair, grandes cartes photo. Pour un snack, un brunch ou une chaîne.', sw: ['#FFFFFF', '#F2F2EE', '#2540C9'] },
 ];
 const PRICES: [string, string][] = [['', '–'], ['$', 'Abordable'], ['$$', 'Moyen'], ['$$$', 'Haut de gamme']];
 // i18n:end
@@ -29,7 +29,8 @@ export function SitePage({ r }: { r: Restaurant }) {
   const link = s.domain ? `https://${s.domain}` : `${SITE_URL}/${r.slug}`;
   const preview = `${SITE_URL}/${r.slug}`;
   const set = (p: Partial<Site>) => setS(x => ({ ...x, ...p }));
-  const ok = [s.instagram, s.facebook, s.tiktok, s.maps_url].every(https) && (!s.domain || /^([a-z0-9-]+\.)+[a-z]{2,}$/.test(s.domain));
+  const waOk = !s.whatsapp || /^\+?[0-9 ]{9,20}$/.test(s.whatsapp);
+  const ok = waOk && [s.instagram, s.facebook, s.tiktok, s.maps_url, s.video_url].every(https) && (!s.domain || /^([a-z0-9-]+\.)+[a-z]{2,}$/.test(s.domain));
   const save = async () => {
     setBusy(true);
     try {
@@ -102,6 +103,20 @@ export function SitePage({ r }: { r: Restaurant }) {
             ))}
             {(s.gallery ?? []).length < 6 && <ImageField url={null} onChange={u => u && set({ gallery: [...(s.gallery ?? []), u] })} upload={f => uploadImage(r.id, 'site', f, 1600)} />}
           </div>
+          {s.theme === 'nuit' && <div className="mt-4"><Field label={t('Vidéo d’accueil (facultatif)')}><input className={inputCls} dir="ltr" value={s.video_url ?? ''} onChange={e => set({ video_url: e.target.value.trim() })} placeholder="https://…/video.mp4" /></Field>
+            <p className="mt-1 text-xs text-muted">{t('Une vidéo courte et sans son, en .mp4, moins de 8 Mo. Elle tourne en boucle en haut du site. La photo de couverture s’affiche pendant le chargement.')}</p></div>}
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 font-display text-xl font-semibold">{t('Commandes sur WhatsApp')}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Si la commande en ligne est coupée, vos clients choisissent leurs plats sur le site et vous envoient leur commande sur WhatsApp, déjà rédigée. Si elle est active, les boutons Commander mènent à votre commande en ligne.')}</p>
+          <Toggle checked={s.wa_order !== false} onChange={v => set({ wa_order: v })} label={t('Recevoir les commandes sur WhatsApp')} />
+          {s.wa_order !== false && <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label={t('Numéro WhatsApp')}><input className={inputCls} dir="ltr" inputMode="tel" value={s.whatsapp ?? ''} onChange={e => set({ whatsapp: e.target.value })} placeholder={r.phone ?? '06 12 34 56 78'} /></Field>
+            <div className="pt-7"><Toggle checked={s.wa_delivery !== false} onChange={v => set({ wa_delivery: v })} label={t('Proposer la livraison')} /></div>
+          </div>}
+          {!waOk && <p className="mt-2 text-sm text-danger">{t('Numéro invalide')}</p>}
+          <p className="mt-2 text-xs text-muted">{t('Vide : le numéro de la page Restaurant est utilisé.')}</p>
         </Card>
 
         <Card>
