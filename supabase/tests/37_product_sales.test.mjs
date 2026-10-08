@@ -61,6 +61,29 @@ test('product sales: per product, previous period, discount spread, cancelled ig
   const free = await rpc(w.users.managerA, 'product_detail', [r.id, null, 'divers', '2026-09-07', '2026-09-13']);
   assert.equal(free.qty, 1);
 
+  // step 2: bought together, channel, staff
+  const tj = await rpc(w.users.managerA, 'product_detail', [r.id, items.tajine.id, null, '2026-09-07', '2026-09-13']);
+  assert.deepEqual(tj.together.map(x => [x.name.fr, x.tickets]), [['Jus', 1]]);
+  assert.deepEqual(tj.channels.map(x => [x.channel, Number(x.qty)]), [['takeaway', 3]]);
+  assert.equal(tj.staff.length, 1);
+
+  // the old till joins in: quantities matched on the dish name, day totals in the totals
+  await rpc(w.users.managerA, 'import_sales', [r.id, JSON.stringify([{ day: '2026-09-08', revenue_cents: 50000, tickets: 10 }]),
+    JSON.stringify([{ day: '2026-09-08', name: 'tajine ', qty: 4 }, { day: '2026-09-08', name: 'Thé spécial', qty: 2 }])]);
+  const s2 = await rpc(w.users.managerA, 'product_sales', [r.id, '2026-09-07', '2026-09-13']);
+  const t2 = s2.items.find(x => x.name.fr === 'Tajine');
+  assert.equal(t2.qty, 7); assert.equal(t2.history_qty, 4);
+  assert.equal(Number(t2.revenue_cents), 15300 + 8500, 'revenue per product stays Amplify only');
+  const the = s2.items.find(x => x.name.fr === 'Thé spécial');
+  assert.equal(the.history_only, true); assert.equal(the.qty, 2);
+  assert.equal(Number(s2.totals.revenue_cents), Number(s.totals.revenue_cents) + 50000);
+  assert.equal(s2.totals.tickets, 15);
+  const tj2 = await rpc(w.users.managerA, 'product_detail', [r.id, items.tajine.id, null, '2026-09-07', '2026-09-13']);
+  assert.equal(tj2.history_qty, 4);
+  assert.equal(tj2.daily.find(x => x.day === '2026-09-08').history_qty, 4);
+  const th = await rpc(w.users.managerA, 'product_detail', [r.id, null, 'Thé spécial', '2026-09-07', '2026-09-13']);
+  assert.equal(th.history_qty, 2);
+
   await assert.rejects(rpc(w.users.ownerB, 'product_sales', [r.id, '2026-09-07', '2026-09-13']), /not_allowed|not allowed/);
   await assert.rejects(rpc(w.users.deviceA, 'product_detail', [r.id, items.pizza.id, null, '2026-09-07', '2026-09-13']), /not_allowed|not allowed/);
   await assert.rejects(rpc(w.users.managerA, 'product_sales', [r.id, '2026-09-13', '2026-09-07']), /invalid_request/);

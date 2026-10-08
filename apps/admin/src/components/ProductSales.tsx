@@ -1,5 +1,6 @@
 // Ventes > Produits: what every dish or product sold over any period, compared with the period
-// just before, and one product in detail (per day, per weekday, per hour, per size).
+// just before, and one product in detail (per day, weekday, hour, size, channel, staff member, and
+// what is bought with it). Sales imported from the old till add their quantities and day totals.
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search } from 'lucide-react';
 import { tr } from '@resto/shared';
@@ -10,11 +11,13 @@ import type { I18n, Restaurant } from '../lib/types';
 import { Btn, Card, Modal, inputCls } from './ui';
 
 type Item = { key: string; item_id: string | null; name: I18n; category: I18n | null; image_url: string | null; qty: number; revenue_cents: number;
-  prev_qty: number; prev_revenue_cents: number; days_sold: number; tickets: number; margin_cents: number | null };
+  prev_qty: number; prev_revenue_cents: number; days_sold: number; tickets: number; margin_cents: number | null; history_qty: number; history_only: boolean };
 type Data = { from: string; to: string; prev_from: string; prev_to: string; items: Item[];
-  totals: { revenue_cents: number; qty: number; tickets: number; discount_cents: number; prev_revenue_cents: number; prev_qty: number; prev_tickets: number } };
-type Detail = { qty: number; revenue_cents: number; tickets: number; all_tickets: number; daily: { day: string; qty: number; revenue_cents: number }[];
-  weekdays: { dow: number; qty: number; revenue_cents: number; days: number }[]; hours: { hour: number; qty: number }[]; variants: { name: I18n; qty: number; revenue_cents: number }[] };
+  totals: { revenue_cents: number; qty: number; tickets: number; discount_cents: number; prev_revenue_cents: number; prev_qty: number; prev_tickets: number; history_days: number; history_revenue_cents: number } };
+type Detail = { qty: number; history_qty: number; revenue_cents: number; tickets: number; all_tickets: number; daily: { day: string; qty: number; history_qty: number; revenue_cents: number }[];
+  weekdays: { dow: number; qty: number; revenue_cents: number; days: number }[]; hours: { hour: number; qty: number }[]; variants: { name: I18n; qty: number; revenue_cents: number }[];
+  together: { name: I18n; tickets: number; qty: number }[]; channels: { channel: string; qty: number; revenue_cents: number }[];
+  staff: { name: string | null; qty: number; revenue_cents: number; tickets: number; staff_tickets: number }[] };
 type Sort = 'revenue' | 'qty' | 'trend' | 'margin' | 'name';
 
 const n = (x: unknown) => Number(x ?? 0);
@@ -56,25 +59,32 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
     if (!range.from || !range.to || range.to < range.from) return;
     let live = true;
     setData(null);
-    rpc<Data>('product_sales', { p_restaurant_id: r.id, p_from: range.from, p_to: range.to }).then(x => live && setData(x)).catch(e => live && a.fail(e));
+    rpc<Data>('product_sales', { p_restaurant_id: r.id, p_from: range.from, p_to: range.to }).then(x => {
+      if (!live) return;
+      setData(x);
+      // mostly old till: there is no revenue per product, so sort by quantity
+      if (n(x.totals.history_revenue_cents) * 2 > n(x.totals.revenue_cents)) setSort(s => (s.by === 'revenue' ? { by: 'qty', desc: true } : s));
+    }).catch(e => live && a.fail(e));
     return () => { live = false; };
   }, [r.id, range.from, range.to, a]);
 
   const name = (i: Item) => tr(i.name, lang);
-  const catName = (i: Item) => (i.category ? tr(i.category, lang) : t('Divers'));
+  const catName = (i: Item) => (i.category ? tr(i.category, lang) : i.history_only ? t('Ancienne caisse') : t('Divers'));
   const total = n(data?.totals.revenue_cents);
   const cats = useMemo(() => {
     const m = new Map<string, number>();
     for (const i of data?.items ?? []) m.set(catName(i), (m.get(catName(i)) ?? 0) + n(i.revenue_cents));
     return [...m.entries()].sort((x, y) => y[1] - x[1]);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+  // with the old till in the period, change is measured on quantities (no old revenue per product)
+  const byQty = (data?.items ?? []).some(i => n(i.history_qty) > 0 || i.history_only);
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
     const list = (data?.items ?? []).filter(i => (!cat || catName(i) === cat) && (!s || name(i).toLowerCase().includes(s)));
     const val = (i: Item): number | string => sort.by === 'name' ? name(i).toLowerCase() : sort.by === 'qty' ? n(i.qty) : sort.by === 'margin' ? (i.margin_cents == null ? -Infinity : n(i.margin_cents))
-      : sort.by === 'trend' ? (change(n(i.revenue_cents), n(i.prev_revenue_cents)) ?? (n(i.revenue_cents) > 0 ? Infinity : -Infinity)) : n(i.revenue_cents);
+      : sort.by === 'trend' ? ((byQty ? change(n(i.qty), n(i.prev_qty)) : change(n(i.revenue_cents), n(i.prev_revenue_cents))) ?? (n(i.revenue_cents) > 0 ? Infinity : -Infinity)) : n(i.revenue_cents);
     return [...list].sort((x, y) => { const p = val(x), o = val(y); const c = p < o ? -1 : p > o ? 1 : 0; return sort.desc ? -c : c; });
-  }, [data, cat, q, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, cat, q, sort, byQty]); // eslint-disable-line react-hooks/exhaustive-deps
   const unsold = rows.filter(i => !n(i.qty)).length;
   // the share bar is drawn against the best seller, so small differences stay visible
   const topShare = Math.max(1, ...(data?.items ?? []).map(i => n(i.revenue_cents)));
@@ -127,6 +137,7 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
             </Card>
           ))}
         </div>
+        {n(data.totals.history_days) > 0 && <p className="rounded-xl bg-brand/10 px-4 py-2 text-sm">{t('Cette période contient {n} jour(s) de votre ancienne caisse : les quantités et les totaux sont inclus, le chiffre d’affaires par produit vient seulement d’Amplify.', { n: n(data.totals.history_days) })}</p>}
         {n(data.totals.discount_cents) > 0 && <p className="text-xs text-muted">{t('Montants encaissés, remises déduites ({m} de remises sur la période).', { m: mad(n(data.totals.discount_cents)) })}</p>}
 
         <Card className="!p-0">
@@ -152,7 +163,7 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
                   <Th by="qty" end><span className="hidden sm:inline">{t('Quantité')}</span><span className="sm:hidden">{t('Qté')}</span></Th>
                   <Th by="revenue" end><span className="hidden sm:inline">{t("Chiffre d'affaires")}</span><span className="sm:hidden">{t('CA')}</span></Th>
                   <th className="hidden px-3 py-2 text-start font-semibold md:table-cell">{t('Part')}</th>
-                  <Th by="trend" end wide>{t('Évolution')}</Th>
+                  <Th by="trend" end wide>{byQty ? t('Évolution (qté)') : t('Évolution')}</Th>
                   <Th by="margin" end wide>{t('Marge')}</Th>
                 </tr>
               </thead>
@@ -164,13 +175,13 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
                       <td className="py-2 pe-2 ps-3 sm:px-3">
                         <span className="flex items-center gap-3">
                           {i.image_url ? <img src={i.image_url} alt="" className="hidden h-9 w-9 shrink-0 rounded-lg object-cover sm:block" /> : <span className="hidden h-9 w-9 shrink-0 rounded-lg bg-surface-2 sm:block" />}
-                          <span className="min-w-0"><span className="block font-semibold leading-tight">{name(i)}</span><span className="block text-xs text-muted">{catName(i)}</span></span>
+                          <span className="min-w-0"><span className="block font-semibold leading-tight">{name(i)}</span><span className="block text-xs text-muted">{catName(i)}{n(i.history_qty) > 0 && !i.history_only && <> · {t('{n} ancienne caisse', { n: Math.round(n(i.history_qty) * 10) / 10 })}</>}</span></span>
                         </span>
                       </td>
                       <td className="px-2 py-2 text-end font-semibold tabular sm:px-3">{n(i.qty).toLocaleString(dateLocale())}</td>
-                      <td className="whitespace-nowrap py-2 pe-3 ps-2 text-end tabular sm:px-3">{mad(n(i.revenue_cents))}<span className="block sm:hidden"><Delta cur={n(i.revenue_cents)} prev={n(i.prev_revenue_cents)} /></span></td>
+                      <td className="whitespace-nowrap py-2 pe-3 ps-2 text-end tabular sm:px-3">{mad(n(i.revenue_cents))}<span className="block sm:hidden">{byQty ? <Delta cur={n(i.qty)} prev={n(i.prev_qty)} /> : <Delta cur={n(i.revenue_cents)} prev={n(i.prev_revenue_cents)} />}</span></td>
                       <td className="hidden px-3 py-2 md:table-cell"><span className="flex items-center gap-2"><span className="h-1.5 w-20 rounded-full bg-surface-2"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${(n(i.revenue_cents) / topShare) * 100}%` }} /></span><span className="w-10 text-xs tabular text-muted">{Math.round(share * 1000) / 10} %</span></span></td>
-                      <td className="hidden px-3 py-2 text-end sm:table-cell"><Delta cur={n(i.revenue_cents)} prev={n(i.prev_revenue_cents)} /></td>
+                      <td className="hidden px-3 py-2 text-end sm:table-cell">{byQty ? <Delta cur={n(i.qty)} prev={n(i.prev_qty)} /> : <Delta cur={n(i.revenue_cents)} prev={n(i.prev_revenue_cents)} />}</td>
                       <td className="hidden px-3 py-2 text-end tabular sm:table-cell">{i.margin_cents == null ? <span className="text-muted">—</span> : mad(n(i.margin_cents))}</td>
                     </tr>
                   );
@@ -191,12 +202,14 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
 }
 
 // i18n:values
+const CHANNEL: Record<string, string> = { dine_in: 'En salle', takeaway: 'À emporter', delivery: 'Livraison', qr: 'QR à table', phone: 'Téléphone', glovo: 'Glovo' };
 const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 // i18n:end
 
-function Bars({ data, label, sub, highlight }: { data: { id: string; k: string; v: number; tip: string }[]; label: string; sub?: string; highlight?: boolean }) {
-  const max = Math.max(1, ...data.map(d => d.v));
-  const best = highlight ? Math.max(...data.map(d => d.v)) : -1;
+function Bars({ data, label, sub, highlight }: { data: { id: string; k: string; v: number; v2?: number; tip: string }[]; label: string; sub?: string; highlight?: boolean }) {
+  const tot = (d: { v: number; v2?: number }) => d.v + (d.v2 ?? 0);
+  const max = Math.max(1, ...data.map(tot));
+  const best = highlight ? Math.max(...data.map(tot)) : -1;
   return (
     <div>
       <p className="font-semibold">{label}</p>
@@ -205,8 +218,9 @@ function Bars({ data, label, sub, highlight }: { data: { id: string; k: string; 
         {data.map(d => (
           <div key={d.id} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={d.tip}>
             <div className="flex h-28 w-full flex-col justify-end">
-              <div className={`w-full rounded-t-md ${d.v === best && d.v > 0 ? 'bg-brand' : 'bg-brand/45'}`} style={{ height: `${d.v ? Math.max(3, (d.v / max) * 100) : 0}%` }} />
-              {!d.v && <div className="h-[2px] w-full bg-line/15" />}
+              {!!d.v2 && <div className={`w-full bg-night/25 ${d.v ? '' : 'rounded-t-md'}`} style={{ height: `${(d.v2 / max) * 100}%` }} />}
+              {!!d.v && <div className={`w-full ${d.v2 ? '' : 'rounded-t-md'} ${tot(d) === best ? 'bg-brand' : 'bg-brand/45'}`} style={{ height: `${Math.max(3, (d.v / max) * 100)}%` }} />}
+              {!tot(d) && <div className="h-[2px] w-full bg-line/15" />}
             </div>
             {data.length <= 24 && <span className="text-[10px] text-muted">{d.k}</span>}
           </div>
@@ -228,22 +242,24 @@ function ProductDetail({ r, item, title, from, to, onClose }: { r: Restaurant; i
   const hours = (d?.hours ?? []).filter(h => n(h.qty) > 0).map(h => h.hour);
   const h0 = hours.length ? Math.min(...hours) : 8, h1 = hours.length ? Math.max(...hours) : 22;
   const fmtQ = (x: number) => x.toLocaleString(loc, { maximumFractionDigits: 1 });
+  const hq = n(d?.history_qty), all = n(d?.qty) + hq;
+  const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   return (
     <Modal wide title={title} onClose={onClose}>
       {!d ? <p className="text-muted">{t('Chargement…')}</p> : (
         <div className="space-y-6">
           <p className="text-sm text-muted">{day(from).toLocaleDateString(loc)}{from !== to ? ` – ${day(to).toLocaleDateString(loc)}` : ''}</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Quantité')}</p><p className="font-display text-2xl font-semibold tabular">{fmtQ(n(d.qty))}</p><Delta cur={n(item.qty)} prev={n(item.prev_qty)} /></div>
-            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t("Chiffre d'affaires")}</p><p className="font-display text-2xl font-semibold tabular">{mad(n(d.revenue_cents))}</p><Delta cur={n(item.revenue_cents)} prev={n(item.prev_revenue_cents)} /></div>
-            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Par jour en moyenne')}</p><p className="font-display text-2xl font-semibold tabular">{fmtQ(n(d.qty) / days)}</p><p className="text-xs text-muted">{t('vendu {n} jour(s) sur {d}', { n: n(item.days_sold), d: days })}</p></div>
+            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Quantité')}</p><p className="font-display text-2xl font-semibold tabular">{fmtQ(all)}</p>{hq > 0 ? <p className="text-xs text-muted">{t('dont {n} ancienne caisse', { n: fmtQ(hq) })}</p> : <Delta cur={n(item.qty)} prev={n(item.prev_qty)} />}</div>
+            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t("Chiffre d'affaires")}</p><p className="font-display text-2xl font-semibold tabular">{mad(n(d.revenue_cents))}</p>{hq > 0 ? <p className="text-xs text-muted">{t('Amplify seulement')}</p> : <Delta cur={n(item.revenue_cents)} prev={n(item.prev_revenue_cents)} />}</div>
+            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Par jour en moyenne')}</p><p className="font-display text-2xl font-semibold tabular">{fmtQ(all / days)}</p><p className="text-xs text-muted">{t('vendu {n} jour(s) sur {d}', { n: n(item.days_sold), d: days })}</p></div>
             <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Présent dans')}</p><p className="font-display text-2xl font-semibold tabular">{d.all_tickets ? Math.round((n(d.tickets) / n(d.all_tickets)) * 100) : 0} %</p><p className="text-xs text-muted">{t('des tickets ({n} sur {t})', { n: n(d.tickets), t: n(d.all_tickets) })}</p></div>
           </div>
-          {!n(d.qty) ? <p className="rounded-2xl bg-surface-2 p-4 text-sm text-muted">{t('Aucune vente sur cette période. Essayez une période plus longue.')}</p> : <>
-            {days > 1 && <Bars label={t('Par jour')} data={d.daily.map(x => ({ id: x.day, k: days <= 14 ? String(day(x.day).getDate()) : '', v: n(x.qty), tip: `${day(x.day).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short' })} : ${fmtQ(n(x.qty))} · ${mad(n(x.revenue_cents))}` }))} />}
+          {!all ? <p className="rounded-2xl bg-surface-2 p-4 text-sm text-muted">{t('Aucune vente sur cette période. Essayez une période plus longue.')}</p> : <>
+            {days > 1 && <Bars label={t('Par jour')} sub={hq > 0 ? t('vert : Amplify, gris : ancienne caisse') : undefined} data={d.daily.map(x => ({ id: x.day, k: days <= 14 ? String(day(x.day).getDate()) : '', v: n(x.qty), v2: n(x.history_qty), tip: `${day(x.day).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short' })} : ${fmtQ(n(x.qty) + n(x.history_qty))}${n(x.revenue_cents) ? ` · ${mad(n(x.revenue_cents))}` : ''}` }))} />}
             <div className="grid gap-6 md:grid-cols-2">
               {days >= 7 && <Bars highlight label={t('Par jour de la semaine')} sub={t('moyenne par jour')} data={d.weekdays.map(x => ({ id: String(x.dow), k: t(DOW[x.dow - 1]), v: x.days ? n(x.qty) / x.days : 0, tip: `${t(DOW[x.dow - 1])} : ${fmtQ(x.days ? n(x.qty) / x.days : 0)} (${fmtQ(n(x.qty))} / ${x.days})` }))} />}
-              <Bars highlight label={t('Par heure')} sub={t('heure de la commande')} data={d.hours.filter(x => x.hour >= h0 && x.hour <= h1).map(x => ({ id: String(x.hour), k: `${x.hour}h`, v: n(x.qty), tip: `${x.hour}h – ${x.hour + 1}h : ${fmtQ(n(x.qty))}` }))} />
+              {n(d.qty) > 0 && <Bars highlight label={t('Par heure')} sub={hq > 0 ? t('heure de la commande, Amplify seulement') : t('heure de la commande')} data={d.hours.filter(x => x.hour >= h0 && x.hour <= h1).map(x => ({ id: String(x.hour), k: `${x.hour}h`, v: n(x.qty), tip: `${x.hour}h – ${x.hour + 1}h : ${fmtQ(n(x.qty))}` }))} />}
             </div>
             {d.variants.length > 1 && (
               <div>
@@ -260,9 +276,39 @@ function ProductDetail({ r, item, title, from, to, onClose }: { r: Restaurant; i
                 </div>
               </div>
             )}
+            {n(d.tickets) > 0 && (
+              <div className="grid gap-6 md:grid-cols-2">
+                {d.together.length > 0 && (
+                  <HList title={t('Souvent pris avec')} sub={t('sur ses {n} tickets', { n: n(d.tickets) })}
+                    rows={d.together.map(x => ({ id: tr(x.name, lang), label: tr(x.name, lang), share: n(x.tickets) / n(d.tickets), value: `${pctOf(n(x.tickets), n(d.tickets))} %` }))} />
+                )}
+                <HList title={t('Par canal')} rows={d.channels.map(x => ({ id: x.channel, label: CHANNEL[x.channel] ? t(CHANNEL[x.channel]) : x.channel, share: n(x.qty) / Math.max(1, n(d.qty)), value: fmtQ(n(x.qty)) }))} />
+                {d.staff.length > 0 && (
+                  <HList title={t('Par employé')} sub={t('et sur quelle part de ses tickets')}
+                    rows={d.staff.map((x, i) => ({ id: String(i), label: x.name ?? t('Sans employé'), share: n(x.qty) / Math.max(1, n(d.qty)), value: fmtQ(n(x.qty)), extra: `${pctOf(n(x.tickets), n(x.staff_tickets))} %` }))} />
+                )}
+              </div>
+            )}
           </>}
         </div>
       )}
     </Modal>
+  );
+}
+
+function HList({ title, sub, rows }: { title: string; sub?: string; rows: { id: string; label: string; share: number; value: string; extra?: string }[] }) {
+  return (
+    <div>
+      <p className="font-semibold">{title}</p>
+      {sub && <p className="text-xs text-muted">{sub}</p>}
+      <div className="mt-3 space-y-2">
+        {rows.map(x => (
+          <div key={x.id} className="text-sm">
+            <div className="flex items-baseline gap-2"><span className="min-w-0 flex-1 truncate">{x.label}</span><span className="tabular font-semibold">{x.value}</span>{x.extra && <span className="w-12 text-end text-xs tabular text-muted">{x.extra}</span>}</div>
+            <span className="mt-1 block h-1.5 rounded-full bg-surface-2"><span className="block h-1.5 rounded-full bg-brand" style={{ width: `${Math.min(100, x.share * 100)}%` }} /></span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
