@@ -16,7 +16,7 @@ SUPER="postgres://postgres@localhost:$PORT/postgres"
 SECRET="local-dev-jwt-secret-at-least-32-characters-long"
 
 start_pg() {
-  "${RUN[@]}" "$PGBIN/pg_ctl" -D "$DATA/pg" -o "-p $PORT -k $DATA/pg -c listen_addresses=localhost" -w -l "$DATA/pg/server.log" start >/dev/null
+  "${RUN[@]}" "$PGBIN/pg_ctl" -D "$DATA/pg" -o "-p $PORT -k $DATA/pg -c listen_addresses=localhost -c timezone=UTC" -w -l "$DATA/pg/server.log" start >/dev/null
 }
 
 start_services() {

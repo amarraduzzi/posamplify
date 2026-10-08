@@ -3,7 +3,8 @@
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
 
-export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
+// sessions in UTC like Supabase: current_date in the tests = the business date of the restaurants (UTC)
+export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 4, options: '-c TimeZone=UTC' });
 
 /** Superuser query (bypasses RLS, like the Supabase SQL editor). */
 export async function sql(text, params = []) {
