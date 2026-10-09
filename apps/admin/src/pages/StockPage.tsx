@@ -82,7 +82,8 @@ export function StockPage({ r }: { r: Restaurant }) {
       const cs = check(c) as Count[];
       const ls = cs.length ? check(await supabase.from('stock_count_lines').select('count_id, ingredient_id, qty').eq('restaurant_id', r.id).in('count_id', cs.map(x => x.id))) as Line[] : [];
       businessDay = f.today;
-      setIngs(check(g) as Ingredient[]); setCounts(cs); setLines(ls); setBuys(check(p) as Purchase[]); setFc(f);
+      // per category (as stored in the room), alphabetical inside, ignoring capitals and accents
+      setIngs((check(g) as Ingredient[]).sort((x, y) => x.category.localeCompare(y.category) || x.name.localeCompare(y.name, 'fr', { sensitivity: 'base', numeric: true }))); setCounts(cs); setLines(ls); setBuys(check(p) as Purchase[]); setFc(f);
     } catch (e) { a.fail(e); setIngs([]); }
   }, [r.id, a]);
   useEffect(() => { load(); }, [load]);

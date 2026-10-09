@@ -26,7 +26,8 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
         supabase.from('ingredients').select('*').eq('restaurant_id', r.id).order('category').order('name'),
         supabase.from('recipe_lines').select('ingredient_id').eq('restaurant_id', r.id),
       ]);
-      setList(check(g) as Ingredient[]);
+      // alphabetical, ignoring capitals and accents (É next to E)
+      setList((check(g) as Ingredient[]).sort((x, y) => x.name.localeCompare(y.name, 'fr', { sensitivity: 'base', numeric: true })));
       const u: Record<string, number> = {};
       for (const x of check(l) as { ingredient_id: string }[]) u[x.ingredient_id] = (u[x.ingredient_id] ?? 0) + 1;
       setUsage(u);

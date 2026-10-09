@@ -203,7 +203,7 @@ function OptionRecipe({ r, option, onClose }: { r: Restaurant; option: { id: str
           supabase.from('ingredients').select('*').eq('restaurant_id', r.id).eq('active', true).order('name'),
           supabase.from('recipe_lines').select('*').eq('restaurant_id', r.id).eq('modifier_option_id', option.id).order('sort_order'),
         ]);
-        setIngs(check(g) as Ingredient[]);
+        setIngs((check(g) as Ingredient[]).sort((x, y) => x.name.localeCompare(y.name, 'fr', { sensitivity: 'base', numeric: true })));
         const ls = check(l) as { id: string; ingredient_id: string; qty: number; dine_in_only?: boolean }[];
         setOrig(ls.map(x => x.id)); setDineBefore(new Set(ls.filter(x => x.dine_in_only).map(x => x.id))); setLines(ls.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: String(Number(x.qty)).replace('.', ','), dine_in_only: !!x.dine_in_only })));
       } catch (e) { a.fail(e); onClose(); }

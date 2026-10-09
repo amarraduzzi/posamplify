@@ -198,7 +198,7 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
           supabase.from('ingredients').select('*').eq('restaurant_id', r.id).eq('active', true).order('name'),
           supabase.from('recipe_lines').select('*').eq('restaurant_id', r.id).eq('menu_item_id', dish.item_id).order('sort_order'),
         ]);
-        setIngs(check(g) as Ingredient[]);
+        setIngs((check(g) as Ingredient[]).sort((x, y) => x.name.localeCompare(y.name, 'fr', { sensitivity: 'base', numeric: true })));
         const all = check(l) as RecipeLine[];
         const mine = all.filter(x => x.variant_id === null || x.variant_id === dish.variant_id);
         const gs = new Map((check(g) as Ingredient[]).map(x => [x.id, x]));
