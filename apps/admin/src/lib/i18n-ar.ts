@@ -1609,4 +1609,9 @@ export const AR: Record<string, string> = {
   "{n} ancienne caisse": "{n} من الصندوق القديم",
   "Amplify seulement": "Amplify فقط",
   "Évolution (qté)": "التطور (الكمية)",
+  "Par article de cette catégorie, quand la commande est à emporter. Exemple : 1 pour des boissons à 1 DH de moins. 0 = même prix.": "لكل منتج من هذه الفئة عندما يكون الطلب للأخذ. مثال: 1 لمشروبات أرخص بدرهم واحد. 0 = نفس الثمن.",
+  "Pas pour les commandes à emporter ou en livraison (ex. la petite bouteille d’eau servie avec le café).": "ليس لطلبات الأخذ أو التوصيل (مثلا قنينة الماء الصغيرة مع القهوة).",
+  "Sur place seulement": "في المحل فقط",
+  "Vide = comme la catégorie ({m}). 0 = même prix qu’en salle.": "فارغ = مثل الفئة ({m}). 0 = نفس ثمن القاعة.",
+  "À emporter : moins cher de (DH)": "للأخذ: أرخص بـ (درهم)",
 };

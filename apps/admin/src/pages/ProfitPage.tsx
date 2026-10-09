@@ -170,7 +170,7 @@ export function ProfitPage({ r, onIngredients }: { r: Restaurant; onIngredients:
 // Recipe card of one dish (or one size of it)
 // ---------------------------------------------------------------------------
 // qty in base units; unit/text = how the owner typed it (kept stable while typing)
-type Draft = { id?: string; ingredient_id: string; qty: number; variant_id: string | null; unit: string; text: string };
+type Draft = { id?: string; ingredient_id: string; qty: number; variant_id: string | null; unit: string; text: string; dine_in_only?: boolean };
 const num = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
 function display(qty: number, base: BaseUnit) {
   const units = RECIPE_UNITS[base];
@@ -203,7 +203,7 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
         const mine = all.filter(x => x.variant_id === null || x.variant_id === dish.variant_id);
         const gs = new Map((check(g) as Ingredient[]).map(x => [x.id, x]));
         setOrig(mine);
-        setLines(mine.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: Number(x.qty), variant_id: x.variant_id,
+        setLines(mine.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: Number(x.qty), variant_id: x.variant_id, dine_in_only: !!x.dine_in_only,
           ...display(Number(x.qty), gs.get(x.ingredient_id)?.base_unit ?? 'g') })));
       } catch (e) { a.fail(e); onClose(); }
     })();
@@ -236,7 +236,8 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
       const gone = orig.filter(o => !keep.has(o.id)).map(o => o.id);
       if (gone.length) check(await supabase.from('recipe_lines').delete().in('id', gone).select('id'));
       for (const [i, l] of lines.entries()) {
-        const row = { qty: l.qty, variant_id: l.variant_id, sort_order: (i + 1) * 10 };
+        // dine_in_only is only sent when used, so the page keeps working on a database without the column yet
+        const row = { qty: l.qty, variant_id: l.variant_id, sort_order: (i + 1) * 10, ...(l.dine_in_only || orig.some(o => o.id === l.id && o.dine_in_only) ? { dine_in_only: !!l.dine_in_only } : {}) };
         if (l.id) check(await supabase.from('recipe_lines').update(row).eq('id', l.id).select('id'));
         else check(await supabase.from('recipe_lines').insert({ ...row, restaurant_id: r.id, menu_item_id: dish.item_id, ingredient_id: l.ingredient_id }).select('id'));
       }
@@ -283,6 +284,10 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
                         <option value={dish.variant_id!}>{t('Seulement {s}', { s: tr(dish.variant_name ?? {}, lang) })}</option>
                       </select>
                     )}
+                    <label className="mt-0.5 flex w-fit items-center gap-1.5 text-xs text-muted" title={t('Pas pour les commandes à emporter ou en livraison (ex. la petite bouteille d’eau servie avec le café).')}>
+                      <input type="checkbox" checked={!!l.dine_in_only} onChange={e => setLines(ls => ls!.map((x, j) => (j === i ? { ...x, dine_in_only: e.target.checked } : x)))} />
+                      {t('Sur place seulement')}
+                    </label>
                   </div>
                   <div className="flex items-center gap-1">
                     <input aria-label={t('Quantité')} inputMode="decimal" className={`${inputCls} w-20 px-2 py-1.5 text-end tabular ${l.qty > 0 ? '' : 'border-danger'}`} value={l.text}

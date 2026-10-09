@@ -157,12 +157,16 @@ function CategoryEditor({ r, cat, count, onClose, onSaved }: { r: Restaurant; ca
   const [station, setStation] = useState(cat?.station ?? 'kitchen');
   const [course, setCourse] = useState<string>(cat?.course ? String(cat.course) : '');
   const [active, setActive] = useState(cat?.active ?? true);
+  const [off, setOff] = useState(fromCents(cat?.takeaway_discount_cents ?? 0));
   const [busy, setBusy] = useState(false);
   const ok = !!name[r.languages[0]]?.trim();
   const save = async () => {
     setBusy(true);
     try {
-      const row = { name, icon: icon || null, station, active, course: course ? Number(course) : null };
+      const offCents = off.trim() === '' ? 0 : toCents(off);
+      const row = { name, icon: icon || null, station, active, course: course ? Number(course) : null,
+        // only sent when set, so the page keeps working on a database without the column yet
+        ...(offCents || cat?.takeaway_discount_cents ? { takeaway_discount_cents: offCents } : {}) };
       if (cat) check(await supabase.from('categories').update(row).eq('id', cat.id).select('id'));
       const created = cat ? null : (check(await supabase.from('categories').insert({ ...row, restaurant_id: r.id, sort_order: (count + 1) * 10 }).select('id').single()) as { id: string });
       a.toast(t('Catégorie enregistrée')); onSaved(created?.id);
@@ -192,6 +196,9 @@ function CategoryEditor({ r, cat, count, onClose, onSaved }: { r: Restaurant; ca
             {COURSES.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
           </select>
         </Field>
+        <Field label={t('À emporter : moins cher de (DH)')} hint={t('Par article de cette catégorie, quand la commande est à emporter. Exemple : 1 pour des boissons à 1 DH de moins. 0 = même prix.')}>
+          <input inputMode="decimal" className={`${inputCls} !w-32`} value={off} onChange={e => setOff(e.target.value)} placeholder="0" />
+        </Field>
         <Toggle checked={active} onChange={setActive} label={t('Visible sur le menu et la caisse')} />
       </div>
     </Modal>
@@ -212,6 +219,8 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
   const [station, setStation] = useState<string>(item?.station ?? '');
   const [active, setActive] = useState(item?.active ?? true);
   const [available, setAvailable] = useState(item?.available ?? true);
+  const [off, setOff] = useState(item?.takeaway_discount_cents == null ? '' : fromCents(item.takeaway_discount_cents));
+  const catOff = cats.find(c => c.id === category)?.takeaway_discount_cents ?? 0;
   const [variants, setVariants] = useState<(Variant & { priceText: string })[]>(
     (item?.item_variants ?? []).map(v => ({ ...v, priceText: fromCents(v.price_cents) })));
   const [busy, setBusy] = useState(false);
@@ -224,6 +233,8 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
         name, description: desc, category_id: category, image_url: image, tags, active, available,
         price_cents: variants.length ? Math.min(...variants.map(v => toCents(v.priceText))) : toCents(price),
         vat_bp: vat === '' ? null : Number(vat), station: station || null,
+        // empty = the reduction of the category (only sent when set or changed)
+        ...(off.trim() !== '' || item?.takeaway_discount_cents != null ? { takeaway_discount_cents: off.trim() === '' ? null : toCents(off) } : {}),
       };
       let id = item?.id;
       if (id) check(await supabase.from('menu_items').update(row).eq('id', id).select('id'));
@@ -295,6 +306,9 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
               </select>
             </Field>
           </div>
+          <Field label={t('À emporter : moins cher de (DH)')} hint={t('Vide = comme la catégorie ({m}). 0 = même prix qu’en salle.', { m: mad(catOff) })}>
+            <input inputMode="decimal" className={`${inputCls} !w-32`} value={off} onChange={e => setOff(e.target.value)} placeholder={fromCents(catOff)} />
+          </Field>
           <div className="flex flex-wrap gap-6">
             <Toggle checked={active} onChange={setActive} label={t('Visible')} />
             <Toggle checked={available} onChange={setAvailable} label={t("Disponible aujourd'hui")} />

@@ -24,8 +24,8 @@ export async function loadStatic(rid: string) {
   const [staff, tables, cats, items, variants, groups, options, links] = await Promise.all([
     supabase.from('staff').select('id,name,role,active').eq('restaurant_id', rid).eq('active', true).order('name'),
     supabase.from('dining_tables').select('id,label,zone,sort_order,active').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('label'),
-    supabase.from('categories').select('id,name,icon,station,sort_order,course').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
-    supabase.from('menu_items').select('id,category_id,name,price_cents,station,available,sort_order,image_url').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
+    supabase.from('categories').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
+    supabase.from('menu_items').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('item_variants').select('id,menu_item_id,name,price_cents,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('price_cents'),
     supabase.from('modifier_groups').select('id,name,min_select,max_select,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('modifier_options').select('id,group_id,name,price_cents,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),

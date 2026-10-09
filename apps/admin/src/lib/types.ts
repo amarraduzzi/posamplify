@@ -19,12 +19,12 @@ export interface Restaurant {
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
-export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null }
+export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null; takeaway_discount_cents?: number }
 export interface Variant { id?: string; menu_item_id?: string; name: I18n; price_cents: number; sort_order: number; active: boolean }
 export interface Item {
   id: string; restaurant_id: string; category_id: string; name: I18n; description: I18n; price_cents: number;
   image_url: string | null; vat_bp: number | null; station: string | null; tags: string[]; active: boolean; available: boolean; sort_order: number;
-  item_variants: Variant[];
+  item_variants: Variant[]; takeaway_discount_cents?: number | null;
 }
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; qr_token: string; sort_order: number; active: boolean }
@@ -36,7 +36,7 @@ export interface Ingredient {
   waste_bp: number; price_estimated: boolean; supplier: string | null; active: boolean; updated_at: string;
   stock_qty?: number | null; stock_min?: number | null; stock_since?: string | null; supplier_id?: string | null;
 }
-export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number }
+export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number; dine_in_only?: boolean }
 export interface ProfitDish {
   item_id: string; variant_id: string | null; name: I18n; variant_name: I18n | null; category: I18n; image_url: string | null;
   price_cents: number; vat_bp: number; price_ht_cents: number; lines: number; unpriced: number; estimated: number;

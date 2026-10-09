@@ -68,10 +68,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
 
   const label = order ? pos.labelOf(order) : table ? t('Table {n}', { n: table.label }) : kind === 'glovo' ? 'Glovo' : kind === 'delivery' ? t('Livraison') : t('À emporter');
   // a happy hour is applied by the database when the line is sent: show the same price before that
+  // takeaway: the reduction of the dish or its category, applied by the database too (before the happy hour)
+  const takeaway = (order?.order_type ?? (tableId ? 'dine_in' : kind === 'glovo' ? 'delivery' : kind)) === 'takeaway';
+  const offOf = (i: Item) => (takeaway ? Number(i.takeaway_discount_cents ?? pos.categories.find(c => c.id === i.category_id)?.takeaway_discount_cents ?? 0) : 0);
   const dUnit = (d: DraftLine) => {
     const it = d.item_id ? pos.items.find(i => i.id === d.item_id) : null;
     const mods = (d.modifiers ?? []).reduce((s, m) => s + Number(m.price_cents), 0);
-    return it ? promoPrice(d.unit_price_cents - mods, hh(it.id, it.category_id)) + mods : d.unit_price_cents;
+    return it ? promoPrice(Math.max(0, d.unit_price_cents - mods - offOf(it)), hh(it.id, it.category_id)) + mods : d.unit_price_cents;
   };
   const draftTotal = draft.reduce((s, d) => s + dUnit(d) * d.quantity, 0);
   const subtotal = Number(order?.subtotal_cents ?? 0) + draftTotal;
@@ -122,7 +125,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       orderType: order?.order_type ?? (tableId ? 'dine_in' : kind === 'glovo' ? 'delivery' : kind),
       source: order?.source ?? (tableId ? 'pos' : kind === 'glovo' ? 'glovo' : kind === 'delivery' ? 'phone' : 'pos'),
       customer: order ? undefined : customer,
-    }, draft, { send });
+    }, draft.map(d => ({ ...d, unit_price_cents: dUnit(d) })), { send });
     setDraft([]);
     if (target.kind === 'new') onRetarget({ kind: 'order', orderId: o.id });
     return o;
@@ -335,7 +338,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   className={`flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-surface-2 disabled:opacity-35 ${inDraft ? 'bg-brand/[0.07]' : ''}`}>
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
-                    <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}</span>
+                    <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}</span>
                     {i.available && hh(i.id, i.category_id) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hh(i.id, i.category_id) / 100}%</span>}
                     {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
@@ -438,7 +441,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <span className="flex flex-1 flex-col justify-between gap-1 p-3">
                     <span className="text-sm font-bold leading-tight">{nameOf(i.name)}</span>
                     <span className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-brand tabular">
-                      {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(i.price_cents)}{!i.available && ` · ${t('épuisé')}`}
+                      {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}
                       {i.available && hh(i.id, i.category_id) > 0 && <span className="rounded-full bg-ok px-2 py-0.5 text-[11px] font-bold text-[#032A2A]">-{hh(i.id, i.category_id) / 100}%</span>}
                       {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger text-white' : 'bg-warn text-[#1B1300]'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                     </span>

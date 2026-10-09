@@ -57,6 +57,8 @@ export interface PublicItem {
   modifier_groups?: PublicModGroup[];
   /** happy hour now: percent off the dish in basis points (options keep their price) */
   promo_bp?: number | null;
+  /** so much less per dish (or size) when the order is takeaway */
+  takeaway_off_cents?: number | null;
 }
 
 export interface PublicMenu {

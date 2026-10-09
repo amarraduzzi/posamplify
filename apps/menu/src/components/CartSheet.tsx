@@ -86,17 +86,20 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   const paused = online && !!on?.paused;
   const later = !!checkout.wantedAt;
   const delivery = checkout.orderType === 'delivery';
-  const fee = delivery && on && on.delivery_fee_cents > 0 && (on.delivery_free_from_cents == null || cart.total < on.delivery_free_from_cents) ? on.delivery_fee_cents : 0;
-  const belowMin = delivery && !!on && on.delivery_min_cents > 0 && cart.total < on.delivery_min_cents;
+  // takeaway can be cheaper per dish: the same total as the server will charge
+  const ta = checkout.orderType === 'takeaway';
+  const sub = cart.totalFor(ta);
+  const fee = delivery && on && on.delivery_fee_cents > 0 && (on.delivery_free_from_cents == null || sub < on.delivery_free_from_cents) ? on.delivery_fee_cents : 0;
+  const belowMin = delivery && !!on && on.delivery_min_cents > 0 && sub < on.delivery_min_cents;
   const [locState, setLocState] = useState<'idle' | 'busy' | 'fail'>('idle');
   const promo = checkout.promo ?? null;
-  const off = promoDiscount(promo, cart.total + fee);
+  const off = promoDiscount(promo, sub + fee);
   const [code, setCode] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeErr, setCodeErr] = useState<string | null>(null);
   const applyCode = async () => {
     setCodeBusy(true); setCodeErr(null);
-    try { const p = await checkPromo(menu.restaurant.slug, code.trim(), cart.total + fee); setCheckout({ ...checkout, promo: p }); setCode(''); }
+    try { const p = await checkPromo(menu.restaurant.slug, code.trim(), sub + fee); setCheckout({ ...checkout, promo: p }); setCode(''); }
     catch (e) { setCodeErr(t.errors[errorCode(e)]); }
     setCodeBusy(false);
   };
@@ -149,7 +152,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
             className="w-full h-14 rounded-full bg-brand text-brand-ink font-semibold text-[15px] flex items-center justify-between px-6 glow-brand disabled:opacity-45 disabled:shadow-none press"
           >
             <span>{busy ? t.sending : t.placeOrder}</span>
-            <span className="tabular-nums">{formatMoney(cart.total + fee - off, currency, lang)}</span>
+            <span className="tabular-nums">{formatMoney(sub + fee - off, currency, lang)}</span>
           </button>
           <p className="text-center text-xs text-muted">{kiosk ? t.kioskPay : checkout.orderType === 'takeaway' ? t.payOnPickup : delivery ? t.payOnDelivery : t.payAtCounter}</p>
           </>}
@@ -178,7 +181,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
                     {v && <p className="text-sm text-muted">{tr(v.name, lang, fallbacks)}</p>}
                     {!!l.modifiers?.length && <p className="text-sm text-muted">+ {l.modifiers.map(id => { const o = (it.modifier_groups ?? []).flatMap(g => g.options).find(x => x.id === id); return o ? tr(o.name, lang, fallbacks) : ''; }).filter(Boolean).join(', ')}</p>}
                     {l.note && <p className="text-sm text-muted italic truncate">“{l.note}”</p>}
-                    <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{cart.listPriceOf(l) > cart.priceOf(l) && <span className="me-1.5 text-xs font-medium text-muted line-through">{formatMoney(cart.listPriceOf(l) * l.quantity, currency, lang)}</span>}{formatMoney(cart.priceOf(l) * l.quantity, currency, lang)}</p>
+                    <p className="text-sm font-bold text-brand tabular-nums mt-0.5">{cart.listPriceOf(l, ta) > cart.priceOf(l, ta) && <span className="me-1.5 text-xs font-medium text-muted line-through">{formatMoney(cart.listPriceOf(l, ta) * l.quantity, currency, lang)}</span>}{formatMoney(cart.priceOf(l, ta) * l.quantity, currency, lang)}</p>
                   </div>
                   <Stepper size="sm" min={0} value={l.quantity} onChange={q => cart.setQty(l.key, q)} removeLabel={t.remove} />
                 </li>

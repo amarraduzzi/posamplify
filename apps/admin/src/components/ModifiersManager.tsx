@@ -192,19 +192,20 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
 function OptionRecipe({ r, option, onClose }: { r: Restaurant; option: { id: string; name: string }; onClose: () => void }) {
   const a = useAdminCtx();
   const [ings, setIngs] = useState<Ingredient[]>([]);
-  const [lines, setLines] = useState<{ id?: string; ingredient_id: string; qty: string }[] | null>(null);
+  const [lines, setLines] = useState<{ id?: string; ingredient_id: string; qty: string; dine_in_only?: boolean }[] | null>(null);
   const [orig, setOrig] = useState<string[]>([]);
+  const [dineBefore, setDineBefore] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const [g, l] = await Promise.all([
           supabase.from('ingredients').select('*').eq('restaurant_id', r.id).eq('active', true).order('name'),
-          supabase.from('recipe_lines').select('id, ingredient_id, qty').eq('restaurant_id', r.id).eq('modifier_option_id', option.id).order('sort_order'),
+          supabase.from('recipe_lines').select('*').eq('restaurant_id', r.id).eq('modifier_option_id', option.id).order('sort_order'),
         ]);
         setIngs(check(g) as Ingredient[]);
-        const ls = check(l) as { id: string; ingredient_id: string; qty: number }[];
-        setOrig(ls.map(x => x.id)); setLines(ls.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: String(Number(x.qty)).replace('.', ',') })));
+        const ls = check(l) as { id: string; ingredient_id: string; qty: number; dine_in_only?: boolean }[];
+        setOrig(ls.map(x => x.id)); setDineBefore(new Set(ls.filter(x => x.dine_in_only).map(x => x.id))); setLines(ls.map(x => ({ id: x.id, ingredient_id: x.ingredient_id, qty: String(Number(x.qty)).replace('.', ','), dine_in_only: !!x.dine_in_only })));
       } catch (e) { a.fail(e); onClose(); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,8 +220,10 @@ function OptionRecipe({ r, option, onClose }: { r: Restaurant; option: { id: str
       const gone = orig.filter(id => !keep.has(id));
       if (gone.length) check(await supabase.from('recipe_lines').delete().in('id', gone).select('id'));
       for (const [i, l] of lines.entries()) {
-        if (l.id) check(await supabase.from('recipe_lines').update({ qty: n(l.qty), sort_order: (i + 1) * 10 }).eq('id', l.id).select('id'));
-        else check(await supabase.from('recipe_lines').insert({ restaurant_id: r.id, modifier_option_id: option.id, ingredient_id: l.ingredient_id, qty: n(l.qty), sort_order: (i + 1) * 10 }).select('id'));
+        // dine_in_only only sent when used (works on a database without the column yet)
+        const extra = l.dine_in_only || dineBefore.has(l.id ?? '') ? { dine_in_only: !!l.dine_in_only } : {};
+        if (l.id) check(await supabase.from('recipe_lines').update({ qty: n(l.qty), sort_order: (i + 1) * 10, ...extra }).eq('id', l.id).select('id'));
+        else check(await supabase.from('recipe_lines').insert({ restaurant_id: r.id, modifier_option_id: option.id, ingredient_id: l.ingredient_id, qty: n(l.qty), sort_order: (i + 1) * 10, ...extra }).select('id'));
       }
       a.toast(t('Fiche enregistrée')); onClose();
     } catch (e) { a.fail(e); }
@@ -236,7 +239,10 @@ function OptionRecipe({ r, option, onClose }: { r: Restaurant; option: { id: str
             const g = byId.get(l.ingredient_id);
             return (
               <div key={k} className="grid grid-cols-[1fr_120px_auto] items-center gap-2">
-                <span className="truncate font-semibold">{g?.name ?? '—'}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{g?.name ?? '—'}</span>
+                  <label className="flex w-fit items-center gap-1.5 text-xs text-muted"><input type="checkbox" checked={!!l.dine_in_only} onChange={e => setLines(x => x!.map((y, j) => (j === k ? { ...y, dine_in_only: e.target.checked } : y)))} /> {t('Sur place seulement')}</label>
+                </span>
                 <span className="relative">
                   <input className={`${inputCls} pe-9`} inputMode="decimal" aria-label={t('Quantité')} value={l.qty} onChange={e => setLines(x => x!.map((y, j) => (j === k ? { ...y, qty: e.target.value } : y)))} />
                   <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted">{g?.base_unit}</span>
