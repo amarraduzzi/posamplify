@@ -1614,4 +1614,12 @@ export const AR: Record<string, string> = {
   "Sur place seulement": "في المحل فقط",
   "Vide = comme la catégorie ({m}). 0 = même prix qu’en salle.": "فارغ = مثل الفئة ({m}). 0 = نفس ثمن القاعة.",
   "À emporter : moins cher de (DH)": "للأخذ: أرخص بـ (درهم)",
+  "Effacé : commandes, tickets, paiements, clôtures, caisse, stock, achats, inventaires, réservations et pointages. La numérotation des tickets repart à 1.": "يُحذف: الطلبات، التذاكر، المدفوعات، الإغلاقات، الصندوق، المخزون، المشتريات، الجرد، الحجوزات وتسجيلات الحضور. ترقيم التذاكر يبدأ من 1 من جديد.",
+  "Gardé : menu, options, recettes, ingrédients et prix, fournisseurs, tables, équipe, clients (points remis à 0), site et ventes importées.": "يبقى: القائمة، الخيارات، الوصفات، المكونات وأسعارها، الموردون، الطاولات، الفريق، الزبائن (النقاط تعود إلى 0)، الموقع والمبيعات المستوردة.",
+  "Remettre {name} à zéro ?": "إعادة {name} إلى الصفر؟",
+  "Remettre à zéro": "إعادة إلى الصفر",
+  "Remettre à zéro (ventes et stock)": "إعادة إلى الصفر (المبيعات والمخزون)",
+  "Remettre à zéro {name}": "إعادة {name} إلى الصفر",
+  "Seulement avant le vrai démarrage : les vrais tickets doivent être gardés 10 ans. Ensuite, faites un inventaire d’ouverture (Stock) pour démarrer le stock.": "فقط قبل الانطلاق الفعلي: التذاكر الحقيقية يجب الاحتفاظ بها 10 سنوات. بعد ذلك، قم بجرد افتتاحي (المخزون) لبدء المخزون.",
+  "{name} remis à zéro : {n} commande(s) effacée(s)": "تمت إعادة {name} إلى الصفر: حُذف {n} طلب",
 };

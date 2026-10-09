@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Plus, Trash2, UserPlus } from 'lucide-react';
+import { MessageCircle, Plus, RotateCcw, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -18,6 +18,7 @@ export function PlatformPage() {
   const [creating, setCreating] = useState(false);
   const [member, setMember] = useState<Restaurant | null>(null);
   const [removing, setRemoving] = useState<Restaurant | null>(null);
+  const [resetting, setResetting] = useState<Restaurant | null>(null);
   const load = async () => { try { setList(check(await supabase.from('restaurants').select('*').order('created_at')) as Restaurant[]); } catch (e) { a.fail(e); } };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const status = async (r: Restaurant, s: string, days?: number) => {
@@ -67,6 +68,7 @@ export function PlatformPage() {
                     <Btn className="px-2.5 py-1.5" aria-label={t('Accès à {name}', { name: r.name })} onClick={() => setMember(r)}><UserPlus className="h-4 w-4" /></Btn>
                     {r.status !== 'active' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'active')}>{t('Activer')}</Btn>}
                     {r.status === 'trial' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'trial', 14)}>{t('+14 j')}</Btn>}
+                    <Btn className="px-2.5 py-1.5" aria-label={t('Remettre à zéro {name}', { name: r.name })} title={t('Remettre à zéro (ventes et stock)')} onClick={() => setResetting(r)}><RotateCcw className="h-4 w-4" /></Btn>
                     {r.status !== 'paused' && <Btn tone="danger" className="px-2.5 py-1.5" onClick={() => status(r, 'paused')}>{t('Suspendre')}</Btn>}
                     {(r.status === 'paused' || r.status === 'cancelled' || r.is_demo) && <Btn tone="danger" className="px-2.5 py-1.5" aria-label={t('Supprimer {name}', { name: r.name })} onClick={() => setRemoving(r)}><Trash2 className="h-4 w-4" /></Btn>}
                   </div>
@@ -80,6 +82,7 @@ export function PlatformPage() {
       <SiteLeads />
       {creating && <CreateRestaurant onClose={() => setCreating(false)} onDone={async () => { setCreating(false); await load(); await a.reload(); }} />}
       {member && <AddMember r={member} onClose={() => setMember(null)} />}
+      {resetting && <ResetActivity r={resetting} onClose={() => setResetting(null)} onDone={async () => { setResetting(null); await load(); await a.reload(); }} />}
       {removing && <DeleteRestaurant r={removing} onClose={() => setRemoving(null)} onDone={async () => { setRemoving(null); await load(); await a.reload(); }} />}
     </div>
   );
@@ -140,6 +143,33 @@ function AddMember({ r, onClose }: { r: Restaurant; onClose: () => void }) {
             <option value="device">{t('Caisse (poste)')}</option><option value="manager">{t('Manager (menu, personnel, tables)')}</option><option value="owner">{t('Propriétaire (tout)')}</option>
           </select>
         </Field>
+      </div>
+    </Modal>
+  );
+}
+
+/** Start fresh before going live: sales, tickets, stock and test bookings go; the menu, recipes, ingredients,
+ *  tables, staff and customers stay. Only before real service: real tickets must be kept 10 years. */
+function ResetActivity({ r, onClose, onDone }: { r: Restaurant; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const ok = typed.trim().toLowerCase() === r.slug;
+  const reset = async () => {
+    setBusy(true);
+    try {
+      const res = await rpc<{ orders: number; tickets: number }>('admin_reset_activity', { p_restaurant_id: r.id, p_confirm_slug: typed });
+      a.toast(t('{name} remis à zéro : {n} commande(s) effacée(s)', { name: r.name, n: res.orders })); onDone();
+    } catch (e) { a.fail(e); setBusy(false); }
+  };
+  return (
+    <Modal title={t('Remettre {name} à zéro ?', { name: r.name })} onClose={onClose}
+      footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Annuler')}</Btn><Btn tone="danger" disabled={!ok || busy} onClick={reset}><RotateCcw className="h-4 w-4" /> {t('Remettre à zéro')}</Btn></div>}>
+      <div className="space-y-4">
+        <p>{t('Effacé : commandes, tickets, paiements, clôtures, caisse, stock, achats, inventaires, réservations et pointages. La numérotation des tickets repart à 1.')}</p>
+        <p>{t('Gardé : menu, options, recettes, ingrédients et prix, fournisseurs, tables, équipe, clients (points remis à 0), site et ventes importées.')}</p>
+        <p className="rounded-xl bg-danger/10 p-3 text-sm font-semibold text-danger">{t('Seulement avant le vrai démarrage : les vrais tickets doivent être gardés 10 ans. Ensuite, faites un inventaire d’ouverture (Stock) pour démarrer le stock.')}</p>
+        <Field label={t('Tapez « {slug} » pour confirmer', { slug: r.slug })}><input className={inputCls} value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" /></Field>
       </div>
     </Modal>
   );
