@@ -179,7 +179,6 @@ export const AR: Record<string, string> = {
   "Nom de l'appareil": 'اسم الجهاز',
   'Nom du restaurant': 'اسم المطعم',
   'Nombre de tables': 'عدد الطاولات',
-  'Noms exacts des imprimantes dans Windows (programme printhost).': 'الأسماء الدقيقة للطابعات في Windows (برنامج printhost).',
   'Nous préparons les catégories du menu. Vous ajouterez vos articles et prix ensuite, et vous pourrez tout modifier.': 'نحضر لكم فئات القائمة. ستضيفون أصنافكم وأثمانها بعد ذلك، ويمكنكم تعديل كل شيء.',
   'Nouveau': 'جديد',
   "Nouveau QR code : l'ancien code collé sur la table ne fonctionnera plus. À utiliser si un QR code a été copié ou abîmé.": 'رمز QR جديد: الرمز القديم الملصق على الطاولة لن يعمل بعد الآن. استعملوه إذا تم نسخ رمز QR أو تلف.',
@@ -1633,4 +1632,7 @@ export const AR: Record<string, string> = {
   "Vide = automatique : {p} (prix du restaurant + réglage Glovo du menu).": "فارغ = تلقائي: {p} (سعر المطعم + إعداد Glovo في القائمة).",
   "Vide ou 0 = même prix qu’au restaurant. Arrondi au dirham supérieur.": "فارغ أو 0 = نفس سعر المطعم. يُقرَّب إلى الدرهم الأعلى.",
   "À la caisse, choisissez Glovo pour une commande Glovo : chaque article est compté au prix Glovo.": "في الصندوق، اختر Glovo لطلب Glovo: كل منتج يُحسب بسعر Glovo.",
+  "Imprimantes à câble (USB) ou réseau (wifi) : sur le PC Windows de la caisse, installez une fois le programme d’impression, puis choisissez les imprimantes dans la caisse (Réglages du poste > Imprimantes).": "طابعات بكابل (USB) أو شبكة (wifi): على حاسوب الصندوق Windows، ثبّت برنامج الطباعة مرة واحدة، ثم اختر الطابعات في الصندوق (إعدادات الجهاز > الطابعات).",
+  "Noms par défaut, utilisés quand un PC n’a pas encore choisi ses imprimantes.": "الأسماء الافتراضية، تُستعمل عندما لم يختر الحاسوب طابعاته بعد.",
+  "Télécharger le programme d’impression (Windows)": "تحميل برنامج الطباعة (Windows)",
 };

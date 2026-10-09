@@ -161,7 +161,11 @@ export function SettingsPage({ r }: { r: Restaurant }) {
         </Card>}
         {!siteOnly && <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Caisse')}</h2>
-          <p className="mb-4 text-sm text-muted">{t('Noms exacts des imprimantes dans Windows (programme printhost).')}</p>
+          <div className="mb-4 rounded-xl bg-surface-2 p-3 text-sm">
+            <p>{t('Imprimantes à câble (USB) ou réseau (wifi) : sur le PC Windows de la caisse, installez une fois le programme d’impression, puis choisissez les imprimantes dans la caisse (Réglages du poste > Imprimantes).')}</p>
+            <a href="/printhost.exe" download className="mt-2 inline-flex items-center gap-2 font-semibold text-brand underline underline-offset-4"><Download className="h-4 w-4" /> {t('Télécharger le programme d’impression (Windows)')}</a>
+          </div>
+          <p className="mb-4 text-sm text-muted">{t('Noms par défaut, utilisés quand un PC n’a pas encore choisi ses imprimantes.')}</p>
           <div className="grid gap-4 md:grid-cols-3">
             <Field label={t('Imprimante tickets')}><input dir="ltr" className={inputCls} value={pos.receipt} onChange={e => setPos({ ...pos, receipt: e.target.value })} /></Field>
             <Field label={t('Verrouillage après (minutes)')} hint={t('0 = jamais.')}><input className={inputCls} inputMode="numeric" value={pos.idle} onChange={e => setPos({ ...pos, idle: e.target.value.replace(/\D/g, '') })} /></Field>

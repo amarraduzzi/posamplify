@@ -258,6 +258,8 @@ function usePosState() {
   }, [changeQueue, flush]);
   const dismissFailed = useCallback((seq: number) => changeQueue(q => q.filter(x => x.seq !== seq)), [changeQueue]);
 
+  // the print program can be installed while the till is open: "check again" in the settings
+  const recheckPrinter = useCallback(() => P.pingPrinter().then(ok => { setPrinterOk(ok); return ok; }), []);
   useEffect(() => {
     const check = () => P.pingPrinter().then(setPrinterOk);
     check();
@@ -513,7 +515,7 @@ function usePosState() {
   return {
     lang, setLang, session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
     staffList, tables, categories, items: liveItems, stockLow, refreshStock, orders, staff, setStaff,
-    live, online, lastSync, printerOk, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
+    live, online, lastSync, printerOk, recheckPrinter, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,
     reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, markReady, fireNext, markServed, pay, printBill, reprintDoc, openDrawer,

@@ -1,8 +1,9 @@
-// Printing through printhost.exe (the small local program already installed
-// at Dom's Café, see the domscafe repo): it listens on http://127.0.0.1:8934
-// and writes raw ESC/POS bytes to the Windows printer with the given name.
-// Chrome allows an https page to call 127.0.0.1. When printhost is not
-// running, nothing breaks: printing reports "not available".
+// Printing through printhost.exe (tools/printhost, offered for download as /printhost.exe): a small
+// Windows program that listens on http://127.0.0.1:8934 and writes raw ESC/POS bytes to the Windows
+// printer with the given name (USB or network, whatever Windows knows). Chrome allows an https page
+// to call 127.0.0.1. When printhost is not running, nothing breaks: printing reports "not available".
+// Which printer does what is chosen on each PC (Réglages du poste), from the printers Windows sees;
+// otherwise the names set in the admin (Paramètres > Caisse), otherwise TICKET / CUISINE / BAR.
 import type { DayReport, FiscalDoc, Order, Restaurant, PosSettings } from './types';
 import { amount, dateTime, METHOD, TYPE } from './format';
 import { courseTicket } from './stations';
@@ -22,6 +23,21 @@ async function call<T>(path: string, init?: RequestInit, ms = 4000): Promise<T |
 }
 
 export const pingPrinter = async () => !!(await call<{ ok: boolean }>('/ping', undefined, 1500))?.ok;
+/** The printers Windows sees on this PC; null with the old Dom's printhost (no list: update it). */
+export async function listPrinters(): Promise<{ name: string; default: boolean }[] | null> {
+  const r = await call<{ ok: boolean; printers?: { name: string; default: boolean }[] }>('/printers', undefined, 3000);
+  return r?.ok && Array.isArray(r.printers) ? r.printers : null;
+}
+
+/** This PC's own choice of printers (kept on this PC only). */
+export type LocalPrinters = { receipt?: string; stations?: Record<string, string> };
+const LOCAL_KEY = 'pos-printers';
+export function localPrinters(): LocalPrinters {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '{}') as LocalPrinters; } catch { return {}; }
+}
+export function setLocalPrinters(v: LocalPrinters) {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(v)); } catch { /* private mode: the admin names stay */ }
+}
 
 function ascii(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/[^\x20-\x7E]/g, '?');
@@ -73,8 +89,8 @@ export async function print(printer: string, title: string, lines: TicketLine[],
 }
 
 export const printerFor = (s: PosSettings, station: string) =>
-  s.printers?.stations?.[station] ?? (station === 'bar' ? 'BAR' : 'CUISINE');
-export const receiptPrinter = (s: PosSettings) => s.printers?.receipt ?? 'TICKET';
+  localPrinters().stations?.[station] || s.printers?.stations?.[station] || (station === 'bar' ? 'BAR' : 'CUISINE');
+export const receiptPrinter = (s: PosSettings) => localPrinters().receipt || s.printers?.receipt || 'TICKET';
 
 const rule = (c = '-') => ({ text: c.repeat(W) });
 const row = (left: string, right: string) => {

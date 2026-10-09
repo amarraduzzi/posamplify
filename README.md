@@ -89,7 +89,7 @@ De tafelcodes staan in de tabel `dining_tables` (kolom `qr_token`). De QR-code b
 - Output directory: `apps/pos/dist`
 - Zelfde drie environment variables als de klant-app.
 
-Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `device`). Medewerkers kiezen daarna hun naam en typen hun PIN. Printen gaat via printhost.exe (zie de domscafe-repo); printernamen per restaurant staan in `restaurants.pos_settings`, standaard `TICKET`, `BAR` en `CUISINE`.
+Per kassa-pc: log één keer in met het kassa-account van het restaurant (rol `device`). Medewerkers kiezen daarna hun naam en typen hun PIN. Printen gaat via printhost.exe (zie `tools/printhost`): de klant downloadt het in de kassa (Réglages du poste) en kiest daar per pc zijn printers; anders gelden de namen in `restaurants.pos_settings`, standaard `TICKET`, `BAR` en `CUISINE`.
 
 ## Beheer publiceren (derde Cloudflare Pages-project)
 
