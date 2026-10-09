@@ -148,8 +148,8 @@ export function guestOrder(tableToken, items, extra = {}) {
 export async function tillOrder(device, restaurantId, lines, extra = {}) {
   const [o] = await as(device,
     `insert into public.orders (restaurant_id, client_id, business_date, ticket_number, source, order_type, table_id)
-     values ($1, $2, current_date, 0, 'pos', $3, $4) returning *`,
-    [restaurantId, uuid(), extra.order_type ?? 'takeaway', extra.table_id ?? null]);
+     values ($1, $2, current_date, 0, $5, $3, $4) returning *`,
+    [restaurantId, uuid(), extra.order_type ?? 'takeaway', extra.table_id ?? null, extra.source ?? 'pos']);
   for (const l of lines) {
     await as(device,
       `insert into public.order_lines (restaurant_id, order_id, menu_item_id, variant_id, name, unit_price_cents, quantity, vat_bp)

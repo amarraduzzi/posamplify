@@ -15,7 +15,7 @@ export interface PosSettings {
 }
 
 export interface Restaurant {
-  id: string; slug: string; name: string; status: string; timezone: string; currency: string;
+  id: string; slug: string; name: string; status: string; timezone: string; currency: string; glovo_markup_bp?: number;
   languages: string[]; branding: { primary_color?: string; logo_url?: string; review_url?: string; review_on_receipt?: boolean };
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
@@ -31,14 +31,14 @@ export interface Restaurant {
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; sort_order: number; active: boolean }
 export interface Category { id: string; name: I18n; icon: string | null; station: string; sort_order: number; course?: number | null; takeaway_discount_cents?: number }
-export interface Variant { id: string; menu_item_id: string; name: I18n; price_cents: number; sort_order: number }
-export interface ModOption { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number }
+export interface Variant { id: string; menu_item_id: string; name: I18n; price_cents: number; sort_order: number; glovo_price_cents?: number | null }
+export interface ModOption { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number; glovo_price_cents?: number | null }
 /** Extras / set-menu choices: pick between min_select and max_select options (null = no limit). */
 export interface ModGroup { id: string; name: I18n; min_select: number; max_select: number | null; sort_order: number; options: ModOption[] }
 export interface Item {
   id: string; category_id: string; name: I18n; price_cents: number; station: string | null;
   available: boolean; sort_order: number; variants: Variant[]; image_url?: string | null;
-  groups?: ModGroup[]; takeaway_discount_cents?: number | null;
+  groups?: ModGroup[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
 }
 export interface ChosenMod { id: string; name: string; price_cents: number }
 

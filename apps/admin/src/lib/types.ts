@@ -2,7 +2,7 @@ import type { I18n } from '@resto/shared';
 export type { I18n };
 export interface Restaurant {
   id: string; slug: string; name: string; status: 'trial' | 'active' | 'paused' | 'cancelled'; trial_ends_at: string | null; is_demo: boolean;
-  timezone: string; currency: string; languages: string[]; day_cutoff_hour: number;
+  timezone: string; currency: string; languages: string[]; day_cutoff_hour: number; glovo_markup_bp?: number;
   branding: { primary_color?: string; theme?: 'dark' | 'light'; logo_url?: string; cover_url?: string; tagline?: I18n; font_display?: string; review_url?: string; review_on_receipt?: boolean };
   opening_hours: Record<string, [string, string][]>;
   booking?: { enabled?: boolean; waitlist?: boolean; auto_confirm?: boolean; capacity?: number; duration_min?: number; slot_minutes?: number; lead_minutes?: number; days_ahead?: number; max_party?: number; note?: string | null };
@@ -20,11 +20,11 @@ export interface Restaurant {
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null; takeaway_discount_cents?: number }
-export interface Variant { id?: string; menu_item_id?: string; name: I18n; price_cents: number; sort_order: number; active: boolean }
+export interface Variant { id?: string; menu_item_id?: string; name: I18n; price_cents: number; sort_order: number; active: boolean; glovo_price_cents?: number | null }
 export interface Item {
   id: string; restaurant_id: string; category_id: string; name: I18n; description: I18n; price_cents: number;
   image_url: string | null; vat_bp: number | null; station: string | null; tags: string[]; active: boolean; available: boolean; sort_order: number;
-  item_variants: Variant[]; takeaway_discount_cents?: number | null;
+  item_variants: Variant[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
 }
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; qr_token: string; sort_order: number; active: boolean }

@@ -10,9 +10,10 @@ import type { Category, I18n, Ingredient, Item, Restaurant } from '../lib/types'
 import { fmtQty } from '../lib/profit';
 import { Btn, Field, I18nInput, Modal, inputCls } from './ui';
 import { t } from '../lib/i18n';
+import { glovoPrice } from '../lib/glovo';
 
 interface Group { id: string; name: I18n; min_select: number; max_select: number | null; sort_order: number; active: boolean }
-interface Option { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number; active: boolean }
+interface Option { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number; active: boolean; glovo_price_cents?: number | null }
 interface Link { menu_item_id: string; group_id: string }
 type Kind = 'extras' | 'one' | 'custom';
 
@@ -72,7 +73,7 @@ export function ModifiersManager({ r, cats, items, onClose }: { r: Restaurant; c
   );
 }
 
-type DraftOpt = { id?: string; name: I18n; price: string; active: boolean };
+type DraftOpt = { id?: string; name: I18n; price: string; glovo: string; active: boolean };
 
 function GroupEditor({ r, cats, items, group, options, linked, count, onClose, onSaved }: {
   r: Restaurant; cats: Category[]; items: Item[]; group: Group | null; options: Option[]; linked: string[]; count: number; onClose: () => void; onSaved: () => void;
@@ -87,8 +88,8 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
   const [min, setMin] = useState(String(group?.min_select ?? 0));
   const [max, setMax] = useState(group?.max_select == null ? '' : String(group.max_select));
   const [opts, setOpts] = useState<DraftOpt[]>(() => options.length
-    ? options.map(o => ({ id: o.id, name: o.name, price: fromCents(o.price_cents), active: o.active }))
-    : [{ name: {}, price: '', active: true }]);
+    ? options.map(o => ({ id: o.id, name: o.name, price: fromCents(o.price_cents), glovo: o.glovo_price_cents == null ? '' : fromCents(o.glovo_price_cents), active: o.active }))
+    : [{ name: {}, price: '', glovo: '', active: true }]);
   const [dishes, setDishes] = useState<Set<string>>(() => new Set(linked));
   const [active, setActive] = useState(group?.active ?? true);
   const [busy, setBusy] = useState(false);
@@ -113,7 +114,10 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
       const gone = options.filter(o => !keep.has(o.id)).map(o => o.id);
       if (gone.length) check(await supabase.from('modifier_options').delete().in('id', gone).select('id'));
       for (const [k, o] of named.entries()) {
-        const data = { name: o.name, price_cents: o.price.trim() ? toCents(o.price) : 0, sort_order: (k + 1) * 10, active: o.active };
+        const was = options.find(x => x.id === o.id)?.glovo_price_cents;
+        const data = { name: o.name, price_cents: o.price.trim() ? toCents(o.price) : 0, sort_order: (k + 1) * 10, active: o.active,
+          // Glovo price: empty = automatic (only sent when set or changed)
+          ...(o.glovo.trim() || was != null ? { glovo_price_cents: o.glovo.trim() ? toCents(o.glovo) : null } : {}) };
         if (o.id) check(await supabase.from('modifier_options').update(data).eq('id', o.id).select('id'));
         else check(await supabase.from('modifier_options').insert({ ...data, restaurant_id: r.id, group_id: g.id }).select('id'));
       }
@@ -153,15 +157,16 @@ function GroupEditor({ r, cats, items, group, options, linked, count, onClose, o
         <Field group label={t('Options')}>
           <div className="space-y-2">
             {opts.map((o, k) => (
-              <div key={k} className={`grid items-start gap-2 ${profit ? 'grid-cols-[1fr_110px_auto_auto]' : 'grid-cols-[1fr_110px_auto]'}`}>
+              <div key={k} className={`grid items-start gap-2 ${profit ? 'grid-cols-[1fr_80px_80px_auto_auto]' : 'grid-cols-[1fr_80px_80px_auto]'}`}>
                 <I18nInput compact value={o.name} onChange={v => setOpts(x => x.map((y, j) => (j === k ? { ...y, name: v } : y)))} langs={r.languages.length ? r.languages : ['fr']} max={60} ariaLabel={t('Option {n}', { n: k + 1 })} />
                 <input className={inputCls} inputMode="decimal" placeholder={t('+ DH')} aria-label={t('Prix en plus (DH)')} value={o.price} onChange={e => setOpts(x => x.map((y, j) => (j === k ? { ...y, price: e.target.value } : y)))} />
+                <input className={inputCls} inputMode="decimal" aria-label={t('Prix Glovo (DH)')} title={t('Prix Glovo (DH)')} placeholder={`Glovo ${fromCents(glovoPrice(r, o.price.trim() ? toCents(o.price) : 0))}`} value={o.glovo} onChange={e => setOpts(x => x.map((y, j) => (j === k ? { ...y, glovo: e.target.value } : y)))} />
                 {profit && <button aria-label={t('Fiche technique')} title={o.id ? t('Fiche technique (stock et coût)') : t('Enregistrez d’abord l’option')} disabled={!o.id} onClick={() => o.id && setRecipe({ id: o.id, name: tr(o.name, lang) })} className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30"><ChefHat className="h-4 w-4" /></button>}
                 <button aria-label={t('Supprimer')} onClick={() => setOpts(x => x.filter((_, j) => j !== k))} className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-danger/10 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
-            <Btn tone="ghost" onClick={() => setOpts(x => [...x, { name: {}, price: '', active: true }])}><Plus className="h-4 w-4" /> {t('Ajouter une option')}</Btn>
-            <p className="text-xs text-muted">{t('Laissez le prix vide pour une option gratuite (choix de la formule, cuisson).')}</p>
+            <Btn tone="ghost" onClick={() => setOpts(x => [...x, { name: {}, price: '', glovo: '', active: true }])}><Plus className="h-4 w-4" /> {t('Ajouter une option')}</Btn>
+            <p className="text-xs text-muted">{t('Laissez le prix vide pour une option gratuite (choix de la formule, cuisson).')} {t('Glovo vide = automatique (réglage Glovo du menu).')}</p>
           </div>
         </Field>
 

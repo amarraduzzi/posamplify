@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera, ListPlus } from 'lucide-react';
+import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera, ListPlus, Bike } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
@@ -11,6 +11,7 @@ import { t } from '../lib/i18n';
 import { ImportMenu } from '../components/ImportMenu';
 import { ModifiersManager } from '../components/ModifiersManager';
 import { COURSES, stationsOf } from '../lib/stations';
+import { glovoPrice } from '../lib/glovo';
 
 // tag labels (the stored value is the key), shown through t()
 // i18n:values
@@ -29,6 +30,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
   const [mods, setMods] = useState(false);
+  const [glovo, setGlovo] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +75,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} ps-9`} placeholder={t('Chercher un article')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        <Btn tone="ghost" onClick={() => setGlovo(true)}><Bike className="h-4 w-4" /> {t('Prix Glovo')}{r.glovo_markup_bp ? ` +${r.glovo_markup_bp / 100} %` : ''}</Btn>
         <Btn tone="ghost" onClick={() => setMods(true)}><ListPlus className="h-4 w-4" /> {t('Suppléments et formules')}</Btn>
         <Btn tone="ghost" onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
       </div>
@@ -122,6 +125,11 @@ export function MenuPage({ r }: { r: Restaurant }) {
                   <p className="truncate font-semibold"><bdi>{tr(i.name, lang)}</bdi></p>
                   <p className="text-sm text-muted tabular">
                     {i.item_variants.length ? i.item_variants.map(v => `${tr(v.name, lang)} ${mad(v.price_cents)}`).join(' · ') : mad(i.price_cents)}
+                    {(() => {
+                      const g = i.item_variants.length ? i.item_variants.map(v => glovoPrice(r, v.price_cents, v.glovo_price_cents)) : [glovoPrice(r, i.price_cents, i.glovo_price_cents)];
+                      const base = i.item_variants.length ? i.item_variants.map(v => v.price_cents) : [i.price_cents];
+                      return g.some((x, k) => x !== Number(base[k])) ? <span className="ms-2 rounded bg-warn/15 px-1.5 text-xs font-semibold text-warn">Glovo {g.map(x => mad(x)).join(' · ')}</span> : null;
+                    })()}
                     {i.tags.map(g => <span key={g} className="ms-2 rounded bg-surface-2 px-1.5 text-xs">{TAGS[g] ? t(TAGS[g]) : g}</span>)}
                   </p>
                 </button>
@@ -141,6 +149,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
         </section>
       </div>
 
+      {glovo && <GlovoSettings r={r} onClose={() => setGlovo(false)} />}
       {mods && <ModifiersManager r={r} cats={cats} items={items} onClose={() => setMods(false)} />}
       {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}
       {editCat && <CategoryEditor r={r} cat={editCat === 'new' ? null : editCat} count={cats.length} onClose={() => setEditCat(null)} onSaved={async id => { setEditCat(null); await load(); if (id) setSel(id); }} />}
@@ -221,8 +230,9 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
   const [available, setAvailable] = useState(item?.available ?? true);
   const [off, setOff] = useState(item?.takeaway_discount_cents == null ? '' : fromCents(item.takeaway_discount_cents));
   const catOff = cats.find(c => c.id === category)?.takeaway_discount_cents ?? 0;
-  const [variants, setVariants] = useState<(Variant & { priceText: string })[]>(
-    (item?.item_variants ?? []).map(v => ({ ...v, priceText: fromCents(v.price_cents) })));
+  const [glovo, setGlovo] = useState(item?.glovo_price_cents == null ? '' : fromCents(item.glovo_price_cents));
+  const [variants, setVariants] = useState<(Variant & { priceText: string; glovoText: string })[]>(
+    (item?.item_variants ?? []).map(v => ({ ...v, priceText: fromCents(v.price_cents), glovoText: v.glovo_price_cents == null ? '' : fromCents(v.glovo_price_cents) })));
   const [busy, setBusy] = useState(false);
   const ok = !!name[r.languages[0]]?.trim() && !!category && (variants.length ? variants.every(v => v.name[r.languages[0]]?.trim() && v.priceText) : price !== '');
 
@@ -235,6 +245,8 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
         vat_bp: vat === '' ? null : Number(vat), station: station || null,
         // empty = the reduction of the category (only sent when set or changed)
         ...(off.trim() !== '' || item?.takeaway_discount_cents != null ? { takeaway_discount_cents: off.trim() === '' ? null : toCents(off) } : {}),
+        // Glovo: empty = automatic (restaurant price + the Glovo markup)
+        ...(!variants.length && (glovo.trim() !== '' || item?.glovo_price_cents != null) ? { glovo_price_cents: glovo.trim() === '' ? null : toCents(glovo) } : {}),
       };
       let id = item?.id;
       if (id) check(await supabase.from('menu_items').update(row).eq('id', id).select('id'));
@@ -244,7 +256,8 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
       const removed = (item?.item_variants ?? []).filter(v => !keep.includes(v.id!)).map(v => v.id!);
       if (removed.length) check(await supabase.from('item_variants').delete().in('id', removed).select('id'));
       for (const [k, v] of variants.entries()) {
-        const vr = { name: v.name, price_cents: toCents(v.priceText), sort_order: k, active: true };
+        const vr = { name: v.name, price_cents: toCents(v.priceText), sort_order: k, active: true,
+          ...(v.glovoText.trim() !== '' || v.glovo_price_cents != null ? { glovo_price_cents: v.glovoText.trim() === '' ? null : toCents(v.glovoText) } : {}) };
         if (v.id) check(await supabase.from('item_variants').update(vr).eq('id', v.id).select('id'));
         else check(await supabase.from('item_variants').insert({ ...vr, restaurant_id: r.id, menu_item_id: id }).select('id'));
       }
@@ -275,12 +288,13 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <span className="text-sm font-semibold">{t('Tailles / options')} {variants.length ? '' : t('(facultatif)')}</span>
-              <Btn className="px-3 py-1.5" onClick={() => setVariants(v => [...v, { name: {}, price_cents: 0, priceText: price, sort_order: v.length, active: true }])}><Plus className="h-4 w-4" /> {t('Option')}</Btn>
+              <Btn className="px-3 py-1.5" onClick={() => setVariants(v => [...v, { name: {}, price_cents: 0, priceText: price, glovoText: '', sort_order: v.length, active: true }])}><Plus className="h-4 w-4" /> {t('Option')}</Btn>
             </div>
             {variants.map((v, k) => (
               <div key={v.id ?? k} className="mb-2 flex items-start gap-2">
                 <div className="min-w-0 flex-1"><I18nInput compact ariaLabel={t('Option {n}', { n: k + 1 })} value={v.name} onChange={n => setVariants(vs => vs.map((x, j) => j === k ? { ...x, name: n } : x))} langs={r.languages} max={60} /></div>
                 <div className="mt-8 w-24 shrink-0"><input aria-label={t('Prix option {n}', { n: k + 1 })} className={inputCls} inputMode="decimal" placeholder={t('Prix')} value={v.priceText} onChange={e => setVariants(vs => vs.map((x, j) => j === k ? { ...x, priceText: e.target.value } : x))} /></div>
+                <div className="mt-8 w-24 shrink-0"><input aria-label={t('Prix Glovo option {n}', { n: k + 1 })} title={t('Prix Glovo (DH)')} className={inputCls} inputMode="decimal" placeholder={`Glovo ${v.priceText ? fromCents(glovoPrice(r, toCents(v.priceText))) : ''}`} value={v.glovoText} onChange={e => setVariants(vs => vs.map((x, j) => j === k ? { ...x, glovoText: e.target.value } : x))} /></div>
                 <button onClick={() => setVariants(vs => vs.filter((_, j) => j !== k))} aria-label={t("Retirer l'option {n}", { n: k + 1 })} className="mt-8 grid h-11 w-10 place-items-center rounded-lg text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
@@ -309,12 +323,45 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
           <Field label={t('À emporter : moins cher de (DH)')} hint={t('Vide = comme la catégorie ({m}). 0 = même prix qu’en salle.', { m: mad(catOff) })}>
             <input inputMode="decimal" className={`${inputCls} !w-32`} value={off} onChange={e => setOff(e.target.value)} placeholder={fromCents(catOff)} />
           </Field>
+          {!variants.length && (
+            <Field label={t('Prix Glovo (DH)')} hint={t('Vide = automatique : {p} (prix du restaurant + réglage Glovo du menu).', { p: price ? mad(glovoPrice(r, toCents(price))) : '—' })}>
+              <input inputMode="decimal" className={`${inputCls} !w-32`} value={glovo} onChange={e => setGlovo(e.target.value)} placeholder={price ? fromCents(glovoPrice(r, toCents(price))) : ''} />
+            </Field>
+          )}
           <div className="flex flex-wrap gap-6">
             <Toggle checked={active} onChange={setActive} label={t('Visible')} />
             <Toggle checked={available} onChange={setAvailable} label={t("Disponible aujourd'hui")} />
           </div>
         </div>
         <Field group label={t('Photo')}><ImageField url={image} onChange={setImage} upload={f => uploadImage(r.id, 'items', f)} /></Field>
+      </div>
+    </Modal>
+  );
+}
+
+/** Glovo prices: one markup for the whole menu (rounded up to the dirham); a dish, size or option
+ *  can have its own exact Glovo price in its editor. Used when the till rings a Glovo order. */
+function GlovoSettings({ r, onClose }: { r: Restaurant; onClose: () => void }) {
+  const a = useAdminCtx();
+  const [pct, setPct] = useState(r.glovo_markup_bp ? String(r.glovo_markup_bp / 100) : '');
+  const [busy, setBusy] = useState(false);
+  const bp = Math.round(Math.min(100, Math.max(0, Number(pct.replace(',', '.')) || 0)) * 100);
+  const save = async () => {
+    setBusy(true);
+    try {
+      check(await supabase.from('restaurants').update({ glovo_markup_bp: bp }).eq('id', r.id).select('id'));
+      await a.reload(); a.toast(t('Prix Glovo enregistrés')); onClose();
+    } catch (e) { a.fail(e); setBusy(false); }
+  };
+  return (
+    <Modal title={t('Prix Glovo')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      <div className="space-y-4">
+        <p>{t('À la caisse, choisissez Glovo pour une commande Glovo : chaque article est compté au prix Glovo.')}</p>
+        <Field label={t('Glovo : plus cher de (%)')} hint={t('Vide ou 0 = même prix qu’au restaurant. Arrondi au dirham supérieur.')}>
+          <input autoFocus inputMode="decimal" className={`${inputCls} !w-32`} value={pct} onChange={e => setPct(e.target.value)} placeholder="0" />
+        </Field>
+        {bp > 0 && <p className="rounded-xl bg-surface-2 p-3 text-sm">{t('Exemple : {a} au restaurant = {p} sur Glovo.', { a: mad(2500), p: mad(glovoPrice({ glovo_markup_bp: bp }, 2500)) })}</p>}
+        <p className="text-sm text-muted">{t('Un prix différent pour un article : ouvrez-le et remplissez « Prix Glovo ». Il remplace le calcul automatique.')}</p>
       </div>
     </Modal>
   );

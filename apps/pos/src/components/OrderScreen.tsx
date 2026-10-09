@@ -71,10 +71,25 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   // takeaway: the reduction of the dish or its category, applied by the database too (before the happy hour)
   const takeaway = (order?.order_type ?? (tableId ? 'dine_in' : kind === 'glovo' ? 'delivery' : kind)) === 'takeaway';
   const offOf = (i: Item) => (takeaway ? Number(i.takeaway_discount_cents ?? pos.categories.find(c => c.id === i.category_id)?.takeaway_discount_cents ?? 0) : 0);
-  const dUnit = (d: DraftLine) => {
+  // Glovo: the Glovo price of each dish, size and option (exact, or the restaurant price + the Glovo markup,
+  // rounded up to the dirham), the same as the database writes; no happy hour on Glovo
+  const glovo = (order?.source ?? (tableId ? 'pos' : kind === 'glovo' ? 'glovo' : 'pos')) === 'glovo';
+  const gm = Number(r.glovo_markup_bp ?? 0);
+  const gp = (base: number, exact?: number | null) => exact != null ? Number(exact) : gm > 0 ? Math.ceil(Number(base) * (10000 + gm) / 1000000) * 100 : Number(base);
+  const priced = (i: Item): Item => !glovo ? i : {
+    ...i, price_cents: gp(i.price_cents, i.glovo_price_cents),
+    variants: i.variants.map(v => ({ ...v, price_cents: gp(v.price_cents, v.glovo_price_cents) })),
+    groups: i.groups?.map(g => ({ ...g, options: g.options.map(o => ({ ...o, price_cents: gp(o.price_cents, o.glovo_price_cents) })) })),
+  };
+  const hhOf = (i: Item): number => (glovo ? 0 : hh(i.id, i.category_id));
+  const dUnit = (d: DraftLine, promo = true) => {
     const it = d.item_id ? pos.items.find(i => i.id === d.item_id) : null;
-    const mods = (d.modifiers ?? []).reduce((s, m) => s + Number(m.price_cents), 0);
-    return it ? promoPrice(Math.max(0, d.unit_price_cents - mods - offOf(it)), hh(it.id, it.category_id)) + mods : d.unit_price_cents;
+    if (!it) return d.unit_price_cents;
+    // from the menu in the current mode, so switching takeaway / Glovo reprices the lines not yet sent
+    const pi = priced(it), v = d.variant_id ? pi.variants.find(x => x.id === d.variant_id) : null;
+    const opts = (pi.groups ?? []).flatMap(g => g.options);
+    const mods = (d.modifiers ?? []).reduce((s, m) => s + Number(opts.find(o => o.id === m.id)?.price_cents ?? m.price_cents), 0);
+    return promoPrice(Math.max(0, Number(v ? v.price_cents : pi.price_cents) - offOf(it)), promo ? hhOf(it) : 0) + mods;
   };
   const draftTotal = draft.reduce((s, d) => s + dUnit(d) * d.quantity, 0);
   const subtotal = Number(order?.subtotal_cents ?? 0) + draftTotal;
@@ -85,9 +100,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   // ---- menu -----------------------------------------------------------------
   const visibleItems = useMemo(() => {
     const q = query.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if (q) return pos.items.filter(i => Object.values(i.name).some(n => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q)));
-    return pos.items.filter(i => i.category_id === cat);
-  }, [pos.items, cat, query]);
+    if (q) return pos.items.filter(i => Object.values(i.name).some(n => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q))).map(priced);
+    return pos.items.filter(i => i.category_id === cat).map(priced);
+  }, [pos.items, cat, query, glovo, gm]); // eslint-disable-line react-hooks/exhaustive-deps
   const courseOf = (i: Item) => pos.categories.find(c => c.id === i.category_id)?.course ?? null;
   const usesCourses = pos.categories.some(c => c.course);
   const cycleCourse = (key: string) => setDraft(d => d.map(x => x.key === key ? { ...x, course: x.course === 3 ? null : (x.course ?? 0) + 1 } : x));
@@ -165,7 +180,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   useEffect(() => {
     show(r, nothing ? { mode: 'idle' } : { mode: 'order', label, subtotal, discount, promo: order?.discount_kind === 'promo', total,
       lines: [...(order?.order_lines ?? []).map(l => ({ q: l.quantity, name: lineName(l), total: Number(l.line_total_cents), list: l.list_price_cents ? Number(l.list_price_cents) * l.quantity : undefined })),
-              ...draft.map(d => ({ q: d.quantity, name: lineName(d), total: dUnit(d) * d.quantity, list: dUnit(d) < d.unit_price_cents ? d.unit_price_cents * d.quantity : undefined }))] });
+              ...draft.map(d => ({ q: d.quantity, name: lineName(d), total: dUnit(d) * d.quantity, list: dUnit(d) < dUnit(d, false) ? dUnit(d, false) * d.quantity : undefined }))] });
   }, [order, draft, label]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => show(r, { mode: 'idle' }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -339,7 +354,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
                     <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}</span>
-                    {i.available && hh(i.id, i.category_id) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hh(i.id, i.category_id) / 100}%</span>}
+                    {i.available && hhOf(i) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hhOf(i) / 100}%</span>}
                     {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
                   {inDraft > 0
@@ -442,7 +457,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                     <span className="text-sm font-bold leading-tight">{nameOf(i.name)}</span>
                     <span className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-brand tabular">
                       {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}
-                      {i.available && hh(i.id, i.category_id) > 0 && <span className="rounded-full bg-ok px-2 py-0.5 text-[11px] font-bold text-[#032A2A]">-{hh(i.id, i.category_id) / 100}%</span>}
+                      {i.available && hhOf(i) > 0 && <span className="rounded-full bg-ok px-2 py-0.5 text-[11px] font-bold text-[#032A2A]">-{hhOf(i) / 100}%</span>}
                       {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger text-white' : 'bg-warn text-[#1B1300]'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                     </span>
                   </span>
