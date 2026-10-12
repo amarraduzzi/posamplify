@@ -307,6 +307,10 @@ function modCss() {
 .bx .big-n{font-family:var(--display);font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-top:auto}
 .bx .sub{color:var(--muted);margin-top:8px;font-size:15px}
 .bx.adr .big-n{font-size:clamp(22px,2.4vw,30px);line-height:1.08;overflow-wrap:anywhere}
+.rm-wave{height:56px;margin-top:-1px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 56' preserveAspectRatio='none'%3E%3Cpath fill='%23F4EDE0' d='M0 28C240 0 480 56 720 28S1200 0 1440 28V56H0Z'/%3E%3C/svg%3E") center bottom/100% 100% no-repeat}
+.rm-wave.dn{transform:scaleY(-1);margin:-1px 0 0}
+.rm-sand{background:var(--surface)}.rm .rm-sand .dish{background:#fff}
+@media (max-width:860px){.rm-wave{height:34px}}
 .bx.adr .btn{margin-top:18px;align-self:flex-start;min-height:44px;padding:0 18px;font-size:14px;background:var(--ink);color:var(--bg)}
 .t-moderne .sh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:30px}
 .t-moderne .dishes,.t-moderne .mlist{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -343,7 +347,8 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   const t = T[lang], rtl = lang === 'ar';
   const k: Theme = d.site.theme && THEMES[d.site.theme] ? d.site.theme : 'nuit';
   // Relais Marin: a warm sand tint instead of neutral grey, to echo the beach (only this restaurant)
-  const th = r.slug === 'relais-marin' && k === 'moderne' ? { ...THEMES[k], surface: '#F4EDE0', line: 'rgba(22,24,29,.12)', muted: '#625C52' } : THEMES[k];
+  const rm = r.slug === 'relais-marin' && k === 'moderne';
+  const th = rm ? { ...THEMES[k], surface: '#F4EDE0', line: 'rgba(22,24,29,.12)', muted: '#625C52' } : THEMES[k];
   const accent = /^#[0-9a-f]{6}$/i.test(r.branding?.primary_color ?? '') ? r.branding.primary_color! : th.accent;
   const name = esc(r.name);
   const L = (x: I18n | undefined) => tr(x, lang, langs);
@@ -391,7 +396,7 @@ ${d.noindex ? '<meta name="robots" content="noindex">' : ''}${langs.map(l => `<l
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="${fonts}" rel="stylesheet">
 ${lcp ? `<link rel="preload" as="image" href="${esc(lcp)}" fetchpriority="high">` : ''}
 <style>${css(k, th, accent, rtl)}</style>
-<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script></head><body class="t-${k} pg-${page}">`;
+<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script></head><body class="t-${k} pg-${page}${rm ? ' rm' : ''}">`;
 
   const langLinks = langs.length > 1 ? `<div class="langs">${langs.filter(l => ['fr', 'en', 'ar'].includes(l)).map(l => `<a href="${esc(`${c.base}${page === 'menu' ? '/menu' : ''}${q(l) || '?lang=' + l}`)}" class="${l === lang ? 'on' : ''}" hreflang="${l}">${l === 'ar' ? 'ع' : l.toUpperCase()}</a>`).join('')}</div>` : '';
   const primary = d.can_order ? `<a class="btn p" href="${esc(orderUrl)}">${icon('bag')}${t.orderShort}</a>` : wa ? `<a class="btn p" href="${esc(menuHref)}">${icon('bag')}${t.orderShort}</a>` : '';
@@ -505,8 +510,9 @@ ${feat ? `<a class="bx ph" href="${esc(menuHref)}"><img src="${esc(feat.image_ur
 ${d.can_order || wa ? `<div class="bx ac"><h2>${d.can_order ? t.order : t.orderWa}</h2><a class="btn" href="${esc(d.can_order ? orderUrl : menuHref)}">${icon(d.can_order ? 'bag' : 'wa')}${t.orderShort}</a></div>` : d.booking ? `<div class="bx ac"><h2>${t.book}</h2><a class="btn" href="${esc(bookUrl)}">${icon('cal')}${t.bookShort}</a></div>` : `<a class="bx ac" href="${esc(menuHref)}"><h2>${t.menu}</h2><span class="btn">${t.fullMenu}</span></a>`}
 <a class="bx adr" href="${esc(mapsUrl)}" target="_blank" rel="noopener"><span class="lbl">${icon('pin')}${t.address}</span><p class="big-n">${esc(r.address || r.city || t.directions)}</p>${r.address && r.city ? `<p class="sub">${esc(r.city)}</p>` : ''}<span class="btn">${icon('pin')}${t.directions}</span></a>
 </div>
-${about ? `<section style="padding-top:56px"><div class="w"><h2 class="h2" style="max-width:16ch">${t.about}</h2><p class="lead" style="margin-top:18px">${esc(about)}</p></div></section>` : ''}
+${rm ? '<div class="rm-wave"></div><div class="rm-sand">' : ''}${about ? `<section style="padding-top:56px"><div class="w"><h2 class="h2" style="max-width:16ch">${t.about}</h2><p class="lead" style="margin-top:18px">${esc(about)}</p></div></section>` : ''}
 ${sig.length ? `<section style="padding-top:${about ? '0' : '56px'}"><div class="w"><div class="sh"><h2 class="h2">${t.signature}</h2>${fullMenuBtn}</div><div class="dishes">${sig.map(dishCard).join('')}</div></div></section>` : ''}
+${rm ? '</div><div class="rm-wave dn"></div>' : ''}
 ${!d.can_order && !wa ? '' : ''}
 ${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:30px">${t.gallery}</h2><div class="gal${Math.min(gal.length, 5) === 4 ? ' n4' : ''}">${gal.slice(0, 5).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
 ${infos}`;
