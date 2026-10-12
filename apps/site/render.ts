@@ -342,7 +342,8 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   const lang = (['fr', 'en', 'ar'].includes(c.lang) && langs.includes(c.lang) ? c.lang : (['fr', 'en', 'ar'].includes(langs[0]) ? langs[0] : 'fr')) as Lang;
   const t = T[lang], rtl = lang === 'ar';
   const k: Theme = d.site.theme && THEMES[d.site.theme] ? d.site.theme : 'nuit';
-  const th = THEMES[k];
+  // Relais Marin: a warm sand tint instead of neutral grey, to echo the beach (only this restaurant)
+  const th = r.slug === 'relais-marin' && k === 'moderne' ? { ...THEMES[k], surface: '#F4EDE0', line: 'rgba(22,24,29,.12)', muted: '#625C52' } : THEMES[k];
   const accent = /^#[0-9a-f]{6}$/i.test(r.branding?.primary_color ?? '') ? r.branding.primary_color! : th.accent;
   const name = esc(r.name);
   const L = (x: I18n | undefined) => tr(x, lang, langs);
