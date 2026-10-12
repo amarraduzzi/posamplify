@@ -42,14 +42,17 @@ export function waNumber(p?: string | null) {
 
 const T = {
   fr: { menu: 'La carte', infos: 'Infos', book: 'Réserver une table', order: 'Commander en ligne', orderShort: 'Commander', bookShort: 'Réserver', directions: 'Itinéraire', call: 'Appeler', hours: 'Horaires', address: 'Adresse', fullMenu: 'Voir toute la carte', signature: 'Nos incontournables', gallery: 'En images', open: 'Ouvert maintenant', closed: 'Fermé maintenant', closedDay: 'Fermé', today: 'Aujourd’hui', from: 'dès', review: 'Laisser un avis Google', made: 'Site créé avec Amplify', about: 'Bienvenue', soldOut: 'épuisé', orderNote: 'À emporter ou en livraison, sans attendre.', waNote: 'Choisissez vos plats, nous recevons votre commande sur WhatsApp.', happy: 'Happy hour en cours', in: 'à',
+    opensToday: 'Ouvre aujourd’hui', opensTomorrow: 'Ouvre demain', opensOn: 'Ouvre {d}',
     days: { mon: 'Lundi', tue: 'Mardi', wed: 'Mercredi', thu: 'Jeudi', fri: 'Vendredi', sat: 'Samedi', sun: 'Dimanche' } as Record<string, string>,
     add: 'Ajouter', search: 'Rechercher un plat', all: 'Tout', none: 'Aucun plat ne correspond.', basket: 'Votre commande', see: 'Voir la commande', total: 'Total', yourName: 'Votre prénom', takeaway: 'À emporter', delivery: 'Livraison', dineIn: 'Sur place', addr: 'Adresse de livraison', note: 'Remarque (facultatif)', send: 'Envoyer sur WhatsApp', close: 'Fermer', choose: 'Choisissez', empty: 'Votre commande est vide.', waHello: 'Bonjour {r}, je souhaite commander :', waName: 'Nom', waAddr: 'Adresse', waNoteL: 'Remarque', waFoot: 'Envoyé depuis votre site', waHint: 'WhatsApp s’ouvre avec votre message prêt. Il ne reste qu’à l’envoyer.', orderWa: 'Commander sur WhatsApp',
     tags: { popular: 'Populaire', spicy: 'Épicé', new: 'Nouveau', vegetarian: 'Végétarien' } as Record<string, string> },
   en: { menu: 'Menu', infos: 'Info', book: 'Book a table', order: 'Order online', orderShort: 'Order', bookShort: 'Book', directions: 'Directions', call: 'Call', hours: 'Opening hours', address: 'Address', fullMenu: 'See the full menu', signature: 'Signature dishes', gallery: 'Gallery', open: 'Open now', closed: 'Closed now', closedDay: 'Closed', today: 'Today', from: 'from', review: 'Leave a Google review', made: 'Website made with Amplify', about: 'Welcome', soldOut: 'sold out', orderNote: 'Take-away or delivery, no waiting.', waNote: 'Pick your dishes, we receive your order on WhatsApp.', happy: 'Happy hour now', in: 'in',
+    opensToday: 'Opens today', opensTomorrow: 'Opens tomorrow', opensOn: 'Opens {d}',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' } as Record<string, string>,
     add: 'Add', search: 'Search a dish', all: 'All', none: 'No dish matches.', basket: 'Your order', see: 'View order', total: 'Total', yourName: 'Your first name', takeaway: 'Take-away', delivery: 'Delivery', dineIn: 'Dine in', addr: 'Delivery address', note: 'Note (optional)', send: 'Send on WhatsApp', close: 'Close', choose: 'Choose', empty: 'Your order is empty.', waHello: 'Hello {r}, I would like to order:', waName: 'Name', waAddr: 'Address', waNoteL: 'Note', waFoot: 'Sent from your website', waHint: 'WhatsApp opens with your message ready. Just press send.', orderWa: 'Order on WhatsApp',
     tags: { popular: 'Popular', spicy: 'Spicy', new: 'New', vegetarian: 'Vegetarian' } as Record<string, string> },
   ar: { menu: 'القائمة', infos: 'معلومات', book: 'احجز طاولة', order: 'اطلب عبر الإنترنت', orderShort: 'اطلب', bookShort: 'احجز', directions: 'الاتجاهات', call: 'اتصل', hours: 'أوقات العمل', address: 'العنوان', fullMenu: 'القائمة الكاملة', signature: 'أطباقنا المميزة', gallery: 'صور', open: 'مفتوح الآن', closed: 'مغلق الآن', closedDay: 'مغلق', today: 'اليوم', from: 'ابتداء من', review: 'اترك تقييما على غوغل', made: 'موقع من إنجاز Amplify', about: 'مرحبا بكم', soldOut: 'نفد', orderNote: 'للأخذ أو التوصيل، بدون انتظار.', waNote: 'اختر أطباقك، ونستلم طلبك عبر واتساب.', happy: 'ساعة التخفيض الآن', in: 'في',
+    opensToday: 'يفتح اليوم', opensTomorrow: 'يفتح غدا', opensOn: 'يفتح يوم {d}',
     days: { mon: 'الاثنين', tue: 'الثلاثاء', wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت', sun: 'الأحد' } as Record<string, string>,
     add: 'أضف', search: 'ابحث عن طبق', all: 'الكل', none: 'لا يوجد طبق مطابق.', basket: 'طلبك', see: 'عرض الطلب', total: 'المجموع', yourName: 'اسمك', takeaway: 'للأخذ', delivery: 'توصيل', dineIn: 'في المطعم', addr: 'عنوان التوصيل', note: 'ملاحظة (اختياري)', send: 'أرسل عبر واتساب', close: 'إغلاق', choose: 'اختر', empty: 'طلبك فارغ.', waHello: 'مرحبا {r}، أريد أن أطلب:', waName: 'الاسم', waAddr: 'العنوان', waNoteL: 'ملاحظة', waFoot: 'أرسل من موقعكم', waHint: 'يفتح واتساب ورسالتك جاهزة. اضغط إرسال فقط.', orderWa: 'اطلب عبر واتساب',
     tags: { popular: 'الأكثر طلبا', spicy: 'حار', new: 'جديد', vegetarian: 'نباتي' } as Record<string, string> },
@@ -88,6 +91,18 @@ export function isOpen(hours: Record<string, [string, string][]>, tz: string, at
   for (const [s, e] of hours[dow] ?? []) if ((e > s && hm >= s && hm < e) || (e <= s && hm >= s)) return true;
   for (const [s, e] of hours[prev] ?? []) if (e <= s && hm < e) return true;
   return false;
+}
+
+export function nextOpening(hours: Record<string, [string, string][]>, tz: string, at = new Date()) {
+  if (!hours || !Object.keys(hours).length) return null;
+  const { dow, hm } = localNow(tz, at);
+  const i = DAYS.indexOf(dow);
+  for (let off = 0; off <= 7; off++) {
+    const day = DAYS[(i + off) % 7];
+    const starts = (hours[day] ?? []).map(([s]) => s).filter(s => off > 0 || s > hm).sort();
+    if (starts.length) return { off, day, time: starts[0] };
+  }
+  return null;
 }
 
 const ICONS: Record<string, string> = {
@@ -291,6 +306,8 @@ function modCss() {
 .bx .lbl{font-size:14px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:8px}
 .bx .big-n{font-family:var(--display);font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-top:auto}
 .bx .sub{color:var(--muted);margin-top:8px;font-size:15px}
+.bx.adr .big-n{font-size:clamp(22px,2.4vw,30px);line-height:1.08;overflow-wrap:anywhere}
+.bx.adr .btn{margin-top:18px;align-self:flex-start;min-height:44px;padding:0 18px;font-size:14px;background:var(--ink);color:var(--bg)}
 .t-moderne .sh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:30px}
 .t-moderne .dishes,.t-moderne .mlist{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .t-moderne .dish,.t-moderne .mi{position:relative;display:flex;flex-direction:column;gap:0;padding:0;border:0;border-radius:24px;background:var(--surface);overflow:hidden}
@@ -340,6 +357,8 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   const open = isOpen(r.opening_hours, r.timezone, c.now);
   const now = localNow(r.timezone, c.now ?? new Date());
   const todayHours = (r.opening_hours?.[now.dow] ?? []).map(([a, b]) => `${a}–${b}`).join(', ');
+  const nx = open === false ? nextOpening(r.opening_hours, r.timezone, c.now) : null;
+  const nxLabel = nx ? (nx.off === 0 ? t.opensToday : nx.off === 1 ? t.opensTomorrow : t.opensOn.replace('{d}', t.days[nx.day])) : '';
   const tel = (r.phone ?? '').replace(/[^\d+]/g, '');
   const wa = !d.can_order && d.site.wa_order !== false ? waNumber(d.site.whatsapp || r.phone) : '';
   const items = d.items ?? [];
@@ -480,10 +499,10 @@ ${infos}`;
     const feat = sig.find(i => safeUrl(i.image_url) && safeUrl(i.image_url) !== cover);
     body = `<div class="w bento">
 <div class="bx big${cover ? '' : ' none'}">${cover ? `<img src="${esc(cover)}" alt="${name}" fetchpriority="high">` : ''}<div class="in"><h1>${name}</h1>${tagline ? `<p class="t">${esc(tagline)}</p>` : ''}${ctas(false)}</div></div>
-<div class="bx"><span class="lbl">${open != null ? `<span class="dot${open ? '' : ' c'}"></span>${open ? t.open : t.closed}` : `${icon('clock')}${t.hours}`}</span><p class="big-n" dir="ltr">${esc(todayHours || t.closedDay)}</p><p class="sub">${t.today}${hh ? `, ${t.happy} -${hh.value / 100}%` : ''}</p></div>
+<div class="bx"><span class="lbl">${open != null ? `<span class="dot${open ? '' : ' c'}"></span>${open ? t.open : t.closed}` : `${icon('clock')}${t.hours}`}</span><p class="big-n" dir="ltr">${esc(nx ? nx.time : todayHours || t.closedDay)}</p><p class="sub">${nx ? nxLabel : t.today}${hh ? `, ${t.happy} -${hh.value / 100}%` : ''}</p></div>
 ${feat ? `<a class="bx ph" href="${esc(menuHref)}"><img src="${esc(feat.image_url)}" alt="${esc(L(feat.name))}" loading="lazy"><span class="tag">${esc(L(feat.name))}<span class="price">${priceOf(feat, r, lang, t)}</span></span></a>` : `<div class="bx"><span class="lbl">${icon('star')}${t.signature}</span><p class="big-n">${items.length}</p><p class="sub">${t.menu}</p></div>`}
 ${d.can_order || wa ? `<div class="bx ac"><h2>${d.can_order ? t.order : t.orderWa}</h2><a class="btn" href="${esc(d.can_order ? orderUrl : menuHref)}">${icon(d.can_order ? 'bag' : 'wa')}${t.orderShort}</a></div>` : d.booking ? `<div class="bx ac"><h2>${t.book}</h2><a class="btn" href="${esc(bookUrl)}">${icon('cal')}${t.bookShort}</a></div>` : `<a class="bx ac" href="${esc(menuHref)}"><h2>${t.menu}</h2><span class="btn">${t.fullMenu}</span></a>`}
-<a class="bx" href="${esc(mapsUrl)}" target="_blank" rel="noopener"><span class="lbl">${icon('pin')}${t.address}</span><p class="big-n" style="font-size:28px">${esc(r.city || t.directions)}</p><p class="sub">${esc(r.address || t.directions)}</p></a>
+<a class="bx adr" href="${esc(mapsUrl)}" target="_blank" rel="noopener"><span class="lbl">${icon('pin')}${t.address}</span><p class="big-n">${esc(r.address || r.city || t.directions)}</p>${r.address && r.city ? `<p class="sub">${esc(r.city)}</p>` : ''}<span class="btn">${icon('pin')}${t.directions}</span></a>
 </div>
 ${about ? `<section style="padding-top:56px"><div class="w"><h2 class="h2" style="max-width:16ch">${t.about}</h2><p class="lead" style="margin-top:18px">${esc(about)}</p></div></section>` : ''}
 ${sig.length ? `<section style="padding-top:${about ? '0' : '56px'}"><div class="w"><div class="sh"><h2 class="h2">${t.signature}</h2>${fullMenuBtn}</div><div class="dishes">${sig.map(dishCard).join('')}</div></div></section>` : ''}
