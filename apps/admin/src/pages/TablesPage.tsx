@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Plus, Printer, RefreshCw, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Printer, RefreshCw, Pencil, Trash2, X, Download } from 'lucide-react';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check, token } from '../lib/api';
 import { useAdminCtx } from '../store';
 import type { Restaurant, Table } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
+import { downloadOne, downloadZip, fileStems } from '../lib/qrFiles';
 
 export const tableUrl = (r: Restaurant, t: Table) => `${MENU_URL}/${r.slug}/t/${t.qr_token}`;
 
@@ -16,6 +17,7 @@ export function TablesPage({ r }: { r: Restaurant }) {
   const [adding, setAdding] = useState(false);
   const [edit, setEdit] = useState<Table | null>(null);
   const [printing, setPrinting] = useState<Table[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
       const t = check(await supabase.from('dining_tables').select('*').eq('restaurant_id', r.id)) as Table[];
@@ -23,16 +25,25 @@ export function TablesPage({ r }: { r: Restaurant }) {
     } catch (e) { a.fail(e); }
   }, [r.id, a]);
   useEffect(() => { load(); }, [load]);
+  // one file for one table, or a zip of all active tables
+  const run = async (key: string, job: () => Promise<void>) => {
+    setBusy(key);
+    try { await job(); } catch (e) { a.fail(e); }
+    setBusy(null);
+  };
+  const active = tables.filter(x => x.active);
+  const stems = fileStems(r, tables);
 
   if (printing) return <QrSheet r={r} tables={printing} onClose={() => setPrinting(null)} />;
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <h1 className="me-auto font-display text-3xl font-semibold">{t('Tables & QR codes')}</h1>
+        <Btn onClick={() => run('zip', () => downloadZip(r, active, tableUrl))} disabled={!active.length || busy !== null}><Download className="h-4 w-4" /> {busy === 'zip' ? t('Préparation du fichier…') : t('Tout télécharger (zip)')}</Btn>
         <Btn onClick={() => setPrinting(tables.filter(x => x.active))} disabled={!tables.length}><Printer className="h-4 w-4" /> {t('Imprimer tous les QR codes')}</Btn>
         <Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Ajouter des tables')}</Btn>
       </div>
-      <p className="mb-4 text-sm text-muted">{t('Chaque table a son propre QR code. Le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).')}</p>
+      <p className="mb-4 text-sm text-muted">{t('Chaque table a son propre QR code. Le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).')} {t('Téléchargez chaque QR code en PNG ou SVG pour l’intégrer dans vos propres supports (cartes, chevalets, autocollants).')}</p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
         {tables.map(tb => (
           <div key={tb.id} className={`card rounded-3xl p-3 ${tb.active ? '' : 'opacity-50'}`}>
@@ -42,6 +53,15 @@ export function TablesPage({ r }: { r: Restaurant }) {
             </div>
             <div className="mt-3 flex gap-1">
               <Btn className="flex-1 px-2 py-1.5" onClick={() => setPrinting([tb])}><Printer className="h-4 w-4" /> QR</Btn>
+            </div>
+            <div className="mt-1 flex gap-1">
+              {(['png', 'svg'] as const).map(kind => (
+                <Btn key={kind} className="flex-1 px-2 py-1.5" disabled={busy !== null}
+                  aria-label={t('Télécharger le QR code de la table {n} en {f}', { n: tb.label, f: kind.toUpperCase() })}
+                  onClick={() => run(`${tb.id}-${kind}`, () => downloadOne(tableUrl(r, tb), stems[tables.indexOf(tb)], kind))}>
+                  <Download className="h-4 w-4" /> {kind.toUpperCase()}
+                </Btn>
+              ))}
             </div>
           </div>
         ))}

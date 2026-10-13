@@ -1635,4 +1635,8 @@ export const AR: Record<string, string> = {
   "Imprimantes à câble (USB) ou réseau (wifi) : sur le PC Windows de la caisse, installez une fois le programme d’impression, puis choisissez les imprimantes dans la caisse (Réglages du poste > Imprimantes).": "طابعات بكابل (USB) أو شبكة (wifi): على حاسوب الصندوق Windows، ثبّت برنامج الطباعة مرة واحدة، ثم اختر الطابعات في الصندوق (إعدادات الجهاز > الطابعات).",
   "Noms par défaut, utilisés quand un PC n’a pas encore choisi ses imprimantes.": "الأسماء الافتراضية، تُستعمل عندما لم يختر الحاسوب طابعاته بعد.",
   "Télécharger le programme d’impression (Windows)": "تحميل برنامج الطباعة (Windows)",
+  'Télécharger le QR code de la table {n} en {f}': 'تحميل رمز QR للطاولة {n} بصيغة {f}',
+  'Téléchargez chaque QR code en PNG ou SVG pour l’intégrer dans vos propres supports (cartes, chevalets, autocollants).': 'حمّلوا كل رمز QR بصيغة PNG أو SVG لإدراجه في موادكم الخاصة (بطاقات، حوامل، ملصقات).',
+  'Tout télécharger (zip)': 'تحميل الكل (zip)',
+  'Préparation du fichier…': 'جارٍ تحضير الملف…',
 };
