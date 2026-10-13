@@ -1,6 +1,6 @@
 // Amplify Profit: the ingredient list with purchase prices.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Sparkles, Check, Upload } from 'lucide-react';
+import { Plus, Search, Sparkles, Check, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -43,6 +43,19 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
 
   const confirm = async (g: Ingredient) => {
     try { check(await supabase.from('ingredients').update({ price_estimated: false }).eq('id', g.id).select('id')); a.toast(t('Prix confirmé')); load(); } catch (e) { a.fail(e); }
+  };
+
+  const remove = async (g: Ingredient) => {
+    if ((usage[g.id] ?? 0) > 0) {
+      a.toast(t('Utilisé dans {n} recette(s) : retirez-le d’abord des recettes.', { n: usage[g.id] }), 'error');
+      return;
+    }
+    if (!window.confirm(t('Supprimer {name} ?', { name: g.name }))) return;
+    try {
+      check(await supabase.from('ingredients').delete().eq('id', g.id).select('id'));
+      a.toast(t('Ingrédient supprimé'));
+      load();
+    } catch (e) { a.fail(e); }
   };
 
   return (
@@ -108,7 +121,14 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
                     </td>
                     <td className="hidden px-4 py-3 text-end tabular md:table-cell">{usage[g.id] ?? 0}</td>
                     <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
-                      {g.price_estimated && <Btn tone="ghost" className="px-2.5 py-1 text-xs" onClick={() => confirm(g)}><Check className="h-3.5 w-3.5" /> {t('Confirmer')}</Btn>}
+                      <div className="flex items-center justify-end gap-1">
+                        {g.price_estimated && <Btn tone="ghost" className="px-2.5 py-1 text-xs" onClick={() => confirm(g)}><Check className="h-3.5 w-3.5" /> {t('Confirmer')}</Btn>}
+                        <button type="button" aria-label={t('Supprimer {name}', { name: g.name })} title={t('Supprimer {name}', { name: g.name })}
+                          onClick={() => remove(g)}
+                          className={`rounded-lg p-2 transition hover:bg-danger/10 hover:text-danger ${(usage[g.id] ?? 0) > 0 ? 'text-muted/40' : 'text-muted'}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
