@@ -44,24 +44,24 @@ export function TablesPage({ r }: { r: Restaurant }) {
         <Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Ajouter des tables')}</Btn>
       </div>
       <p className="mb-4 text-sm text-muted">{t('Chaque table a son propre QR code. Le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).')} {t('Téléchargez chaque QR code en PNG ou SVG pour l’intégrer dans vos propres supports (cartes, chevalets, autocollants).')}</p>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
         {tables.map(tb => (
           <div key={tb.id} className={`card rounded-3xl p-3 ${tb.active ? '' : 'opacity-50'}`}>
             <div className="flex items-start justify-between">
               <div><p className="text-xl font-black">{tb.label}</p>{tb.zone && <p className="text-xs text-muted">{tb.zone}</p>}</div>
               <button onClick={() => setEdit(tb)} aria-label={t('Modifier la table {n}', { n: tb.label })} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2"><Pencil className="h-4 w-4" /></button>
             </div>
-            <div className="mt-3 flex gap-1">
-              <Btn className="flex-1 px-2 py-1.5" onClick={() => setPrinting([tb])}><Printer className="h-4 w-4" /> QR</Btn>
-            </div>
-            <div className="mt-1 flex gap-1">
-              {(['png', 'svg'] as const).map(kind => (
-                <Btn key={kind} className="flex-1 px-2 py-1.5" disabled={busy !== null}
-                  aria-label={t('Télécharger le QR code de la table {n} en {f}', { n: tb.label, f: kind.toUpperCase() })}
-                  onClick={() => run(`${tb.id}-${kind}`, () => downloadOne(tableUrl(r, tb), stems[tables.indexOf(tb)], kind))}>
-                  <Download className="h-4 w-4" /> {kind.toUpperCase()}
-                </Btn>
-              ))}
+            <div className="mt-3 space-y-1.5">
+              <Btn className="w-full !px-2 !py-1.5" onClick={() => setPrinting([tb])}><Printer className="h-4 w-4" /> {t('Imprimer')}</Btn>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['png', 'svg'] as const).map(kind => (
+                  <Btn key={kind} tone="ghost" className="min-w-0 !gap-1.5 !px-2 !py-1.5" disabled={busy !== null}
+                    aria-label={t('Télécharger le QR code de la table {n} en {f}', { n: tb.label, f: kind.toUpperCase() })}
+                    onClick={() => run(`${tb.id}-${kind}`, () => downloadOne(tableUrl(r, tb), stems[tables.indexOf(tb)], kind))}>
+                    <Download className="h-4 w-4 shrink-0" /> {kind.toUpperCase()}
+                  </Btn>
+                ))}
+              </div>
             </div>
           </div>
         ))}
