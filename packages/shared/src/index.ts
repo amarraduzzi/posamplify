@@ -65,6 +65,10 @@ export interface PublicMenu {
   restaurant: PublicRestaurant;
   ordering_enabled: boolean;
   table: { label: string; token: string } | null;
+  /** one shared QR for the restaurant: the guest types the table number (see restaurants.qr_shared) */
+  table_entry?: boolean;
+  /** every active table is named with digits only: show a number keypad */
+  table_numeric?: boolean;
   /** own online ordering (take-away / delivery): preparation time, delivery terms, pause, open now */
   online?: PublicOnline;
   categories: PublicCategory[];
@@ -82,6 +86,8 @@ export interface PlaceOrderInput {
   client_id: string;
   order_type: OrderType;
   table_token?: string | null;
+  /** the table number typed by the guest (only accepted when the restaurant uses one shared QR) */
+  table_number?: string | null;
   customer?: { name?: string; phone?: string; address?: string };
   note?: string;
   /** ISO time asked for (take-away / delivery later); none = as soon as possible */

@@ -79,17 +79,20 @@ export default function App() {
   // Ordering
   // ---------------------------------------------------------------------------
   const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : menu ? availableOrderTypes(menu) : [];
-  const defaultType: OrderType = menu?.table && types.includes('dine_in')
+  // ?surplace is on the shared table QR: the guest is at a table, so start with dine-in
+  const atTable = new URLSearchParams(window.location.search).has('surplace');
+  const defaultType: OrderType = (menu?.table || (atTable && menu?.table_entry)) && types.includes('dine_in')
     ? 'dine_in' : (types.find(x => x !== 'dine_in') ?? 'dine_in');
   const [checkout, setCheckout] = useState<Checkout>(() => ({
-    orderType: 'dine_in', note: '', ...(load<Omit<Checkout, 'orderType' | 'note'>>('customer', 90 * 86400_000)
+    orderType: 'dine_in', note: '', tableNumber: load<string>(`table:${slug}`, 4 * 3600_000) ?? '',
+    ...(load<Omit<Checkout, 'orderType' | 'note'>>('customer', 90 * 86400_000)
       ?? { name: '', phone: '', address: '' }),
   }));
   useEffect(() => { setCheckout(c => ({ ...c, orderType: defaultType })); }, [defaultType]);
 
   // Guests can order when the restaurant accepts orders and there is a way to
   // order from here: a table QR code, or takeaway/delivery.
-  const canOrder = !!menu?.ordering_enabled && (!!kiosk || !!menu.table || types.some(x => x !== 'dine_in'));
+  const canOrder = !!menu?.ordering_enabled && (!!kiosk || !!menu.table || (!!menu.table_entry && types.includes('dine_in')) || types.some(x => x !== 'dine_in'));
 
   const [openItem, setOpenItem] = useState<PublicItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -157,6 +160,7 @@ export default function App() {
         client_id: clientId,
         order_type: checkout.orderType,
         table_token: isDineIn && !kiosk ? menu.table?.token ?? null : null,
+        table_number: isDineIn && !kiosk && !menu.table && menu.table_entry ? (checkout.tableNumber ?? '').trim() : undefined,
         customer: kiosk ? (checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
         kiosk: kiosk ?? undefined,
         note: checkout.note.trim() || undefined,
@@ -170,6 +174,7 @@ export default function App() {
                                     total_cents: Number(res.total_cents), placed_at: Date.now() };
       save(`order:${slug}`, order);
       if (!isDineIn) save('customer', { name: checkout.name, phone: checkout.phone, address: checkout.address });
+      else if (!menu.table && menu.table_entry && checkout.tableNumber?.trim()) save(`table:${slug}`, checkout.tableNumber.trim());
       setTracked(order);
       drop(`pending:${slug}`);
       setCheckout(c => ({ ...c, note: '', wantedAt: '', location: null, promo: null }));
@@ -185,6 +190,8 @@ export default function App() {
       }
       const details = e instanceof ApiError ? e.details : undefined;
       let message = t.errors[code];
+      // a typed number that matches no table (the table QR message would be wrong here)
+      if (code === 'invalid_table' && !menu.table && menu.table_entry) message = t.tableNotFound;
       if (code.startsWith('promo_') && code !== 'promo_phone_required') setCheckout(c => ({ ...c, promo: null }));
       if (['item_sold_out', 'item_unavailable', 'variant_required'].includes(code) && details) {
         const it = cart.itemsById.get(details);

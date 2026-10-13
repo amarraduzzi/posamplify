@@ -13,6 +13,8 @@ export interface Checkout {
   phone: string;
   address: string;
   note: string;
+  /** table number typed by the guest (one shared QR) */
+  tableNumber?: string;
   /** '' = as soon as possible, otherwise the ISO time asked for */
   wantedAt?: string;
   location?: { lat: number; lng: number } | null;
@@ -116,12 +118,16 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
       p => { setLocState('idle'); setCheckout({ ...checkout, location: { lat: Math.round(p.coords.latitude * 1e6) / 1e6, lng: Math.round(p.coords.longitude * 1e6) / 1e6 } }); },
       () => setLocState('fail'), { enableHighAccuracy: true, timeout: 10000 });
   };
-  const needsTable = checkout.orderType === 'dine_in' && !menu.table && !kiosk;
+  const dineIn = checkout.orderType === 'dine_in' && !kiosk;
+  // one shared QR: the guest types the table number; with a table QR the table is already known
+  const askTable = dineIn && !menu.table && !!menu.table_entry;
+  const needsTable = dineIn && !menu.table && !menu.table_entry;
+  const tableOk = !askTable || !!checkout.tableNumber?.trim();
   const needsCustomer = checkout.orderType !== 'dine_in' && !kiosk;
   const customerOk = !needsCustomer || (checkout.name.trim() && checkout.phone.trim()
     && (checkout.orderType !== 'delivery' || checkout.address.trim()));
   const timeOk = !online || !closed || later;
-  const canSubmit = cart.count > 0 && !needsTable && !!customerOk && !busy && !paused && timeOk && !belowMin;
+  const canSubmit = cart.count > 0 && !needsTable && tableOk && !!customerOk && !busy && !paused && timeOk && !belowMin;
   const set = (patch: Partial<Checkout>) => setCheckout({ ...checkout, ...patch });
 
   return (
@@ -202,6 +208,17 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
                   {t.orderType[ty]}
                 </button>
               ))}
+            </div>
+          )}
+
+          {askTable && (
+            <div className="mt-4">
+              <label htmlFor="table-number" className="mb-1.5 block text-sm font-semibold">{t.tableNumber}</label>
+              <input id="table-number" value={checkout.tableNumber ?? ''} onChange={e => set({ tableNumber: e.target.value.slice(0, 30) })}
+                inputMode={menu.table_numeric ? 'numeric' : 'text'} autoComplete="off" autoCapitalize="off" dir="ltr" maxLength={30}
+                aria-describedby="table-number-hint"
+                className="w-full h-14 rounded-2xl border border-line bg-surface px-4 text-center text-2xl font-black outline-none focus:border-brand" />
+              <p id="table-number-hint" className="mt-1.5 text-xs text-muted">{t.tableNumberHint}</p>
             </div>
           )}
 

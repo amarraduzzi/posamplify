@@ -1639,4 +1639,10 @@ export const AR: Record<string, string> = {
   'Téléchargez chaque QR code en PNG ou SVG pour l’intégrer dans vos propres supports (cartes, chevalets, autocollants).': 'حمّلوا كل رمز QR بصيغة PNG أو SVG لإدراجه في موادكم الخاصة (بطاقات، حوامل، ملصقات).',
   'Tout télécharger (zip)': 'تحميل الكل (zip)',
   'Préparation du fichier…': 'جارٍ تحضير الملف…',
+  'Un seul QR code pour tout le restaurant': 'رمز QR واحد لكل المطعم',
+  'Le client scanne, choisit « Sur place » et tape son numéro de table. Un seul modèle à imprimer pour toutes les tables. Les QR codes par table continuent de fonctionner.': 'الزبون يمسح الرمز، يختار «في المطعم» ويكتب رقم طاولته. نموذج واحد فقط للطباعة لكل الطاولات. رموز QR الخاصة بكل طاولة تبقى صالحة.',
+  'QR code unique du restaurant': 'رمز QR الموحد للمطعم',
+  'Télécharger le QR code unique en {f}': 'تحميل رمز QR الموحد بصيغة {f}',
+  'Ajoutez d’abord vos tables : les numéros tapés par les clients doivent correspondre aux tables ci-dessous.': 'أضيفوا الطاولات أولا: الأرقام التي يكتبها الزبناء يجب أن تطابق الطاولات أدناه.',
+  'Les numéros tapés par les clients doivent correspondre aux tables ci-dessous.': 'الأرقام التي يكتبها الزبناء يجب أن تطابق الطاولات أدناه.',
 };

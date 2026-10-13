@@ -582,4 +582,5 @@ export const AR: Record<string, string> = {
   "Vérifier": "تحقق",
   "par défaut": "افتراضية",
   "« {n} » introuvable : choisissez": "« {n} » غير موجودة: اختر",
+  'Table saisie par le client': 'الطاولة كتبها الزبون',
 };

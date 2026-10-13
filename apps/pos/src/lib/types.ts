@@ -62,6 +62,8 @@ export interface Order {
   order_type: OrderType; table_id: string | null; status: OrderStatus;
   customer_name: string | null; customer_phone: string | null; delivery_address: string | null;
   external_ref: string | null; note: string | null; staff_id: string | null;
+  /** the guest typed the table number (one shared QR) instead of scanning a table QR */
+  table_by_guest?: boolean;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
   customer_id?: string | null; discount_kind?: 'loyalty' | 'promo' | null; promo_id?: string | null;

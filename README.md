@@ -83,6 +83,8 @@ Adressen:
 
 De tafelcodes staan in de tabel `dining_tables` (kolom `qr_token`). De QR-code bevat altijd de code, nooit het tafelnummer, zodat niemand op een andere tafel kan bestellen door de link aan te passen.
 
+Optioneel kan een restaurant in de beheer-app (Tafels & QR-codes) kiezen voor **één QR-code voor het hele restaurant** (`restaurants.qr_shared`): de gast kiest "Sur place" en tikt zijn tafelnummer in. De database zoekt de tafel op nummer (alleen actieve tafels van dat restaurant) en markeert de bestelling met `orders.table_by_guest`, die de kassa toont bij het accepteren. Een tafel-QR werkt altijd en vraagt nooit om een nummer; staat de instelling uit, dan wordt een getypt nummer geweigerd.
+
 ## Kassa publiceren (tweede Cloudflare Pages-project, zelfde repo)
 
 - Build command: `npm run build -w @resto/pos`

@@ -8,6 +8,8 @@ export interface Restaurant {
   booking?: { enabled?: boolean; waitlist?: boolean; auto_confirm?: boolean; capacity?: number; duration_min?: number; slot_minutes?: number; lead_minutes?: number; days_ahead?: number; max_party?: number; note?: string | null };
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
+  /** one shared QR for the whole restaurant: the guest types the table number */
+  qr_shared?: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
   products?: ('pos' | 'profit' | 'site')[];

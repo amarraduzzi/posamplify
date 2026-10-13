@@ -90,6 +90,9 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               <div>
                 <p className="flex items-center gap-1.5 text-lg font-bold">{o.source === 'qr' && <QrCode className="h-4 w-4 text-qr" />}{pos.labelOf(o)}</p>
                 <p className="text-xs text-muted">{ticketRef(o)} · {time(o.created_at, tz)} · {statusLabel(o.status)}</p>
+                {pending && o.table_by_guest && (
+                  <p className="mt-1 text-xs font-semibold"><span className="rounded-full bg-qr/15 px-2 py-0.5 text-qr">{t('Table saisie par le client')}</span></p>
+                )}
                 {online && (
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                     <span className="flex items-center gap-1 rounded-full bg-qr/15 px-2 py-0.5 text-qr">{o.order_type === 'delivery' ? <Bike className="h-3.5 w-3.5" /> : <ShoppingBag className="h-3.5 w-3.5" />}{t('En ligne')}</span>
