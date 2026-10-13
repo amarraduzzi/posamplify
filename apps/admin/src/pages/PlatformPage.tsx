@@ -51,10 +51,10 @@ export function PlatformPage() {
                 <td className="tabular">{r.trial_ends_at && r.status === 'trial' ? new Date(r.trial_ends_at).toLocaleDateString(dateLocale()) : '—'}</td>
                 <td className="py-2">
                   <div className="flex flex-wrap items-center gap-1">
-                    {(['pos', 'profit', 'site'] as const).map(k => {
+                    {(['pos', 'profit', 'site', 'orders'] as const).map(k => {
                       const on = (r.products ?? []).includes(k);
                       return <button key={k} onClick={() => setProducts(r, on ? (r.products ?? []).filter(x => x !== k) : [...(r.products ?? []), k], r.pos_plan)}
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : k === 'profit' ? 'Profit' : 'Site'}</button>;
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : k === 'profit' ? 'Profit' : k === 'site' ? 'Site' : 'Commandes'}</button>;
                     })}
                     {(r.products ?? []).includes('pos') && (
                       <select aria-label={t('Formule POS')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, r.products ?? ['pos'], e.target.value as 'essentiel' | 'restaurant')}>
@@ -94,7 +94,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
   const [demo, setDemo] = useState(false);
-  const [kind, setKind] = useState<'all' | 'pos' | 'profit' | 'site'>('all');
+  const [kind, setKind] = useState<'all' | 'pos' | 'profit' | 'site' | 'orders'>('all');
   const [city, setCity] = useState('');
   const [theme, setTheme] = useState<'riad' | 'nuit' | 'moderne'>('riad');
   const [busy, setBusy] = useState(false);
@@ -112,7 +112,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
     <Modal title={t('Nouveau restaurant')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || slug.length < 3} onClick={create}>{t('Créer')}</Btn></div>}>
       <div className="space-y-4">
         <Field group label={t('Produits')}>
-          <div className="flex flex-wrap gap-2">{([['all', 'POS + Profit'], ['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site']] as const).map(([k, l]) => (
+          <div className="flex flex-wrap gap-2">{([['all', 'POS + Profit'], ['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes']] as const).map(([k, l]) => (
             <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${kind === k ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{l}</button>))}</div>
         </Field>
         <Field label={t('Nom')}><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(auto(e.target.value)); }} /></Field>

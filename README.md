@@ -189,3 +189,7 @@ Tweede product op hetzelfde platform (`restaurants.products`: `pos`, `profit` of
 ingrediënten met inkoopprijs/perte, fiches techniques per gerecht (en per maat), food cost %, marge, prijsadvies, en met Amplify POS ook de verkochte aantallen en winst.
 **Remplir avec l'IA** (Edge Function `profit-ai`, Verify JWT uit, zelfde `GEMINI_API_KEY`) vult standaardrecepten met geschatte prijzen ("prix estimé" tot bevestigd).
 Database: migratie `20261001000100_profit.sql` (`profit_dishes`, `apply_recipe_suggestions`). Tests: `supabase/tests/12_profit.test.mjs`, `scripts/local/e2e-profit.mjs`.
+
+### Amplify Commandes (bestellingen zonder kassa)
+
+`restaurants.products` kent ook `orders`. Een restaurant met alleen dit product heeft geen kassa: gastbestellingen (QR-menu en online bestellen) komen binnen op de pagina **Commandes** van de beheer-app (live via Realtime, met geluid). Accepteren (met bereidingstijd), klaar en afgerond zijn gewone statusupdates van eigenaar of manager; weigeren gaat via `inbox_refuse` (zonder PIN, alleen eigenaar/manager en alleen voor nog niet klare bestellingen). Bij POS is dit inbegrepen (`orders` wordt dan weggehaald). Het platform zet het product per restaurant aan. Er is geen betaling, kasboek of bonprint: de gast betaalt aan het personeel.

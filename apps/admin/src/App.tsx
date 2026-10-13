@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -30,11 +30,12 @@ import { BookingPage } from './pages/BookingPage';
 import { PromotionsPage } from './pages/PromotionsPage';
 import { GroupPage } from './pages/GroupPage';
 import { PlanningPage } from './pages/PlanningPage';
+import { OrdersPage } from './pages/OrdersPage';
 import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'stock' | 'team' | 'charges' | 'customers';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -76,8 +77,11 @@ function Screens() {
   const products = r?.products ?? ['pos', 'profit'];
   const hasPos = !!r && products.includes('pos');
   const hasProfit = !!r && products.includes('profit');
+  // Amplify Commandes: guest orders on a web page, without the till (included with POS)
+  const hasOrders = !!r && products.includes('orders') && !hasPos;
   const siteOnly = isSiteOnly(r);
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
+    { id: 'inbox', label: t('Commandes'), Icon: BellRing, show: hasOrders },
     { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
     { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
@@ -88,12 +92,12 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
-    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly },
-    { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos },
+    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly || (hasOrders && products.includes('site')) },
+    { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
     { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos },
-    { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos },
+    { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos || hasOrders },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
@@ -108,7 +112,7 @@ function Screens() {
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo product={hasPos ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
+        <AmplifyLogo product={hasPos || hasOrders ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
         {/* the middle part scrolls on low screens, so language and logout stay visible */}
         <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
         <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
@@ -131,7 +135,7 @@ function Screens() {
           ))}
         </nav>
         {siteOnly && r && <a href={r.site?.domain ? `https://${r.site.domain}` : `${SITE_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir mon site')}</a>}
-        {hasPos && r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
+        {(hasPos || hasOrders) && r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
         </div>
         <div className="relative shrink-0 border-t border-white/10 pt-3">
           <LangSwitch dark className="mb-2 flex w-full" />
@@ -152,6 +156,7 @@ function Screens() {
           {r && current === 'briefing' && <BriefingPage key={r.id} r={r} />}
           {current === 'group' && <GroupPage />}
           {r && current === 'planning' && <PlanningPage key={r.id} r={r} />}
+          {r && current === 'inbox' && <OrdersPage key={r.id} r={r} />}
           {r && current === 'live' && <LivePage key={r.id} r={r} />}
           {r && current === 'site' && <SitePage key={r.id} r={r} />}
           {r && current === 'upgrade' && <UpgradePage key={r.id} r={r} />}
