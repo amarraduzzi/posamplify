@@ -310,6 +310,9 @@ function modCss() {
 .rm-wave{height:56px;margin-top:-1px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 56' preserveAspectRatio='none'%3E%3Cpath fill='%23F4EDE0' d='M0 28C240 0 480 56 720 28S1200 0 1440 28V56H0Z'/%3E%3C/svg%3E") center bottom/100% 100% no-repeat}
 .rm-wave.dn{transform:scaleY(-1);margin:-1px 0 0}
 .rm-sand{background:var(--surface)}.rm .rm-sand .dish{background:#fff}
+.rm .bx.big>img{filter:brightness(.9) contrast(1.06) saturate(1.05)}
+.rm .bx.big:after{background:linear-gradient(180deg,rgba(8,22,42,.28) 0%,rgba(8,22,42,.04) 28%,rgba(8,22,42,.55) 60%,rgba(8,22,42,.9) 100%)}
+.rm .bx.big h1{text-shadow:0 2px 28px rgba(0,0,0,.4)}.rm .bx.big .t{text-shadow:0 1px 14px rgba(0,0,0,.45)}
 @media (max-width:860px){.rm-wave{height:34px}}
 .bx.adr .btn{margin-top:18px;align-self:flex-start;min-height:44px;padding:0 18px;font-size:14px;background:var(--ink);color:var(--bg)}
 .t-moderne .sh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:30px}
