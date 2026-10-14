@@ -597,17 +597,18 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
     if (filled.some(x => !(baseOf(x) > 0))) { a.toast(t('Indiquez la quantité.'), 'error'); return; }
     setBusy(true);
     try {
+      // a typed name that matches a supplier links the purchase to it: it then counts in what you owe him
+      const name = supplier.trim();
+      const sup = name ? (check(await supabase.from('suppliers').select('id').eq('restaurant_id', r.id).ilike('name', name.replace(/[%_\\]/g, m => `\\${m}`)).limit(1)) as { id: string }[])[0] : undefined;
       check(await supabase.from('stock_purchases').insert(filled.map(x => ({
         restaurant_id: r.id, ingredient_id: x.id, purchased_on: date, qty: baseOf(x),
-        total_cents: x.total.trim() ? toCents(x.total) : null, supplier: supplier.trim() || null,
-        after_count: countDay && afterCount,
+        total_cents: x.total.trim() ? toCents(x.total) : null, supplier: name || null,
+        after_count: countDay && afterCount, ...(sup ? { supplier_id: sup.id } : {}),
       }))).select('id'));
       a.toast(filled.length > 1 ? t('{n} achats enregistrés, stock et prix mis à jour', { n: filled.length })
         : filled[0].total.trim() ? t('Achat enregistré, prix mis à jour') : t('Achat enregistré'));
       // the invoice photo: linked to the supplier record when the typed name matches one
       if (files.length) {
-        const name = supplier.trim();
-        const sup = name ? (check(await supabase.from('suppliers').select('id').eq('restaurant_id', r.id).ilike('name', name).limit(1)) as { id: string }[])[0] : undefined;
         const res = await addInvoices(r.id, files, { supplier_id: sup?.id ?? null, supplier_name: sup ? null : name || null, doc_date: date, amount_cents: sum > 0 ? sum : null });
         if (res.error) a.fail(res.error);
       }
