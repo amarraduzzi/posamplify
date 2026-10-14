@@ -583,4 +583,10 @@ export const AR: Record<string, string> = {
   "par défaut": "افتراضية",
   "« {n} » introuvable : choisissez": "« {n} » غير موجودة: اختر",
   'Table saisie par le client': 'الطاولة كتبها الزبون',
+  "Cette journée n’a pas été clôturée le soir même. Pas de comptage des espèces : l’argent d’aujourd’hui est déjà dans la caisse. Le rapport Z s’imprime après la validation.": "لم يتم إغلاق هذا اليوم في نفس المساء. لا عدّ للنقود: نقود اليوم موجودة بالفعل في الصندوق. يُطبع تقرير Z بعد التأكيد.",
+  "Clôturer cette journée": "إغلاق هذا اليوم",
+  "Clôturer la journée du {d}": "إغلاق يوم {d}",
+  "Journée du {d} clôturée": "تم إغلاق يوم {d}",
+  "Journée du {d} non clôturée": "يوم {d} غير مُغلق",
+  "{n} ticket(s)": "{n} تذكرة",
 };

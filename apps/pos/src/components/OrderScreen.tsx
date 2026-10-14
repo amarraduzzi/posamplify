@@ -319,12 +319,22 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           </div>
         </div>
         {target.kind === 'new' && !order && (
-          <div className="flex gap-2 overflow-x-auto border-b border-line/[0.07] bg-surface px-3 py-2">
-            {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
-              <button key={k} onClick={() => setKind(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind === k ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
-                {k === 'takeaway' ? t('À emporter') : k === 'delivery' ? t('Livraison (tél.)') : 'Glovo'}
-              </button>
-            ))}
+          <div className="space-y-2 border-b border-line/[0.07] bg-surface px-3 py-2">
+            <div className="flex gap-2 overflow-x-auto">
+              {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
+                <button key={k} onClick={() => setKind(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind === k ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
+                  {k === 'takeaway' ? t('À emporter') : k === 'delivery' ? t('Livraison (tél.)') : 'Glovo'}
+                </button>
+              ))}
+            </div>
+            {/* the same details as on the till: a delivery cannot be sent without its address */}
+            {kind === 'glovo'
+              ? <input className={`${inputCls} py-2`} placeholder={t('Réf. Glovo')} value={customer.ref} onChange={e => setCustomer({ ...customer, ref: e.target.value })} />
+              : <div className="grid grid-cols-2 gap-2">
+                  <input className={`${inputCls} py-2`} placeholder={t('Nom')} value={customer.name} onChange={e => setCustomer({ ...customer, name: e.target.value })} />
+                  <input className={`${inputCls} py-2`} inputMode="tel" placeholder={t('Téléphone')} value={customer.phone} onChange={e => setCustomer({ ...customer, phone: e.target.value })} />
+                </div>}
+            {kind === 'delivery' && <input className={`${inputCls} py-2`} placeholder={t('Adresse de livraison')} value={customer.address} onChange={e => setCustomer({ ...customer, address: e.target.value })} />}
           </div>
         )}
         <div className="border-b border-line/[0.07] bg-surface/60 px-3 py-2">

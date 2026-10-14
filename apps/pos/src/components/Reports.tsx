@@ -17,6 +17,9 @@ export function ReportsView() {
   const [rep, setRep] = useState<DayReport | null>(null);
   const [moves, setMoves] = useState<CashMovement[]>([]);
   const [dialog, setDialog] = useState<null | 'float' | 'payout' | 'z' | 'account' | 'waste'>(null);
+  // days with sales that were never closed (a forgotten Z): closed here afterwards, without a cash count
+  const [late, setLate] = useState<{ business_date: string; tickets: number; revenue_ttc_cents: number }[]>([]);
+  const [lateDay, setLateDay] = useState<string | null>(null);
   const stockOn = !!r.products?.includes('profit');
   const creditOn = !!r.loyalty?.customers && !!r.loyalty?.credit;
   const load = async () => {
@@ -24,6 +27,7 @@ export function ReportsView() {
       const x = await db.dayReport(r.id);
       setRep(x); pos.setDayClosed(!!x.closed);
       setMoves(await db.cashMovements(r.id, x.business_date));
+      setLate(await db.rpc<typeof late>('unclosed_days', { p_restaurant_id: r.id }).catch(() => []));
     } catch (e) { pos.fail(e); }
   };
   useEffect(() => { load(); }, [pos.orders.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -46,6 +50,12 @@ export function ReportsView() {
         {creditOn && <Btn onClick={() => setDialog('account')} disabled={rep.closed}><NotebookPen className="h-4 w-4" /> {t('Ardoises')}</Btn>}
         <Btn tone="danger" onClick={() => setDialog('payout')} disabled={rep.closed}><ArrowDownCircle className="h-4 w-4" /> {t('Sortie de caisse')}</Btn>
       </div>
+      {late.map(d => (
+        <div key={d.business_date} className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3">
+          <p className="me-auto"><b>{t('Journée du {d} non clôturée', { d: d.business_date })}</b> <span className="text-sm text-muted">· {t('{n} ticket(s)', { n: d.tickets })} · {mad(d.revenue_ttc_cents)}</span></p>
+          <Btn tone="danger" onClick={() => setLateDay(d.business_date)}><Lock className="h-4 w-4" /> {t('Clôturer cette journée')}</Btn>
+        </div>
+      ))}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <K label={t("Chiffre d'affaires TTC")} value={mad(rep.revenue_ttc_cents)} strong />
         <K label={t('Tickets')} value={String(rep.tickets)} />
@@ -78,6 +88,7 @@ export function ReportsView() {
       {(dialog === 'float' || dialog === 'payout') && <CashDialog kind={dialog} onClose={() => setDialog(null)} onDone={() => { setDialog(null); load(); }} />}
       {dialog === 'waste' && <WasteDialog onClose={() => setDialog(null)} />}
       {dialog === 'account' && <AccountDialog onClose={() => setDialog(null)} onDone={() => load()} />}
+      {lateDay && <LateZDialog date={lateDay} onClose={() => setLateDay(null)} onDone={async x => { setLateDay(null); await printRep('RAPPORT Z', x); load(); }} />}
       {dialog === 'z' && <ZDialog rep={rep} onClose={() => setDialog(null)} onDone={async x => { setDialog(null); await printRep('RAPPORT Z', x); load(); }} />}
     </div>
   );
@@ -189,6 +200,36 @@ function ZDialog({ rep, onClose, onDone }: { rep: DayReport; onClose: () => void
           <p className="mb-3 text-sm">{t('Espèces comptées :')} <b className="tabular">{mad(toCents(counted))}</b> <button className="ms-2 text-brand underline" onClick={() => setStep('count')}>{t('Modifier')}</button></p>
           <ManagerApproval onApprove={approve} busy={busy} error={error} />
         </>)}
+    </Modal>
+  );
+}
+
+/** Close a past day that was forgotten. No cash count: today's cash is already in the drawer. */
+function LateZDialog({ date, onClose, onDone }: { date: string; onClose: () => void; onDone: (x: DayReport) => void }) {
+  const pos = usePos();
+  const [rep, setRep] = useState<DayReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { db.dayReport(pos.restaurant!.id, date).then(setRep).catch(e => setError(errorMessage(e))); }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const approve = async (managerId: string, pin: string) => {
+    setBusy(true); setError(null);
+    try {
+      const res = await db.rpc<{ ok: boolean; error?: string; totals?: DayReport }>('close_day', {
+        p_restaurant_id: pos.restaurant!.id, p_business_date: date, p_manager_staff_id: managerId, p_pin: pin, p_counted_cash_cents: null });
+      if (!res.ok) setError(PIN_ERRORS[res.error ?? 'invalid']);
+      else { pos.toast(t('Journée du {d} clôturée', { d: date }), 'ok'); onDone({ ...rep!, ...res.totals, business_date: date, closed: true } as DayReport); }
+    } catch (e) { setError(errorMessage(e)); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={t('Clôturer la journée du {d}', { d: date })} onClose={onClose}>
+      {!rep ? <p className="text-muted">{error ?? t('Chargement…')}</p> : <>
+        <p className="mb-2">{t("Chiffre d'affaires :")} <b className="tabular">{mad(rep.revenue_ttc_cents)}</b> · {t('{n} ticket(s)', { n: rep.tickets })}</p>
+        <p className="mb-4 text-sm text-muted">{t('Cette journée n’a pas été clôturée le soir même. Pas de comptage des espèces : l’argent d’aujourd’hui est déjà dans la caisse. Le rapport Z s’imprime après la validation.')}</p>
+        {rep.open_orders > 0
+          ? <p className="font-semibold text-danger">{t("{n} commande(s) encore ouverte(s). Encaissez-les ou annulez-les d'abord.", { n: rep.open_orders })}</p>
+          : <ManagerApproval onApprove={approve} busy={busy} error={error} />}
+      </>}
     </Modal>
   );
 }
