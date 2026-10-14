@@ -96,7 +96,7 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
         </div>
         <Field label={t('Catégorie')}>
           <select className={inputCls} value={category} onChange={e => setCategory(e.target.value)}>
-            {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
+            {Object.entries(CATEGORIES).filter(([k]) => k !== 'preparation' || category === 'preparation').map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
           </select>
         </Field>
         <Field group label={t('Dans vos recettes, vous le mesurez')} hint={used > 0 ? t('Utilisé dans {n} recette(s) : l’unité ne peut plus changer.', { n: used }) : undefined}>

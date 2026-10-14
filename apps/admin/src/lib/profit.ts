@@ -5,7 +5,7 @@ import type { BaseUnit, Ingredient } from './types';
 // i18n:values
 export const CATEGORIES: Record<string, string> = {
   legumes: 'Légumes', fruits: 'Fruits', viande: 'Viande', poisson: 'Poisson', laitier: 'Produits laitiers',
-  epicerie: 'Épicerie', boissons: 'Boissons', boulangerie: 'Boulangerie', emballage: 'Emballage', autre: 'Autre',
+  epicerie: 'Épicerie', boissons: 'Boissons', boulangerie: 'Boulangerie', emballage: 'Emballage', preparation: 'Préparations maison', autre: 'Autre',
 };
 export const BASE_LABEL: Record<BaseUnit, string> = { g: 'Au poids (g, kg)', ml: 'Au volume (ml, litre)', pc: 'À la pièce' };
 // i18n:end

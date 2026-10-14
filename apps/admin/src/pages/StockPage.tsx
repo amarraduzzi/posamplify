@@ -46,7 +46,7 @@ interface FItem {
   purchase_unit: string; purchase_qty: number; purchase_price_cents: number | null; supplier: string | null;
   counted_on: string | null; counted: number | null; bought_since: number; estimate: number | null; below_zero: boolean;
   daily: number | null; daily_source: 'sales' | 'counts' | null; days_left: number | null; to_buy: number | null; to_buy_cents: number | null;
-  status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted'; live?: boolean;
+  status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted' | 'made'; live?: boolean; is_preparation?: boolean;
 }
 interface Forecast { today: string; uses_pos: boolean; order_days: number; sales_days: number | null; items: FItem[] }
 type Tab = 'live' | 'buy' | 'orders' | 'suppliers' | 'gaps' | 'history';
@@ -91,6 +91,9 @@ export function StockPage({ r }: { r: Restaurant }) {
   useEffect(() => { load(); }, [load]);
 
   const byId = useMemo(() => new Map((ings ?? []).map(g => [g.id, g])), [ings]);
+  // house-made preparations are never bought; those made on the spot have no stock at all
+  const buyable = useMemo(() => (ings ?? []).filter(g => !g.is_preparation), [ings]);
+  const stockable = useMemo(() => (ings ?? []).filter(g => !g.is_preparation || g.made_ahead), [ings]);
   const closed = counts.filter(c => c.status === 'closed');
   const open = counts.find(c => c.status === 'open');
   // default comparison: the last two closed counts
@@ -114,7 +117,7 @@ export function StockPage({ r }: { r: Restaurant }) {
 
   if (ings === null) return <p className="text-muted">{t('Chargement…')}</p>;
   const sheetCount = counts.find(c => c.id === sheet);
-  if (sheetCount) return <CountSheet r={r} count={sheetCount} ings={ings} lines={lines.filter(l => l.count_id === sheetCount.id)} onBack={() => { setSheet(null); load(); }} />;
+  if (sheetCount) return <CountSheet r={r} count={sheetCount} ings={stockable} lines={lines.filter(l => l.count_id === sheetCount.id)} onBack={() => { setSheet(null); load(); }} />;
 
   const countValue = (id: string) => lines.filter(l => l.count_id === id).reduce((s, l) => s + value(byId.get(l.ingredient_id), Number(l.qty)), 0);
   const countLines = (id: string) => lines.filter(l => l.count_id === id).length;
@@ -173,13 +176,13 @@ export function StockPage({ r }: { r: Restaurant }) {
           ))}
         </div>
 
-        {tab === 'live' && <LiveView r={r} ings={ings} onChanged={load} />}
+        {tab === 'live' && <LiveView r={r} ings={stockable} onChanged={load} />}
 
         {tab === 'buy' && (fc && fc.items.some(i => i.counted != null || i.live)
           ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} onOrders={() => setTab('orders')} />
           : steps)}
 
-        {tab === 'orders' && <OrdersView r={r} ings={ings} onChanged={load} onBuy={() => setTab('buy')} />}
+        {tab === 'orders' && <OrdersView r={r} ings={buyable} onChanged={load} onBuy={() => setTab('buy')} />}
         {tab === 'suppliers' && <SupplierAccounts r={r} onOrders={() => setTab('orders')} />}
 
         {tab === 'gaps' && (rep ? <ReportView rep={rep} closed={closed} cmp={cmp!} setPair={setPair} /> : steps)}
@@ -236,7 +239,7 @@ export function StockPage({ r }: { r: Restaurant }) {
         )}
       </>)}
 
-      {buying && <DeliveryEditor r={r} ings={ings} prefill={buying} countDays={closed.map(c => c.counted_on)} onClose={() => setBuying(null)} onSaved={() => { setBuying(null); load(); }} />}
+      {buying && <DeliveryEditor r={r} ings={buyable} prefill={buying} countDays={closed.map(c => c.counted_on)} onClose={() => setBuying(null)} onSaved={() => { setBuying(null); load(); }} />}
     </div>
   );
 }
@@ -272,6 +275,7 @@ function BuyView({ r, fc, onBuy, onChanged, onOrders }: { r: Restaurant; fc: For
   const toggle = (id: string) => setPick(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const badge = (i: FItem) => {
+    if (i.status === 'made') return <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">{t('fait maison')}</span>;
     if (i.status === 'no_use') return <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{t('pas utilisé')}</span>;
     const d = Number(i.days_left);
     const tone = i.status === 'urgent' ? 'bg-danger/10 text-danger' : i.status === 'order' ? 'bg-warn/15 text-warn' : 'bg-ok/10 text-ok';
