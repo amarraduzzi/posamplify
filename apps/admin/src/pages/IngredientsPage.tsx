@@ -1,6 +1,6 @@
 // Amplify Profit: the ingredient list with purchase prices.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Sparkles, Check, Upload, Trash2, ListChecks, CookingPot } from 'lucide-react';
+import { Plus, Search, Sparkles, Check, Upload, Trash2, ListChecks, CookingPot, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -9,6 +9,7 @@ import type { Ingredient, Restaurant } from '../lib/types';
 import { CATEGORIES, SIZE_UNIT, unitCost } from '../lib/profit';
 import { IngredientEditor } from '../components/IngredientEditor';
 import { PreparationEditor } from '../components/PreparationEditor';
+import { ImportRecipes } from '../components/ImportRecipes';
 import { Btn, inputCls } from '../components/ui';
 import { ImportData } from '../components/ImportData';
 import { QuickPrices } from '../components/QuickPrices';
@@ -22,6 +23,7 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
   const [edit, setEdit] = useState<Ingredient | 'new' | null>(null);
   const [prepEdit, setPrepEdit] = useState<Ingredient | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importRecipes, setImportRecipes] = useState(false);
   const [quick, setQuick] = useState(false);
 
   const load = useCallback(async () => {
@@ -78,9 +80,11 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
         </div>
         <Btn onClick={() => setQuick(true)} disabled={!list?.length}><ListChecks className="h-4 w-4" /> {t('Saisie rapide')}</Btn>
         <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
+        <Btn onClick={() => setImportRecipes(true)} disabled={list === null}><BookOpen className="h-4 w-4" /> {t('Importer des recettes')}</Btn>
         <Btn onClick={() => setPrepEdit('new')}><CookingPot className="h-4 w-4" /> {t('Nouvelle préparation')}</Btn>
         <Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
       </div>
+      {importRecipes && list && <ImportRecipes r={r} ings={list} onClose={() => setImportRecipes(false)} onDone={load} />}
       {importing && <ImportData kind="ingredients" r={r} existing={(list ?? []).map(g => g.name)} onClose={() => setImporting(false)} onDone={load} />}
 
       {estimated > 0 && !quick && (
@@ -115,7 +119,7 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
                 return (
                   <tr key={g.id} className="cursor-pointer hover:bg-surface-2/60" onClick={() => open(g)}>
                     <td className="px-4 py-3">
-                      <p className="font-semibold">{g.name}{g.is_preparation && <span className="ms-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">{g.made_ahead ? t('fait maison, en stock') : t('fait à la minute')}</span>}</p>
+                      <p className="font-semibold">{g.name}{g.is_preparation && <span className="ms-2 inline-block whitespace-nowrap rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">{g.made_ahead ? t('fait maison, en stock') : t('fait à la minute')}</span>}</p>
                       {g.name_ar && <p className="text-xs text-muted" dir="rtl">{g.name_ar}</p>}
                     </td>
                     <td className="hidden px-4 py-3 text-muted md:table-cell">{t(CATEGORIES[g.category] ?? 'Autre')}</td>

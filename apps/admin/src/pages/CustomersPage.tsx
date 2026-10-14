@@ -1,7 +1,7 @@
 // Customer file and loyalty points. OFF until the owner switches it on: only then
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Printer, Search, ShieldCheck, Upload, Users } from 'lucide-react';
+import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Plus, Printer, Search, ShieldCheck, Upload, UserPlus, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -27,6 +27,7 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   const [edit, setEdit] = useState<Customer | null>(null);
   const [settings, setSettings] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     if (!loyalty.customers) { setList([]); return; }
@@ -99,8 +100,10 @@ export function CustomersPage({ r }: { r: Restaurant }) {
         </div>
         {a.canEditProfile && <Btn onClick={() => setSettings(true)}><Gift className="h-4 w-4" /> {t('Fidélité et ardoise')}</Btn>}
         {loyalty.customers && <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>}
+        <Btn tone="brand" onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> {t('Nouveau client')}</Btn>
       </div>
       {importing && <ImportData kind="customers" r={r} onClose={() => setImporting(false)} onDone={load} />}
+      {adding && <NewCustomer r={r} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map(([k, l]) => <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${filter === k ? 'bg-night text-white' : 'bg-surface-2 text-muted hover:text-ink'}`}>{l}</button>)}
@@ -198,6 +201,40 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
       </div>
       {statement && <Statement c={c} r={r} onClose={() => setStatement(false)} />}
       {adjust && <AdjustBalance c={c} onClose={() => setAdjust(false)} onDone={() => { setAdjust(false); onSaved(); }} />}
+    </Modal>
+  );
+}
+
+/** A customer added by hand (a regular, a catering customer): the same rules as the import, the phone is the key. */
+function NewCustomer({ r, onClose, onSaved }: { r: Restaurant; onClose: () => void; onSaved: () => void }) {
+  const a = useAdminCtx();
+  const [f, setF] = useState({ phone: '', name: '', birthday: '', note: '', marketing_ok: false });
+  const [busy, setBusy] = useState(false);
+  const digits = f.phone.replace(/\D/g, '');
+  const save = async () => {
+    if (digits.length < 6 || digits.length > 15) { a.toast(t('Indiquez un numéro de téléphone valide.'), 'error'); return; }
+    setBusy(true);
+    try {
+      const res = await rpc<{ created: number; updated: number; skipped: number }>('import_customers', { p_restaurant_id: r.id,
+        p_rows: [{ phone: f.phone.trim(), name: f.name.trim() || null, birthday: f.birthday || null, note: f.note.trim() || null, marketing_ok: f.marketing_ok, points: 0, visits: 0, spent_cents: 0 }] });
+      if (res.skipped) a.toast(t('Indiquez un numéro de téléphone valide.'), 'error');
+      else { a.toast(res.updated ? t('Ce numéro existait déjà : la fiche est complétée.') : t('Client ajouté')); onSaved(); }
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={t('Nouveau client')} onClose={onClose}
+      footer={<div className="flex justify-end gap-3"><Btn tone="ghost" onClick={onClose}>{t('Annuler')}</Btn><Btn tone="brand" disabled={busy} onClick={save}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn></div>}>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('Téléphone')}><input autoFocus className={inputCls} dir="ltr" inputMode="tel" maxLength={20} value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="06…" /></Field>
+          <Field label={t('Prénom')}><input className={inputCls} maxLength={60} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
+          <Field label={t('Anniversaire')}><input type="date" className={inputCls} value={f.birthday} onChange={e => setF({ ...f, birthday: e.target.value })} /></Field>
+          <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Allergie, table préférée…')} /></Field>
+        </div>
+        <Toggle checked={f.marketing_ok} onChange={v => setF({ ...f, marketing_ok: v })} label={t('D’accord pour recevoir les offres sur WhatsApp')} />
+        <p className="text-xs text-muted">{t('Cochez seulement si le client a donné son accord (loi 09-08).')}</p>
+      </div>
     </Modal>
   );
 }

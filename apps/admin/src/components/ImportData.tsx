@@ -16,17 +16,17 @@ import { Btn, Modal, inputCls } from './ui';
 
 export type ImportKind = 'customers' | 'ingredients' | 'suppliers' | 'sales';
 type Rec = Record<string, Cell>;
-interface Field { key: string; label: string; re: RegExp; required?: boolean }
+export interface Field { key: string; label: string; re: RegExp; required?: boolean }
 
-const txt = (v: Cell) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v ?? '').replace(/\s+/g, ' ').trim());
-const num = (v: Cell) => {
+export const txt = (v: Cell) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v ?? '').replace(/\s+/g, ' ').trim());
+export const num = (v: Cell) => {
   if (typeof v === 'number') return v;
   const s = txt(v).replace(/[^\d,.-]/g, '');
   if (!s) return null;
   const n = Number(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, ''));
   return Number.isFinite(n) ? n : null;
 };
-const yes = (v: Cell) => /^(1|oui|yes|y|true|vrai|x|✓|نعم)$/i.test(txt(v));
+export const yes = (v: Cell) => /^(1|oui|yes|y|true|vrai|x|✓|نعم)$/i.test(txt(v));
 /** "02/05/1990", "1990-05-02" or a date cell -> "1990-05-02" */
 const dateOf = (v: Cell) => {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
@@ -152,7 +152,7 @@ function aggregate(recs: Rec[], hasTickets: boolean): SalesAgg {
 }
 
 // "kg", "L", "pièce", "botte" -> recipe unit and how many of it one purchase unit holds
-function unitOf(raw: string): { base: 'g' | 'ml' | 'pc'; qty: number; label: string } {
+export function unitOf(raw: string): { base: 'g' | 'ml' | 'pc'; qty: number; label: string } {
   const u = norm(raw).replace(/\./g, '');
   if (/^(kg|kilo|kilos|kilogramme?s?|كلغ|كيلو)$/.test(u)) return { base: 'g', qty: 1000, label: 'kg' };
   if (/^(g|gr|gramme?s?|غ|غرام)$/.test(u)) return { base: 'g', qty: 1, label: 'g' };
@@ -164,9 +164,9 @@ function unitOf(raw: string): { base: 'g' | 'ml' | 'pc'; qty: number; label: str
 }
 const CATS: [string, RegExp][] = [['legumes', /l[eé]gum|vegetab|خضر/], ['fruits', /fruit|فواكه/], ['viande', /viande|meat|volaille|poulet|boeuf|لحم|دجاج/], ['poisson', /poisson|fish|fruits de mer|سمك/],
   ['laitier', /lait|dairy|fromage|cr[eè]me|beurre|oeuf|حليب|جبن/], ['boissons', /boisson|drink|bev|jus|soda|مشروب/], ['boulangerie', /boulang|pain|bread|patiss|خبز/], ['emballage', /emball|packag|carton|sac|تغليف/], ['epicerie', /[eé]pic|grocery|sec|conserve|بقالة/]];
-const catOf = (v: string) => CATS.find(([, re]) => re.test(norm(v)))?.[0] ?? 'autre';
+export const catOf = (v: string) => CATS.find(([, re]) => re.test(norm(v)))?.[0] ?? 'autre';
 
-function detect(rows: Cell[][], fields: Field[]) {
+export function detect(rows: Cell[][], fields: Field[]) {
   // the header is the first line in which at least one column is recognised
   let header = 0, best = -1;
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
