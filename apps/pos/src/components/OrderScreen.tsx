@@ -26,7 +26,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   // line names (kitchen bons, receipts) stay in the restaurant's main language;
   // the screen shows names in the till's language when the menu has them
   const lang = r.languages[0] ?? 'fr';
-  const uiLang = pos.lang === 'ar' ? 'ar' : lang;
+  // item names in the till's language when the menu has them (Arabic, English), else the restaurant's
+  const uiLang = pos.lang === 'fr' ? lang : pos.lang;
   const nameOf = (n: Record<string, string>) => tr(n, uiLang, r.languages);
   const lineName = (l: { menu_item_id?: string | null; item_id?: string | null; variant_id: string | null; name: string }) => {
     if (uiLang === lang) return l.name;

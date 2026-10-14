@@ -11,7 +11,7 @@ import { ReportsView } from './components/Reports';
 import { SettingsModal } from './components/SettingsModal';
 import { Star8, initials } from './components/Brand';
 import { SyncPanel } from './components/SyncPanel';
-import { t } from './lib/i18n';
+import { LANGS, nextLang, t } from './lib/i18n';
 import { useIsPhone } from './lib/phone';
 import { ReservationsView, useReservations } from './components/Reservations';
 import { KitchenScreen, KdsSetup, kdsConfig, setKdsConfig, type KdsConfig } from './components/KitchenScreen';
@@ -95,8 +95,8 @@ export default function App() {
             <p className="text-xs text-muted">{pos.staff.name}</p>
           </div>
           <ConnectionPill stale={stale} onClick={() => setShowSync(true)} />
-          <button onClick={() => pos.setLang(pos.lang === 'ar' ? 'fr' : 'ar')} aria-label={pos.lang === 'ar' ? 'Français' : 'العربية'}
-            className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted">{pos.lang === 'ar' ? 'FR' : 'ع'}</button>
+          <button onClick={() => pos.setLang(nextLang(pos.lang))} aria-label={LANGS.find(x => x.id === nextLang(pos.lang))!.label}
+            className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted">{LANGS.find(x => x.id === nextLang(pos.lang))!.short}</button>
           <button aria-label={t('Verrouiller')} onClick={() => pos.setStaff(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2"><Lock className="h-4 w-4" /></button>
         </header>
         {!pos.online && <p className="bg-warn/15 py-1.5 text-center text-xs font-semibold text-warn">{t('Hors ligne : les commandes partent au retour d’internet.')}</p>}
@@ -157,8 +157,8 @@ export default function App() {
             <Printer className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">{pos.printerOk ? t('Impr.') : t('Sans impr.')}</span>
             <span className={`h-2 w-2 rounded-full ${pos.printerOk ? 'bg-ok' : 'bg-muted/50'}`} />
           </span>
-          <button onClick={() => pos.setLang(pos.lang === 'ar' ? 'fr' : 'ar')} aria-label={pos.lang === 'ar' ? 'Français' : 'العربية'} title={pos.lang === 'ar' ? 'Français' : 'العربية'}
-            className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted transition hover:text-ink">{pos.lang === 'ar' ? 'FR' : 'ع'}</button>
+          <button onClick={() => pos.setLang(nextLang(pos.lang))} aria-label={LANGS.find(x => x.id === nextLang(pos.lang))!.label} title={LANGS.find(x => x.id === nextLang(pos.lang))!.label}
+            className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted transition hover:text-ink">{LANGS.find(x => x.id === nextLang(pos.lang))!.short}</button>
           <button onClick={() => setShowSettings(true)} aria-label={t('Réglages')} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted transition hover:text-ink"><Settings className="h-4 w-4" /></button>
           <button aria-label={t('Verrouiller')} title={t('Verrouiller')} onClick={() => pos.setStaff(null)} className="flex items-center gap-1.5 rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm font-bold transition hover:bg-surface-3"><Lock className="h-4 w-4" /><span className="hidden xl:inline">{t('Verrouiller')}</span></button>
         </div>

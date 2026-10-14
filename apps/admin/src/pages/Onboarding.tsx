@@ -155,7 +155,7 @@ function StepMenu({ r, onNext }: { r: Restaurant; onNext: () => void }) {
           <button key={k} disabled={busy} onClick={() => pick(k)} className="rounded-2xl border border-line/15 p-5 text-start transition hover:border-brand disabled:opacity-50">
             <tp.Icon className="mb-2 h-7 w-7 text-brand" />
             <p className="font-bold">{t(tp.label)}</p>
-            <p className="text-xs text-muted">{tp.cats.map(c => (getLang() === 'ar' ? c[2] : c[0])).join(getLang() === 'ar' ? '، ' : ', ') || t('Aucune catégorie')}</p>
+            <p className="text-xs text-muted">{tp.cats.map(c => (getLang() === 'ar' ? c[2] : getLang() === 'en' ? c[1] : c[0])).join(getLang() === 'ar' ? '، ' : ', ') || t('Aucune catégorie')}</p>
           </button>
         ))}
       </div>

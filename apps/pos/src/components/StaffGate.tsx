@@ -166,7 +166,7 @@ function Clock({ tz }: { tz: string }) {
   return (
     <div className="absolute end-6 top-5 text-end">
       <p className="font-display text-3xl font-semibold tabular leading-none">{d.toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit' })}</p>
-      <p className="mt-1 text-xs capitalize text-muted">{d.toLocaleDateString(getLang() === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <p className="mt-1 text-xs capitalize text-muted">{d.toLocaleDateString(getLang() === 'ar' ? 'ar-MA' : getLang() === 'en' ? 'en-GB' : 'fr-FR', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' })}</p>
     </div>
   );
 }

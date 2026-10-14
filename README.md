@@ -195,3 +195,17 @@ Database: migratie `20261001000100_profit.sql` (`profit_dishes`, `apply_recipe_s
 `restaurants.products` kent ook `orders`. Een restaurant met alleen dit product heeft geen kassa: gastbestellingen (QR-menu en online bestellen) komen binnen op de pagina **Commandes** van de beheer-app (live via Realtime, met geluid). Accepteren (met bereidingstijd), klaar en afgerond zijn gewone statusupdates van eigenaar of manager; weigeren gaat via `inbox_refuse` (zonder PIN, alleen eigenaar/manager en alleen voor nog niet klare bestellingen). Bij POS is dit inbegrepen (`orders` wordt dan weggehaald). Het platform zet het product per restaurant aan. Er is geen betaling, kasboek of bonprint: de gast betaalt aan het personeel.
 
 De pagina heeft ook een apart schermvullend venster (`/?scherm=commandes`, drie kolommen), een pauzeknop (dezelfde `online_pause` als bij Commande en ligne), een dagtotaal, een rode waarschuwing na 3 minuten zonder antwoord en een WhatsApp-bericht "klaar/onderweg". **Télécharger les ventes** maakt een echt Excelbestand (.xlsx, geschreven met `jszip`, zie `lib/xlsx.ts`) of een CSV: één regel per artikel van elke afgeronde bestelling (status `served`), met btw per regel en de bedragen van de bestelling alleen op de eerste regel.
+
+## Talen van beheer en kassa
+
+Beheer en kassa bestaan in het Frans (standaard), Arabisch en Engels. De Franse tekst in de code is de sleutel;
+`apps/<app>/src/lib/i18n-ar.ts` en `i18n-en.ts` bevatten de vertalingen. Een ontbrekende vertaling toont Frans.
+Controleer na elke wijziging:
+
+```bash
+node scripts/i18n-keys.mjs apps/admin/src --missing            # Arabisch
+node scripts/i18n-keys.mjs apps/admin/src --missing --lang en  # Engels
+node scripts/i18n-keys.mjs apps/pos/src --missing --lang en
+```
+
+Bonnen, Z-rapporten en de boekhoudexport blijven Frans (officiële documenten).

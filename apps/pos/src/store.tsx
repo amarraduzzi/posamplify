@@ -7,7 +7,7 @@ import { chime } from './lib/sound';
 import { errorMessage } from './lib/errors';
 import { uid } from './lib/format';
 import { readCache, writeCache } from './lib/cache';
-import { applyLang, t, type Lang } from './lib/i18n';
+import { applyLang, isLang, t, type Lang } from './lib/i18n';
 import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type Queued } from './lib/outbox';
 import type { Category, DraftLine, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
@@ -47,7 +47,7 @@ function usePosState() {
 
   // ---- language: chosen on the till, remembered per staff member -----------
   const [lang, setLangState] = useState<Lang>(() => {
-    const l = readCache<Lang>('pos-lang') === 'ar' ? 'ar' : 'fr';
+    const c = readCache<Lang>('pos-lang'); const l: Lang = isLang(c) ? c : 'fr';
     applyLang(l);
     return l;
   });
