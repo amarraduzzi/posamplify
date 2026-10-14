@@ -108,6 +108,11 @@ function Screens() {
   const visible = nav.filter(n => n.show).map(n => n.id);
   const current = !r && a.isAdmin ? 'platform' : visible.includes(page) ? page : (visible[0] ?? 'settings');
 
+  // the separate full-screen window of Amplify Commandes (opened from the Commandes page): the orders and nothing else
+  if (r && hasOrders && new URLSearchParams(location.search).get('scherm') === 'commandes') {
+    return <div className="min-h-full bg-surface p-3 md:p-6"><OrdersPage key={r.id} r={r} screen /></div>;
+  }
+
   return (
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>

@@ -1,7 +1,7 @@
 // Amplify Commandes: guest orders (QR menu, online ordering) arrive here, live, with a sound.
 // For restaurants without the till: accept with a preparation time, mark ready, served, or refuse.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Check, ChefHat, Clock, MapPin, MessageCircle, Phone, X } from 'lucide-react';
+import { Bell, BellOff, Check, ChefHat, Clock, Download, ExternalLink, MapPin, Maximize2, MessageCircle, PauseCircle, Phone, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
 import { chime, unlockSound } from '../lib/chime';
@@ -9,6 +9,7 @@ import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Modal, inputCls } from '../components/ui';
+import { fetchSales, salesCsv, salesRows, salesXlsx } from '../lib/salesExport';
 
 export interface InboxLine { id: string; name: string; quantity: number; note: string | null; created_at: string }
 export interface InboxOrder {
@@ -23,13 +24,14 @@ export interface InboxOrder {
 const intl = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
 const MINUTES = [10, 15, 20, 30, 45];
 
-export function OrdersPage({ r }: { r: Restaurant }) {
+export function OrdersPage({ r, screen = false }: { r: Restaurant; screen?: boolean }) {
   const a = useAdminCtx();
   const [orders, setOrders] = useState<InboxOrder[] | null>(null);
   const [tables, setTables] = useState<Record<string, string>>({});
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [refusing, setRefusing] = useState<InboxOrder | null>(null);
+  const [exporting, setExporting] = useState(false);
   const seen = useRef<Set<string> | null>(null);
 
   const load = useCallback(async () => {
@@ -89,6 +91,23 @@ export function OrdersPage({ r }: { r: Restaurant }) {
     return () => { stop = true; document.removeEventListener('visibilitychange', vis); void lock?.release(); };
   }, [armed]);
 
+  // paused online ordering (the same switch as on the Commande en ligne page): until when, or null
+  const pausedUntil = r.online?.paused_until && Date.parse(r.online.paused_until) > Date.now() ? new Date(r.online.paused_until) : null;
+  const pause = async (minutes: number) => {
+    try { await rpc('online_pause', { p_restaurant_id: r.id, p_minutes: minutes }); await a.reload(); a.toast(minutes ? t('Commandes en ligne en pause') : t('Commandes en ligne reprises')); } catch (e) { a.fail(e); }
+  };
+  // today so far (the restaurant's own day), refused orders left out
+  const day = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: r.timezone });
+  const today = day(new Date().toISOString());
+  const mine = (orders ?? []).filter(o => day(o.created_at) === today && o.status !== 'cancelled');
+  const summary = { count: mine.length, cents: mine.reduce((n, o) => n + o.total_cents, 0) };
+  // a message for the guest, in French and Arabic, written for WhatsApp
+  const wa = (o: InboxOrder) => {
+    const who = o.customer_name ? ` ${o.customer_name}` : '';
+    return o.order_type === 'delivery'
+      ? `Bonjour${who}, votre commande #${o.ticket_number} chez ${r.name} est en route.\n\nمرحبا${who}، طلبكم رقم ${o.ticket_number} من ${r.name} في الطريق.`
+      : `Bonjour${who}, votre commande #${o.ticket_number} chez ${r.name} est prête.\n\nمرحبا${who}، طلبكم رقم ${o.ticket_number} من ${r.name} جاهز.`;
+  };
   const act = async (key: string, job: () => Promise<void>) => {
     setBusy(key);
     try { await job(); await load(); } catch (e) { a.fail(e); }
@@ -101,7 +120,9 @@ export function OrdersPage({ r }: { r: Restaurant }) {
       <OrdersView
         orders={orders} tableLabel={id => (id ? tables[id] ?? null : null)} tz={r.timezone}
         armed={armed} onArm={() => { const ok = unlockSound(); setArmed(ok); if (ok) chime(); }} onMute={() => setArmed(false)}
-        prepDefault={r.online?.prep_minutes ?? 20} busy={busy}
+        prepDefault={r.online?.prep_minutes ?? 20} busy={busy} name={r.name} screen={screen} summary={summary} waText={wa}
+        pausedUntil={pausedUntil} onPause={pause} onExport={() => setExporting(true)}
+        onOpenScreen={() => window.open(`${location.origin}/?scherm=commandes`, 'amplify-commandes', 'popup=yes,width=1366,height=820')}
         onAccept={(o, min) => act(o.id, () => update(o.id, {
           status: 'preparing',
           ...(min ? { eta_at: new Date(Math.max(Date.now() + min * 60_000, o.wanted_at ? Date.parse(o.wanted_at) : 0)).toISOString() } : {}),
@@ -110,6 +131,7 @@ export function OrdersPage({ r }: { r: Restaurant }) {
         onDone={o => act(o.id, () => update(o.id, { status: 'served' }))}
         onRefuse={setRefusing}
       />
+      {exporting && <ExportModal r={r} tableLabel={id => (id ? tables[id] ?? null : null)} onClose={() => setExporting(false)} />}
       {refusing && <RefuseModal order={refusing} onClose={() => setRefusing(null)}
         onConfirm={reason => act(refusing.id, async () => { await rpc('inbox_refuse', { p_order_id: refusing.id, p_reason: reason || null }); setRefusing(null); })} />}
     </>
@@ -136,26 +158,59 @@ const TYPE: Record<InboxOrder['order_type'], string> = { dine_in: 'Sur place', t
 const DONE: Record<InboxOrder['order_type'], string> = { dine_in: 'Marquer servie', takeaway: 'Marquer remise', delivery: 'Marquer livrée' };
 
 /** The screen itself: no data access, so it can be shown with any list of orders. */
-export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepDefault, busy, onAccept, onReady, onDone, onRefuse, now: nowProp }: {
+export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepDefault, busy, onAccept, onReady, onDone, onRefuse, now: nowProp,
+  name = '', screen = false, summary, waText, pausedUntil = null, onPause, onExport, onOpenScreen }: {
   orders: InboxOrder[] | null; tableLabel: (id: string | null) => string | null; tz: string; armed: boolean; onArm: () => void; onMute: () => void;
   prepDefault: number; busy: string | null; now?: number;
   onAccept: (o: InboxOrder, minutes?: number) => void; onReady: (o: InboxOrder) => void; onDone: (o: InboxOrder) => void; onRefuse: (o: InboxOrder) => void;
+  /** restaurant name (shown in the separate window) */ name?: string;
+  /** the separate full-screen window: three columns, no menu around it */ screen?: boolean;
+  summary?: { count: number; cents: number }; waText?: (o: InboxOrder) => string;
+  pausedUntil?: Date | null; onPause?: (minutes: number) => void; onExport?: () => void; onOpenScreen?: () => void;
 }) {
   const [tick, setTick] = useState(Date.now());
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [full, setFull] = useState(false);
   useEffect(() => { const iv = setInterval(() => setTick(Date.now()), 30_000); return () => clearInterval(iv); }, []);
+  useEffect(() => { const f = () => setFull(!!document.fullscreenElement); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
   const now = nowProp ?? tick;
-  const open = (orders ?? []).filter(o => ['new', 'preparing', 'ready'].includes(o.status))
-    .sort((x, y) => ['new', 'preparing', 'ready'].indexOf(x.status) - ['new', 'preparing', 'ready'].indexOf(y.status) || x.created_at.localeCompare(y.created_at));
+  const order = ['new', 'preparing', 'ready'];
+  const open = (orders ?? []).filter(o => order.includes(o.status)).sort((x, y) => order.indexOf(x.status) - order.indexOf(y.status) || x.created_at.localeCompare(y.created_at));
   const finished = (orders ?? []).filter(o => ['served', 'cancelled'].includes(o.status) && now - Date.parse(o.created_at) < 8 * 3600_000).reverse();
   const minutes = [...new Set([prepDefault, ...MINUTES])].sort((x, y) => x - y).slice(0, 5);
+  const card = (o: InboxOrder) => <OrderCard key={o.id} o={o} tz={tz} now={now} table={tableLabel(o.table_id)} minutes={minutes} prepDefault={prepDefault} busy={busy === o.id}
+    onAccept={onAccept} onReady={onReady} onDone={onDone} onRefuse={onRefuse} waText={waText} big={screen} />;
+  const clock = new Date(now).toLocaleTimeString(dateLocale(), { timeZone: tz, hour: '2-digit', minute: '2-digit' });
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl">{t('Commandes')}</h1>
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-3xl">{screen && name ? name : t('Commandes')}</h1>
         <span className="flex items-center gap-1.5 text-sm text-muted"><span className="h-2 w-2 rounded-full bg-ok" />{t('En direct')}</span>
-        {armed && <button onClick={onMute} className="ms-auto inline-flex items-center gap-1.5 rounded-full border border-line/15 px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"><Bell className="h-4 w-4 text-ok" /> {t('Son activé')}</button>}
+        {screen && <span className="tabular text-2xl font-black" dir="ltr">{clock}</span>}
+        {summary && <span className="text-sm font-semibold text-muted">{t('Aujourd’hui : {n} commandes · {total}', { n: summary.count, total: mad(summary.cents) })}</span>}
+        <div className="ms-auto flex flex-wrap items-center gap-2">
+          {onPause && !pausedUntil && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={() => setPauseOpen(v => !v)}><PauseCircle className="h-4 w-4" /> {t('Pause')}</Btn>}
+          {onExport && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={onExport}><Download className="h-4 w-4" /> {t('Télécharger les ventes')}</Btn>}
+          {!screen && onOpenScreen && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={onOpenScreen}><ExternalLink className="h-4 w-4" /> {t('Ouvrir en plein écran')}</Btn>}
+          {screen && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Maximize2 className="h-4 w-4" /> {full ? t('Quitter le plein écran') : t('Plein écran')}</Btn>}
+          {armed && <button onClick={onMute} className="inline-flex items-center gap-1.5 rounded-full border border-line/15 px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"><Bell className="h-4 w-4 text-ok" /> {t('Son activé')}</button>}
+        </div>
       </div>
+
+      {pausedUntil && onPause && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-warn/15 p-3">
+          <PauseCircle className="h-5 w-5 shrink-0" />
+          <p className="min-w-0 flex-1 font-semibold">{t('Commandes en pause jusqu’à {h}', { h: hm(pausedUntil.toISOString(), tz) })}</p>
+          <Btn tone="brand" onClick={() => onPause(0)}>{t('Reprendre')}</Btn>
+        </div>
+      )}
+      {pauseOpen && onPause && !pausedUntil && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-surface-2 p-3">
+          <p className="me-1 text-sm font-semibold">{t('Pas de nouvelles commandes pendant')}</p>
+          {[15, 30, 60].map(m => <Btn key={m} tone="ghost" className="min-w-16" onClick={() => { setPauseOpen(false); onPause(m); }}>{m} min</Btn>)}
+        </div>
+      )}
 
       {!armed && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl bg-brand/15 p-4">
@@ -174,10 +229,22 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {open.map(o => <OrderCard key={o.id} o={o} tz={tz} now={now} table={tableLabel(o.table_id)} minutes={minutes} prepDefault={prepDefault} busy={busy === o.id}
-          onAccept={onAccept} onReady={onReady} onDone={onDone} onRefuse={onRefuse} />)}
-      </div>
+      {screen ? (
+        // the separate window: one column per step, so the whole kitchen reads it at a glance
+        <div className="grid items-start gap-4 lg:grid-cols-3">
+          {order.map(st => {
+            const list = open.filter(o => o.status === st);
+            return (
+              <section key={st} aria-label={t(STATUS_LABEL[st])}>
+                <h2 className="mb-3 flex items-center gap-2 text-lg font-black">{t(STATUS_LABEL[st])}<span className={`rounded-full px-2.5 py-0.5 text-sm ${STATUS_STYLE[st]}`}>{list.length}</span></h2>
+                <div className="space-y-4">{list.map(card)}</div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{open.map(card)}</div>
+      )}
 
       {finished.length > 0 && (
         <details className="mt-8">
@@ -202,27 +269,32 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
 
 const STATUS_STYLE: Record<string, string> = { new: 'bg-brand text-brand-ink', preparing: 'bg-night text-white', ready: 'bg-ok text-white' };
 const STATUS_LABEL: Record<string, string> = { new: 'À accepter', preparing: 'En préparation', ready: 'Prête' };
+/** minutes after which an order nobody has answered is shown in red */
+const LATE_AFTER = 3;
 
-function OrderCard({ o, tz, now, table, minutes, prepDefault, busy, onAccept, onReady, onDone, onRefuse }: {
+function OrderCard({ o, tz, now, table, minutes, prepDefault, busy, onAccept, onReady, onDone, onRefuse, waText, big }: {
   o: InboxOrder; tz: string; now: number; table: string | null; minutes: number[]; prepDefault: number; busy: boolean;
   onAccept: (o: InboxOrder, minutes?: number) => void; onReady: (o: InboxOrder) => void; onDone: (o: InboxOrder) => void; onRefuse: (o: InboxOrder) => void;
+  waText?: (o: InboxOrder) => string; big?: boolean;
 }) {
   const [picking, setPicking] = useState(false);
   const age = Math.max(0, Math.round((now - Date.parse(o.created_at)) / 60_000));
+  const late = o.status === 'new' && age >= LATE_AFTER;
   const timed = o.order_type !== 'dine_in';
   const where = o.order_type === 'dine_in' ? (table ? t('Sur place · Table {n}', { n: table }) : t('Sur place')) : t(TYPE[o.order_type]);
   return (
-    <div className={`flex flex-col rounded-3xl bg-white p-4 shadow-card ring-1 ${o.status === 'new' ? 'ring-2 ring-brand' : 'ring-line/10'}`}>
+    <div className={`flex flex-col rounded-3xl bg-white p-4 shadow-card ring-1 ${late ? 'ring-2 ring-danger' : o.status === 'new' ? 'ring-2 ring-brand' : 'ring-line/10'}`}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-display text-2xl font-black">#{o.ticket_number}</span>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_STYLE[o.status]}`}>{t(STATUS_LABEL[o.status])}</span>
         <span className="ms-auto text-sm text-muted">{age < 1 ? t('à l’instant') : t('il y a {n} min', { n: age })}</span>
       </div>
+      {late && <p className="mt-1 text-sm font-bold text-danger">{t('En attente depuis {n} min', { n: age })}</p>}
       <p className="mt-1 text-sm font-semibold">{where}{o.table_by_guest ? <span className="ms-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{t('Saisi par le client')}</span> : null}</p>
       {timed && o.wanted_at && <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold"><Clock className="h-4 w-4" /> {t('Pour {h}', { h: hm(o.wanted_at, tz) })}</p>}
       {o.status !== 'new' && o.eta_at && <p className="mt-1 flex items-center gap-1.5 text-sm text-muted"><Clock className="h-4 w-4" /> {t('Prête vers {h}', { h: hm(o.eta_at, tz) })}</p>}
 
-      <ul className="mt-3 space-y-1.5 border-t border-line/10 pt-3">
+      <ul className={`mt-3 space-y-1.5 border-t border-line/10 pt-3 ${big ? 'text-lg' : ''}`}>
         {o.order_lines.map(l => (
           <li key={l.id}><span className="font-bold">{l.quantity}×</span> {l.name}{l.note ? <span className="block ps-6 text-sm italic text-muted">{l.note}</span> : null}</li>
         ))}
@@ -263,8 +335,59 @@ function OrderCard({ o, tz, now, table, minutes, prepDefault, busy, onAccept, on
         )}
         {o.status === 'preparing' && <Btn tone="brand" className="min-h-12 w-full !text-base" disabled={busy} onClick={() => onReady(o)}><Check className="h-5 w-5" /> {t('Commande prête')}</Btn>}
         {o.status === 'preparing' && <Btn tone="ghost" className="w-full" disabled={busy} onClick={() => onRefuse(o)}>{t('Refuser')}</Btn>}
+        {o.status === 'ready' && timed && o.customer_phone && waText && (
+          <a href={`https://wa.me/${intl(o.customer_phone)}?text=${encodeURIComponent(waText(o))}`} target="_blank" rel="noopener"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line/[0.12] bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-surface-2"><MessageCircle className="h-4 w-4" /> {t('Prévenir le client sur WhatsApp')}</a>
+        )}
         {o.status === 'ready' && <Btn tone="brand" className="min-h-12 w-full !text-base" disabled={busy} onClick={() => onDone(o)}><Check className="h-5 w-5" /> {t(DONE[o.order_type])}</Btn>}
       </div>
     </div>
+  );
+}
+
+// ---- export of the sales (Excel or CSV)
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const addDays = (s: string, n: number) => { const d = new Date(`${s}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return ymd(d); };
+type Period = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
+
+function ExportModal({ r, tableLabel, onClose }: { r: Restaurant; tableLabel: (id: string | null) => string | null; onClose: () => void }) {
+  const a = useAdminCtx();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: r.timezone });
+  const [period, setPeriod] = useState<Period>('today');
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState(today);
+  const [busy, setBusy] = useState(false);
+  const range = (): [string, string] => period === 'today' ? [today, today] : period === 'yesterday' ? [addDays(today, -1), addDays(today, -1)]
+    : period === 'week' ? [addDays(today, -6), today] : period === 'month' ? [`${today.slice(0, 8)}01`, today] : [from, to];
+  const [f, e] = range();
+  const go = async (kind: 'xlsx' | 'csv') => {
+    setBusy(true);
+    try {
+      const orders = await fetchSales(r.id, f, e);
+      if (!orders.length) { a.toast(t('Aucune vente sur cette période')); setBusy(false); return; }
+      const rows = salesRows(orders, tableLabel, r.timezone);
+      const blob = kind === 'xlsx' ? await salesXlsx(rows) : salesCsv(rows);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = `${r.slug}-ventes-${f}${f === e ? '' : `_${e}`}.${kind}`;
+      document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (err) { a.fail(err); }
+    setBusy(false);
+  };
+  const chips: [Period, string][] = [['today', 'Aujourd’hui'], ['yesterday', 'Hier'], ['week', '7 derniers jours'], ['month', 'Ce mois-ci'], ['custom', 'Choisir les dates']];
+  return (
+    <Modal title={t('Télécharger les ventes')} onClose={onClose}
+      footer={<><Btn onClick={onClose}>{t('Fermer')}</Btn><Btn tone="ghost" disabled={busy} onClick={() => go('csv')}>CSV</Btn><Btn tone="brand" disabled={busy || f > e} onClick={() => go('xlsx')}><Download className="h-4 w-4" /> Excel</Btn></>}>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map(([k, l]) => <button key={k} type="button" onClick={() => setPeriod(k)} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${period === k ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{t(l)}</button>)}
+      </div>
+      {period === 'custom' && (
+        <div className="mt-3 flex flex-wrap items-center gap-2" dir="ltr">
+          <input type="date" className={inputCls + ' !w-auto'} value={from} max={to} onChange={x => setFrom(x.target.value)} aria-label={t('Du')} />
+          <span>→</span>
+          <input type="date" className={inputCls + ' !w-auto'} value={to} min={from} max={today} onChange={x => setTo(x.target.value)} aria-label={t('Au')} />
+        </div>
+      )}
+      <p className="mt-4 text-sm text-muted">{t('Une ligne par article. Seules les commandes terminées (servies, remises ou livrées) sont incluses ; les commandes refusées n’y sont pas.')}</p>
+    </Modal>
   );
 }
