@@ -1941,4 +1941,10 @@ export const EN: Record<string, string> = {
   "Le compte est créé et confirmé. Envoyez ces accès au client.": "The account is created and confirmed. Send these details to the customer.",
   "Réservé aux administrateurs de la plateforme.": "Platform administrators only.",
   "Si ce compte existe déjà, son mot de passe ne change pas.": "If this account already exists, its password does not change.",
+  "Ajoutez les ingrédients pour 1 kg vendu.": "Add the ingredients for 1 kg sold.",
+  "La caisse demande le poids lu sur la balance et calcule le prix. Le ticket affiche le poids. La fiche technique se fait pour 1 kg. Pas de commande en ligne pour cet article.": "The till asks for the weight shown on the scale and calculates the price. The receipt shows the weight. The recipe card is for 1 kg. No online ordering for this item.",
+  "Prix au kg (MAD)": "Price per kg (MAD)",
+  "Vendu au poids (gâteaux secs, chocolats…)": "Sold by weight (biscuits, chocolates…)",
+  "pour 1 kg": "per 1 kg",
+  "pour 1 kg, hors TVA": "per 1 kg, excl. VAT",
 };

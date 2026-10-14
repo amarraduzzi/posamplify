@@ -228,6 +228,7 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
   const [station, setStation] = useState<string>(item?.station ?? '');
   const [active, setActive] = useState(item?.active ?? true);
   const [available, setAvailable] = useState(item?.available ?? true);
+  const [weighed, setWeighed] = useState(!!item?.sold_by_weight);
   const [off, setOff] = useState(item?.takeaway_discount_cents == null ? '' : fromCents(item.takeaway_discount_cents));
   const catOff = cats.find(c => c.id === category)?.takeaway_discount_cents ?? 0;
   const [glovo, setGlovo] = useState(item?.glovo_price_cents == null ? '' : fromCents(item.glovo_price_cents));
@@ -242,7 +243,7 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
       const row = {
         name, description: desc, category_id: category, image_url: image, tags, active, available,
         price_cents: variants.length ? Math.min(...variants.map(v => toCents(v.priceText))) : toCents(price),
-        vat_bp: vat === '' ? null : Number(vat), station: station || null,
+        vat_bp: vat === '' ? null : Number(vat), station: station || null, sold_by_weight: weighed && !variants.length,
         // empty = the reduction of the category (only sent when set or changed)
         ...(off.trim() !== '' || item?.takeaway_discount_cents != null ? { takeaway_discount_cents: off.trim() === '' ? null : toCents(off) } : {}),
         // Glovo: empty = automatic (restaurant price + the Glovo markup)
@@ -282,8 +283,14 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
                 {cats.map(c => <option key={c.id} value={c.id}>{tr(c.name, r.languages[0])}</option>)}
               </select>
             </Field>
-            {!variants.length && <Field label={t('Prix (MAD)')}><input className={inputCls} inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder="35" /></Field>}
+            {!variants.length && <Field label={weighed ? t('Prix au kg (MAD)') : t('Prix (MAD)')}><input className={inputCls} inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder={weighed ? '120' : '35'} /></Field>}
           </div>
+          {!variants.length && (
+            <div className="rounded-2xl bg-surface-2 p-3">
+              <Toggle checked={weighed} onChange={setWeighed} label={t('Vendu au poids (gâteaux secs, chocolats…)')} />
+              {weighed && <p className="mt-1.5 text-xs text-muted">{t('La caisse demande le poids lu sur la balance et calcule le prix. Le ticket affiche le poids. La fiche technique se fait pour 1 kg. Pas de commande en ligne pour cet article.')}</p>}
+            </div>
+          )}
 
           <div>
             <div className="mb-1 flex items-center justify-between">

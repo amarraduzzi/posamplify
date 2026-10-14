@@ -1943,4 +1943,10 @@ export const AR: Record<string, string> = {
   "Le compte est créé et confirmé. Envoyez ces accès au client.": "تم إنشاء الحساب وتأكيده. أرسل معلومات الولوج إلى الزبون.",
   "Réservé aux administrateurs de la plateforme.": "مخصص لمسؤولي المنصة.",
   "Si ce compte existe déjà, son mot de passe ne change pas.": "إذا كان الحساب موجودًا، لا تتغير كلمة مروره.",
+  "Ajoutez les ingrédients pour 1 kg vendu.": "أضف المكوّنات لكل 1 كغ مبيع.",
+  "La caisse demande le poids lu sur la balance et calcule le prix. Le ticket affiche le poids. La fiche technique se fait pour 1 kg. Pas de commande en ligne pour cet article.": "يطلب الصندوق الوزن المقروء على الميزان ويحسب الثمن. تظهر التذكرة الوزن. البطاقة التقنية تُعدّ لـ 1 كغ. لا طلب عبر الإنترنت لهذا المنتج.",
+  "Prix au kg (MAD)": "الثمن للكيلو (درهم)",
+  "Vendu au poids (gâteaux secs, chocolats…)": "يباع بالوزن (حلويات جافة، شوكولاتة…)",
+  "pour 1 kg": "لكل 1 كغ",
+  "pour 1 kg, hors TVA": "لكل 1 كغ، دون ضريبة",
 };

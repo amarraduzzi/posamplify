@@ -295,7 +295,7 @@ export default function App() {
       currency={currency}
       t={t}
       qty={cart.qtyOfItem(item.id)}
-      canOrder={canOrder}
+      canOrder={canOrder && !item.sold_by_weight}
       onOpen={() => setOpenItem(item)}
       onQuickAdd={() => addToCart(item, null, 1)}
     />
@@ -408,7 +408,7 @@ export default function App() {
             <div className="mt-3 flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory px-5 pb-2 scroll-px-5">
               {featured.map((item, i) => (
                 <FeaturedCard key={item.id} item={item} index={i} lang={lang} fallbacks={fallbacks} currency={currency} t={t}
-                  canOrder={canOrder} qty={cart.qtyOfItem(item.id)} onOpen={() => setOpenItem(item)}
+                  canOrder={canOrder && !item.sold_by_weight} qty={cart.qtyOfItem(item.id)} onOpen={() => setOpenItem(item)}
                   onQuickAdd={() => addToCart(item, null, 1)} />
               ))}
             </div>
@@ -513,7 +513,7 @@ export default function App() {
         fallbacks={fallbacks}
         currency={currency}
         t={t}
-        canOrder={canOrder}
+        canOrder={canOrder && !openItem?.sold_by_weight}
         onClose={() => setOpenItem(null)}
         onAdd={(variantId, qty, note, mods) => { if (openItem) { setError(null); cart.add(openItem, variantId, qty, note, mods); setBump(b => b + 1); } setOpenItem(null); }}
       />

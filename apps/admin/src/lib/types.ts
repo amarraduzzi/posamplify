@@ -27,6 +27,8 @@ export interface Item {
   id: string; restaurant_id: string; category_id: string; name: I18n; description: I18n; price_cents: number;
   image_url: string | null; vat_bp: number | null; station: string | null; tags: string[]; active: boolean; available: boolean; sort_order: number;
   item_variants: Variant[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
+  /** price_cents is the price of 1 kg; the till asks the weight */
+  sold_by_weight?: boolean;
 }
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; qr_token: string; sort_order: number; active: boolean }
@@ -45,6 +47,7 @@ export interface ProfitDish {
   price_cents: number; vat_bp: number; price_ht_cents: number; lines: number; unpriced: number; estimated: number;
   cost_cents: number | null; food_cost_bp: number | null; margin_cents: number | null; suggested_price_cents: number | null;
   sold_qty: number; profit_cents: number | null;
+  sold_by_weight?: boolean;
 }
 export interface ProfitData { target_food_cost_bp: number; days: number; uses_pos: boolean; dishes: ProfitDish[] }
 /** The restaurant has only Amplify Site (website and menu, no till, no Profit). */

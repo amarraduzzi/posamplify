@@ -64,7 +64,7 @@ export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrd
   const name = tr(item.name, lang, fallbacks);
   const desc = tr(item.description, lang, fallbacks);
   const soldOut = !item.available;
-  const priceLabel = formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang);
+  const priceLabel = formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang) + (item.sold_by_weight ? ' / kg' : '');
   const add = item.variants.length || item.modifier_groups?.length ? onOpen : onQuickAdd;
 
   return (
@@ -148,7 +148,7 @@ export function FeaturedCard({ item, index, lang, fallbacks, currency, t, qty, c
           <span className="mt-1 block text-sm font-semibold tabular-nums text-white/85">
             {item.variants.length > 1 && <span className="text-xs font-medium me-1 text-white/70">{t.from}</span>}
             {item.promo_bp ? <span className="me-1 text-xs font-medium text-white/60 line-through">{formatMoney(minPrice(item), currency, lang)}</span> : null}
-            {formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang)}
+            {formatMoney(promoPrice(minPrice(item), item.promo_bp), currency, lang) + (item.sold_by_weight ? ' / kg' : '')}
           </span>
         </span>
       </button>

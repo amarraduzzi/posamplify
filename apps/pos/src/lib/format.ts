@@ -1,6 +1,9 @@
 import { getLang, t } from './i18n';
 
 /** Screen amounts. Western digits in both languages (as used in Morocco). */
+/** 450 -> "0,450 kg" (as the server writes it on the ticket) */
+export const kg = (g: number) => `${(g / 1000).toFixed(3).replace('.', ',')} kg`;
+
 export const mad = (cents: number) => {
   const n = Number(cents) / 100;
   const v = n.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });

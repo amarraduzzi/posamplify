@@ -262,8 +262,8 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
         <div>
           <div className="mb-4 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Prix de vente')}</p><p className="font-display text-xl font-semibold tabular">{mad(dish.price_cents)}</p><p className="text-[11px] text-muted">{t('{p} hors TVA', { p: mad(dish.price_ht_cents) })}</p></div>
-            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Coût matière')}</p><p className="font-display text-xl font-semibold tabular">{mad(cost)}</p><p className="text-[11px] text-muted">{t('par portion')}</p></div>
-            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Marge')}</p><p className="font-display text-xl font-semibold tabular">{mad(dish.price_ht_cents - cost)}</p><p className="text-[11px] text-muted">{t('par portion, hors TVA')}</p></div>
+            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Coût matière')}</p><p className="font-display text-xl font-semibold tabular">{mad(cost)}</p><p className="text-[11px] text-muted">{dish.sold_by_weight ? t('pour 1 kg') : t('par portion')}</p></div>
+            <div className="rounded-2xl bg-surface-2 p-3"><p className="text-xs text-muted">{t('Marge')}</p><p className="font-display text-xl font-semibold tabular">{mad(dish.price_ht_cents - cost)}</p><p className="text-[11px] text-muted">{dish.sold_by_weight ? t('pour 1 kg, hors TVA') : t('par portion, hors TVA')}</p></div>
           </div>
 
           <ul className="divide-y divide-line/10 rounded-2xl border border-line/[0.08]">
@@ -304,7 +304,7 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
                 </li>
               );
             })}
-            {!lines.length && <li className="px-4 py-6 text-center text-sm text-muted">{t('Ajoutez les ingrédients d’une portion.')}</li>}
+            {!lines.length && <li className="px-4 py-6 text-center text-sm text-muted">{dish.sold_by_weight ? t('Ajoutez les ingrédients pour 1 kg vendu.') : t('Ajoutez les ingrédients d’une portion.')}</li>}
           </ul>
 
           <div className="mt-3 flex gap-2">

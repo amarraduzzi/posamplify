@@ -152,9 +152,9 @@ export async function tillOrder(device, restaurantId, lines, extra = {}) {
     [restaurantId, uuid(), extra.order_type ?? 'takeaway', extra.table_id ?? null, extra.source ?? 'pos']);
   for (const l of lines) {
     await as(device,
-      `insert into public.order_lines (restaurant_id, order_id, menu_item_id, variant_id, name, unit_price_cents, quantity, vat_bp)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [restaurantId, o.id, l.item_id ?? null, l.variant_id ?? null, l.name ?? '-', l.price ?? 0, l.qty ?? 1, l.vat_bp ?? null]);
+      `insert into public.order_lines (restaurant_id, order_id, menu_item_id, variant_id, name, unit_price_cents, quantity, vat_bp, weight_g)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [restaurantId, o.id, l.item_id ?? null, l.variant_id ?? null, l.name ?? '-', l.price ?? 0, l.qty ?? 1, l.vat_bp ?? null, l.weight_g ?? null]);
   }
   return (await as(device, `select * from public.orders where id = $1`, [o.id]))[0];
 }

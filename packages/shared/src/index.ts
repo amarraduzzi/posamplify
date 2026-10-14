@@ -53,6 +53,8 @@ export interface PublicItem {
   image_url: string | null;
   tags: string[];
   available: boolean;
+  /** price_cents is the price of 1 kg: sold in the shop only (weighed at the till) */
+  sold_by_weight?: boolean;
   variants: PublicVariant[];
   modifier_groups?: PublicModGroup[];
   /** happy hour now: percent off the dish in basis points (options keep their price) */

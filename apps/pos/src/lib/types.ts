@@ -39,6 +39,8 @@ export interface Item {
   id: string; category_id: string; name: I18n; price_cents: number; station: string | null;
   available: boolean; sort_order: number; variants: Variant[]; image_url?: string | null;
   groups?: ModGroup[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
+  /** price_cents is the price of 1 kg: the till asks the weight */
+  sold_by_weight?: boolean;
 }
 export interface ChosenMod { id: string; name: string; price_cents: number }
 
@@ -49,6 +51,8 @@ export interface Line {
   modifiers?: ChosenMod[];
   /** price before a happy hour (set by the database) */
   list_price_cents?: number | null; promo_id?: string | null;
+  /** sold by weight: grams (the price is for this weight) */
+  weight_g?: number | null;
   /** course (1 starter, 2 main, 3 dessert); a held line waits for "Envoyer la suite"; served_at: taken to the table */
   course?: number | null; held?: boolean; served_at?: string | null;
   /** the kitchen screen marked it ready */
@@ -107,4 +111,6 @@ export interface DraftLine {
   unit_price_cents: number; quantity: number; note: string; station: string;
   modifiers?: ChosenMod[];
   course?: number | null;
+  /** sold by weight: grams */
+  weight_g?: number | null;
 }

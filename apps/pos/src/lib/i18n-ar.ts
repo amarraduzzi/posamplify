@@ -590,4 +590,7 @@ export const AR: Record<string, string> = {
   "Journée du {d} non clôturée": "يوم {d} غير مُغلق",
   "{n} ticket(s)": "{n} تذكرة",
   "Traiteur": "ممون الحفلات",
+  "Entre 1 g et 100 kg.": "بين 1 غ و100 كغ.",
+  "Le poids lu sur la balance.": "الوزن المقروء على الميزان.",
+  "Poids": "الوزن",
 };

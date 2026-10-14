@@ -3,7 +3,7 @@ import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet
 import { promoPrice, tr } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
-import { mad, time, uid } from '../lib/format';
+import { kg, mad, time, uid } from '../lib/format';
 import { ticketRef } from '../lib/print';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
 import type { ChosenMod, DraftLine, Item, Line, ModGroup, Order } from '../lib/types';
@@ -17,7 +17,7 @@ import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
 
-type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string };
+type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string } | { weigh: Item };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -29,12 +29,12 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   // item names in the till's language when the menu has them (Arabic, English), else the restaurant's
   const uiLang = pos.lang === 'fr' ? lang : pos.lang;
   const nameOf = (n: Record<string, string>) => tr(n, uiLang, r.languages);
-  const lineName = (l: { menu_item_id?: string | null; item_id?: string | null; variant_id: string | null; name: string }) => {
+  const lineName = (l: { menu_item_id?: string | null; item_id?: string | null; variant_id: string | null; name: string; weight_g?: number | null }) => {
     if (uiLang === lang) return l.name;
     const it = pos.itemById.get((l.menu_item_id ?? l.item_id) || '');
     if (!it) return l.name;
     const v = it.variants.find(x => x.id === l.variant_id);
-    return nameOf(it.name) + (v ? ` (${nameOf(v.name)})` : '');
+    return nameOf(it.name) + (v ? ` (${nameOf(v.name)})` : '') + (l.weight_g ? ` · ${kg(l.weight_g)}` : '');
   };
   const phone = useIsPhone();
   const [sheet, setSheet] = useState(false);
@@ -90,7 +90,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     const pi = priced(it), v = d.variant_id ? pi.variants.find(x => x.id === d.variant_id) : null;
     const opts = (pi.groups ?? []).flatMap(g => g.options);
     const mods = (d.modifiers ?? []).reduce((s, m) => s + Number(opts.find(o => o.id === m.id)?.price_cents ?? m.price_cents), 0);
-    return promoPrice(Math.max(0, Number(v ? v.price_cents : pi.price_cents) - offOf(it)), promo ? hhOf(it) : 0) + mods;
+    const unit = promoPrice(Math.max(0, Number(v ? v.price_cents : pi.price_cents) - offOf(it)), promo ? hhOf(it) : 0) + mods;
+    // sold by weight: the price above is for 1 kg (the database rounds the same way)
+    return d.weight_g ? Math.round(unit * d.weight_g / 1000) : unit;
   };
   const draftTotal = draft.reduce((s, d) => s + dUnit(d) * d.quantity, 0);
   const subtotal = Number(order?.subtotal_cents ?? 0) + draftTotal;
@@ -109,14 +111,22 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const cycleCourse = (key: string) => setDraft(d => d.map(x => x.key === key ? { ...x, course: x.course === 3 ? null : (x.course ?? 0) + 1 } : x));
   const stationOf = (i: Item) => i.station ?? pos.categories.find(c => c.id === i.category_id)?.station ?? 'kitchen';
 
-  const addItem = (i: Item, variantId: string | null = null, mods: ChosenMod[] | null = null) => {
+  const addItem = (i: Item, variantId: string | null = null, mods: ChosenMod[] | null = null, weight: number | null = null) => {
     // sizes or options to choose: ask first (the same names and prices as the server will write)
     if ((i.variants.length && !variantId) || (i.groups?.length && mods === null)) { setDialog({ pick: i }); return; }
+    // sold by weight: the weight read on the scale
+    if (i.sold_by_weight && !weight) { setDialog({ weigh: i }); return; }
     const v = i.variants.find(x => x.id === variantId);
     const chosen = mods ?? [];
     const name = tr(i.name, lang) + (v ? ` (${tr(v.name, lang)})` : '') + (chosen.length ? ` + ${chosen.map(m => m.name).join(', ')}` : '');
     const price = Number(v ? v.price_cents : i.price_cents) + chosen.reduce((s, m) => s + Number(m.price_cents), 0);
     const sig = chosen.map(m => m.id).sort().join(',');
+    if (weight) {
+      // each weighing is its own line, named like the ticket: "Gâteaux secs · 0,450 kg"
+      setDraft(d => [...d, { key: uid(), item_id: i.id, variant_id: null, name: `${tr(i.name, lang)} · ${kg(weight)}`.slice(0, 120), unit_price_cents: Math.round(Number(i.price_cents) * weight / 1000),
+        quantity: 1, note: '', station: stationOf(i), modifiers: [], course: courseOf(i), weight_g: weight }]);
+      return;
+    }
     setDraft(d => {
       const same = d.find(x => x.item_id === i.id && x.variant_id === variantId && !x.note && (x.course ?? null) === courseOf(i) && (x.modifiers ?? []).map(m => m.id).sort().join(',') === sig);
       if (same) return d.map(x => x === same ? { ...x, quantity: x.quantity + 1 } : x);
@@ -298,6 +308,10 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <PickDialog item={dialog.pick} lang={lang} nameOf={nameOf} onClose={() => setDialog(null)}
           onPick={(variantId, mods) => { addItem(dialog.pick, variantId, mods); setDialog(null); }} />
       )}
+      {dialog && typeof dialog === 'object' && 'weigh' in dialog && (
+        <WeighDialog name={nameOf(dialog.weigh.name)} perKg={dUnit({ key: '', item_id: dialog.weigh.id, variant_id: null, name: '', unit_price_cents: dialog.weigh.price_cents, quantity: 1, note: '', station: '' })}
+          onClose={() => setDialog(null)} onWeigh={g => { addItem(dialog.weigh, null, [], g); setDialog(null); }} />
+      )}
       {dialog && typeof dialog === 'object' && 'lineNote' in dialog && (
         <LineNoteDialog initial={draft.find(d => d.key === dialog.lineNote)?.note ?? ''} onClose={() => setDialog(null)}
           onSave={n => { setDraft(d => d.map(x => x.key === dialog.lineNote ? { ...x, note: n } : x)); setDialog(null); }} />
@@ -364,7 +378,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   className={`flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-surface-2 disabled:opacity-35 ${inDraft ? 'bg-brand/[0.07]' : ''}`}>
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
-                    <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}</span>
+                    <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{i.sold_by_weight ? ' / kg' : ''}{!i.available && ` · ${t('épuisé')}`}</span>
                     {i.available && hhOf(i) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hhOf(i) / 100}%</span>}
                     {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
@@ -467,7 +481,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
                   <span className="flex flex-1 flex-col justify-between gap-1 p-3">
                     <span className="text-sm font-bold leading-tight">{nameOf(i.name)}</span>
                     <span className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-brand tabular">
-                      {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{!i.available && ` · ${t('épuisé')}`}
+                      {i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{i.sold_by_weight ? ' / kg' : ''}{!i.available && ` · ${t('épuisé')}`}
                       {i.available && hhOf(i) > 0 && <span className="rounded-full bg-ok px-2 py-0.5 text-[11px] font-bold text-[#032A2A]">-{hhOf(i) / 100}%</span>}
                       {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger text-white' : 'bg-warn text-[#1B1300]'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                     </span>
@@ -646,6 +660,34 @@ function NoteDialog({ order, onClose }: { order: Order; onClose: () => void }) {
   return (
     <Modal title={t('Note de commande')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <textarea autoFocus rows={3} maxLength={300} className={inputCls} value={note} onChange={e => setNote(e.target.value)} placeholder={t('Allergie, demande particulière…')} />
+    </Modal>
+  );
+}
+
+/** Sold by weight: the weight read on the scale, in grams or kilos, with the price it makes. */
+function WeighDialog({ name, perKg, onClose, onWeigh }: { name: string; perKg: number; onClose: () => void; onWeigh: (g: number) => void }) {
+  const [val, setVal] = useState('');
+  const [unit, setUnit] = useState<'g' | 'kg'>('g');
+  const n = Number(val.replace(',', '.')) || 0;
+  const g = Math.round(unit === 'kg' ? n * 1000 : n);
+  const ok = g >= 1 && g <= 100000;
+  const ok2 = () => { if (ok) onWeigh(g); };
+  return (
+    <Modal title={name} onClose={onClose} footer={<div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted">{mad(perKg)} / kg</span>
+      <Btn tone="brand" disabled={!ok} onClick={ok2}>{ok ? `${t('Ajouter')} · ${mad(Math.round(perKg * g / 1000))}` : t('Ajouter')}</Btn></div>}>
+      <p className="mb-3 text-sm text-muted">{t('Le poids lu sur la balance.')}</p>
+      <div className="flex gap-2">
+        <input autoFocus inputMode="decimal" className={`${inputCls} text-2xl font-bold tabular`} value={val} aria-label={t('Poids')}
+          onChange={e => setVal(e.target.value.replace(/[^\d.,]/g, ''))} onKeyDown={e => { if (e.key === 'Enter') ok2(); }} placeholder={unit === 'g' ? '450' : '0,450'} />
+        <div className="flex shrink-0 rounded-2xl bg-surface-2 p-1">
+          {(['g', 'kg'] as const).map(u => <button key={u} type="button" onClick={() => setUnit(u)} className={`rounded-xl px-4 font-bold ${unit === u ? 'bg-surface shadow-sm' : 'text-muted'}`}>{u}</button>)}
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[250, 500, 750, 1000].map(x => <button key={x} type="button" onClick={() => onWeigh(x)} className="rounded-full bg-surface-2 px-3.5 py-2 text-sm font-semibold tabular">{x < 1000 ? `${x} g` : '1 kg'}</button>)}
+      </div>
+      {n > 0 && !ok && <p className="mt-2 text-sm font-semibold text-danger">{t('Entre 1 g et 100 kg.')}</p>}
     </Modal>
   );
 }

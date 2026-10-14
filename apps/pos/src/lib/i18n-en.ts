@@ -589,4 +589,7 @@ export const EN: Record<string, string> = {
   "Épicé": "Spicy",
   "épuisé": "sold out",
   "Traiteur": "Catering",
+  "Entre 1 g et 100 kg.": "Between 1 g and 100 kg.",
+  "Le poids lu sur la balance.": "The weight shown on the scale.",
+  "Poids": "Weight",
 };

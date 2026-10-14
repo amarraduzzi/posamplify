@@ -62,8 +62,9 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
         <div>
           <h2 className="font-display text-[1.7rem] font-semibold leading-tight">{tr(item.name, lang, fallbacks)}</h2>
           {!item.variants.length && (
-            <p className="mt-1 text-lg font-bold text-brand tabular-nums">{item.promo_bp ? <span className="me-2 text-sm font-medium text-muted line-through">{formatMoney(unit - promoPrice(Number(item.price_cents), item.promo_bp) + Number(item.price_cents), currency, lang)}</span> : null}{formatMoney(unit, currency, lang)}</p>
+            <p className="mt-1 text-lg font-bold text-brand tabular-nums">{item.promo_bp ? <span className="me-2 text-sm font-medium text-muted line-through">{formatMoney(unit - promoPrice(Number(item.price_cents), item.promo_bp) + Number(item.price_cents), currency, lang)}</span> : null}{formatMoney(unit, currency, lang)}{item.sold_by_weight ? ' / kg' : ''}</p>
           )}
+          {item.sold_by_weight && <p className="mt-1 text-sm text-muted">{t.byWeight}</p>}
         </div>
       }
       footer={canOrder && item.available ? (
