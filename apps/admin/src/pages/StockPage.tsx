@@ -177,8 +177,8 @@ export function StockPage({ r }: { r: Restaurant }) {
           ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} onOrders={() => setTab('orders')} />
           : steps)}
 
-        {tab === 'orders' && <OrdersView r={r} ings={ings} onChanged={load} />}
-        {tab === 'suppliers' && <SupplierAccounts r={r} />}
+        {tab === 'orders' && <OrdersView r={r} ings={ings} onChanged={load} onBuy={() => setTab('buy')} />}
+        {tab === 'suppliers' && <SupplierAccounts r={r} onOrders={() => setTab('orders')} />}
 
         {tab === 'gaps' && (rep ? <ReportView rep={rep} closed={closed} cmp={cmp!} setPair={setPair} /> : steps)}
 
@@ -905,7 +905,7 @@ const poTotal = (o: Pick<Po, 'purchase_order_lines' | 'status'>) => o.purchase_o
 const intlPhone = (v: string) => { const d = v.replace(/\D/g, ''); return !d ? '' : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
 const units = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
 
-function OrdersView({ r, ings, onChanged }: { r: Restaurant; ings: Ingredient[]; onChanged: () => void }) {
+function OrdersView({ r, ings, onChanged, onBuy }: { r: Restaurant; ings: Ingredient[]; onChanged: () => void; onBuy?: () => void }) {
   const a = useAdminCtx();
   const [list, setList] = useState<Po[] | null>(null);
   const [sups, setSups] = useState<Supplier[]>([]);
@@ -925,6 +925,10 @@ function OrdersView({ r, ings, onChanged }: { r: Restaurant; ings: Ingredient[];
   if (!list) return <p className="text-muted">{t('Chargement…')}</p>;
   const openOnes = list.filter(o => o.status === 'draft' || o.status === 'sent');
   const toReceive = list.filter(o => o.status === 'sent');
+  // suppliers whose order day is today: delivery day minus the days they need (Mon = 1 ... Sun = 7), unless an order is already on its way
+  const wd = new Date(`${today()}T12:00:00`).getDay() || 7;
+  const dueToday = sups.filter(sp => sp.active && sp.delivery_days.some(d => ((d - 1 - sp.lead_days) % 7 + 7) % 7 + 1 === wd)
+    && !openOnes.some(o => o.supplier_id === sp.id && (!o.expected_on || o.expected_on >= today())));
   const month = list.filter(o => o.status === 'received' && o.received_on?.slice(0, 7) === today().slice(0, 7)).reduce((s, o) => s + poTotal(o), 0);
   return (
     <div className="space-y-5">
@@ -938,6 +942,13 @@ function OrdersView({ r, ings, onChanged }: { r: Restaurant; ings: Ingredient[];
           <Btn onClick={() => setManage(true)}><Truck className="h-4 w-4" /> {t('Fournisseurs ({n})', { n: sups.length })}</Btn>
         </div>
       </div>
+      {dueToday.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-warn/40 bg-warn/5 px-4 py-3 text-sm">
+          <Truck className="h-4 w-4 shrink-0 text-warn" />
+          <span className="min-w-0 flex-1">{t('À commander aujourd’hui : {n}', { n: dueToday.map(x => x.name).join(', ') })}</span>
+          {onBuy && <Btn tone="brand" className="px-3 py-1.5 text-sm" onClick={onBuy}>{t('Voir quoi acheter')}</Btn>}
+        </div>
+      )}
       {!list.length ? (
         <div className="card rounded-3xl p-8 text-center text-muted">
           <ClipboardList className="mx-auto h-10 w-10 text-brand" />

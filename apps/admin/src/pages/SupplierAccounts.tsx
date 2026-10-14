@@ -1,6 +1,6 @@
 // Supplier accounts (what is owed, overdue, next due, payments, statement) and price comparison.
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownUp, FileText, Plus, Scale, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowDownUp, FileText, Phone, Plus, Scale, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -19,12 +19,13 @@ const TERMS: [number, string][] = [[0, 'À la livraison'], [7, '7 jours'], [15, 
 // i18n:end
 const day = (d: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }) : '–');
 
-export function SupplierAccounts({ r }: { r: Restaurant }) {
+export function SupplierAccounts({ r, onOrders }: { r: Restaurant; onOrders?: () => void }) {
   const a = useAdminCtx();
   const [bal, setBal] = useState<Bal[] | null>(null);
   const [cmp, setCmp] = useState<Cmp[]>([]);
   const [pay, setPay] = useState<Bal | null>(null);
   const [stmt, setStmt] = useState<Bal | null>(null);
+  const [det, setDet] = useState<Bal | null>(null);
   const load = useCallback(async () => {
     try {
       const [b, c] = await Promise.all([rpc<Bal[]>('supplier_balances', { p_restaurant_id: r.id }), rpc<Cmp[]>('supplier_compare', { p_restaurant_id: r.id })]);
@@ -55,7 +56,7 @@ export function SupplierAccounts({ r }: { r: Restaurant }) {
               <tbody className="divide-y divide-line/10">
                 {bal.map(b => (
                   <tr key={b.id}>
-                    <td className="py-2.5 pe-3 font-semibold">{b.name}</td>
+                    <td className="py-2.5 pe-3 font-semibold"><button type="button" onClick={() => setDet(b)} className="text-start underline-offset-2 hover:text-brand hover:underline">{b.name}</button></td>
                     <td className="py-2.5 pe-3"><select className="rounded-lg bg-surface-2 px-2 py-1 text-sm" value={b.terms} onChange={e => setTerms(b, Number(e.target.value))}>{TERMS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}</select></td>
                     <td className="whitespace-nowrap py-2.5 pe-3 font-semibold tabular">{mad(Number(b.balance_cents))}</td>
                     <td className="py-2.5 pe-3 tabular">{Number(b.overdue_cents) > 0 ? <span className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-danger"><AlertTriangle className="h-3.5 w-3.5" />{mad(Number(b.overdue_cents))}<span className="font-normal text-muted">· {t('depuis le {d}', { d: day(b.oldest_overdue) })}</span></span> : '–'}</td>
@@ -96,6 +97,8 @@ export function SupplierAccounts({ r }: { r: Restaurant }) {
         )}
       </Card>
 
+      {det && <SupplierDetail r={r} b={det} cmp={cmp} onClose={() => setDet(null)} onStatement={() => { setStmt(det); setDet(null); }}
+        onPay={() => { setPay(det); setDet(null); }} onOrders={onOrders ? () => { setDet(null); onOrders(); } : undefined} />}
       {pay && <PayModal r={r} b={pay} onClose={() => setPay(null)} onSaved={() => { setPay(null); load(); }} />}
       {stmt && <Statement b={stmt} onClose={() => setStmt(null)} onChanged={load} />}
     </div>
@@ -160,6 +163,105 @@ function Statement({ b, onClose, onChanged }: { b: Bal; onClose: () => void; onC
           </tbody>
         </table>
       )}
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------ one supplier on one screen
+interface SupRow { id: string; name: string; phone: string | null; email: string | null; contact: string | null; delivery_days: number[]; lead_days: number; note: string | null }
+interface SupIng { id: string; name: string; purchase_unit: string; purchase_price_cents: number | null; price_estimated: boolean }
+interface SupPo { id: string; doc_number: string; status: 'draft' | 'sent' | 'received' | 'cancelled'; expected_on: string | null; received_on: string | null; created_at: string }
+// i18n:values
+const WD = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const PO_ST: Record<SupPo['status'], string> = { draft: 'Brouillon', sent: 'Envoyée', received: 'Reçue', cancelled: 'Annulée' };
+// i18n:end
+
+function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { r: Restaurant; b: Bal; cmp: Cmp[]; onClose: () => void; onStatement: () => void; onPay: () => void; onOrders?: () => void }) {
+  const a = useAdminCtx();
+  const [s, setS] = useState<SupRow | null>(null);
+  const [ings, setIngs] = useState<SupIng[] | null>(null);
+  const [pos, setPos] = useState<SupPo[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [x, g, o] = await Promise.all([
+          supabase.from('suppliers').select('id, name, phone, email, contact, delivery_days, lead_days, note').eq('id', b.id).single(),
+          supabase.from('ingredients').select('id, name, purchase_unit, purchase_price_cents, price_estimated').eq('restaurant_id', r.id).eq('supplier_id', b.id).order('name'),
+          supabase.from('purchase_orders').select('id, doc_number, status, expected_on, received_on, created_at').eq('restaurant_id', r.id).eq('supplier_id', b.id).order('created_at', { ascending: false }).limit(5),
+        ]);
+        setS(check(x) as unknown as SupRow); setIngs(check(g) as SupIng[]); setPos(check(o) as SupPo[]);
+      } catch (e) { a.fail(e); setIngs([]); }
+    })();
+  }, [b.id, r.id, a]);
+  // how this supplier's average price compares with the other suppliers of the same product
+  const price = (g: SupIng) => {
+    const c = cmp.find(x => x.ingredient_id === g.id), me = c?.suppliers.find(y => y.supplier_id === b.id);
+    if (!c || !me) return null;
+    if (Number(me.avg_cents) === Number(c.best_cents)) return { best: true, pct: 0 };
+    return { best: false, pct: Math.round((Number(me.avg_cents) - Number(c.best_cents)) * 100 / Number(c.best_cents)) };
+  };
+  const missing = (ings ?? []).filter(g => g.purchase_price_cents == null).length;
+  return (
+    <Modal wide title={b.name} onClose={onClose}
+      footer={<div className="flex flex-wrap justify-end gap-2">
+        <Btn onClick={onStatement}><FileText className="h-4 w-4" /> {t('Relevé')}</Btn>
+        <Btn onClick={onPay}><Plus className="h-4 w-4" /> {t('Paiement')}</Btn>
+        {onOrders && <Btn tone="brand" onClick={onOrders}>{t('Commandes fournisseurs')}</Btn>}
+      </div>}>
+      <div className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-surface-2 p-4"><p className="text-xs text-muted">{t('Solde')}</p><p className="font-display text-2xl font-semibold tabular">{mad(Number(b.balance_cents))}</p></div>
+          <div className={`rounded-2xl p-4 ${Number(b.overdue_cents) > 0 ? 'bg-danger/10' : 'bg-surface-2'}`}><p className="text-xs text-muted">{t('En retard')}</p><p className={`font-display text-2xl font-semibold tabular ${Number(b.overdue_cents) > 0 ? 'text-danger' : ''}`}>{mad(Number(b.overdue_cents))}</p></div>
+          <div className="rounded-2xl bg-surface-2 p-4"><p className="text-xs text-muted">{t('30 derniers jours')}</p><p className="font-display text-2xl font-semibold tabular">{mad(Number(b.last_30d_cents))}</p></div>
+        </div>
+
+        {s && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
+            {s.contact && <span>{s.contact}</span>}
+            {s.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /><span dir="ltr">{s.phone}</span></span>}
+            {s.email && <span dir="ltr">{s.email}</span>}
+            <span>{s.delivery_days.length ? t('Livre : {d}', { d: s.delivery_days.map(d => t(WD[d - 1])).join(', ') }) : t('Jours de livraison non indiqués')}{' · '}{t('{n} j après la commande', { n: s.lead_days })}</span>
+            {s.note && <span>{s.note}</span>}
+          </div>
+        )}
+
+        <div>
+          <p className="mb-2 font-semibold">{t('Ses produits')}{ings ? ` (${ings.length})` : ''}</p>
+          {ings === null ? <p className="text-muted">{t('Chargement…')}</p> : !ings.length ? (
+            <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Aucun ingrédient relié. Choisissez ce fournisseur dans la fiche de l’ingrédient, ou importez vos ingrédients avec une colonne Fournisseur.')}</p>
+          ) : (<>
+            {missing > 0 && <p className="mb-2 text-sm font-semibold text-warn">{t('{n} prix manquant(s)', { n: missing })}</p>}
+            <ul className="divide-y divide-line/10 rounded-2xl ring-1 ring-line/10">
+              {ings.map(g => {
+                const c = price(g);
+                return (
+                  <li key={g.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate font-semibold">{g.name}</span>
+                    {c && (c.best ? <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-semibold text-ok">{t('prix le plus bas')}</span>
+                      : <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-semibold text-warn">{t('+{p} % vs le moins cher', { p: c.pct })}</span>)}
+                    <span className="tabular">{g.purchase_price_cents == null ? <span className="text-danger">{t('Prix manquant')}</span> : <>{mad(g.purchase_price_cents)} <span className="text-muted">/ {g.purchase_unit}</span></>}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>)}
+        </div>
+
+        {pos.length > 0 && (
+          <div>
+            <p className="mb-2 font-semibold">{t('Dernières commandes')}</p>
+            <ul className="divide-y divide-line/10 rounded-2xl ring-1 ring-line/10">
+              {pos.map(o => (
+                <li key={o.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                  <span className="font-semibold">{o.doc_number}</span>
+                  <span className="flex-1 text-muted">{o.received_on ? t('reçue le {d}', { d: day(o.received_on) }) : o.expected_on ? t('livraison prévue {d}', { d: day(o.expected_on) }) : day(o.created_at.slice(0, 10))}</span>
+                  <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold">{t(PO_ST[o.status])}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
