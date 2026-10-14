@@ -588,4 +588,5 @@ export const EN: Record<string, string> = {
   "Écran cuisine": "Kitchen screen",
   "Épicé": "Spicy",
   "épuisé": "sold out",
+  "Traiteur": "Catering",
 };

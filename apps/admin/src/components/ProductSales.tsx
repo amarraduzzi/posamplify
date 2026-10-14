@@ -202,7 +202,7 @@ export function ProductSales({ r, today }: { r: Restaurant; today: string }) {
 }
 
 // i18n:values
-const CHANNEL: Record<string, string> = { dine_in: 'En salle', takeaway: 'À emporter', delivery: 'Livraison', qr: 'QR à table', phone: 'Téléphone', glovo: 'Glovo' };
+const CHANNEL: Record<string, string> = { dine_in: 'En salle', takeaway: 'À emporter', delivery: 'Livraison', qr: 'QR à table', phone: 'Téléphone', glovo: 'Glovo', catering: 'Traiteur' };
 const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 // i18n:end
 

@@ -3,7 +3,7 @@ import type { I18n } from '@resto/shared';
 export type Role = 'device' | 'manager' | 'owner';
 export type OrderStatus = 'new' | 'preparing' | 'ready' | 'served' | 'cancelled';
 export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
-export type Source = 'qr' | 'pos' | 'phone' | 'glovo';
+export type Source = 'qr' | 'pos' | 'phone' | 'glovo' | 'catering';
 export type Method = 'cash' | 'card' | 'transfer' | 'other';
 
 export interface PosSettings {

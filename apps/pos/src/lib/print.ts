@@ -264,5 +264,6 @@ export const orderLabel = (o: Pick<Order, 'order_type' | 'customer_name' | 'sour
   tr: (fr: string, vars?: Record<string, string | number>) => string = (fr, v) => fr.replace(/\{(\w+)\}/g, (_, k: string) => String(v?.[k] ?? ''))) =>
   tableLabel ? tr('Table {n}', { n: tableLabel })
     : o.source === 'glovo' ? `Glovo${o.external_ref ? ' ' + o.external_ref : ''}`
+    : o.source === 'catering' ? `${tr('Traiteur')}${o.customer_name ? ' - ' + o.customer_name : ''}`
     : o.external_ref === 'borne' ? `${tr('Borne')} · ${tr(TYPE[o.order_type] ?? o.order_type)}${o.customer_name ? ' - ' + o.customer_name : ''}`
     : `${tr(TYPE[o.order_type] ?? o.order_type)}${o.customer_name ? ' - ' + o.customer_name : ''}`;
