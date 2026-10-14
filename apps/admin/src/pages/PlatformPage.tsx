@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Plus, RotateCcw, Trash2, UserPlus } from 'lucide-react';
+import { Copy, MessageCircle, Plus, RotateCcw, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -88,26 +88,107 @@ export function PlatformPage() {
   );
 }
 
+/** A readable temporary password: 3 groups of 4, no look-alike characters (0/o, 1/l). */
+function tempPassword() {
+  const abc = 'abcdefghjkmnpqrstuvwxyz23456789', n = new Uint32Array(12);
+  crypto.getRandomValues(n);
+  const c = [...n].map(x => abc[x % abc.length]).join('');
+  return `${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}`;
+}
+
+/** The login is created by the server function "admin-account" (platform admins only). An e-mail that
+ *  already has an account keeps its password: it is simply linked. */
+async function createLogin(email: string, password: string, mustChange: boolean): Promise<{ existed: boolean }> {
+  const { data, error } = await supabase.functions.invoke('admin-account', { body: { email, password, must_change: mustChange } });
+  if (error) {
+    let code = '';
+    try { code = (await (error as { context?: Response }).context?.json())?.error ?? ''; } catch { /* not json */ }
+    if (code === 'invalid_email') throw new Error(t('Adresse e-mail invalide.'));
+    if (code === 'weak_password') throw new Error(t('Mot de passe trop court (8 caractères minimum).'));
+    if (code === 'not_allowed') throw new Error(t('Réservé aux administrateurs de la plateforme.'));
+    if (code) throw new Error(t('Création du compte impossible : {m}', { m: code }));
+    throw new Error(t('La fonction « admin-account » ne répond pas. Est-elle installée dans Supabase (Edge Functions) ?'));
+  }
+  return { existed: !!(data as { existed?: boolean })?.existed };
+}
+
+/** E-mail, password (generated, can be changed) and "choose her own password at first login". */
+function LoginFields({ email, setEmail, pw, setPw, must, setMust, optional }: {
+  email: string; setEmail: (v: string) => void; pw: string; setPw: (v: string) => void; must: boolean; setMust: (v: boolean) => void; optional?: boolean;
+}) {
+  return (
+    <div className="space-y-3 rounded-2xl bg-surface-2 p-4">
+      <p className="text-sm font-bold">{t('Connexion')}</p>
+      <Field label={optional ? t('E-mail du propriétaire (facultatif)') : t('E-mail du compte')}><input dir="ltr" className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nom@exemple.ma" /></Field>
+      {email.includes('@') && <>
+        <Field label={t('Mot de passe')} hint={t('Si ce compte existe déjà, son mot de passe ne change pas.')}>
+          <div className="flex gap-2">
+            <input dir="ltr" className={`${inputCls} font-mono`} value={pw} onChange={e => setPw(e.target.value)} />
+            <Btn type="button" className="shrink-0 px-3" title={t('Nouveau mot de passe')} aria-label={t('Nouveau mot de passe')} onClick={() => setPw(tempPassword())}><RotateCcw className="h-4 w-4" /></Btn>
+          </div>
+        </Field>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={must} onChange={e => setMust(e.target.checked)} /> {t('Choisir son propre mot de passe à la première connexion')}</label>
+      </>}
+    </div>
+  );
+}
+
+/** What to send to the customer: the link, the e-mail and the password, to copy or to send on WhatsApp. */
+function LoginCard({ name, email, pw, existed, onClose }: { name: string; email: string; pw: string; existed: boolean; onClose: () => void }) {
+  const a = useAdminCtx();
+  const url = location.origin;
+  const text = existed
+    ? t('Bonjour, vous avez maintenant accès à {n} sur Amplify : {u}. Connectez-vous avec votre e-mail {e} et votre mot de passe habituel.', { n: name, u: url, e: email })
+    : [t('Bonjour, voici vos accès Amplify pour {n} :', { n: name }), `${t('Lien')} : ${url}`, `${t('E-mail')} : ${email}`, `${t('Mot de passe')} : ${pw}`,
+       t('À la première connexion, vous choisirez votre propre mot de passe.')].join('\n');
+  const copy = async () => { try { await navigator.clipboard.writeText(text); a.toast(t('Copié')); } catch { a.toast(t('Copie impossible'), 'error'); } };
+  return (
+    <Modal title={t('Accès prêts')} onClose={onClose} footer={<div className="flex flex-wrap justify-end gap-2">
+      <Btn onClick={copy}><Copy className="h-4 w-4" /> {t('Copier')}</Btn>
+      <Btn onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')}><MessageCircle className="h-4 w-4" /> WhatsApp</Btn>
+      <Btn tone="brand" onClick={onClose}>{t('Terminé')}</Btn></div>}>
+      <div className="space-y-3">
+        <p className="text-sm text-muted">{existed ? t('Ce compte existait déjà : il a été relié, son mot de passe n’a pas changé.') : t('Le compte est créé et confirmé. Envoyez ces accès au client.')}</p>
+        <dl className="space-y-1.5 rounded-2xl bg-surface-2 p-4 text-sm">
+          <div className="flex gap-3"><dt className="w-28 text-muted">{t('Lien')}</dt><dd dir="ltr" className="font-semibold">{url}</dd></div>
+          <div className="flex gap-3"><dt className="w-28 text-muted">{t('E-mail')}</dt><dd dir="ltr" className="font-semibold">{email}</dd></div>
+          {!existed && <div className="flex gap-3"><dt className="w-28 text-muted">{t('Mot de passe')}</dt><dd dir="ltr" className="font-mono font-semibold">{pw}</dd></div>}
+        </dl>
+        {!existed && <p className="text-xs text-muted">{t('Ce mot de passe n’est montré qu’une fois. Envoyez-le maintenant.')}</p>}
+      </div>
+    </Modal>
+  );
+}
+
 function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const a = useAdminCtx();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
+  const [pw, setPw] = useState(tempPassword);
+  const [must, setMust] = useState(true);
   const [demo, setDemo] = useState(false);
   const [kind, setKind] = useState<'all' | 'pos' | 'profit' | 'site' | 'orders'>('all');
   const [city, setCity] = useState('');
   const [theme, setTheme] = useState<'riad' | 'nuit' | 'moderne'>('riad');
   const [busy, setBusy] = useState(false);
-  const auto = (n: string) => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  const [card, setCard] = useState<{ existed: boolean } | null>(null);
+  const auto = (n: string) => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  const mail = email.trim().toLowerCase();
   const create = async () => {
+    if (mail && pw.length < 8) { a.toast(t('Mot de passe trop court (8 caractères minimum).'), 'error'); return; }
     setBusy(true);
     try {
-      await rpc('admin_create_restaurant', { p_slug: slug, p_name: name.trim(), p_owner_email: email.trim() || null, p_is_demo: demo,
+      // the login first: if it fails, no restaurant without its owner
+      const login = mail ? await createLogin(mail, pw, must) : null;
+      await rpc('admin_create_restaurant', { p_slug: slug, p_name: name.trim(), p_owner_email: mail || null, p_is_demo: demo,
         p_products: kind === 'all' ? ['pos', 'profit'] : [kind], p_city: city.trim() || null, p_theme: kind === 'site' ? theme : null });
-      a.toast(t('Restaurant créé (essai de 14 jours)')); onDone();
+      a.toast(t('Restaurant créé (essai de 14 jours)'));
+      if (login) setCard(login); else onDone();
     } catch (e) { a.fail(e); }
     setBusy(false);
   };
+  if (card) return <LoginCard name={name.trim()} email={mail} pw={pw} existed={card.existed} onClose={onDone} />;
   return (
     <Modal title={t('Nouveau restaurant')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || slug.length < 3} onClick={create}>{t('Créer')}</Btn></div>}>
       <div className="space-y-4">
@@ -120,7 +201,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
         {kind === 'site' && <Field label={t('Style du site')}><select className={inputCls} value={theme} onChange={e => setTheme(e.target.value as typeof theme)}><option value="riad">Riad</option><option value="nuit">Nuit</option><option value="moderne">Moderne</option></select></Field>}
         {kind === 'site' && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Démo de site : choisissez ensuite ce restaurant à gauche, importez la carte (Menu) et ajoutez la photo (Restaurant). Le site n’est pas sur Google tant qu’il n’est pas mis en ligne.')}</p>}
         <Field label={t('Adresse du menu')} hint={t('Le menu sera sur …/{slug}', { slug: slug || 'nom-du-restaurant' })}><input dir="ltr" className={inputCls} value={slug} onChange={e => setSlug(auto(e.target.value))} /></Field>
-        <Field label={t('E-mail du propriétaire (facultatif)')} hint={t('Le compte doit déjà exister : Supabase > Authentication > Users > Add user.')}><input dir="ltr" className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field>
+        <LoginFields email={email} setEmail={setEmail} pw={pw} setPw={setPw} must={must} setMust={setMust} optional />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={demo} onChange={e => setDemo(e.target.checked)} /> {t('Restaurant de démonstration')}</label>
       </div>
     </Modal>
@@ -130,19 +211,33 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
 function AddMember({ r, onClose }: { r: Restaurant; onClose: () => void }) {
   const a = useAdminCtx();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'owner' | 'manager' | 'device'>('device');
+  const [pw, setPw] = useState(tempPassword);
+  const [role, setRole] = useState<'owner' | 'manager' | 'device'>('owner');
+  const [must, setMust] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [card, setCard] = useState<{ existed: boolean } | null>(null);
+  const mail = email.trim().toLowerCase();
   const add = async () => {
-    try { await rpc('admin_add_member', { p_restaurant_id: r.id, p_email: email.trim(), p_role: role }); a.toast(t('Accès ajouté')); onClose(); } catch (e) { a.fail(e); }
+    if (pw.length < 8) { a.toast(t('Mot de passe trop court (8 caractères minimum).'), 'error'); return; }
+    setBusy(true);
+    try {
+      // a till (poste) keeps the password it was given: nobody "logs in for the first time" there
+      const login = await createLogin(mail, pw, role !== 'device' && must);
+      await rpc('admin_add_member', { p_restaurant_id: r.id, p_email: mail, p_role: role });
+      a.toast(t('Accès ajouté')); setCard(login);
+    } catch (e) { a.fail(e); }
+    setBusy(false);
   };
+  if (card) return <LoginCard name={r.name} email={mail} pw={pw} existed={card.existed} onClose={onClose} />;
   return (
-    <Modal title={t('Accès à {name}', { name: r.name })} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={!email.includes('@')} onClick={add}>{t('Ajouter')}</Btn></div>}>
+    <Modal title={t('Accès à {name}', { name: r.name })} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !mail.includes('@')} onClick={add}>{t('Ajouter')}</Btn></div>}>
       <div className="space-y-4">
-        <Field label={t('E-mail du compte')} hint={t("Créez d'abord le compte dans Supabase > Authentication > Users (Auto Confirm).")}><input autoFocus dir="ltr" className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field>
         <Field label={t('Rôle')}>
           <select className={inputCls} value={role} onChange={e => setRole(e.target.value as typeof role)}>
-            <option value="device">{t('Caisse (poste)')}</option><option value="manager">{t('Manager (menu, personnel, tables)')}</option><option value="owner">{t('Propriétaire (tout)')}</option>
+            <option value="owner">{t('Propriétaire (tout)')}</option><option value="manager">{t('Manager (menu, personnel, tables)')}</option><option value="device">{t('Caisse (poste)')}</option>
           </select>
         </Field>
+        <LoginFields email={email} setEmail={setEmail} pw={pw} setPw={setPw} must={role !== 'device' && must} setMust={setMust} />
       </div>
     </Modal>
   );

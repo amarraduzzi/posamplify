@@ -13,7 +13,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 const FILES = path.join(ROOT, '.localstack/storage');
 const db = new pg.Pool({ connectionString: process.env.DB_URL ?? 'postgres://postgres@localhost:54332/postgres' });
 const SECRET = crypto.randomBytes(16).toString('hex');
-const ROUTES = [['/auth/v1', 9999], ['/rest/v1', 3000]];
+const ROUTES = [['/auth/v1', 9999], ['/rest/v1', 3000], ['/functions/v1', 8000]];   // functions: deno run on :8000 when testing one
 
 const claimsOf = (req) => {
   const tok = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '') || req.headers.apikey || '';

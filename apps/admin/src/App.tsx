@@ -67,6 +67,8 @@ function Screens() {
   if (a.session === undefined) return null;
   if (!a.session) return <Login />;
   if (a.recovery) return <NewPassword />;
+  // an account created by Amplify: the owner chooses her own password first
+  if (a.session.user.user_metadata?.must_change_password) return <NewPassword first />;
   if (a.list === null) return <p className="p-8 text-muted">{t('Chargement…')}</p>;
   // the wizard stays until its last step, also after the restaurant exists
   const inWizard = localStorage.getItem('admin-wizard-step') !== null;
@@ -289,7 +291,7 @@ function Login() {
 }
 
 /** Opened from the "mot de passe oublié" email: the user is signed in with a one-time link and chooses a new password. */
-function NewPassword() {
+function NewPassword({ first }: { first?: boolean }) {
   const a = useAdminCtx();
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
@@ -300,7 +302,7 @@ function NewPassword() {
     if (pw.length < 8) { setError(t('Mot de passe trop court (8 caractères minimum).')); return; }
     if (pw !== pw2) { setError(t('Les deux mots de passe ne sont pas identiques.')); return; }
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ password: pw });
+    const { error } = await supabase.auth.updateUser({ password: pw, data: { must_change_password: false } });
     setBusy(false);
     if (error) { setError(errorMessage(error)); return; }
     a.toast(t('Mot de passe modifié.'));
@@ -311,7 +313,8 @@ function NewPassword() {
       <form onSubmit={submit} className="rise card w-full max-w-sm space-y-5 rounded-3xl p-7">
         <div className="flex items-center justify-between gap-3"><AmplifyLogo tone="light" size="sm" /><LangSwitch /></div>
         <div>
-          <h1 className="font-display text-3xl font-semibold">{t('Nouveau mot de passe')}</h1>
+          <h1 className="font-display text-3xl font-semibold">{first ? t('Bienvenue sur Amplify') : t('Nouveau mot de passe')}</h1>
+          {first && <p className="mt-2 text-sm text-muted">{t('Choisissez votre propre mot de passe. Celui que vous avez reçu ne servira plus.')}</p>}
           <p className="mt-2 text-sm text-muted" dir="ltr">{a.session?.user.email}</p>
         </div>
         <Field label={t('Nouveau mot de passe')} hint={t('8 caractères minimum.')}>
