@@ -1,7 +1,7 @@
 // Create / edit an ingredient the way an owner thinks: "je l'achète par caisse
 // de 18 kg à 90 DH, avec 10 % de perte". Used on the Ingredients page and
 // inline from a recipe card.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -25,7 +25,27 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
     ? String(Number(ing.purchase_qty) / SIZE_UNIT[ing.base_unit].f).replace('.', ',') : '');
   const [price, setPrice] = useState(fromCents(ing?.purchase_price_cents));
   const [waste, setWaste] = useState(ing ? String(ing.waste_bp / 100).replace('.', ',') : '0');
-  const [supplier, setSupplier] = useState(ing?.supplier ?? '');
+  // the supplier is a real supplier (same list as Stock > Fournisseurs); '__new__' = create one here
+  const [sups, setSups] = useState<{ id: string; name: string }[]>([]);
+  const [supplierId, setSupplierId] = useState(ing?.supplier_id ?? '');
+  const [newSupplier, setNewSupplier] = useState('');
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const list = check(await supabase.from('suppliers').select('id, name').eq('restaurant_id', r.id).eq('active', true).order('name')) as { id: string; name: string }[];
+        if (!live) return;
+        setSups(list);
+        // an ingredient saved with a typed supplier name: link it to the real one, or offer to create it
+        const old = (ing?.supplier ?? '').trim();
+        if (ing && !ing.supplier_id && old) {
+          const hit = list.find(x => x.name.trim().toLowerCase() === old.toLowerCase());
+          if (hit) setSupplierId(hit.id); else { setSupplierId('__new__'); setNewSupplier(old); }
+        }
+      } catch { /* no access to suppliers: the field stays empty */ }
+    })();
+    return () => { live = false; };
+  }, [r.id, ing]);
   const [busy, setBusy] = useState(false);
 
   const qty = fixed ?? (Number(size.replace(',', '.')) || 0) * SIZE_UNIT[base].f;
@@ -38,12 +58,25 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
     if (!name.trim()) { a.toast(t('Indiquez le nom.'), 'error'); return; }
     if (!(qty > 0)) { a.toast(t('Indiquez la taille de l’unité d’achat.'), 'error'); return; }
     if (wasteBp < 0 || wasteBp > 9000) { a.toast(t('La perte doit être entre 0 et 90 %.'), 'error'); return; }
+    if (supplierId === '__new__' && !newSupplier.trim()) { a.toast(t('Indiquez le nom du fournisseur.'), 'error'); return; }
     setBusy(true);
     const row = {
       name: name.trim(), name_ar: nameAr.trim() || null, category, base_unit: base, purchase_unit: unit,
-      purchase_qty: qty, purchase_price_cents: priceCents, waste_bp: wasteBp, supplier: supplier.trim() || null,
-    };
+      purchase_qty: qty, purchase_price_cents: priceCents, waste_bp: wasteBp,
+    } as Record<string, unknown>;
     try {
+      let sid: string | null = supplierId && supplierId !== '__new__' ? supplierId : null;
+      let sname: string | null = sid ? sups.find(x => x.id === sid)?.name ?? null : null;
+      if (supplierId === '__new__') {
+        const nm = newSupplier.trim().slice(0, 80);
+        const same = sups.find(x => x.name.trim().toLowerCase() === nm.toLowerCase());
+        if (same) { sid = same.id; sname = same.name; }
+        else {
+          const made = check(await supabase.from('suppliers').insert({ restaurant_id: r.id, name: nm }).select('id, name').single()) as unknown as { id: string; name: string };
+          sid = made.id; sname = made.name;
+        }
+      }
+      row.supplier_id = sid; row.supplier = sname;
       const saved = ing
         ? check(await supabase.from('ingredients').update(row).eq('id', ing.id).select('*').single())
         : check(await supabase.from('ingredients').insert({ ...row, restaurant_id: r.id }).select('*').single());
@@ -101,7 +134,14 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
             <Field label={t('Perte (%)')} hint={t('Épluchures, os, parures : la partie jetée.')}>
               <input className={inputCls} inputMode="decimal" value={waste} onChange={e => setWaste(e.target.value)} />
             </Field>
-            <Field label={t('Fournisseur (facultatif)')}><input className={inputCls} value={supplier} onChange={e => setSupplier(e.target.value)} /></Field>
+            <Field label={t('Fournisseur (facultatif)')}>
+              <select className={inputCls} value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+                <option value="">{t('Sans fournisseur (marché, souk…)')}</option>
+                {sups.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                <option value="__new__">{t('+ Nouveau fournisseur')}</option>
+              </select>
+              {supplierId === '__new__' && <input autoFocus className={`${inputCls} mt-2`} maxLength={80} value={newSupplier} onChange={e => setNewSupplier(e.target.value)} placeholder={t('Nom du fournisseur')} />}
+            </Field>
           </div>
           {perUse != null && (
             <p className="mt-3 text-sm">

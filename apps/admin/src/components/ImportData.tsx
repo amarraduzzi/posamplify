@@ -269,6 +269,20 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
             purchase_price_cents: price != null && price >= 0 ? Math.round(price * 100) : null, price_estimated: false, supplier: txt(o.supplier).slice(0, 80) || null },
             stock: stock != null && stock >= 0 ? Math.round(stock * u.qty * 1000) / 1000 : null };
         });
+        // the supplier column becomes real suppliers: known ones are reused, new ones are created
+        const wanted = new Map<string, string>();
+        for (const x of rows) { const n = x.row.supplier ? norm(x.row.supplier) : ''; if (n && !wanted.has(n)) wanted.set(n, x.row.supplier!); }
+        const supId = new Map<string, string>();
+        if (wanted.size) {
+          const have = check(await supabase.from('suppliers').select('id, name').eq('restaurant_id', r.id)) as { id: string; name: string }[];
+          for (const h of have) supId.set(norm(h.name), h.id);
+          const fresh = [...wanted.entries()].filter(([n]) => !supId.has(n)).map(([, name]) => ({ restaurant_id: r.id, name }));
+          if (fresh.length) {
+            const made = check(await supabase.from('suppliers').insert(fresh).select('id, name')) as { id: string; name: string }[];
+            for (const m of made) supId.set(norm(m.name), m.id);
+          }
+        }
+        for (const x of rows) { const row = x.row as Record<string, unknown>; row.supplier_id = (x.row.supplier && supId.get(norm(x.row.supplier))) || null; }
         for (let i = 0; i < rows.length; i += 200) {
           const part = rows.slice(i, i + 200);
           const ids = check(await supabase.from('ingredients').insert(part.map(x => x.row)).select('id, name')) as { id: string; name: string }[];
@@ -321,6 +335,7 @@ export function ImportData({ kind, r, existing = [], onClose, onDone }: { kind: 
           </button>
           <button type="button" onClick={template} className="inline-flex items-center gap-2 text-sm font-semibold text-brand"><Download className="h-4 w-4" /> {t('Télécharger un modèle')}</button>
           {kind === 'sales' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Un fichier par vente ou par jour. Les ventes sont additionnées par jour (et par produit si la colonne existe). Elles servent à comparer et restent à part : pas de ticket, pas de Z, pas d’export comptable. Réimporter un jour le remplace.')}</p>}
+          {kind === 'ingredients' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Colonnes : Nom, Unité, Prix, Catégorie, Fournisseur, Stock. Les fournisseurs inconnus sont créés automatiquement et reliés à leurs ingrédients.')}</p>}
           {kind === 'customers' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Le numéro de téléphone sert de clé : un client déjà connu est complété, rien n’est effacé. Les points et les visites ne baissent jamais.')}</p>}
           {err && <p className="text-sm text-danger">{err}</p>}
         </div>
