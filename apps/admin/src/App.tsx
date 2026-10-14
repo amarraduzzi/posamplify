@@ -94,7 +94,7 @@ function Screens() {
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
     { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly || (hasOrders && products.includes('site')) },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
-    { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos },
+    { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos || hasOrders || siteOnly || products.includes('site') },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
     { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos || hasOrders },

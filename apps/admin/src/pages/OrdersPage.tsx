@@ -10,6 +10,7 @@ import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Modal, inputCls } from '../components/ui';
 import { fetchSales, salesCsv, salesRows, salesXlsx } from '../lib/salesExport';
+import { BookingInbox } from '../components/BookingInbox';
 
 export interface InboxLine { id: string; name: string; quantity: number; note: string | null; created_at: string }
 export interface InboxOrder {
@@ -131,6 +132,8 @@ export function OrdersPage({ r, screen = false }: { r: Restaurant; screen?: bool
         onDone={o => act(o.id, () => update(o.id, { status: 'served' }))}
         onRefuse={setRefusing}
       />
+      {/* table bookings of the restaurant website, on the same screen (with the same sound) */}
+      {r.booking?.enabled && <div className="mt-6"><BookingInbox r={r} armed={armed} /></div>}
       {exporting && <ExportModal r={r} tableLabel={id => (id ? tables[id] ?? null : null)} onClose={() => setExporting(false)} />}
       {refusing && <RefuseModal order={refusing} onClose={() => setRefusing(null)}
         onConfirm={reason => act(refusing.id, async () => { await rpc('inbox_refuse', { p_order_id: refusing.id, p_reason: reason || null }); setRefusing(null); })} />}
