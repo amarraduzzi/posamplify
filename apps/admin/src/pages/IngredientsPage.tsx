@@ -1,6 +1,6 @@
 // Amplify Profit: the ingredient list with purchase prices.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Sparkles, Check, Upload, Trash2 } from 'lucide-react';
+import { Plus, Search, Sparkles, Check, Upload, Trash2, ListChecks } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -10,6 +10,7 @@ import { CATEGORIES, SIZE_UNIT, unitCost } from '../lib/profit';
 import { IngredientEditor } from '../components/IngredientEditor';
 import { Btn, inputCls } from '../components/ui';
 import { ImportData } from '../components/ImportData';
+import { QuickPrices } from '../components/QuickPrices';
 
 export function IngredientsPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
@@ -19,6 +20,7 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
   const [onlyEstimated, setOnlyEstimated] = useState(false);
   const [edit, setEdit] = useState<Ingredient | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
+  const [quick, setQuick] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,12 +71,13 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input className={`${inputCls} ps-9`} placeholder={t('Chercher')} value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        <Btn onClick={() => setQuick(true)} disabled={!list?.length}><ListChecks className="h-4 w-4" /> {t('Saisie rapide')}</Btn>
         <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>
         <Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
       </div>
       {importing && <ImportData kind="ingredients" r={r} existing={(list ?? []).map(g => g.name)} onClose={() => setImporting(false)} onDone={load} />}
 
-      {estimated > 0 && (
+      {estimated > 0 && !quick && (
         <button onClick={() => setOnlyEstimated(v => !v)} className={`mb-4 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-start text-sm transition ${onlyEstimated ? 'border-warn bg-warn/10' : 'border-warn/40 bg-warn/5 hover:bg-warn/10'}`}>
           <Sparkles className="h-4 w-4 shrink-0 text-warn" />
           <span className="flex-1">{t('{n} prix à vérifier (estimés par l’IA ou manquants). Remplacez-les par vos vrais prix pour des marges exactes.', { n: estimated })}</span>
@@ -82,7 +85,7 @@ export function IngredientsPage({ r }: { r: Restaurant }) {
         </button>
       )}
 
-      {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !list.length ? (
+      {quick && list ? <QuickPrices r={r} list={list} onClose={() => setQuick(false)} onDone={load} /> : list === null ? <p className="text-muted">{t('Chargement…')}</p> : !list.length ? (
         <div className="card rounded-3xl p-10 text-center text-muted">
           <p>{t('Aucun ingrédient pour le moment.')}</p>
           <p className="mt-1 text-sm">{t('Astuce : dans « Marges », l’IA peut remplir vos fiches techniques et créer les ingrédients pour vous.')}</p>

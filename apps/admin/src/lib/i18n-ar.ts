@@ -3,6 +3,17 @@
 // Same wording as the till (apps/pos/src/lib/i18n-ar.ts) where the French text is the same.
 // Check with: node scripts/i18n-keys.mjs apps/admin/src --missing
 export const AR: Record<string, string> = {
+  'Saisie rapide': 'إدخال سريع',
+  'Retour à la liste': 'العودة إلى اللائحة',
+  'Seulement sans prix': 'بدون ثمن فقط',
+  'Fournisseur pour les lignes affichées': 'المورد للأسطر المعروضة',
+  'Fournisseur ajouté': 'تمت إضافة المورد',
+  'Enregistrer {n} modification(s)': 'حفظ {n} تعديل',
+  'Aucune modification': 'لا تعديلات',
+  '{n} ingrédient(s) mis à jour': 'تم تحديث {n} مكوّن',
+  'Tous les prix sont remplis.': 'جميع الأثمنة مملوءة.',
+  'Aucun résultat.': 'لا نتائج.',
+  'Prix invalide': 'ثمن غير صالح',
   'Livre : {d}': 'يسلّم: {d}',
   'Jours de livraison non indiqués': 'أيام التسليم غير محددة',
   '{n} j après la commande': '{n} يوم بعد الطلب',
