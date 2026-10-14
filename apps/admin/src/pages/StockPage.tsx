@@ -12,6 +12,8 @@ import { CATEGORIES, SIZE_UNIT, fmtQty, pct } from '../lib/profit';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { SupplierAccounts } from './SupplierAccounts';
 import { ImportData } from '../components/ImportData';
+import { InvoicePicker } from '../components/Invoices';
+import { addInvoices } from '../lib/invoices';
 
 interface Count { id: string; counted_on: string; status: 'open' | 'closed'; note: string | null; closed_at: string | null }
 interface Line { count_id: string; ingredient_id: string; qty: number }
@@ -575,6 +577,7 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
     : [blank()]);
   const [date, setDate] = useState(today());
   const [supplier, setSupplier] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   // bought the day of a count: was it already on the shelf when counting?
   const [afterCount, setAfterCount] = useState(prefill.length > 0);
   const countDay = countDays.includes(date);
@@ -601,6 +604,13 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
       }))).select('id'));
       a.toast(filled.length > 1 ? t('{n} achats enregistrés, stock et prix mis à jour', { n: filled.length })
         : filled[0].total.trim() ? t('Achat enregistré, prix mis à jour') : t('Achat enregistré'));
+      // the invoice photo: linked to the supplier record when the typed name matches one
+      if (files.length) {
+        const name = supplier.trim();
+        const sup = name ? (check(await supabase.from('suppliers').select('id').eq('restaurant_id', r.id).ilike('name', name).limit(1)) as { id: string }[])[0] : undefined;
+        const res = await addInvoices(r.id, files, { supplier_id: sup?.id ?? null, supplier_name: sup ? null : name || null, doc_date: date, amount_cents: sum > 0 ? sum : null });
+        if (res.error) a.fail(res.error);
+      }
       onSaved();
     } catch (e) { a.fail(e); }
     setBusy(false);
@@ -625,6 +635,7 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
             </div>
           </div>
         )}
+        <InvoicePicker files={files} onChange={setFiles} />
         <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Notez chaque produit reçu : c’est ce qui fait monter votre stock. Le prix payé met aussi à jour le coût de vos plats.')}</p>
         <div className="space-y-3">
           {rows.map((x, n) => {
@@ -1033,7 +1044,7 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
     if (!po) { onClose(); return; }
     try { check(await supabase.from('purchase_orders').update({ status: 'cancelled' }).eq('id', po.id).select('id')); a.toast(t('Commande annulée')); onSaved(); onClose(); } catch (e) { a.fail(e); }
   };
-  if (receiving && po) return <ReceiveModal po={po} ings={ings} supName={supplier?.name} onClose={() => setReceiving(false)} onDone={() => { onSaved(); onClose(); }} />;
+  if (receiving && po) return <ReceiveModal rid={r.id} po={po} ings={ings} supName={supplier?.name} onClose={() => setReceiving(false)} onDone={() => { onSaved(); onClose(); }} />;
 
   const sorted = ings.filter(g => !lines.some(l => l.ingredient_id === g.id)).sort((x, y) => (x.supplier_id === sup ? 0 : 1) - (y.supplier_id === sup ? 0 : 1) || x.name.localeCompare(y.name));
   return (
@@ -1089,7 +1100,7 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
   );
 }
 
-function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: Ingredient[]; supName?: string; onClose: () => void; onDone: () => void }) {
+function ReceiveModal({ rid, po, ings, supName, onClose, onDone }: { rid: string; po: Po; ings: Ingredient[]; supName?: string; onClose: () => void; onDone: () => void }) {
   const a = useAdminCtx();
   const byId = new Map(ings.map(g => [g.id, g]));
   const [rows, setRows] = useState(() => po.purchase_order_lines.slice().sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0)).map(l => ({
@@ -1097,6 +1108,7 @@ function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: In
     total: l.unit_price_cents != null ? shown(Math.round(Number(l.units) * l.unit_price_cents) / 100) : '' })));
   const [date, setDate] = useState(today());
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const [alerts, setAlerts] = useState<{ name: string; purchase_unit: string; old_cents: number; new_cents: number; bp: number }[] | null>(null);
   const sum = rows.reduce((s, x) => s + (x.total.trim() ? toCents(x.total) : 0), 0);
   const save = async () => {
@@ -1106,6 +1118,10 @@ function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: In
       const res = await rpc<{ purchases: number; price_alerts: typeof alerts }>('po_receive', { p_order_id: po.id, p_received_on: date, p_after_count: true,
         p_lines: rows.map(x => ({ line_id: x.line_id, units: num(x.units), total_cents: x.total.trim() ? toCents(x.total) : null })) });
       a.toast(t('Livraison reçue : stock et prix mis à jour'));
+      if (files.length) {
+        const up = await addInvoices(rid, files, { supplier_id: po.supplier_id, purchase_order_id: po.id, doc_date: date, amount_cents: sum > 0 ? sum : null, note: po.doc_number });
+        if (up.error) a.fail(up.error);
+      }
       if (res.price_alerts?.length) setAlerts(res.price_alerts); else onDone();
     } catch (e) { a.fail(e); }
     setBusy(false);
@@ -1129,6 +1145,7 @@ function ReceiveModal({ po, ings, supName, onClose, onDone }: { po: Po; ings: In
           <Field label={t('Reçu le')}><input type="date" className={inputCls} value={date} max={today()} onChange={e => setDate(e.target.value)} /></Field>
         </div>
         <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Corrigez ce qui est vraiment arrivé et le prix payé. Mettez 0 pour un produit non livré. Le stock monte tout de suite.')}</p>
+        <InvoicePicker files={files} onChange={setFiles} />
         <div className="space-y-2">
           {rows.map((x, k) => {
             const g = byId.get(x.ingredient_id), diff = num(x.units) !== x.ordered;

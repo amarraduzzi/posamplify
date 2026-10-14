@@ -68,6 +68,7 @@ alter default privileges in schema public grant all on sequences to anon, authen
 SQL
       start_services   # runs the Auth migrations (creates auth.users, auth.uid(), ...)
       psql "$SUPER" -q -c "grant execute on all functions in schema auth to anon, authenticated, service_role; grant select on auth.users to service_role;"
+      psql "$SUPER" -q -v ON_ERROR_STOP=1 -f "$ROOT/scripts/local/storage-shim.sql"   # local copy of Supabase Storage tables
       for f in "$ROOT"/supabase/migrations/*.sql; do psql "$SUPER" -q -v ON_ERROR_STOP=1 -f "$f"; done
       psql "$SUPER" -q -v ON_ERROR_STOP=1 -f "$ROOT/supabase/seed.sql"
     else

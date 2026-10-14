@@ -36,7 +36,8 @@ before(async () => {
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.staff_schedule (restaurant_id, staff_id, day, start_time, end_time) values ($1, $2, current_date, '09:00', '17:00')`, [w.B.r.id, w.B.staff.sara.id]);
   { const [sb] = await sql(`insert into public.suppliers (restaurant_id, name) values ($1, 'Fournisseur B') returning id`, [w.B.r.id]);
-    await sql(`insert into public.supplier_entries (restaurant_id, supplier_id, kind, amount_cents) values ($1, $2, 'payment', 1000)`, [w.B.r.id, sb.id]); }
+    await sql(`insert into public.supplier_entries (restaurant_id, supplier_id, kind, amount_cents) values ($1, $2, 'payment', 1000)`, [w.B.r.id, sb.id]);
+    await sql(`insert into public.supplier_documents (restaurant_id, supplier_id, file_path, mime_type, size_bytes) values ($1, $2, $3, 'image/jpeg', 1000)`, [w.B.r.id, sb.id, `${w.B.r.id}/x.jpg`]); }
   await sql(`insert into public.couriers (restaurant_id, name) values ($1, 'Livreur B')`, [w.B.r.id]);
   await sql(`insert into public.site_events (restaurant_id, day, kind, n) values ($1, current_date, 'view', 3)`, [w.B.r.id]);
   await sql(`insert into public.sales_history_days (restaurant_id, day, revenue_cents) values ($1, date '2025-01-01', 100)`, [w.B.r.id]);

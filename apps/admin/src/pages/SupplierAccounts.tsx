@@ -1,12 +1,13 @@
 // Supplier accounts (what is owed, overdue, next due, payments, statement) and price comparison.
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownUp, FileText, Phone, Plus, Scale, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowDownUp, FileText, Phone, Plus, Receipt, Scale, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Modal, inputCls } from '../components/ui';
+import { InvoiceGallery } from '../components/Invoices';
 
 interface Bal { id: string; name: string; phone: string | null; terms: number; purchased_cents: number; paid_cents: number; credit_cents: number; opening_cents: number;
   balance_cents: number; overdue_cents: number; oldest_overdue: string | null; next_due: string | null; next_due_cents: number | null; last_purchase: string | null; last_30d_cents: number }
@@ -95,6 +96,12 @@ export function SupplierAccounts({ r, onOrders }: { r: Restaurant; onOrders?: ()
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Receipt className="h-5 w-5 text-brand" />{t('Factures et bons de livraison')}</h2>
+        <p className="mb-4 text-sm text-muted">{t('Toutes vos factures en photo, au même endroit. Ajoutez-les en notant un achat, en réceptionnant une commande, ou ici.')}</p>
+        <InvoiceGallery r={r} />
       </Card>
 
       {det && <SupplierDetail r={r} b={det} cmp={cmp} onClose={() => setDet(null)} onStatement={() => { setStmt(det); setDet(null); }}
@@ -246,6 +253,8 @@ function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { 
             </ul>
           </>)}
         </div>
+
+        <InvoiceGallery r={r} supplierId={b.id} supplierName={b.name} limit={12} compact />
 
         {pos.length > 0 && (
           <div>
