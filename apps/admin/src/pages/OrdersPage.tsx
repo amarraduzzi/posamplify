@@ -1,7 +1,8 @@
 // Amplify Commandes: guest orders (QR menu, online ordering) arrive here, live, with a sound.
 // For restaurants without the till: accept with a preparation time, mark ready, served, or refuse.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Check, ChefHat, Clock, Download, ExternalLink, MapPin, Maximize2, MessageCircle, PauseCircle, Phone, X } from 'lucide-react';
+import { Bell, BellOff, Check, ChefHat, Clock, Download, ExternalLink, MapPin, Maximize2, MessageCircle, MonitorDown, PauseCircle, Phone, Play, X } from 'lucide-react';
+import { useInstall } from '../lib/install';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
 import { chime, unlockSound } from '../lib/chime';
@@ -183,6 +184,7 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
   const minutes = [...new Set([prepDefault, ...MINUTES])].sort((x, y) => x - y).slice(0, 5);
   const card = (o: InboxOrder) => <OrderCard key={o.id} o={o} tz={tz} now={now} table={tableLabel(o.table_id)} minutes={minutes} prepDefault={prepDefault} busy={busy === o.id}
     onAccept={onAccept} onReady={onReady} onDone={onDone} onRefuse={onRefuse} waText={waText} big={screen} />;
+  const inst = useInstall();
   const clock = new Date(now).toLocaleTimeString(dateLocale(), { timeZone: tz, hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -197,7 +199,8 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
           {onExport && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={onExport}><Download className="h-4 w-4" /> {t('Télécharger les ventes')}</Btn>}
           {!screen && onOpenScreen && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={onOpenScreen}><ExternalLink className="h-4 w-4" /> {t('Ouvrir en plein écran')}</Btn>}
           {screen && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); }}><Maximize2 className="h-4 w-4" /> {full ? t('Quitter le plein écran') : t('Plein écran')}</Btn>}
-          {armed && <button onClick={onMute} className="inline-flex items-center gap-1.5 rounded-full border border-line/15 px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"><Bell className="h-4 w-4 text-ok" /> {t('Son activé')}</button>}
+          {screen && inst.can && <Btn tone="ghost" className="!px-3 !py-1.5" onClick={() => inst.install()}><MonitorDown className="h-4 w-4" /> {t('Installer')}</Btn>}
+          {armed && <button onClick={screen ? undefined : onMute} className="inline-flex items-center gap-1.5 rounded-full border border-line/15 px-3 py-1.5 text-sm font-semibold hover:bg-surface-2"><Bell className="h-4 w-4 text-ok" /> {t('Son activé')}</button>}
         </div>
       </div>
 
@@ -215,7 +218,22 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
         </div>
       )}
 
-      {!armed && (
+      {/* Amplify Screen: one tap starts everything (a browser plays sound and goes full screen only after a tap) */}
+      {screen && !armed && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#0B3D2A] p-6 text-center text-white">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/60">Amplify Screen</p>
+            <h1 className="mt-3 text-4xl font-semibold md:text-5xl">{name}</h1>
+            <button onClick={() => { onArm(); if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => {}); }}
+              className="mx-auto mt-10 flex items-center gap-3 rounded-full bg-white px-10 py-5 text-2xl font-bold text-[#0B3D2A] shadow-2xl transition active:scale-95">
+              <Play className="h-7 w-7 fill-current" /> {t('Démarrer l’écran')}
+            </button>
+            <p className="mx-auto mt-5 max-w-md text-white/70">{t('Le son à chaque commande, le plein écran et l’écran toujours allumé.')}</p>
+            {inst.can && <button onClick={() => inst.install()} className="mx-auto mt-10 flex items-center gap-2 text-sm font-semibold text-white/80 underline-offset-4 hover:underline"><MonitorDown className="h-4 w-4" /> {t('Installer Amplify Screen sur cet appareil')}</button>}
+          </div>
+        </div>
+      )}
+      {!screen && !armed && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl bg-brand/15 p-4">
           <BellOff className="h-5 w-5 shrink-0" />
           <p className="min-w-0 flex-1 font-semibold">{t('Le son est coupé : touchez pour être alerté à chaque nouvelle commande.')}</p>
@@ -225,7 +243,7 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
 
       {orders === null && <p className="text-muted">{t('Chargement…')}</p>}
       {orders !== null && !open.length && (
-        <div className="rounded-3xl border border-dashed border-line/20 p-10 text-center">
+        <div className="rounded-3xl border border-dashed border-line/20 mb-5 p-10 text-center">
           <ChefHat className="mx-auto mb-3 h-8 w-8 text-muted" />
           <p className="font-semibold">{t('Aucune commande pour le moment.')}</p>
           <p className="mt-1 text-sm text-muted">{t('Les nouvelles commandes apparaissent ici toutes seules.')}</p>

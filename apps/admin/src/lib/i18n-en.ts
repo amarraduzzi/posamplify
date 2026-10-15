@@ -2223,4 +2223,8 @@ export const EN: Record<string, string> = {
   "Un QR par événement : vous voyez qui est venu, et le client montre son écran pour recevoir l’offre.": "One QR per event: you see who came, and the guest shows their screen to get the offer.",
   "Une assiette offerte": "A free plate",
   "Installer l’application": "Install the app",
+  "Démarrer l’écran": "Start the screen",
+  "Installer": "Install",
+  "Installer Amplify Screen sur cet appareil": "Install Amplify Screen on this device",
+  "Le son à chaque commande, le plein écran et l’écran toujours allumé.": "A sound for every order, full screen and the screen always on.",
 };

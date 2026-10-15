@@ -1,0 +1,17 @@
+{
+  "name": "Amplify Screen",
+  "short_name": "Amplify Screen",
+  "description": "Les commandes QR et en ligne, en direct, avec le son",
+  "id": "/?scherm=commandes",
+  "start_url": "/?scherm=commandes",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B3D2A",
+  "theme_color": "#0B3D2A",
+  "lang": "fr",
+  "icons": [
+    { "src": "/screen-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/screen-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/screen-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

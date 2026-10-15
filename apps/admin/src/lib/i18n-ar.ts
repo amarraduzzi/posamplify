@@ -2225,4 +2225,8 @@ export const AR: Record<string, string> = {
   "Un QR par événement : vous voyez qui est venu, et le client montre son écran pour recevoir l’offre.": "رمز لكل فعالية: ترون من حضر، ويُظهر الزبون شاشته للحصول على العرض.",
   "Une assiette offerte": "طبق مجاني",
   "Installer l’application": "تثبيت التطبيق",
+  "Démarrer l’écran": "تشغيل الشاشة",
+  "Installer": "تثبيت",
+  "Installer Amplify Screen sur cet appareil": "تثبيت Amplify Screen على هذا الجهاز",
+  "Le son à chaque commande, le plein écran et l’écran toujours allumé.": "صوت مع كل طلب، ملء الشاشة والشاشة مضاءة دائما.",
 };

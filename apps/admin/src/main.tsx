@@ -4,6 +4,12 @@ import './index.css';
 import { applyLang, readLang } from './lib/i18n';
 import './lib/install'; // catch the browser's install offer before the app loads
 
+// Amplify Screen: the orders screen (?scherm=commandes) installs as its own app, with its own icon
+if (new URLSearchParams(location.search).get('scherm') === 'commandes') {
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/screen.webmanifest');
+  document.title = 'Amplify Screen';
+}
+
 // language before the first render, so an Arabic back office never flashes in French
 applyLang(readLang());
 
