@@ -17,6 +17,7 @@ const THEMES: { k: Site['theme']; name: string; text: string; sw: [string, strin
   { k: 'nuit', name: 'Nuit', text: 'Plein écran et cinéma : grande photo ou vidéo, plats en bande défilante. Pour un lieu du soir.', sw: ['#12100E', '#1C1915', '#C9A15A'] },
   { k: 'riad', name: 'Riad', text: 'Arches, zellige et carte à l’ancienne. Pour une cuisine marocaine ou un lieu de caractère.', sw: ['#EFE3D1', '#F7EEE1', '#1E5B4F'] },
   { k: 'moderne', name: 'Moderne', text: 'Clair, grandes cartes photo. Pour un snack, un brunch ou une chaîne.', sw: ['#FFFFFF', '#F2F2EE', '#2540C9'] },
+  { k: 'atelier', name: 'Atelier', text: 'Une vitrine de pâtisserie : produits sur assiettes, prix au kilo, devis traiteur. Pour une pâtisserie, une boulangerie ou un traiteur.', sw: ['#FFFCF7', '#F5EFE6', '#557F3E'] },
 ];
 const PRICES: [string, string][] = [['', '–'], ['$', 'Abordable'], ['$$', 'Moyen'], ['$$$', 'Haut de gamme']];
 // i18n:end
@@ -71,6 +72,7 @@ export function SitePage({ r }: { r: Restaurant }) {
           <Toggle checked={!!s.enabled} onChange={v => set({ enabled: v })} label={t('Mettre le site en ligne (visible sur Google)')} />
           <h2 className="mb-3 mt-6 font-display text-xl font-semibold">{t('Style')}</h2>
           <ThemePicker value={s.theme} onChange={k => set({ theme: k })} />
+          {s.theme === 'atelier' && <div className="mt-4"><Toggle checked={s.catering !== false} onChange={v => set({ catering: v })} label={t('Afficher le bloc « Commandes et événements » (devis sur WhatsApp)')} /></div>}
           <p className="mt-3 text-sm text-muted">{t('La couleur principale, le logo, la photo de couverture et le slogan viennent de la page Restaurant.')}</p>
         </Card>
 
@@ -143,16 +145,17 @@ export function SitePage({ r }: { r: Restaurant }) {
   );
 }
 
-/** The three styles, each with a small sketch of its layout. */
+/** The styles, each with a small sketch of its layout. */
 export function ThemePicker({ value, onChange }: { value?: Site['theme']; onChange: (k: Site['theme']) => void }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {THEMES.map(th => (
         <button key={th.k} type="button" onClick={() => onChange(th.k)} aria-pressed={value === th.k}
           className={`rounded-2xl border-2 p-4 text-start transition ${value === th.k ? 'border-brand' : 'border-line/10 hover:border-line/30'}`}>
           <div className="mb-3 flex h-20 gap-1.5 overflow-hidden rounded-xl p-2" style={{ background: th.sw[0] }} aria-hidden>
             {th.k === 'riad' && <><div className="flex-1 space-y-1.5 pt-3"><div className="h-2.5 w-3/4 rounded-sm" style={{ background: th.sw[2] }} /><div className="h-1.5 w-1/2 rounded-sm opacity-40" style={{ background: th.sw[2] }} /></div><div className="w-10 rounded-t-full" style={{ background: th.sw[2] }} /></>}
             {th.k === 'nuit' && <div className="flex flex-1 flex-col justify-end rounded-lg p-1.5" style={{ background: `linear-gradient(180deg, ${th.sw[1]}, #000)` }}><div className="h-3 w-2/3 rounded-sm" style={{ background: '#ECE4D6' }} /><div className="mt-1 h-1.5 w-1/3 rounded-full" style={{ background: th.sw[2] }} /></div>}
+            {th.k === 'atelier' && <div className="flex flex-1 flex-col"><div className="h-3 rounded-t-sm" style={{ background: `repeating-linear-gradient(90deg, ${th.sw[2]} 0 10px, #DCE7D3 10px 20px)` }} /><div className="flex flex-1 items-center justify-around"><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#E8D9C2' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#D9B98C' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#C99A6A' }} /></div></div>}
             {th.k === 'moderne' && <><div className="flex-[2] rounded-lg" style={{ background: '#16181D' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="flex-1 rounded-lg" style={{ background: th.sw[2] }} /></div></>}
           </div>
           <p className="font-semibold">{t(th.name)}</p><p className="text-sm text-muted">{t(th.text)}</p>

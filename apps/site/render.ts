@@ -5,11 +5,13 @@
 // * riad: arches, zellige, a classic menu card with dotted leaders
 // * nuit: full-screen photo or video with film bars, dishes on a film strip
 // * moderne: light bento grid of big photo cards, the menu as photo cards
+// * atelier: pâtisserie, boulangerie: a striped awning, products on plates like in a shop window, price tags,
+//   prices per kilo, and a block for orders and catering (a quote asked on WhatsApp)
 // Restaurants without online ordering (no till) can take orders on WhatsApp: the guest fills a
 // basket on the site and sends it as a ready-made WhatsApp message to the restaurant.
 
 type I18n = Record<string, string | undefined>;
-export interface SiteItem { id: string; category_id: string; name: I18n; description: I18n; price_cents: number; image_url: string | null; tags: string[]; available: boolean; variants: { name: I18n; price_cents: number }[]; promo_bp?: number | null }
+export interface SiteItem { id: string; category_id: string; name: I18n; description: I18n; price_cents: number; image_url: string | null; tags: string[]; available: boolean; variants: { name: I18n; price_cents: number }[]; promo_bp?: number | null; sold_by_weight?: boolean }
 export interface SiteData {
   restaurant: {
     slug: string; name: string; city: string | null; address: string | null; phone: string | null; currency: string; timezone: string; languages: string[];
@@ -19,8 +21,8 @@ export interface SiteData {
   categories: { id: string; name: I18n; icon: string | null }[];
   items: SiteItem[];
   site: {
-    theme?: 'nuit' | 'riad' | 'moderne'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
-    video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean;
+    theme?: 'nuit' | 'riad' | 'moderne' | 'atelier'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
+    video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean; catering?: boolean;
   };
   domain: string | null; noindex: boolean; booking: boolean; can_order: boolean;
   paused?: boolean;
@@ -28,7 +30,7 @@ export interface SiteData {
 }
 export interface Ctx { base: string; origin: string; lang: string; menuUrl: string; now?: Date }
 type Lang = 'fr' | 'en' | 'ar';
-type Theme = 'nuit' | 'riad' | 'moderne';
+type Theme = 'nuit' | 'riad' | 'moderne' | 'atelier';
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const safeUrl = (u?: string | null) => (u && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : '');
@@ -45,17 +47,20 @@ const T = {
     opensToday: 'Ouvre aujourd’hui', opensTomorrow: 'Ouvre demain', opensOn: 'Ouvre {d}',
     days: { mon: 'Lundi', tue: 'Mardi', wed: 'Mercredi', thu: 'Jeudi', fri: 'Vendredi', sat: 'Samedi', sun: 'Dimanche' } as Record<string, string>,
     add: 'Ajouter', search: 'Rechercher un plat', all: 'Tout', none: 'Aucun plat ne correspond.', basket: 'Votre commande', see: 'Voir la commande', total: 'Total', yourName: 'Votre prénom', takeaway: 'À emporter', delivery: 'Livraison', dineIn: 'Sur place', addr: 'Adresse de livraison', note: 'Remarque (facultatif)', send: 'Envoyer sur WhatsApp', close: 'Fermer', choose: 'Choisissez', empty: 'Votre commande est vide.', waHello: 'Bonjour {r}, je souhaite commander :', waName: 'Nom', waAddr: 'Adresse', waNoteL: 'Remarque', waFoot: 'Envoyé depuis votre site', waHint: 'WhatsApp s’ouvre avec votre message prêt. Il ne reste qu’à l’envoyer.', orderWa: 'Commander sur WhatsApp',
-    tags: { popular: 'Populaire', spicy: 'Épicé', new: 'Nouveau', vegetarian: 'Végétarien' } as Record<string, string> },
+    tags: { popular: 'Populaire', spicy: 'Épicé', new: 'Nouveau', vegetarian: 'Végétarien' } as Record<string, string>,
+    vitrine: 'En vitrine', cater: 'Commandes et événements', caterText: 'Gâteaux d’anniversaire, plateaux et pièces pour vos fêtes, mariages et séminaires. Dites-nous la date et le nombre de personnes, nous vous préparons un devis.', caterBtn: 'Demander un devis', caterWa: 'Bonjour {r}, je voudrais un devis pour une commande. Date : … Nombre de personnes : … Ce que je souhaite : …', perKg: 'le kg' },
   en: { menu: 'Menu', infos: 'Info', book: 'Book a table', order: 'Order online', orderShort: 'Order', bookShort: 'Book', directions: 'Directions', call: 'Call', hours: 'Opening hours', address: 'Address', fullMenu: 'See the full menu', signature: 'Signature dishes', gallery: 'Gallery', open: 'Open now', closed: 'Closed now', closedDay: 'Closed', today: 'Today', from: 'from', review: 'Leave a Google review', made: 'Website made with Amplify', about: 'Welcome', soldOut: 'sold out', orderNote: 'Take-away or delivery, no waiting.', waNote: 'Pick your dishes, we receive your order on WhatsApp.', happy: 'Happy hour now', in: 'in',
     opensToday: 'Opens today', opensTomorrow: 'Opens tomorrow', opensOn: 'Opens {d}',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' } as Record<string, string>,
     add: 'Add', search: 'Search a dish', all: 'All', none: 'No dish matches.', basket: 'Your order', see: 'View order', total: 'Total', yourName: 'Your first name', takeaway: 'Take-away', delivery: 'Delivery', dineIn: 'Dine in', addr: 'Delivery address', note: 'Note (optional)', send: 'Send on WhatsApp', close: 'Close', choose: 'Choose', empty: 'Your order is empty.', waHello: 'Hello {r}, I would like to order:', waName: 'Name', waAddr: 'Address', waNoteL: 'Note', waFoot: 'Sent from your website', waHint: 'WhatsApp opens with your message ready. Just press send.', orderWa: 'Order on WhatsApp',
-    tags: { popular: 'Popular', spicy: 'Spicy', new: 'New', vegetarian: 'Vegetarian' } as Record<string, string> },
+    tags: { popular: 'Popular', spicy: 'Spicy', new: 'New', vegetarian: 'Vegetarian' } as Record<string, string>,
+    vitrine: 'In the window', cater: 'Orders and events', caterText: 'Birthday cakes, platters and pieces for your parties, weddings and seminars. Tell us the date and the number of guests, we prepare a quote for you.', caterBtn: 'Ask for a quote', caterWa: 'Hello {r}, I would like a quote for an order. Date: … Number of guests: … What I would like: …', perKg: 'per kg' },
   ar: { menu: 'القائمة', infos: 'معلومات', book: 'احجز طاولة', order: 'اطلب عبر الإنترنت', orderShort: 'اطلب', bookShort: 'احجز', directions: 'الاتجاهات', call: 'اتصل', hours: 'أوقات العمل', address: 'العنوان', fullMenu: 'القائمة الكاملة', signature: 'أطباقنا المميزة', gallery: 'صور', open: 'مفتوح الآن', closed: 'مغلق الآن', closedDay: 'مغلق', today: 'اليوم', from: 'ابتداء من', review: 'اترك تقييما على غوغل', made: 'موقع من إنجاز Amplify', about: 'مرحبا بكم', soldOut: 'نفد', orderNote: 'للأخذ أو التوصيل، بدون انتظار.', waNote: 'اختر أطباقك، ونستلم طلبك عبر واتساب.', happy: 'ساعة التخفيض الآن', in: 'في',
     opensToday: 'يفتح اليوم', opensTomorrow: 'يفتح غدا', opensOn: 'يفتح يوم {d}',
     days: { mon: 'الاثنين', tue: 'الثلاثاء', wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت', sun: 'الأحد' } as Record<string, string>,
     add: 'أضف', search: 'ابحث عن طبق', all: 'الكل', none: 'لا يوجد طبق مطابق.', basket: 'طلبك', see: 'عرض الطلب', total: 'المجموع', yourName: 'اسمك', takeaway: 'للأخذ', delivery: 'توصيل', dineIn: 'في المطعم', addr: 'عنوان التوصيل', note: 'ملاحظة (اختياري)', send: 'أرسل عبر واتساب', close: 'إغلاق', choose: 'اختر', empty: 'طلبك فارغ.', waHello: 'مرحبا {r}، أريد أن أطلب:', waName: 'الاسم', waAddr: 'العنوان', waNoteL: 'ملاحظة', waFoot: 'أرسل من موقعكم', waHint: 'يفتح واتساب ورسالتك جاهزة. اضغط إرسال فقط.', orderWa: 'اطلب عبر واتساب',
-    tags: { popular: 'الأكثر طلبا', spicy: 'حار', new: 'جديد', vegetarian: 'نباتي' } as Record<string, string> },
+    tags: { popular: 'الأكثر طلبا', spicy: 'حار', new: 'جديد', vegetarian: 'نباتي' } as Record<string, string>,
+    vitrine: 'في الواجهة', cater: 'الطلبيات والمناسبات', caterText: 'كعكات أعياد الميلاد، صواني وقطع لحفلاتكم وأعراسكم وندواتكم. أخبرونا بالتاريخ وعدد الأشخاص، ونحضّر لكم عرض سعر.', caterBtn: 'اطلب عرض سعر', caterWa: 'مرحبا {r}، أريد عرض سعر لطلبية. التاريخ: … عدد الأشخاص: … ما أريده: …', perKg: 'للكيلو' },
 };
 type Tx = typeof T.fr;
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -69,6 +74,9 @@ const THEMES: Record<Theme, { bg: string; surface: string; line: string; ink: st
     display: "'Bodoni Moda', Didot, serif", displayAr: "'IBM Plex Sans Arabic', sans-serif", fonts: 'family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600;6..96,700', dark: true },
   moderne: { bg: '#FFFFFF', surface: '#F2F2EE', line: 'rgba(22,24,29,.1)', ink: '#16181D', muted: '#5D616B', accent: '#2540C9', accentInk: '#FFFFFF', gold: '#F2B33D',
     display: "'Bricolage Grotesque', system-ui, sans-serif", displayAr: "'IBM Plex Sans Arabic', sans-serif", fonts: 'family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800', dark: false },
+  // chocolate ink, pistachio awning, caramel price tags on almost-white paper
+  atelier: { bg: '#FFFCF7', surface: '#F5EFE6', line: 'rgba(43,26,18,.12)', ink: '#2B1A12', muted: '#7A6558', accent: '#557F3E', accentInk: '#FFFCF7', gold: '#B9803A',
+    display: "'Italiana', 'Bodoni Moda', Didot, serif", displayAr: "'Amiri', serif", fonts: 'family=Italiana&family=Amiri:wght@400;700', dark: false },
 };
 
 // a zellige tile: an eight-pointed star in a square lattice
@@ -124,7 +132,7 @@ const icon = (n: string, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" 
 function css(k: Theme, th: typeof THEMES.nuit, accent: string, rtl: boolean) {
   const disp = rtl ? th.displayAr : th.display;
   return `
-:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : '2px'}}
+:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : k === 'atelier' ? '18px' : '2px'}}
 *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font:16px/1.6 ${rtl ? "'IBM Plex Sans Arabic'," : ''}'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}img,video{display:block;max-width:100%}button,input,textarea{font:inherit;color:inherit}
@@ -205,7 +213,7 @@ dialog::backdrop{background:rgba(10,8,6,.55);backdrop-filter:blur(3px)}
 .hint{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
 .vr{display:flex;justify-content:space-between;align-items:center;width:100%;padding:16px;margin-bottom:8px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;text-align:start}
 .star{width:18px;height:18px;color:var(--gold)}
-${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : modCss()}
+${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : k === 'atelier' ? atelierCss() : modCss()}
 @media (max-width:860px){.links{display:none}.info,.ordr{grid-template-columns:1fr}.nav .btn{display:none}.bar{display:flex}section{padding:68px 0}.ordr{padding:32px}.card{padding:24px}.has-cart .bar{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 `;
@@ -333,6 +341,64 @@ function modCss() {
 `;
 }
 
+function atelierCss() {
+  return `
+.t-atelier{--pale:color-mix(in srgb,var(--accent) 24%,#fff)}
+.t-atelier h1,.t-atelier h2{font-weight:400;letter-spacing:${'0'}}
+.t-atelier .brand{font-size:26px;font-weight:400}
+.t-atelier header.nav{border-bottom:0}
+/* the awning: stripes with a scalloped edge, the sign of a pâtisserie */
+.aw{position:relative;z-index:2;height:34px;background:repeating-linear-gradient(90deg,var(--accent) 0 44px,var(--pale) 44px 88px)}
+.aw:after{content:"";position:absolute;inset-inline:0;top:100%;height:22px;background:radial-gradient(circle at 22px 0,var(--accent) 21.5px,transparent 22.5px) 0 0/88px 22px repeat-x,radial-gradient(circle at 66px 0,var(--pale) 21.5px,transparent 22.5px) 0 0/88px 22px repeat-x;filter:drop-shadow(0 7px 6px rgba(43,26,18,.13))}
+.ah{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;padding-block:76px 84px}
+.ah .k{font-family:var(--display);font-size:22px;color:var(--gold)}
+.ah h1{font-size:clamp(64px,9.4vw,148px);line-height:.88;margin:12px 0 20px}.ah h1.long{font-size:clamp(52px,6.6vw,104px);line-height:.94}
+.ah .t{font-size:clamp(19px,2vw,22px);color:var(--muted);max-width:32ch}
+.ah .chips{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0}.ah .chip{background:var(--surface)}
+.ah .ph-w{position:relative}
+.ah .ph-w img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:220px 220px 22px 22px;box-shadow:0 40px 70px -40px rgba(43,26,18,.55)}
+.ah .ph-w.none{aspect-ratio:4/5;border-radius:220px 220px 22px 22px;background:radial-gradient(circle,var(--pale) 3px,transparent 3.5px) 0 0/22px 22px,var(--surface)}
+.seal{position:absolute;inset-inline-start:-34px;bottom:46px;width:132px;height:132px;border-radius:50%;display:grid;place-content:center;text-align:center;gap:2px;background:var(--accent);color:var(--accent-ink);box-shadow:0 18px 40px -18px rgba(43,26,18,.6);transform:rotate(-8deg);outline:2px dashed color-mix(in srgb,var(--accent-ink) 55%,transparent);outline-offset:-9px}
+.seal b{font-family:var(--display);font-size:30px;font-weight:400;line-height:1}.seal span{font-size:12px;font-weight:700;padding:0 16px;line-height:1.25}.seal span span{padding:0;white-space:nowrap}
+.t-atelier .sh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:46px}
+.t-atelier .sh .k{display:block;font-family:var(--display);font-size:22px;color:var(--gold);margin-bottom:6px}
+/* the shop window: each product on its plate, resting on a paper card with its price tag */
+.t-atelier .dishes{display:grid;grid-template-columns:repeat(3,1fr);gap:64px 30px}
+.t-atelier .dish{display:flex;flex-direction:column;align-items:center;text-align:center}
+.t-atelier .dish .ph{position:relative;z-index:1;width:74%;aspect-ratio:1;object-fit:cover;border-radius:50%;background:var(--surface);box-shadow:0 0 0 10px #fff,0 0 0 11px var(--line),0 26px 34px -14px rgba(43,26,18,.45);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.t-atelier div.ph{background:radial-gradient(circle,var(--pale) 3px,transparent 3.5px) 0 0/20px 20px,var(--surface)}
+.t-atelier .dish:hover .ph{transform:translateY(-6px) rotate(-3deg)}
+.t-atelier .dish .b{width:100%;flex:1;margin-top:-44px;padding:62px 22px 24px;border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;align-items:center;gap:6px}
+.t-atelier .dish h3{font-family:'Manrope',sans-serif;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.t-atelier .dish p{font-size:14.5px;color:var(--muted);max-width:30ch}
+.t-atelier .dish .ft{display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:10px}
+.t-atelier .price{position:relative;display:inline-flex;align-items:baseline;gap:4px;padding:5px 14px 5px 24px;border-radius:999px;background:#fff;border:1px dashed var(--gold);color:var(--ink)}
+.t-atelier .price:before{content:"";position:absolute;inset-inline-start:9px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--gold);transform:translateY(-50%)}
+.t-atelier .price .kg{font-size:12px;font-weight:600;color:var(--muted)}
+.t-atelier .about{display:grid;grid-template-columns:.9fr 1.1fr;gap:64px;align-items:center}
+.t-atelier .about .q{font-size:clamp(20px,2.2vw,25px);line-height:1.55;white-space:pre-line}
+.t-atelier .about img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:50%;box-shadow:0 0 0 12px var(--surface)}
+/* orders and catering */
+.cater{position:relative;overflow:hidden;display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center;padding:58px 48px 48px;border-radius:var(--r);background:var(--ink);color:var(--bg)}
+.cater:before{content:"";position:absolute;inset:0 0 auto;height:12px;background:repeating-linear-gradient(90deg,var(--accent) 0 44px,var(--pale) 44px 88px)}
+.cater h2{font-size:clamp(38px,4.6vw,62px)}.cater p{margin-top:12px;opacity:.82;max-width:52ch}
+.cater .ctas{justify-content:flex-end}.cater .btn.g{border-color:rgba(255,252,247,.3);background:transparent;color:var(--bg)}
+.t-atelier .ordr{background:var(--accent);border-radius:var(--r)}
+.t-atelier .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.t-atelier .gal img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:var(--r)}.t-atelier .gal img:nth-child(3n+2){margin-top:46px}
+/* menu: a window of plates */
+.t-atelier .mhead h1{font-size:clamp(56px,9vw,120px)}
+.t-atelier .mcat>h2{font-size:clamp(40px,5vw,64px)}
+.t-atelier .mlist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:34px 22px}
+.t-atelier .mi{flex-direction:column;align-items:center;text-align:center;gap:14px;padding:0;border:0}
+.t-atelier .mi .ph{width:72%;height:auto;aspect-ratio:1;border-radius:50%;box-shadow:0 0 0 8px #fff,0 0 0 9px var(--line),0 18px 26px -14px rgba(43,26,18,.45)}
+.t-atelier .mi .b{width:100%;align-items:center}
+.t-atelier .mi .n{justify-content:center;font-size:17px}
+.t-atelier .mi .ft{display:flex;align-items:center;gap:10px;margin-top:6px}
+@media (max-width:860px){.ah{grid-template-columns:1fr;gap:40px;padding-block:44px 64px}.ah .ph-w{width:min(84%,400px);justify-self:center}.seal{width:108px;height:108px;inset-inline-start:-22px;bottom:30px}.seal b{font-size:24px}.t-atelier .dishes{grid-template-columns:1fr 1fr;gap:44px 14px}.t-atelier .dish .b{padding:54px 12px 18px}.t-atelier .dish p{display:none}.t-atelier .about{grid-template-columns:1fr;gap:32px}.t-atelier .about img{width:70%;justify-self:center}.cater{grid-template-columns:1fr;padding:48px 24px 28px}.cater .ctas{justify-content:flex-start}.t-atelier .gal{grid-template-columns:1fr 1fr}.t-atelier .gal img:nth-child(3n+2){margin-top:0}.t-atelier .mlist{grid-template-columns:1fr 1fr}.t-atelier .mi p{display:none}}
+@media (max-width:420px){.t-atelier .dish h3{font-size:16px}.t-atelier .price{padding:4px 10px 4px 20px;font-size:14px}}
+`;
+}
 function unitPrices(it: SiteItem) {
   const off = (c: number) => (it.promo_bp ? c - Math.round(c * it.promo_bp / 10000) : c);
   const vs = (it.variants ?? []).map(v => ({ base: Number(v.price_cents), p: off(Number(v.price_cents)), name: v.name }));
@@ -341,7 +407,7 @@ function unitPrices(it: SiteItem) {
 function priceOf(it: SiteItem, r: SiteData['restaurant'], lang: string, t: Tx) {
   const u = unitPrices(it);
   const pre = u.vs.length > 1 ? `${t.from} ` : '';
-  return `${it.promo_bp ? `<s>${esc(money(u.base, r.currency, lang))}</s>` : ''}${pre}${esc(money(u.p, r.currency, lang))}`;
+  return `${it.promo_bp ? `<s>${esc(money(u.base, r.currency, lang))}</s>` : ''}${pre}${esc(money(u.p, r.currency, lang))}${it.sold_by_weight ? ` <small class="kg">${t.perKg}</small>` : ''}`;
 }
 
 export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
@@ -390,7 +456,7 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   if (page === 'menu') ld.hasMenu = { '@type': 'Menu', hasMenuSection: (d.categories ?? []).map(cat => ({ '@type': 'MenuSection', name: L(cat.name), hasMenuItem: items.filter(i => i.category_id === cat.id).map(i => ({ '@type': 'MenuItem', name: L(i.name), ...(L(i.description) ? { description: L(i.description) } : {}), offers: { '@type': 'Offer', price: (unitPrices(i).p / 100).toFixed(2), priceCurrency: r.currency } })) })) };
 
   const fonts = `https://fonts.googleapis.com/css2?${th.fonts}&family=Manrope:wght@400;500;600;700;800${rtl ? '&family=IBM+Plex+Sans+Arabic:wght@400;600;700' : ''}&display=swap`;
-  const lcp = page === 'home' ? (k === 'moderne' ? cover : k === 'riad' ? cover || gal[0] : video ? '' : cover) : '';
+  const lcp = page === 'home' ? (k === 'moderne' || k === 'atelier' ? cover : k === 'riad' ? cover || gal[0] : video ? '' : cover) : '';
   const head = `<!doctype html><html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(canonical)}">
 ${d.noindex ? '<meta name="robots" content="noindex">' : ''}${langs.map(l => `<link rel="alternate" hreflang="${l}" href="${esc(`${c.origin}${c.base}${page === 'menu' ? '/menu' : ''}${q(l)}`)}">`).join('')}
@@ -415,7 +481,7 @@ ${langLinks}${d.booking ? `<a class="btn g" href="${esc(bookUrl)}">${icon('cal')
   const foot = `<footer><div class="w"><div><b style="color:var(--ink)">${name}</b>${place ? `<br>${esc(place)}` : ''}${r.phone ? `<br><a href="tel:${esc(tel)}" dir="ltr">${esc(r.phone)}</a>` : ''}</div>
 ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https://www.amplifygrowthstudio.com/?utm_source=site&utm_medium=footer&utm_campaign=${esc(r.slug)}" rel="noopener">${t.made.replace('Amplify', '<b>Amplify</b>')}</a></div></footer>`;
 
-  const addBtn = (i: SiteItem) => (wa && i.available ? `<button class="addb" type="button" data-add="${esc(i.id)}" aria-label="${esc(`${t.add}: ${L(i.name)}`)}">${icon('plus')}</button>` : '');
+  const addBtn = (i: SiteItem) => (wa && i.available && !i.sold_by_weight ? `<button class="addb" type="button" data-add="${esc(i.id)}" aria-label="${esc(`${t.add}: ${L(i.name)}`)}">${icon('plus')}</button>` : '');
   const tags = (i: SiteItem) => (i.tags ?? []).filter(x => t.tags[x]);
   const dishCard = (i: SiteItem) => {
     const img = safeUrl(i.image_url) ? `<img class="ph" src="${esc(i.image_url)}" alt="${esc(L(i.name))}" loading="lazy" decoding="async">` : (k === 'moderne' ? '' : '<div class="ph"></div>');
@@ -425,7 +491,7 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
     const img = safeUrl(i.image_url) ? `<img class="ph" src="${esc(i.image_url)}" alt="${esc(L(i.name))}" loading="lazy" decoding="async" width="96" height="96">` : '';
     const tg = tags(i);
     const nm = `${esc(L(i.name))}${i.available ? '' : ` <small>(${t.soldOut})</small>`}`;
-    const body = k === 'moderne'
+    const body = k === 'moderne' || k === 'atelier'
       ? `<div class="b"><div class="n"><span class="nm">${nm}</span></div>${L(i.description) ? `<p>${esc(L(i.description))}</p>` : ''}${tg.length ? `<div class="tg">${tg.map(x => `<span>${t.tags[x]}</span>`).join('')}</div>` : ''}<div class="ft"><span class="price">${priceOf(i, r, lang, t)}</span>${addBtn(i)}</div></div>`
       : `<div class="b"><div class="n"><span class="nm">${nm}</span>${k === 'riad' ? '<span class="ld"></span>' : ''}<span class="price">${priceOf(i, r, lang, t)}</span></div>${L(i.description) ? `<p>${esc(L(i.description))}</p>` : ''}${tg.length ? `<div class="tg">${tg.map(x => `<span>${t.tags[x]}</span>`).join('')}</div>` : ''}</div>${addBtn(i)}`;
     return `<div class="mi${i.available ? '' : ' so'}" data-tags="${esc(tg.join(' '))}" data-q="${esc(`${L(i.name)} ${L(i.description)}`.toLowerCase())}">${img}${body}</div>`;
@@ -434,7 +500,7 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
   // the basket (WhatsApp orders): data for the script, the floating button and two sheets
   const waData = wa ? {
     slug: r.slug, name: r.name, wa, lang, cur: r.currency, delivery: d.site.wa_delivery !== false,
-    items: Object.fromEntries(items.filter(i => i.available).map(i => { const u = unitPrices(i); return [i.id, { n: L(i.name), p: u.p, v: u.vs.length > 1 ? u.vs.map(v => ({ n: L(v.name), p: v.p })) : null }]; })),
+    items: Object.fromEntries(items.filter(i => i.available && !i.sold_by_weight).map(i => { const u = unitPrices(i); return [i.id, { n: L(i.name), p: u.p, v: u.vs.length > 1 ? u.vs.map(v => ({ n: L(v.name), p: v.p })) : null }]; })),
     t: { hello: t.waHello, name: t.waName, addr: t.waAddr, note: t.waNoteL, foot: t.waFoot, total: t.total, takeaway: t.takeaway, delivery: t.delivery, dineIn: t.dineIn, empty: t.empty },
   } : null;
   const basket = waData ? `<script type="application/json" id="wad">${JSON.stringify(waData).replace(/</g, '\\u003c')}</script>
@@ -457,7 +523,7 @@ document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest
   if (page === 'menu') {
     const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id));
     const usedTags = Object.keys(t.tags).filter(x => items.some(i => i.tags?.includes(x)));
-    return `${head}${nav}<main><div class="w mhead">${k === 'riad' ? `<div class="orn">${STAR}</div>` : ''}<h1>${t.menu}</h1>${wa ? `<p class="lead" style="margin:14px ${k === 'riad' ? 'auto' : '0'} 0">${t.waNote}</p>` : ''}
+    return `${head}${nav}<main>${k === 'atelier' ? '<div class="aw" aria-hidden="true"></div>' : ''}<div class="w mhead">${k === 'riad' ? `<div class="orn">${STAR}</div>` : ''}<h1>${t.menu}</h1>${wa ? `<p class="lead" style="margin:14px ${k === 'riad' ? 'auto' : '0'} 0">${t.waNote}</p>` : ''}
 <div class="tools"><label class="srch">${icon('search')}<input type="search" id="q" placeholder="${t.search}" aria-label="${t.search}" autocomplete="off"></label>${usedTags.length ? `<div class="flt">${usedTags.map(x => `<button type="button" data-f="${x}" aria-pressed="false">${t.tags[x]}</button>`).join('')}</div>` : ''}</div></div>
 ${cats.length > 1 ? `<nav class="cats" aria-label="${t.menu}"><div class="w">${cats.map(cat => `<a href="#c-${esc(cat.id)}" data-c="${esc(cat.id)}">${esc(L(cat.name))}</a>`).join('')}</div></nav>` : ''}
 <div class="w">${cats.map(cat => `<section class="mcat" id="c-${esc(cat.id)}" style="padding-bottom:8px"><h2>${esc(L(cat.name))}</h2><div class="mlist">${items.filter(i => i.category_id === cat.id).map(menuItem).join('')}</div></section>`).join('')}
@@ -493,6 +559,25 @@ ${sig.length ? `<section style="padding-top:${about ? '0' : '96px'}"><div class=
 ${orderBlock}
 ${gal.length >= 4 ? `<section style="padding-top:0"><div class="w sc"><div class="orn">${STAR}</div><h2 class="h2">${t.gallery}</h2><div class="gal">${gal.slice(0, 4).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
 <div class="zb" aria-hidden="true"></div>${infos}`;
+  } else if (k === 'atelier') {
+    const ph = cover || gal[0];
+    const aboutImg = gal.find(u => u !== ph);
+    const waCater = waNumber(d.site.whatsapp || r.phone);
+    const caterHref = waCater ? `https://wa.me/${waCater}?text=${encodeURIComponent(t.caterWa.replace('{r}', r.name))}` : '';
+    const seal = open != null ? `<div class="seal"><b>${open ? t.open.split(' ')[0] : nx ? esc(nx.time) : t.closedDay}</b><span>${open ? (todayHours ? `<span dir="ltr">${esc(todayHours)}</span>` : t.today) : nx ? nxLabel : t.closed}</span></div>` : '';
+    body = `<div class="aw" aria-hidden="true"></div>
+<div class="w ah"><div>
+<p class="k">${esc([d.site.cuisine, r.city].filter(Boolean).join(', ') || t.about)}</p>
+<h1${r.name.length > 16 ? ' class="long"' : ''}>${name}</h1>${tagline ? `<p class="t">${esc(tagline)}</p>` : ''}
+<div class="chips">${openChip}${todayHours ? `<span class="chip">${icon('clock')}${t.today} <span dir="ltr">${esc(todayHours)}</span></span>` : ''}${hhChip}</div>${ctas(true)}</div>
+<div class="ph-w${ph ? '' : ' none'}">${ph ? `<img src="${esc(ph)}" alt="${name}" fetchpriority="high">` : ''}${seal}</div>
+</div>
+${sig.length ? `<section style="padding-top:24px"><div class="w"><div class="sh"><div><span class="k">${t.vitrine}</span><h2 class="h2">${t.signature}</h2></div>${fullMenuBtn}</div><div class="dishes">${sig.map(dishCard).join('')}</div></div></section>` : ''}
+${about ? `<section style="padding-top:0"><div class="w about">${aboutImg ? `<img src="${esc(aboutImg)}" alt="${name}" loading="lazy">` : '<div></div>'}<div><h2 class="h2" style="margin-bottom:22px">${t.about}</h2><p class="q">${esc(about)}</p></div></div></section>` : ''}
+${d.site.catering !== false && (caterHref || tel) ? `<section style="padding-top:0"><div class="w"><div class="cater"><div><h2>${t.cater}</h2><p>${t.caterText}</p></div><div class="ctas">${caterHref ? `<a class="btn wa" href="${esc(caterHref)}" target="_blank" rel="noopener">${icon('wa')}${t.caterBtn}</a>` : ''}${tel ? `<a class="btn g" href="tel:${esc(tel)}">${icon('phone')}${t.call}</a>` : ''}</div></div></div></section>` : ''}
+${orderBlock}
+${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:34px">${t.gallery}</h2><div class="gal">${gal.slice(0, 6).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
+${infos}`;
   } else if (k === 'nuit') {
     const media = video ? `<video class="m" autoplay muted loop playsinline preload="metadata"${cover ? ` poster="${esc(cover)}"` : ''}><source src="${esc(video)}" type="video/mp4"></video>` : cover ? `<img class="m" src="${esc(cover)}" alt="${name}" fetchpriority="high">` : '';
     body = `<section class="nh${media ? '' : ' none'}" style="padding:0">${media}<div class="w in">

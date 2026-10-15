@@ -170,7 +170,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [demo, setDemo] = useState(false);
   const [kind, setKind] = useState<'all' | 'pos' | 'profit' | 'site' | 'orders'>('all');
   const [city, setCity] = useState('');
-  const [theme, setTheme] = useState<'riad' | 'nuit' | 'moderne'>('riad');
+  const [theme, setTheme] = useState<'riad' | 'nuit' | 'moderne' | 'atelier'>('riad');
   const [busy, setBusy] = useState(false);
   const [card, setCard] = useState<{ existed: boolean } | null>(null);
   const auto = (n: string) => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
@@ -198,7 +198,7 @@ function CreateRestaurant({ onClose, onDone }: { onClose: () => void; onDone: ()
         </Field>
         <Field label={t('Nom')}><input autoFocus className={inputCls} value={name} onChange={e => { setName(e.target.value); setSlug(auto(e.target.value)); }} /></Field>
         <Field label={t('Ville')}><input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="Rabat" /></Field>
-        {kind === 'site' && <Field label={t('Style du site')}><select className={inputCls} value={theme} onChange={e => setTheme(e.target.value as typeof theme)}><option value="riad">Riad</option><option value="nuit">Nuit</option><option value="moderne">Moderne</option></select></Field>}
+        {kind === 'site' && <Field label={t('Style du site')}><select className={inputCls} value={theme} onChange={e => setTheme(e.target.value as typeof theme)}><option value="riad">Riad</option><option value="nuit">Nuit</option><option value="moderne">Moderne</option><option value="atelier">Atelier</option></select></Field>}
         {kind === 'site' && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Démo de site : choisissez ensuite ce restaurant à gauche, importez la carte (Menu) et ajoutez la photo (Restaurant). Le site n’est pas sur Google tant qu’il n’est pas mis en ligne.')}</p>}
         <Field label={t('Adresse du menu')} hint={t('Le menu sera sur …/{slug}', { slug: slug || 'nom-du-restaurant' })}><input dir="ltr" className={inputCls} value={slug} onChange={e => setSlug(auto(e.target.value))} /></Field>
         <LoginFields email={email} setEmail={setEmail} pw={pw} setPw={setPw} must={must} setMust={setMust} optional />

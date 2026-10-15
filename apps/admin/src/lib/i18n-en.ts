@@ -1951,4 +1951,8 @@ export const EN: Record<string, string> = {
   "Choisir un ingrédient ou chercher": "Choose an ingredient or search",
   "Créer « {n} »": "Create “{n}”",
   "déjà dans la recette": "already in the recipe",
+  "Afficher le bloc « Commandes et événements » (devis sur WhatsApp)": "Show the “Orders and events” block (quote on WhatsApp)",
+  "Atelier": "Atelier",
+  "atelier": "atelier",
+  "Une vitrine de pâtisserie : produits sur assiettes, prix au kilo, devis traiteur. Pour une pâtisserie, une boulangerie ou un traiteur.": "A pastry shop window: products on plates, prices per kilo, catering quotes. For a pastry shop, a bakery or a caterer.",
 };

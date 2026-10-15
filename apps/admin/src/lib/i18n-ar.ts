@@ -1953,4 +1953,8 @@ export const AR: Record<string, string> = {
   "Choisir un ingrédient ou chercher": "اختر مكوّنًا أو ابحث",
   "Créer « {n} »": "إنشاء « {n} »",
   "déjà dans la recette": "موجود في الوصفة",
+  "Afficher le bloc « Commandes et événements » (devis sur WhatsApp)": "عرض قسم « الطلبيات والمناسبات » (عرض سعر عبر واتساب)",
+  "Atelier": "أتولييه",
+  "atelier": "atelier",
+  "Une vitrine de pâtisserie : produits sur assiettes, prix au kilo, devis traiteur. Pour une pâtisserie, une boulangerie ou un traiteur.": "واجهة محل حلويات: منتجات على أطباق، ثمن للكيلو، عرض سعر للممون. لمحل حلويات أو مخبزة أو ممون.",
 };
