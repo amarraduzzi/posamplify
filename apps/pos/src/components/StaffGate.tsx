@@ -55,7 +55,6 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
         <AmplifyLogo size="sm" className="opacity-90" />
         <LangSwitch />
       </div>
-      <InstallButton className="absolute end-6 top-5" />
       <Clock tz={r.timezone} />
       <div className="rise relative text-center">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{who ? t('Code personnel') : t('Bienvenue')}</p>
@@ -96,6 +95,7 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
       <div className="relative flex items-center gap-4 text-xs text-muted/60">
         {onKitchen && <button onClick={onKitchen} className="hover:text-ink">{t('Écran cuisine')}</button>}
         <button onClick={pos.logout} className="hover:text-ink">{t('Déconnecter ce poste')}</button>
+        <InstallButton link />
       </div>
       {clocking && <ClockIn onClose={() => setClocking(false)} />}
     </div>

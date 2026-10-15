@@ -4,9 +4,15 @@ import { MonitorDown } from 'lucide-react';
 import { useInstall } from '../lib/install';
 import { t } from '../lib/i18n';
 
-export function InstallButton({ className = '' }: { className?: string }) {
+export function InstallButton({ className = '', link }: { className?: string; link?: boolean }) {
   const inst = useInstall();
   if (!inst.can) return null;
+  // a quiet link, next to the other small links of the lock screen
+  if (link) return (
+    <button type="button" onClick={() => inst.install()} className={`inline-flex items-center gap-1.5 font-semibold text-brand hover:underline ${className}`}>
+      <MonitorDown className="h-3.5 w-3.5" /> {t('Installer la caisse sur cet appareil')}
+    </button>
+  );
   return (
     <div className={className}>
       <button type="button" onClick={() => inst.install()}
