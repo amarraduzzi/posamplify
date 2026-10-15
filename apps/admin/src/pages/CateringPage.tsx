@@ -2,6 +2,7 @@
 // orders appear in the production plan of their day, deposits and the balance are noted as they come,
 // and "Facturer" turns a fully paid order into a real ticket or invoice (with the customer's ICE).
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SEEN_EVENT } from '../components/SiteRequests';
 import { ArrowLeft, Check, FileText, MessageCircle, Plus, Printer, Receipt, Trash2, Truck, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
@@ -17,7 +18,7 @@ interface Cat {
   event_date: string; event_time: string | null; mode: 'pickup' | 'delivery'; address: string | null; guests: number | null; note: string | null;
   delivery_fee_cents: number; order_id: string | null; invoiced_at: string | null; created_at: string;
   /** 'site': the request came from the premium website form */
-  source?: 'manual' | 'site'; kind?: 'group' | 'private' | 'catering' | 'other' | null;
+  source?: 'manual' | 'site'; seen_at?: string | null; kind?: 'group' | 'private' | 'catering' | 'other' | null;
 }
 // i18n:values
 const KIND: Record<string, string> = { group: 'Groupe', private: 'Privatisation', catering: 'Traiteur', other: 'Autre' };
@@ -39,12 +40,14 @@ const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&am
 const today = () => new Date().toLocaleDateString('en-CA');
 const lineTotal = (l: Pick<CLine, 'unit_price_cents' | 'qty'>) => l.unit_price_cents * l.qty;
 
-export function CateringPage({ r }: { r: Restaurant }) {
+export function CateringPage({ r, openId, onOpened }: { r: Restaurant; openId?: string | null; onOpened?: () => void }) {
   const a = useAdminCtx();
   const [list, setList] = useState<Cat[] | null>(null);
   const [sums, setSums] = useState<Record<string, { total: number; paid: number }>>({});
   const [tab, setTab] = useState<'open' | 'done' | 'cancelled'>('open');
-  const [open, setOpen] = useState<string | 'new' | null>(null);
+  const [open, setOpen] = useState<string | 'new' | null>(openId ?? null);
+  // the banner "Nouvelle demande du site" opens that request
+  useEffect(() => { if (openId) { setOpen(openId); onOpened?.(); } }, [openId, onOpened]);
 
   const load = useCallback(async () => {
     try {
@@ -167,6 +170,11 @@ function CateringEditor({ r, id, onBack, onOpen }: { r: Restaurant; id: string |
       ]);
       const x = check(co) as unknown as Cat;
       setC(x);
+      if (x.source === 'site' && !x.seen_at) {
+        // opened: no longer new (badge and banner disappear)
+        await supabase.from('catering_orders').update({ seen_at: new Date().toISOString() }).eq('id', x.id);
+        window.dispatchEvent(new Event(SEEN_EVENT));
+      }
       setF({ customer_name: x.customer_name, customer_phone: x.customer_phone ?? '', company: x.company ?? '', ice: x.ice ?? '', event_date: x.event_date,
         event_time: x.event_time?.slice(0, 5) ?? '', mode: x.mode, address: x.address ?? '', guests: x.guests ? String(x.guests) : '', note: x.note ?? '', fee: fromCents(x.delivery_fee_cents || null) });
       const lines = check(ls) as CLine[];
@@ -293,7 +301,13 @@ function CateringEditor({ r, id, onBack, onOpen }: { r: Restaurant; id: string |
   const whatsapp = () => {
     if (!f.customer_phone) return;
     const dt = new Date(`${f.event_date}T12:00:00Z`).toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-    const msg = [
+    // a request from the website, nothing priced yet: thank the customer and say what happens next
+    const ack = !lines.length && c?.source === 'site';
+    const msg = ack ? [
+      t('Bonjour {n},', { n: f.customer_name }),
+      t('merci pour votre demande pour le {d}. Nous préparons votre devis et revenons vers vous très vite.', { d: dt }),
+      r.name,
+    ].join('\n') : [
       t('Bonjour {n},', { n: f.customer_name }),
       c?.status === 'quote' || !c ? t('voici notre devis {k} pour le {d} :', { k: c ? num(c.number) : '', d: dt }) : t('votre commande {k} pour le {d} est confirmée :', { k: c ? num(c.number) : '', d: dt }),
       ...lines.map(x => `- ${Math.round(Number(x.qty))} × ${x.name} : ${mad(toCents(x.price || '0') * Math.round(Number(x.qty)))}`),
@@ -315,7 +329,7 @@ function CateringEditor({ r, id, onBack, onOpen }: { r: Restaurant; id: string |
           {c && <span className={`ms-3 rounded-full px-2.5 py-1 align-middle text-sm font-bold ${TONE[c.status]}`}>{frozen ? t('Facturée') : t(ST[c.status])}</span>}</h1>
         {c?.source === 'site' && c.status === 'quote' && !lines.length && <p className="w-full rounded-2xl bg-brand/10 px-4 py-3 text-sm text-brand">{t('Demande reçue par votre site{k}. Appelez le client, puis ajoutez les produits pour en faire un devis.', { k: c.kind ? ` (${t(KIND[c.kind])})` : '' })}</p>}
         <Btn onClick={print} disabled={!lines.length}><Printer className="h-4 w-4" /> {doc ? (doc.doc_type === 'invoice' ? t('Imprimer la facture') : t('Imprimer le ticket')) : t('Imprimer')}</Btn>
-        {f.customer_phone && <Btn onClick={whatsapp} disabled={!lines.length}><MessageCircle className="h-4 w-4" /> WhatsApp</Btn>}
+        {f.customer_phone && <Btn onClick={whatsapp} disabled={!lines.length && c?.source !== 'site'}><MessageCircle className="h-4 w-4" /> WhatsApp</Btn>}
         {!frozen && <Btn tone="brand" disabled={busy} onClick={async () => { if (await save()) a.toast(t('Enregistré')); }}>{t('Enregistrer')}</Btn>}
       </div>
 

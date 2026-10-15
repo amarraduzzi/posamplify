@@ -1984,4 +1984,9 @@ export const EN: Record<string, string> = {
   "Une photo et une phrase du chef ou de la patronne. Laissez vide pour ne pas afficher ce bloc.": "A photo and a line from the chef or the owner. Leave empty to hide this block.",
   "Votre histoire": "Your story",
   "Votre phrase (facultatif)": "Your line (optional)",
+  "Nouvelle demande du site": "New website request",
+  "Ouvrir": "Open",
+  "merci pour votre demande pour le {d}. Nous préparons votre devis et revenons vers vous très vite.": "thank you for your request for {d}. We are preparing your quote and will get back to you very soon.",
+  "{n} nouvelles demandes du site": "{n} new website requests",
+  "{n} pers.": "{n} people",
 };

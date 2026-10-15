@@ -23,6 +23,8 @@ import { ProfitPage } from './pages/ProfitPage';
 import { IngredientsPage } from './pages/IngredientsPage';
 import { ProductionPage } from './pages/ProductionPage';
 import { CateringPage } from './pages/CateringPage';
+import { SiteRequestBanner, useSiteRequests } from './components/SiteRequests';
+import { unlockSound } from './lib/chime';
 import { ChargesPage } from './pages/ChargesPage';
 import { StockPage } from './pages/StockPage';
 import { TeamPage } from './pages/TeamPage';
@@ -62,6 +64,15 @@ function Screens() {
   const [navOpen, setNavOpen] = useState(false);
   // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
   const [, bump] = useState(0);
+  // requests from the premium website: badge, banner and chime on every page
+  const siteReqs = useSiteRequests(a.current, !!a.session && !!a.current);
+  const [catOpen, setCatOpen] = useState<string | null>(null);
+  // browsers play a sound only after a tap: the first tap anywhere allows the chime
+  useEffect(() => {
+    const go = () => { unlockSound(); window.removeEventListener('pointerdown', go); };
+    window.addEventListener('pointerdown', go);
+    return () => window.removeEventListener('pointerdown', go);
+  }, []);
 
 
   if (a.session === undefined) return null;
@@ -93,7 +104,7 @@ function Screens() {
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
     { id: 'production', label: t('Production'), Icon: CookingPot, show: hasProfit },
-    { id: 'catering', label: t('Traiteur'), Icon: ChefHat, show: hasPos || hasProfit },
+    { id: 'catering', label: t('Traiteur'), Icon: ChefHat, show: hasPos || hasProfit || r?.site_plan === 'premium' || siteReqs.length > 0 },
     { id: 'stock', label: t('Inventaire'), Icon: ClipboardList, show: hasProfit },
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
@@ -142,6 +153,7 @@ function Screens() {
             <button key={n.id} onClick={() => { setPage(n.id); setNavOpen(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-[15px] font-semibold transition [@media(max-height:820px)]:py-2 ${current === n.id ? 'gold-fill text-brand-ink' : 'text-white/60 hover:bg-white/[0.06] hover:text-white'}`}>
               <n.Icon className="h-5 w-5" />{n.label}
+              {n.id === 'catering' && siteReqs.length > 0 && <span className="ms-auto grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1.5 text-xs font-bold text-white" aria-label={t('{n} nouvelles demandes du site', { n: siteReqs.length })}>{siteReqs.length}</span>}
             </button>
           ))}
         </nav>
@@ -157,10 +169,11 @@ function Screens() {
       {navOpen && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setNavOpen(false)} />}
       <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="night no-print sticky top-0 z-20 flex items-center gap-3 px-4 py-2.5 md:hidden">
-          <button onClick={() => setNavOpen(true)} aria-label={t('Menu')} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10"><MenuIcon className="h-5 w-5" /></button>
+          <button onClick={() => setNavOpen(true)} aria-label={t('Menu')} className="relative grid h-10 w-10 place-items-center rounded-xl bg-white/10"><MenuIcon className="h-5 w-5" />{siteReqs.length > 0 && <span className="absolute -end-1 -top-1 h-3 w-3 rounded-full border-2 border-night bg-danger" />}</button>
           <span className="me-auto font-display text-lg font-semibold">{r?.name}</span>
           <LangSwitch dark />
         </div>
+        {r && <div className="no-print"><SiteRequestBanner rows={siteReqs} onOpen={id => { setCatOpen(id); setPage('catering'); setNavOpen(false); }} /></div>}
         <div className="rise mx-auto max-w-6xl p-4 md:p-10" key={current}>
           {!r && !a.isAdmin && <p className="text-muted">{t('Ce compte ne gère aucun restaurant.')}</p>}
           {r && r.status === 'paused' && <p className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">{t('Abonnement suspendu : consultation seulement.')}</p>}
@@ -174,7 +187,7 @@ function Screens() {
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
-          {r && current === 'catering' && <CateringPage key={r.id} r={r} />}
+          {r && current === 'catering' && <CateringPage key={r.id} r={r} openId={catOpen} onOpened={() => setCatOpen(null)} />}
           {r && current === 'production' && <ProductionPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'stock' && <StockPage key={r.id} r={r} />}
           {r && current === 'team' && <TeamPage key={r.id} r={r} />}

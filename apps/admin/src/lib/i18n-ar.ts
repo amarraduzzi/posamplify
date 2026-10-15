@@ -1986,4 +1986,9 @@ export const AR: Record<string, string> = {
   "Une photo et une phrase du chef ou de la patronne. Laissez vide pour ne pas afficher ce bloc.": "صورة وجملة من الشيف أو صاحبة المحل. اتركوه فارغا لإخفاء هذا الجزء.",
   "Votre histoire": "قصتكم",
   "Votre phrase (facultatif)": "جملتكم (اختياري)",
+  "Nouvelle demande du site": "طلب جديد من الموقع",
+  "Ouvrir": "فتح",
+  "merci pour votre demande pour le {d}. Nous préparons votre devis et revenons vers vous très vite.": "شكرا على طلبكم ليوم {d}. نحضر عرض السعر وسنعود إليكم قريبا جدا.",
+  "{n} nouvelles demandes du site": "{n} طلبات جديدة من الموقع",
+  "{n} pers.": "{n} أشخاص",
 };

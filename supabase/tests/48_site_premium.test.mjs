@@ -37,3 +37,14 @@ test('a request from the website becomes a quote; limits and traps', async () =>
   // anonymous visitors still cannot read catering orders
   await assert.rejects(as(null, `select count(*) from public.catering_orders`), /permission denied/);
 });
+
+test('a website request arrives unseen; the owner marks it seen; own orders are seen', async () => {
+  const unseen = await as(w.users.ownerA, `select count(*)::int n from public.catering_orders where restaurant_id = $1 and source = 'site' and seen_at is null`, [rid]);
+  assert.ok(unseen[0].n >= 1);
+  await as(w.users.ownerA, `update public.catering_orders set seen_at = now() where restaurant_id = $1 and source = 'site'`, [rid]);
+  assert.equal((await sql(`select count(*)::int n from public.catering_orders where restaurant_id = $1 and seen_at is null`, [rid]))[0].n, 0);
+  const d = await day();
+  await as(w.users.ownerA, `insert into public.catering_orders (restaurant_id, number, customer_name, event_date) values ($1, 0, 'Client direct', $2)`, [rid, d]);
+  const [m] = await sql(`select seen_at from public.catering_orders where restaurant_id = $1 and customer_name = 'Client direct'`, [rid]);
+  assert.ok(m.seen_at);
+});
