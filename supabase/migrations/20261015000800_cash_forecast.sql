@@ -97,7 +97,7 @@ begin
 
   -- 3. day by day
   create temp table if not exists _cf_out (d date, kind text, name text, amount bigint) on commit drop;
-  delete from _cf_out;
+  delete from _cf_out where true;  -- Supabase refuses a DELETE without WHERE
   -- fixed costs: on their day of the month, else spread over the days
   insert into _cf_out
   select c.d, case when f.frequency = 'month' and f.due_day is not null then 'fixed_day' else 'fixed' end, f.name,
