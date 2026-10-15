@@ -7,6 +7,7 @@ import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from '../components/ui';
+import { CashForecast } from '../components/CashForecast';
 
 // i18n:values
 const CATS: Record<string, string> = {
@@ -20,7 +21,7 @@ const COGS: Record<string, string> = {
 };
 // i18n:end
 
-interface Fixed { id: string; name: string; category: string; amount_cents: number; frequency: 'month' | 'year' | 'week'; active: boolean }
+interface Fixed { id: string; name: string; category: string; amount_cents: number; frequency: 'month' | 'year' | 'week'; active: boolean; due_day: number | null }
 interface Month {
   month: string; days_in_month: number; days_gone: number; days_open: number; uses_pos: boolean; revenue_source: 'pos' | 'manual' | null;
   revenue_ttc_cents: number; revenue_ht_cents: number; revenue_today_ttc_cents: number;
@@ -182,7 +183,7 @@ export function ChargesPage({ r }: { r: Restaurant }) {
                   <li key={c.id} className={`flex items-center gap-3 py-2.5 ${c.active ? '' : 'opacity-40'}`}>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{c.name}</p>
-                      <p className="text-xs text-muted">{t(CATS[c.category] ?? 'Autre')} · {mad(c.amount_cents)} {t(FREQ[c.frequency])}</p>
+                      <p className="text-xs text-muted">{t(CATS[c.category] ?? 'Autre')} · {mad(c.amount_cents)} {t(FREQ[c.frequency])}{c.frequency === 'month' && c.due_day ? ` · ${t('le {d}', { d: c.due_day })}` : ''}</p>
                     </div>
                     <span className="text-end font-semibold tabular">{mad(Math.round(monthly(c)))}<span className="block text-[11px] font-normal text-muted">{t('par mois')}</span></span>
                     <button aria-label={t('Modifier')} onClick={() => setEdit(c)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2"><Pencil className="h-4 w-4" /></button>
@@ -199,6 +200,7 @@ export function ChargesPage({ r }: { r: Restaurant }) {
             )}
           </section>
         </div>
+        {isNow && <CashForecast key={costs.map(c => `${c.id}${c.amount_cents}${c.due_day}${c.active}`).join()} r={r} />}
       </>)}
 
       {edit && <CostEditor r={r} cost={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
@@ -222,12 +224,14 @@ function CostEditor({ r, cost, onClose, onSaved }: { r: Restaurant; cost: Fixed 
   const [amount, setAmount] = useState(fromCents(cost?.amount_cents));
   const [frequency, setFrequency] = useState<Fixed['frequency']>(cost?.frequency ?? 'month');
   const [active, setActive] = useState(cost?.active ?? true);
+  const [dueDay, setDueDay] = useState(cost?.due_day ? String(cost.due_day) : '');
   const [busy, setBusy] = useState(false);
   const save = async () => {
     const nm = name.trim() || t(CATS[category]);
     if (!amount.trim()) { a.toast(t('Indiquez le montant.'), 'error'); return; }
     setBusy(true);
-    const row = { name: nm, category, amount_cents: toCents(amount), frequency, active };
+    const dd = Math.round(Number(dueDay));
+    const row = { name: nm, category, amount_cents: toCents(amount), frequency, active, due_day: frequency === 'month' && dd >= 1 && dd <= 31 ? dd : null };
     try {
       if (cost) check(await supabase.from('fixed_costs').update(row).eq('id', cost.id).select('id'));
       else check(await supabase.from('fixed_costs').insert({ ...row, restaurant_id: r.id }).select('id'));
@@ -253,6 +257,11 @@ function CostEditor({ r, cost, onClose, onSaved }: { r: Restaurant; cost: Fixed 
             </select>
           </Field>
         </div>
+        {frequency === 'month' && (
+          <Field label={t('Jour de paiement (facultatif)')} hint={t('Le jour du mois où cet argent sort, par exemple 5 pour le loyer. Sert à la prévision de trésorerie.')}>
+            <span className="block w-24"><input className={inputCls} inputMode="numeric" value={dueDay} onChange={e => setDueDay(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="5" /></span>
+          </Field>
+        )}
         {category === 'salaires' && <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Indiquez le total des salaires nets ou bruts de l’équipe. Les charges patronales (CNSS, AMO) peuvent être ajoutées à part.')}</p>}
         {cost && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} /> {t('Toujours en cours')}</label>}
       </div>
