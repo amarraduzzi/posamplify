@@ -20,6 +20,7 @@ const THEMES: { k: Site['theme']; name: string; text: string; sw: [string, strin
   { k: 'moderne', name: 'Moderne', text: 'Clair, grandes cartes photo. Pour un snack, un brunch ou une chaîne.', sw: ['#FFFFFF', '#F2F2EE', '#2540C9'] },
   { k: 'atelier', name: 'Atelier', text: 'Une vitrine de pâtisserie : produits sur assiettes, prix au kilo, devis traiteur. Pour une pâtisserie, une boulangerie ou un traiteur.', sw: ['#FFFCF7', '#F5EFE6', '#557F3E'] },
   { k: 'maison', name: 'Maison', text: 'Un magazine : votre histoire en chapitres, le mot du chef, trois plats recommandés et un formulaire pour les groupes et les événements.', sw: ['#F1EFE9', '#1F2420', '#2F3FA3'], premium: true },
+  { k: 'signature', name: 'Signature', text: 'Un film : grande vidéo ou photo en ouverture, votre histoire en scènes, trois plats en plein cadre, le mot du chef et un formulaire pour les événements. Pour un lieu du soir ou une belle table.', sw: ['#0E1512', '#ECE6D8', '#A9D8BE'], premium: true },
 ];
 const PRICES: [string, string][] = [['', '–'], ['$', 'Abordable'], ['$$', 'Moyen'], ['$$$', 'Haut de gamme']];
 // i18n:end
@@ -101,11 +102,11 @@ export function SitePage({ r }: { r: Restaurant }) {
             ))}
             {(s.gallery ?? []).length < 6 && <ImageField url={null} onChange={u => u && set({ gallery: [...(s.gallery ?? []), u] })} upload={f => uploadImage(r.id, 'site', f, 1600)} />}
           </div>
-          {s.theme === 'nuit' && <div className="mt-4"><Field label={t('Vidéo d’accueil (facultatif)')}><input className={inputCls} dir="ltr" value={s.video_url ?? ''} onChange={e => set({ video_url: e.target.value.trim() })} placeholder="https://…/video.mp4" /></Field>
+          {(s.theme === 'nuit' || s.theme === 'signature') && <div className="mt-4"><Field label={t('Vidéo d’accueil (facultatif)')}><input className={inputCls} dir="ltr" value={s.video_url ?? ''} onChange={e => set({ video_url: e.target.value.trim() })} placeholder="https://…/video.mp4" /></Field>
             <p className="mt-1 text-xs text-muted">{t('Une vidéo courte et sans son, en .mp4, moins de 8 Mo. Elle tourne en boucle en haut du site. La photo de couverture s’affiche pendant le chargement.')}</p></div>}
         </Card>
 
-        {premium && s.theme === 'maison' && <SitePremium r={r} s={s} set={set} />}
+        {premium && (s.theme === 'maison' || s.theme === 'signature') && <SitePremium r={r} s={s} set={set} />}
 
         <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Commandes sur WhatsApp')}</h2>
@@ -163,6 +164,7 @@ export function ThemePicker({ value, onChange, premium }: { value?: Site['theme'
           {th.k === 'nuit' && <div className="flex flex-1 flex-col justify-end rounded-lg p-1.5" style={{ background: `linear-gradient(180deg, ${th.sw[1]}, #000)` }}><div className="h-3 w-2/3 rounded-sm" style={{ background: '#ECE4D6' }} /><div className="mt-1 h-1.5 w-1/3 rounded-full" style={{ background: th.sw[2] }} /></div>}
           {th.k === 'atelier' && <div className="flex flex-1 flex-col"><div className="h-3 rounded-t-sm" style={{ background: `repeating-linear-gradient(90deg, ${th.sw[2]} 0 10px, #DCE7D3 10px 20px)` }} /><div className="flex flex-1 items-center justify-around"><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#E8D9C2' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#D9B98C' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#C99A6A' }} /></div></div>}
           {th.k === 'moderne' && <><div className="flex-[2] rounded-lg" style={{ background: '#16181D' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="flex-1 rounded-lg" style={{ background: th.sw[2] }} /></div></>}
+          {th.k === 'signature' && <div className="relative flex flex-1 flex-col justify-end overflow-hidden rounded-sm" style={{ background: 'linear-gradient(180deg,#3A4A3F,#0E1512)' }}><div className="absolute inset-x-0 top-0 h-2" style={{ background: th.sw[0] }} /><div className="absolute inset-x-0 bottom-0 h-2" style={{ background: th.sw[0] }} /><div className="mx-auto mb-3 h-2.5 w-3/5 rounded-sm" style={{ background: th.sw[1] }} /></div>}
           {th.k === 'maison' && <div className="flex flex-1 flex-col gap-1.5"><div className="h-3 w-4/5 rounded-sm" style={{ background: th.sw[1] }} /><div className="h-px" style={{ background: th.sw[1] }} /><div className="flex flex-1 gap-1.5"><div className="flex-[2] rounded-sm" style={{ background: '#C9B99A' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-sm" style={{ background: '#A8987A' }} /><div className="flex-1 rounded-sm" style={{ background: th.sw[2] }} /></div></div></div>}
         </div>
         <p className="flex items-center gap-2 font-semibold">{t(th.name)}{th.premium && <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand">{locked ? <Lock className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}{t('Premium')}</span>}</p>

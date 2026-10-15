@@ -1989,4 +1989,7 @@ export const EN: Record<string, string> = {
   "merci pour votre demande pour le {d}. Nous préparons votre devis et revenons vers vous très vite.": "thank you for your request for {d}. We are preparing your quote and will get back to you very soon.",
   "{n} nouvelles demandes du site": "{n} new website requests",
   "{n} pers.": "{n} people",
+  "Signature": "Signature",
+  "signature": "signature",
+  "Un film : grande vidéo ou photo en ouverture, votre histoire en scènes, trois plats en plein cadre, le mot du chef et un formulaire pour les événements. Pour un lieu du soir ou une belle table.": "A film: a large video or photo to open, your story in scenes, three dishes in full frame, a word from the chef and a form for events. For an evening venue or a fine table.",
 };

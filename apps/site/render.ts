@@ -25,7 +25,7 @@ export interface SiteData {
   categories: { id: string; name: I18n; icon: string | null }[];
   items: SiteItem[];
   site: {
-    theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
+    theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison' | 'signature'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
     video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean; catering?: boolean;
     story?: { title?: I18n; text?: I18n; image?: string }[]; chef?: { name?: string; role?: I18n; text?: I18n; photo?: string };
     signatures?: { item_id: string; text?: I18n }[]; request?: boolean;
@@ -37,8 +37,8 @@ export interface SiteData {
 }
 export interface Ctx { base: string; origin: string; lang: string; menuUrl: string; now?: Date }
 type Lang = 'fr' | 'en' | 'ar';
-type Theme = 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison';
-const PREMIUM: Theme[] = ['maison'];
+type Theme = 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison' | 'signature';
+const PREMIUM: Theme[] = ['maison', 'signature'];
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const safeUrl = (u?: string | null) => (u && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : '');
@@ -91,6 +91,9 @@ const THEMES: Record<Theme, { bg: string; surface: string; line: string; ink: st
   // lime-washed plaster, olive-black ink, Majorelle blue, a little saffron
   maison: { bg: '#F1EFE9', surface: '#E7E3D9', line: 'rgba(31,36,32,.14)', ink: '#1F2420', muted: '#5E625A', accent: '#2F3FA3', accentInk: '#F1EFE9', gold: '#C49A3A',
     display: "'Gloock', Georgia, serif", displayAr: "'Amiri', serif", fonts: 'family=Gloock&family=Amiri:wght@400;700', dark: false },
+  // mint tea at night: green-black, cream, a pale mint for prices and actions
+  signature: { bg: '#0E1512', surface: '#17211C', line: 'rgba(236,230,216,.13)', ink: '#ECE6D8', muted: '#A0AAA1', accent: '#A9D8BE', accentInk: '#0E1512', gold: '#D4B483',
+    display: "'Instrument Serif', Georgia, serif", displayAr: "'Amiri', serif", fonts: 'family=Instrument+Serif:ital@0;1&family=Amiri:wght@400;700', dark: true },
 };
 
 // a zellige tile: an eight-pointed star in a square lattice
@@ -146,7 +149,7 @@ const icon = (n: string, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" 
 function css(k: Theme, th: typeof THEMES.nuit, accent: string, rtl: boolean) {
   const disp = rtl ? th.displayAr : th.display;
   return `
-:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : k === 'atelier' ? '18px' : k === 'maison' ? '4px' : '2px'}}
+:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : k === 'atelier' ? '18px' : k === 'maison' ? '4px' : k === 'signature' ? '3px' : '2px'}}
 *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font:16px/1.6 ${rtl ? "'IBM Plex Sans Arabic'," : ''}'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}img,video{display:block;max-width:100%}button,input,textarea{font:inherit;color:inherit}
@@ -227,7 +230,7 @@ dialog::backdrop{background:rgba(10,8,6,.55);backdrop-filter:blur(3px)}
 .hint{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
 .vr{display:flex;justify-content:space-between;align-items:center;width:100%;padding:16px;margin-bottom:8px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;text-align:start}
 .star{width:18px;height:18px;color:var(--gold)}
-${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : k === 'atelier' ? atelierCss() : k === 'maison' ? maisonCss() : modCss()}
+${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : k === 'atelier' ? atelierCss() : k === 'maison' ? maisonCss() + requestCss() : k === 'signature' ? signatureCss() + requestCss() : modCss()}
 @media (max-width:860px){.links{display:none}.info,.ordr{grid-template-columns:1fr}.nav .btn{display:none}.bar{display:flex}section{padding:68px 0}.ordr{padding:32px}.card{padding:24px}.has-cart .bar{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 `;
@@ -413,6 +416,90 @@ function atelierCss() {
 @media (max-width:420px){.t-atelier .dish h3{font-size:16px}.t-atelier .price{padding:4px 10px 4px 20px;font-size:14px}}
 `;
 }
+/** The request form of the premium styles (groups, private events, catering). */
+function requestCss() {
+  return `
+/* request form */
+.rq{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:start}
+.rq form{background:var(--surface);border-radius:var(--r);padding:30px}
+.rq .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.rq .seg{flex-wrap:wrap}.rq .seg label{flex:1 1 40%}
+.rq .ok{display:none;padding:22px;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-weight:600}.rq .ok .btn{margin-top:16px}
+.rq form.done{display:none}.rq form.done+.ok{display:block}
+.rq .er{color:#B42318;font-size:14px;margin-top:10px;min-height:20px}
+.hp{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0;pointer-events:none}
+@media (max-width:860px){.rq{grid-template-columns:1fr;gap:28px}.rq form{padding:20px}}
+`;
+}
+
+function signatureCss() {
+  return `
+.t-signature{color-scheme:dark}
+.t-signature h1,.t-signature h2,.t-signature h3{font-weight:400;letter-spacing:-.01em}
+.t-signature .brand{font-size:26px;font-weight:400}
+.t-signature .btn{border-radius:var(--r)}.t-signature .btn.g{background:transparent}
+.t-signature .h2{font-size:clamp(40px,5.6vw,72px)}
+.t-signature .sh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:44px}
+/* the opening shot: a full frame whose black bars open to cinema format */
+.sgh{padding:0}
+.sgh .fr{position:relative;height:calc(100svh - 66px);min-height:520px;overflow:hidden;background:#050806}
+.sgh .fr.e{height:62vh}
+.sgh .m{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:sgz 2.6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes sgz{from{transform:scale(1.07)}}
+.sgh .fr:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(5,8,6,.82))}
+.lb:before,.lb:after{content:'';position:absolute;z-index:2;inset-inline:0;height:6.5vh;background:var(--bg);animation:lbo 1.5s cubic-bezier(.7,0,.2,1) .25s both}
+.lb:before{top:0}.lb:after{bottom:0}
+@keyframes lbo{from{height:50.5%}}
+.cap{position:absolute;z-index:1;inset-inline:0;bottom:calc(6.5vh + 34px);text-align:center;padding:0 20px;color:#F6F1E6;animation:capin 1s ease 1.3s both}
+@keyframes capin{from{opacity:0}}
+.cap h1{font-size:clamp(58px,10.5vw,168px);line-height:.9;letter-spacing:-.02em;overflow-wrap:anywhere}
+.cap .sub{font-family:var(--display);font-style:italic;font-size:clamp(19px,2.2vw,26px);margin-top:14px;opacity:.9}
+.sgb{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:18px;padding-block:26px;border-bottom:1px solid var(--line)}
+.sgb .chips{display:flex;flex-wrap:wrap;gap:8px}.sgb .chip{border:1px solid var(--line)}
+/* the story: the frame stays, the scenes scroll past it */
+.sgs .h2{margin-bottom:28px}
+.sc{display:grid;grid-template-columns:1fr 1fr;gap:72px}
+.stage{position:sticky;top:96px;height:calc(100vh - 140px);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.04);transition:opacity .9s,transform 1.6s}
+.stage img.on{opacity:1;transform:none}
+.scene{min-height:78vh;display:flex;flex-direction:column;justify-content:center}
+.scene .mob{display:none}
+.scene .n{font-family:var(--display);font-style:italic;font-size:clamp(72px,8vw,120px);line-height:.9;color:var(--accent)}
+.scene .lbl{display:block;margin-top:10px;font-size:14px;font-weight:700;color:var(--muted)}
+.scene h3{font-size:clamp(34px,3.8vw,52px);margin-top:10px}
+.scene p{margin-top:16px;font-size:18px;color:var(--muted);max-width:46ch;white-space:pre-line}
+/* the house recommends: three film stills */
+.still{margin:0 0 84px}.still:last-child{margin-bottom:0}
+.still img{width:100%;aspect-ratio:21/9;object-fit:cover;border-radius:var(--r)}
+.still figcaption{text-align:center;max-width:58ch;margin:26px auto 0}
+.still h3{font-size:clamp(32px,3.6vw,48px)}
+.still p{margin-top:10px;color:var(--muted);font-family:var(--display);font-style:italic;font-size:21px;white-space:pre-line}
+.still .ft{display:inline-flex;align-items:center;gap:14px;margin-top:16px}
+.js .rv{opacity:.2;transform:scale(.97);transition:opacity 1.1s,transform 1.4s cubic-bezier(.2,.8,.2,1)}.js .rv.in{opacity:1;transform:none}
+/* the chef, full frame */
+.sgc{position:relative;min-height:86vh;display:flex;align-items:flex-end;padding:0;overflow:hidden;background:#050806}
+.sgc .bgp{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62}
+.sgc:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,8,6,.9) 0%,rgba(5,8,6,.35) 70%),linear-gradient(0deg,rgba(5,8,6,.7),transparent 50%)}
+.sgc .w{position:relative;z-index:1;padding-block:96px;width:100%}
+.sgc blockquote{font-family:var(--display);font-style:italic;font-size:clamp(34px,4.6vw,64px);line-height:1.08;max-width:20ch;white-space:pre-line;color:#F6F1E6}
+.sgc .who{margin-top:28px;font-weight:700;color:#F6F1E6}.sgc .who span{display:block;font-weight:500;opacity:.7}
+/* the card */
+.sgcard{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px 56px}
+.sgcard h3{font-size:32px;font-style:italic;color:var(--accent);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.sgcard .ln{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}.sgcard .nm{font-weight:600}
+.t-signature .ordr{background:var(--surface);color:var(--ink);border:1px solid var(--line)}.t-signature .ordr .btn{background:var(--accent);color:var(--accent-ink)}
+.t-signature .rq .fld input,.t-signature .rq .fld textarea{background:var(--bg)}.t-signature .rq .er{color:#F2A093}
+/* gallery: a strip of film */
+.sgf .h2{margin-bottom:30px}.t-signature #infos{padding-top:24px}
+.film{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:30px max(20px,calc((100vw - 1120px)/2));scroll-padding-inline:max(20px,calc((100vw - 1120px)/2));background:repeating-linear-gradient(90deg,#26302A 0 12px,transparent 12px 26px) left 9px/100% 9px no-repeat,repeating-linear-gradient(90deg,#26302A 0 12px,transparent 12px 26px) left calc(100% - 9px)/100% 9px no-repeat,#050806;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
+.film img{height:min(46vw,320px);aspect-ratio:3/2;object-fit:cover;border-radius:2px;flex:none;scroll-snap-align:start}
+.t-signature .mi .n{font-family:var(--display);font-size:24px;font-weight:400}
+.t-signature .mcat>h2{font-style:italic}
+@media (max-width:860px){.sc{grid-template-columns:1fr;gap:0}.stage{display:none}.scene{min-height:0;padding:26px 0 44px}.scene .mob{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:var(--r);margin-bottom:22px}.still{margin-bottom:56px}.still img{aspect-ratio:16/10}.sgc{min-height:78vh}.sgc .bgp{opacity:.5}.sgb{flex-direction:column;align-items:flex-start}.cap{bottom:calc(6.5vh + 22px)}}
+@media (prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none}.stage img{transition:none}}
+`;
+}
+
 function maisonCss() {
   return `
 .t-maison h1,.t-maison h2,.t-maison h3{font-weight:400;letter-spacing:-.01em}
@@ -461,15 +548,6 @@ function maisonCss() {
 .crd .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 64px}
 .crd h3{grid-column:1/-1;font-size:28px;margin:18px 0 6px;color:var(--accent)}.crd h3:first-child{margin-top:0}
 .crd .ln{display:flex;align-items:baseline;gap:10px;padding:8px 0}.crd .ln .nm{font-weight:600}.crd .ln .ld{flex:1;border-bottom:1px solid var(--line);transform:translateY(-4px);min-width:16px}
-/* request form */
-.rq{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:start}
-.rq form{background:var(--surface);border-radius:var(--r);padding:30px}
-.rq .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
-.rq .seg{flex-wrap:wrap}.rq .seg label{flex:1 1 40%}
-.rq .ok{display:none;padding:22px;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-weight:600}.rq .ok .btn{margin-top:16px}
-.rq form.done{display:none}.rq form.done+.ok{display:block}
-.rq .er{color:#B42318;font-size:14px;margin-top:10px;min-height:20px}
-.hp{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0;pointer-events:none}
 .t-maison .gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:220px;gap:14px}
 .t-maison .gal img{width:100%;height:100%;object-fit:cover;border-radius:var(--r)}.t-maison .gal img:first-child{grid-column:span 2;grid-row:span 2}.t-maison .gal.n4 img:last-child,.t-maison .gal.n3 img:not(:first-child){grid-column:span 2}.t-maison #infos{padding-top:24px}
 .t-maison .ordr{background:var(--accent);border-radius:var(--r)}
@@ -479,7 +557,7 @@ function maisonCss() {
 .t-maison .mi .n{font-family:var(--display);font-size:22px;font-weight:400}
 .t-maison .mi .n .ld{flex:1;border-bottom:1px solid var(--line);transform:translateY(-6px);min-width:20px}.t-maison .mi .n .nm{flex:0 1 auto}
 .t-maison .mi .price{color:var(--ink);font-family:'Manrope',sans-serif;font-size:16px}
-@media (max-width:860px){.mh .row2{grid-template-columns:1fr;gap:20px}.mh .side{align-items:flex-start}.mh .chips{justify-content:flex-start}.col{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;height:auto}.col img:first-child,.col .e:first-child{grid-column:1/-1;grid-row:auto;aspect-ratio:4/3}.col img,.col .e{aspect-ratio:1}.chs{gap:64px}.ch{grid-template-columns:1fr;gap:26px}.ch:nth-child(even) .ci{order:0}.recs{grid-template-columns:1fr}.rec:first-child{grid-template-columns:1fr;gap:18px}.chef .w{grid-template-columns:1fr;gap:32px}.chef img{width:70%}.crd{padding:28px 20px}.crd .cols{grid-template-columns:1fr}.rq{grid-template-columns:1fr;gap:28px}.rq form{padding:20px}.t-maison .gal{grid-template-columns:1fr 1fr;grid-auto-rows:150px}.t-maison .mlist{grid-template-columns:minmax(0,1fr)}.t-maison .mi .n{flex-wrap:wrap;row-gap:2px}.t-maison .mi .n .nm{flex:1 1 100%}.t-maison .mi .ld{display:none}}
+@media (max-width:860px){.mh .row2{grid-template-columns:1fr;gap:20px}.mh .side{align-items:flex-start}.mh .chips{justify-content:flex-start}.col{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;height:auto}.col img:first-child,.col .e:first-child{grid-column:1/-1;grid-row:auto;aspect-ratio:4/3}.col img,.col .e{aspect-ratio:1}.chs{gap:64px}.ch{grid-template-columns:1fr;gap:26px}.ch:nth-child(even) .ci{order:0}.recs{grid-template-columns:1fr}.rec:first-child{grid-template-columns:1fr;gap:18px}.chef .w{grid-template-columns:1fr;gap:32px}.chef img{width:70%}.crd{padding:28px 20px}.crd .cols{grid-template-columns:1fr}.t-maison .gal{grid-template-columns:1fr 1fr;grid-auto-rows:150px}.t-maison .mlist{grid-template-columns:minmax(0,1fr)}.t-maison .mi .n{flex-wrap:wrap;row-gap:2px}.t-maison .mi .n .nm{flex:1 1 100%}.t-maison .mi .ld{display:none}}
 @media (prefers-reduced-motion:reduce){.js .rv{clip-path:none;opacity:1}}
 `;
 }
@@ -604,7 +682,7 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
   const track = `<script>(()=>{const E=${JSON.stringify(`${c.base}/e`)},M=${JSON.stringify(c.menuUrl).replace(/</g, '\\u003c')},S='v:'+${JSON.stringify(r.slug)};const s=k=>{try{navigator.sendBeacon?navigator.sendBeacon(E,k):fetch(E,{method:'POST',body:k,keepalive:true})}catch(e){}};window.__ev=s;if(navigator.webdriver)return;
 let seen=0;try{seen=sessionStorage.getItem(S);sessionStorage.setItem(S,1)}catch(e){}if(!seen)s('view');${page === 'menu' ? "s('menu');" : ''}
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.href;if(h.startsWith('tel:'))s('call');else if(/google\\.[a-z.]+\\/maps|maps\\.app\\.goo\\.gl|goo\\.gl\\/maps/.test(h))s('directions');else if(h.startsWith(M))s(/reserver/.test(h)?'book':'order')},true)})()</script>`;
-  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}${k === 'maison' && page === 'home' ? MAISON_JS : ''}${track}</body></html>`;
+  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}${(k === 'maison' || k === 'signature') && page === 'home' ? PREMIUM_JS : ''}${track}</body></html>`;
 
   if (page === 'menu') {
     const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id));
@@ -630,6 +708,27 @@ ${d.can_order ? `<section><div class="ordr"><div><h2>${t.order}</h2><p>${t.order
 </div></section>`;
   const orderBlock = d.can_order || wa ? `<section><div class="w"><div class="ordr"><div><h2>${d.can_order ? t.order : t.orderWa}</h2><p>${d.can_order ? t.orderNote : t.waNote}</p></div><a class="btn" href="${esc(d.can_order ? orderUrl : menuHref)}">${icon(d.can_order ? 'bag' : 'wa')}${t.orderShort}</a></div></div></section>` : '';
   const fullMenuBtn = `<a class="btn g" href="${esc(menuHref)}">${t.fullMenu}</a>`;
+
+  // ---------- shared by the premium styles (Maison, Signature) ----------
+  const pics = [cover, ...gal].filter((u, i, a) => u && a.indexOf(u) === i) as string[];
+  const story = (d.site.story ?? []).filter(x => L(x.title) || L(x.text)).slice(0, 4);
+  const chapters = story.length ? story : about ? [{ title: { [lang]: t.about }, text: { [lang]: about }, image: pics[1] }] : [];
+  const byId = new Map(items.map(i => [i.id, i]));
+  const recs = (d.site.signatures ?? []).map(x => ({ it: byId.get(x.item_id), text: L(x.text) })).filter(x => x.it && x.it.available) as { it: SiteItem; text: string }[];
+  const recList = recs.length ? recs.slice(0, 3) : sig.slice(0, 3).map(it => ({ it, text: L(it.description) }));
+  const chef = d.site.chef;
+  const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id && i.available)).slice(0, 3);
+  const tag = (i: number) => String(i + 1).padStart(2, '0');
+  const words = r.name.split(/\s+/).map(w2 => esc(w2));
+  const reqOn = d.site.request !== false;
+  // after sending, the guest can also tell the restaurant on WhatsApp (an instant alert on its phone)
+  const reqWa = waNumber(d.site.whatsapp || r.phone);
+  const reqSection = reqOn ? `<section id="demande" style="padding-top:0"><div class="w rq"><div><h2 class="h2">${t.reqTitle}</h2><p class="lead" style="margin-top:18px">${t.reqText}</p>${tel ? `<div class="row"><a class="btn g" href="tel:${esc(tel)}">${icon('phone')}${t.call}</a></div>` : ''}</div>
+<div><form id="rqf" data-u="${esc(`${c.base}/demande`)}" novalidate><div class="seg" role="radiogroup">${['group', 'private', 'catering', 'other'].map((x, i) => `<label><input type="radio" name="kind" value="${x}"${i ? '' : ' checked'}>${t.kinds[x]}</label>`).join('')}</div>
+<div class="grid"><label class="fld"><span>${t.fName}</span><input name="name" required maxlength="80" autocomplete="name"></label><label class="fld"><span>${t.fPhone}</span><input name="phone" required inputmode="tel" maxlength="20" autocomplete="tel" dir="ltr"></label>
+<label class="fld"><span>${t.fDate}</span><input name="date" type="date" required></label><label class="fld"><span>${t.fGuests}</span><input name="guests" inputmode="numeric" maxlength="4"></label></div>
+<label class="fld"><span>${t.fMsg}</span><textarea name="message" rows="3" maxlength="800"></textarea></label><label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+<button class="btn p" type="submit" style="width:100%;min-height:52px">${t.fSend}</button><p class="er" role="status" data-e="${esc(t.fErr)}" data-m="${esc(t.fMany)}"></p></form><div class="ok" role="status"><p>${t.fSent}</p>${reqWa ? `<a class="btn wa" id="rqwa" href="https://wa.me/${esc(reqWa)}" data-m="${esc(t.reqWaMsg)}" target="_blank" rel="noopener">${icon('wa')}${t.reqWa}</a>` : ''}</div></div></div></section>` : '';
 
   let body = '';
   if (k === 'riad') {
@@ -665,19 +764,6 @@ ${orderBlock}
 ${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:34px">${t.gallery}</h2><div class="gal">${gal.slice(0, 6).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
 ${infos}`;
   } else if (k === 'maison') {
-    const pics = [cover, ...gal].filter((u, i, a) => u && a.indexOf(u) === i) as string[];
-    const story = (d.site.story ?? []).filter(x => L(x.title) || L(x.text)).slice(0, 4);
-    const chapters = story.length ? story : about ? [{ title: { [lang]: t.about }, text: { [lang]: about }, image: pics[1] }] : [];
-    const byId = new Map(items.map(i => [i.id, i]));
-    const recs = (d.site.signatures ?? []).map(x => ({ it: byId.get(x.item_id), text: L(x.text) })).filter(x => x.it && x.it.available) as { it: SiteItem; text: string }[];
-    const recList = recs.length ? recs.slice(0, 3) : sig.slice(0, 3).map(it => ({ it, text: L(it.description) }));
-    const chef = d.site.chef;
-    const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id && i.available)).slice(0, 3);
-    const tag = (i: number) => String(i + 1).padStart(2, '0');
-    const words = r.name.split(/\s+/).map(w2 => esc(w2));
-    const reqOn = d.site.request !== false;
-    // after sending, the guest can also tell the restaurant on WhatsApp (an instant alert on its phone)
-    const reqWa = waNumber(d.site.whatsapp || r.phone);
     body = `<div class="w mh"><h1 dir="auto">${words.map((w2, i) => `<span style="animation-delay:${120 + i * 110}ms">${w2}</span>`).join(' ')}</h1>
 <div class="row2">${tagline ? `<p class="t">${esc(tagline)}</p>` : `<p class="t">${esc([d.site.cuisine, r.city].filter(Boolean).join(', '))}</p>`}
 <div class="side"><div class="chips">${openChip}${todayHours ? `<span class="chip">${icon('clock')}${t.today} <span dir="ltr">${esc(todayHours)}</span></span>` : ''}${hhChip}</div>${ctas(true)}</div></div></div>
@@ -690,13 +776,25 @@ ${recList.length ? `<section style="padding-top:${chapters.length ? '0' : '96px'
 ${chef && (chef.name || L(chef.text)) ? `<section class="chef"><div class="w">${safeUrl(chef.photo) ? `<img src="${esc(chef.photo)}" alt="${esc(chef.name ?? '')}" loading="lazy">` : '<div></div>'}<div>${L(chef.text) ? `<blockquote>${esc(L(chef.text))}</blockquote>` : ''}<p class="who">${esc(chef.name ?? '')}${L(chef.role) ? `<span>${esc(L(chef.role))}</span>` : ''}</p></div></div></section>` : ''}
 ${cats.length ? `<section style="padding-bottom:0"><div class="w"><div class="crd"><div class="cols">${cats.map(cat => `<h3>${esc(L(cat.name))}</h3>${items.filter(i => i.category_id === cat.id && i.available).slice(0, 6).map(i => `<div class="ln"><span class="nm">${esc(L(i.name))}</span><span class="ld"></span><span class="price">${priceOf(i, r, lang, t)}</span></div>`).join('')}`).join('')}</div><div style="margin-top:30px;text-align:center">${fullMenuBtn}</div></div></div></section>` : ''}
 ${orderBlock}
-${reqOn ? `<section id="demande" style="padding-top:0"><div class="w rq"><div><h2 class="h2">${t.reqTitle}</h2><p class="lead" style="margin-top:18px">${t.reqText}</p>${tel ? `<div class="row"><a class="btn g" href="tel:${esc(tel)}">${icon('phone')}${t.call}</a></div>` : ''}</div>
-<div><form id="rqf" data-u="${esc(`${c.base}/demande`)}" novalidate><div class="seg" role="radiogroup">${['group', 'private', 'catering', 'other'].map((x, i) => `<label><input type="radio" name="kind" value="${x}"${i ? '' : ' checked'}>${t.kinds[x]}</label>`).join('')}</div>
-<div class="grid"><label class="fld"><span>${t.fName}</span><input name="name" required maxlength="80" autocomplete="name"></label><label class="fld"><span>${t.fPhone}</span><input name="phone" required inputmode="tel" maxlength="20" autocomplete="tel" dir="ltr"></label>
-<label class="fld"><span>${t.fDate}</span><input name="date" type="date" required></label><label class="fld"><span>${t.fGuests}</span><input name="guests" inputmode="numeric" maxlength="4"></label></div>
-<label class="fld"><span>${t.fMsg}</span><textarea name="message" rows="3" maxlength="800"></textarea></label><label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
-<button class="btn p" type="submit" style="width:100%;min-height:52px">${t.fSend}</button><p class="er" role="status" data-e="${esc(t.fErr)}" data-m="${esc(t.fMany)}"></p></form><div class="ok" role="status"><p>${t.fSent}</p>${reqWa ? `<a class="btn wa" id="rqwa" href="https://wa.me/${esc(reqWa)}" data-m="${esc(t.reqWaMsg)}" target="_blank" rel="noopener">${icon('wa')}${t.reqWa}</a>` : ''}</div></div></div></section>` : ''}
+${reqSection}
 ${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:34px">${t.gallery}</h2><div class="gal n${Math.min(gal.length, 5)}">${gal.slice(0, 5).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
+${infos}`;
+  } else if (k === 'signature') {
+    const still = (u?: string | null, alt = '') => (safeUrl(u) ? `<img class="rv" src="${esc(u!)}" alt="${esc(alt)}" loading="lazy">` : '');
+    const media = video ? `<video class="m" autoplay muted loop playsinline preload="metadata"${cover ? ` poster="${esc(cover)}"` : ''}><source src="${esc(video)}" type="video/mp4"></video>` : pics[0] ? `<img class="m" src="${esc(pics[0])}" alt="${name}" fetchpriority="high">` : '';
+    const sub = tagline || [d.site.cuisine, r.city].filter(Boolean).join(', ');
+    const scenes = chapters.map((c2, i) => ({ ...c2, img: safeUrl(c2.image) || pics[(i + 1) % Math.max(pics.length, 1)] }));
+    body = `<section class="sgh"><div class="fr${media ? '' : ' e'}">${media}<div class="lb" aria-hidden="true"></div>
+<div class="cap"><h1 dir="auto">${name}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ''}</div></div></section>
+<div class="w sgb"><div class="chips">${openChip}${todayHours ? `<span class="chip">${icon('clock')}${t.today} <span dir="ltr">${esc(todayHours)}</span></span>` : ''}${hhChip}</div>${ctas(true)}</div>
+${scenes.length ? `<section class="sgs"><div class="w"><h2 class="h2">${t.story}</h2></div><div class="w sc"><div class="stage" aria-hidden="true">${scenes.map((x, i) => (x.img ? `<img src="${esc(x.img)}" alt="" data-i="${i}" class="${i ? '' : 'on'}" loading="lazy">` : '')).join('')}</div>
+<div class="scenes">${scenes.map((x, i) => `<article class="scene" data-i="${i}">${x.img ? `<img class="mob" src="${esc(x.img)}" alt="${esc(L(x.title))}" loading="lazy">` : ''}<span class="n" aria-hidden="true">${tag(i)}</span><span class="lbl">${t.chapter} ${i + 1}</span>${L(x.title) ? `<h3>${esc(L(x.title))}</h3>` : ''}${L(x.text) ? `<p>${esc(L(x.text))}</p>` : ''}</article>`).join('')}</div></div></section>` : ''}
+${recList.length ? `<section class="sgr"><div class="w"><div class="sh"><h2 class="h2">${t.recommends}</h2>${fullMenuBtn}</div>${recList.map(({ it, text }) => `<figure class="still">${still(it.image_url, L(it.name))}<figcaption><h3>${esc(L(it.name))}</h3>${text ? `<p>${esc(text)}</p>` : ''}<span class="ft"><span class="price">${priceOf(it, r, lang, t)}</span>${addBtn(it)}</span></figcaption></figure>`).join('')}</div></section>` : ''}
+${chef && (chef.name || L(chef.text)) ? `<section class="sgc">${safeUrl(chef.photo) ? `<img class="bgp" src="${esc(chef.photo)}" alt="${esc(chef.name ?? '')}" loading="lazy">` : ''}<div class="w">${L(chef.text) ? `<blockquote>${esc(L(chef.text))}</blockquote>` : ''}<p class="who">${esc(chef.name ?? '')}${L(chef.role) ? `<span>${esc(L(chef.role))}</span>` : ''}</p></div></section>` : ''}
+${cats.length ? `<section style="padding-bottom:0"><div class="w"><div class="sh"><h2 class="h2">${t.menu}</h2>${fullMenuBtn}</div><div class="sgcard">${cats.map(cat => `<div class="grp"><h3>${esc(L(cat.name))}</h3>${items.filter(i => i.category_id === cat.id && i.available).slice(0, 6).map(i => `<div class="ln"><span class="nm">${esc(L(i.name))}</span><span class="price">${priceOf(i, r, lang, t)}</span></div>`).join('')}</div>`).join('')}</div></div></section>` : ''}
+${orderBlock}
+${reqSection}
+${gal.length >= 3 ? `<section class="sgf"><div class="w"><h2 class="h2">${t.gallery}</h2></div><div class="film">${gal.slice(0, 7).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></section>` : ''}
 ${infos}`;
   } else if (k === 'nuit') {
     const media = video ? `<video class="m" autoplay muted loop playsinline preload="metadata"${cover ? ` poster="${esc(cover)}"` : ''}><source src="${esc(video)}" type="video/mp4"></video>` : cover ? `<img class="m" src="${esc(cover)}" alt="${name}" fetchpriority="high">` : '';
@@ -735,10 +833,13 @@ cats.forEach(c=>{let n=0;c.querySelectorAll('.mi').forEach(m=>{const ok=(!s||m.d
 q.addEventListener('input',run);fs.forEach(b=>b.addEventListener('click',()=>{b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');run()}));
 const links=[...document.querySelectorAll('.cats a')];if(links.length){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(a=>a.classList.toggle('on',a.dataset.c===e.target.id.slice(2)));const a=links.find(a=>a.classList.contains('on'));a&&a.parentElement.scrollTo({left:a.offsetLeft-a.parentElement.offsetLeft-20,behavior:'smooth'})}}),{rootMargin:'-150px 0px -60% 0px'});cats.forEach(c=>io.observe(c))}})()`;
 // Maison: photos open up once when they scroll in; the request form goes to the restaurant as a quote.
-const MAISON_JS = `<script>(()=>{document.documentElement.classList.add('js');const io='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.2}):null;document.querySelectorAll('.rv').forEach(x=>io?io.observe(x):x.classList.add('in'));
+// Maison and Signature: photos revealed on scroll, Signature's story frame follows the scene being read,
+// and the request form (sent to /demande, then an optional WhatsApp message to the restaurant).
+const PREMIUM_JS = `<script>(()=>{document.documentElement.classList.add('js');const io='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.2}):null;document.querySelectorAll('.rv').forEach(x=>io?io.observe(x):x.classList.add('in'));
+const st=document.querySelectorAll('.stage img');if(st.length>1&&'IntersectionObserver' in window){const so=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)st.forEach(x=>x.classList.toggle('on',x.dataset.i===e.target.dataset.i))}),{rootMargin:'-45% 0px -45% 0px'});document.querySelectorAll('.scene').forEach(x=>so.observe(x))}
 const f=document.getElementById('rqf');if(!f)return;const er=f.querySelector('.er'),v=n=>f.elements[n].value;f.addEventListener('submit',async e=>{e.preventDefault();er.textContent='';if(!v('name').trim()||!v('phone').trim()||!v('date')){er.textContent=er.dataset.e;return}
 const b=f.querySelector('button[type=submit]');b.disabled=true;try{const r=await fetch(f.dataset.u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:v('kind'),name:v('name'),phone:v('phone'),date:v('date'),guests:v('guests'),message:v('message'),website:v('website')})});
-if(r.ok){f.classList.add('done');window.__ev&&window.__ev('request');const w=document.getElementById('rqwa');if(w){const k=f.querySelector('input[name=kind]:checked');w.href+='?text='+encodeURIComponent([w.dataset.m,(k?k.parentNode.textContent.trim():''),v('date'),v('guests')?v('guests')+' pers.':'',v('name'),v('message')].filter(Boolean).join('\n'))}}else{const j=await r.json().catch(()=>({}));er.textContent=j.error==='too_many'?er.dataset.m:er.dataset.e}}catch(x){er.textContent=er.dataset.e}b.disabled=false})})()</script>`;
+if(r.ok){f.classList.add('done');window.__ev&&window.__ev('request');const w=document.getElementById('rqwa');if(w){const k=f.querySelector('input[name=kind]:checked');w.href+='?text='+encodeURIComponent([w.dataset.m,(k?k.parentNode.textContent.trim():''),v('date'),v('guests')?v('guests')+' pers.':'',v('name'),v('message')].filter(Boolean).join('\\n'))}}else{const j=await r.json().catch(()=>({}));er.textContent=j.error==='too_many'?er.dataset.m:er.dataset.e}}catch(x){er.textContent=er.dataset.e}b.disabled=false})})()</script>`;
 // Nuit: the transparent bar over the photo becomes solid once the photo has scrolled away.
 const NUIT_JS = `<script>(()=>{const n=document.querySelector('header.nav'),h=document.querySelector('.nh');if(!n||!h)return;new IntersectionObserver(([e])=>n.classList.toggle('solid',!e.isIntersecting),{rootMargin:'-80px 0px 0px 0px'}).observe(h)})()</script>`;
 // The WhatsApp basket. Kept for the visit only (sessionStorage), nothing is sent to us.
