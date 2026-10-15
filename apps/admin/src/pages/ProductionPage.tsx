@@ -10,6 +10,7 @@ import { useAdminCtx } from '../store';
 import type { BaseUnit, Restaurant } from '../lib/types';
 import { RECIPE_UNITS, fmtQty } from '../lib/profit';
 import { Btn, Card, inputCls } from '../components/ui';
+import { DemandForecast } from '../components/DemandForecast';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
@@ -78,7 +79,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
       <div className="flex flex-wrap items-end gap-3">
         <div className="me-auto">
           <h1 className="font-display text-3xl font-semibold">{t('Production')}</h1>
-          <p className="text-muted">{t('Ce qu’il faut préparer, d’après vos ventes du même jour de la semaine et vos commandes traiteur, moins ce qui est déjà en stock.')}</p>
+          <p className="text-muted">{t('Ce qui va se vendre et ce qu’il faut préparer, d’après vos ventes du même jour de la semaine et vos commandes traiteur.')}</p>
         </div>
         <div className="flex rounded-2xl bg-surface-2 p-1">
           {([0, 1] as const).map(d => (
@@ -89,13 +90,17 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         </div>
       </div>
 
+      {today && <DemandForecast r={r} date={day ? addDays(today, 1) : today} />}
+
       {items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
         <Card>
-          <div className="mx-auto max-w-lg py-6 text-center">
-            <CookingPot className="mx-auto mb-3 h-10 w-10 text-brand" />
-            <p className="font-display text-xl font-semibold">{t('Aucune préparation faite à l’avance')}</p>
-            <p className="mt-2 text-sm text-muted">{t('Créez vos préparations (croissants, pâte feuilletée, crème…) sur la page Ingrédients avec « Nouvelle préparation », et cochez « Préparée à l’avance ». Elles apparaissent ici avec la quantité à produire.')}</p>
-            <Btn tone="brand" className="mt-4" onClick={onIngredients}>{t('Aller aux ingrédients')}</Btn>
+          <div className="flex flex-wrap items-center gap-4">
+            <CookingPot className="h-8 w-8 shrink-0 text-brand" />
+            <div className="min-w-[16rem] flex-1">
+              <p className="font-semibold">{t('Aucune préparation faite à l’avance')}</p>
+              <p className="text-sm text-muted">{t('Créez vos préparations (croissants, pâte feuilletée, crème…) sur la page Ingrédients avec « Nouvelle préparation », et cochez « Préparée à l’avance ». Elles apparaissent ici avec la quantité à produire.')}</p>
+            </div>
+            <Btn tone="ghost" onClick={onIngredients}>{t('Aller aux ingrédients')}</Btn>
           </div>
         </Card>
       ) : (
