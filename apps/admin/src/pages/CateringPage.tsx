@@ -16,7 +16,12 @@ interface Cat {
   id: string; number: number; status: Status; customer_name: string; customer_phone: string | null; company: string | null; ice: string | null;
   event_date: string; event_time: string | null; mode: 'pickup' | 'delivery'; address: string | null; guests: number | null; note: string | null;
   delivery_fee_cents: number; order_id: string | null; invoiced_at: string | null; created_at: string;
+  /** 'site': the request came from the premium website form */
+  source?: 'manual' | 'site'; kind?: 'group' | 'private' | 'catering' | 'other' | null;
 }
+// i18n:values
+const KIND: Record<string, string> = { group: 'Groupe', private: 'Privatisation', catering: 'Traiteur', other: 'Autre' };
+// i18n:end
 interface CLine { id?: string; catering_id: string; menu_item_id: string | null; ingredient_id: string | null; name: string; unit_price_cents: number; qty: number; vat_bp: number | null; sort_order: number }
 interface CPay { id: string; catering_id: string; kind: 'deposit' | 'balance'; method: Method; amount_cents: number; paid_on: string; note: string | null }
 interface Doc { doc_type: string; doc_number: string; issued_at: string; seller: Record<string, string | null>; buyer: Record<string, string | null> | null;
@@ -105,6 +110,7 @@ export function CateringPage({ r }: { r: Restaurant }) {
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2 font-semibold">{c.company || c.customer_name}
                       <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${TONE[c.status]}`}>{c.order_id ? t('Facturée') : t(ST[c.status])}</span>
+                      {c.source === 'site' && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-bold text-brand">{t('Demande du site')}{c.kind ? ` · ${t(KIND[c.kind])}` : ''}</span>}
                     </span>
                     <span className="flex flex-wrap items-center gap-3 text-sm text-muted">
                       <span className="tabular">{num(c.number)}</span>
@@ -307,6 +313,7 @@ function CateringEditor({ r, id, onBack, onOpen }: { r: Restaurant; id: string |
         <Btn tone="ghost" onClick={() => { if (!dirty || window.confirm(t('Quitter sans enregistrer ?'))) onBack(); }}><ArrowLeft className="h-4 w-4" /> {t('Traiteur')}</Btn>
         <h1 className="me-auto font-display text-2xl font-semibold">{c ? num(c.number) : t('Nouvelle commande')}
           {c && <span className={`ms-3 rounded-full px-2.5 py-1 align-middle text-sm font-bold ${TONE[c.status]}`}>{frozen ? t('Facturée') : t(ST[c.status])}</span>}</h1>
+        {c?.source === 'site' && c.status === 'quote' && !lines.length && <p className="w-full rounded-2xl bg-brand/10 px-4 py-3 text-sm text-brand">{t('Demande reçue par votre site{k}. Appelez le client, puis ajoutez les produits pour en faire un devis.', { k: c.kind ? ` (${t(KIND[c.kind])})` : '' })}</p>}
         <Btn onClick={print} disabled={!lines.length}><Printer className="h-4 w-4" /> {doc ? (doc.doc_type === 'invoice' ? t('Imprimer la facture') : t('Imprimer le ticket')) : t('Imprimer')}</Btn>
         {f.customer_phone && <Btn onClick={whatsapp} disabled={!lines.length}><MessageCircle className="h-4 w-4" /> WhatsApp</Btn>}
         {!frozen && <Btn tone="brand" disabled={busy} onClick={async () => { if (await save()) a.toast(t('Enregistré')); }}>{t('Enregistrer')}</Btn>}

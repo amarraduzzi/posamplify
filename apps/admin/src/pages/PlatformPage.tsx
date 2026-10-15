@@ -37,6 +37,12 @@ export function PlatformPage() {
       await load(); await a.reload();
     } catch (e) { a.fail(e); }
   };
+  const setSitePlan = async (r: Restaurant, plan: 'basic' | 'premium') => {
+    try {
+      await rpc('admin_set_site_plan', { p_restaurant_id: r.id, p_plan: plan });
+      a.toast(t('{name} : mis à jour', { name: r.name })); await load(); await a.reload();
+    } catch (e) { a.fail(e); }
+  };
   return (
     <div>
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
@@ -59,6 +65,11 @@ export function PlatformPage() {
                     {(r.products ?? []).includes('pos') && (
                       <select aria-label={t('Formule POS')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, r.products ?? ['pos'], e.target.value as 'essentiel' | 'restaurant')}>
                         <option value="essentiel">{t('Essentiel')}</option><option value="restaurant">{t('Restaurant')}</option>
+                      </select>
+                    )}
+                    {(
+                      <select aria-label={t('Formule du site')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.site_plan ?? 'basic'} onChange={e => setSitePlan(r, e.target.value as 'basic' | 'premium')}>
+                        <option value="basic">{t('Site basique')}</option><option value="premium">{t('Site premium')}</option>
                       </select>
                     )}
                   </div>

@@ -8,6 +8,7 @@ type Ctx = { request: Request; env: Env; waitUntil: (p: Promise<unknown>) => voi
 
 const OWN = /(^|\.)amplifygrowthstudio\.com$|\.pages\.dev$|^localhost$|^127\.0\.0\.1$/;
 const text = (s: string, status = 200) => new Response(s, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
 async function getSite(env: Env, slug: string | null, host: string | null): Promise<SiteData | null> {
   const key = env.VITE_SUPABASE_ANON_KEY;
@@ -32,6 +33,24 @@ async function track(env: Env, slug: string | null, host: string | null, kind: s
 export const onRequest = async (ctx: Ctx): Promise<Response> => {
   const url = new URL(ctx.request.url);
   const own = OWN.test(url.hostname);
+  // a request from a premium site (group, private event, catering): /<slug>/demande or /demande
+  if (ctx.request.method === 'POST' && /\/demande$/.test(url.pathname)) {
+    const m = own ? url.pathname.match(/^\/([a-z0-9-]{2,40})\/demande$/) : url.pathname === '/demande' ? [] : null;
+    if (!m) return text('Méthode non autorisée', 405);
+    let f: Record<string, unknown> = {};
+    try { f = JSON.parse((await ctx.request.text()).slice(0, 4000)); } catch { return json({ error: 'invalid_request' }, 400); }
+    const key = ctx.env.VITE_SUPABASE_ANON_KEY;
+    const res = await fetch(`${ctx.env.VITE_SUPABASE_URL}/rest/v1/rpc/site_request`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: key, ...(key.startsWith('eyJ') ? { authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({ p_slug: own ? m[1] : null, p_host: own ? null : url.hostname, p_name: f.name, p_phone: f.phone, p_date: f.date || null,
+        p_guests: f.guests ? Number(f.guests) : null, p_kind: f.kind, p_message: f.message ?? '', p_trap: f.website ?? null }),
+    });
+    if (res.ok) return json({ ok: true });
+    const err = await res.json().catch(() => ({})) as { message?: string };
+    const code = /too_many_requests/.test(err.message ?? '') ? 'too_many' : /invalid_request/.test(err.message ?? '') ? 'invalid' : 'error';
+    return json({ error: code }, code === 'invalid' ? 400 : code === 'too_many' ? 429 : 500);
+  }
   // a counter from the page (statistics without cookies): /<slug>/e or /e on an own domain
   if (ctx.request.method === 'POST') {
     const m = own ? url.pathname.match(/^\/([a-z0-9-]{2,40})\/e$/) : url.pathname === '/e' ? [] : null;

@@ -1,7 +1,7 @@
 // The restaurant's website: switch it on, pick a style, write the welcome text, add photos and
 // links, and (later) connect its own domain. Logo, cover photo and tagline come from Restaurant.
 import { useState } from 'react';
-import { Copy, ExternalLink, Globe, Image as ImageIcon, Save, Search, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Globe, Image as ImageIcon, Lock, Save, Search, Sparkles, Trash2 } from 'lucide-react';
 import { supabase, SITE_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { uploadImage } from '../lib/image';
@@ -10,14 +10,16 @@ import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
 import { SiteStats } from '../components/SiteStats';
+import { SitePremium } from '../components/SitePremium';
 
 type Site = NonNullable<Restaurant['site']>;
 // i18n:values
-const THEMES: { k: Site['theme']; name: string; text: string; sw: [string, string, string] }[] = [
+const THEMES: { k: Site['theme']; name: string; text: string; sw: [string, string, string]; premium?: boolean }[] = [
   { k: 'nuit', name: 'Nuit', text: 'Plein écran et cinéma : grande photo ou vidéo, plats en bande défilante. Pour un lieu du soir.', sw: ['#12100E', '#1C1915', '#C9A15A'] },
   { k: 'riad', name: 'Riad', text: 'Arches, zellige et carte à l’ancienne. Pour une cuisine marocaine ou un lieu de caractère.', sw: ['#EFE3D1', '#F7EEE1', '#1E5B4F'] },
   { k: 'moderne', name: 'Moderne', text: 'Clair, grandes cartes photo. Pour un snack, un brunch ou une chaîne.', sw: ['#FFFFFF', '#F2F2EE', '#2540C9'] },
   { k: 'atelier', name: 'Atelier', text: 'Une vitrine de pâtisserie : produits sur assiettes, prix au kilo, devis traiteur. Pour une pâtisserie, une boulangerie ou un traiteur.', sw: ['#FFFCF7', '#F5EFE6', '#557F3E'] },
+  { k: 'maison', name: 'Maison', text: 'Un magazine : votre histoire en chapitres, le mot du chef, trois plats recommandés et un formulaire pour les groupes et les événements.', sw: ['#F1EFE9', '#1F2420', '#2F3FA3'], premium: true },
 ];
 const PRICES: [string, string][] = [['', '–'], ['$', 'Abordable'], ['$$', 'Moyen'], ['$$$', 'Haut de gamme']];
 // i18n:end
@@ -28,6 +30,7 @@ export function SitePage({ r }: { r: Restaurant }) {
   const [s, setS] = useState<Site>({ theme: 'nuit', gallery: [], ...(r.site ?? {}) });
   const [busy, setBusy] = useState(false);
   const owner = a.canEditProfile;
+  const premium = r.site_plan === 'premium';
   const link = s.domain ? `https://${s.domain}` : `${SITE_URL}/${r.slug}`;
   const preview = `${SITE_URL}/${r.slug}`;
   const set = (p: Partial<Site>) => setS(x => ({ ...x, ...p }));
@@ -71,7 +74,7 @@ export function SitePage({ r }: { r: Restaurant }) {
         <Card>
           <Toggle checked={!!s.enabled} onChange={v => set({ enabled: v })} label={t('Mettre le site en ligne (visible sur Google)')} />
           <h2 className="mb-3 mt-6 font-display text-xl font-semibold">{t('Style')}</h2>
-          <ThemePicker value={s.theme} onChange={k => set({ theme: k })} />
+          <ThemePicker value={s.theme} onChange={k => set({ theme: k })} premium={premium ? 'open' : 'locked'} />
           {s.theme === 'atelier' && <div className="mt-4"><Toggle checked={s.catering !== false} onChange={v => set({ catering: v })} label={t('Afficher le bloc « Commandes et événements » (devis sur WhatsApp)')} /></div>}
           <p className="mt-3 text-sm text-muted">{t('La couleur principale, le logo, la photo de couverture et le slogan viennent de la page Restaurant.')}</p>
         </Card>
@@ -101,6 +104,8 @@ export function SitePage({ r }: { r: Restaurant }) {
           {s.theme === 'nuit' && <div className="mt-4"><Field label={t('Vidéo d’accueil (facultatif)')}><input className={inputCls} dir="ltr" value={s.video_url ?? ''} onChange={e => set({ video_url: e.target.value.trim() })} placeholder="https://…/video.mp4" /></Field>
             <p className="mt-1 text-xs text-muted">{t('Une vidéo courte et sans son, en .mp4, moins de 8 Mo. Elle tourne en boucle en haut du site. La photo de couverture s’affiche pendant le chargement.')}</p></div>}
         </Card>
+
+        {premium && s.theme === 'maison' && <SitePremium r={r} s={s} set={set} />}
 
         <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Commandes sur WhatsApp')}</h2>
@@ -145,22 +150,32 @@ export function SitePage({ r }: { r: Restaurant }) {
   );
 }
 
-/** The styles, each with a small sketch of its layout. */
-export function ThemePicker({ value, onChange }: { value?: Site['theme']; onChange: (k: Site['theme']) => void }) {
+/** The styles, each with a small sketch of its layout. Premium styles show only when `premium` is given:
+ * 'open' when the restaurant has the premium website, 'locked' to show them as an offer. */
+export function ThemePicker({ value, onChange, premium }: { value?: Site['theme']; onChange: (k: Site['theme']) => void; premium?: 'open' | 'locked' }) {
+  const card = (th: typeof THEMES[number]) => {
+    const locked = th.premium && premium !== 'open';
+    return (
+      <button key={th.k} type="button" disabled={locked} onClick={() => onChange(th.k)} aria-pressed={value === th.k}
+        className={`rounded-2xl border-2 p-4 text-start transition disabled:cursor-not-allowed ${value === th.k ? 'border-brand' : 'border-line/10 hover:border-line/30'}`}>
+        <div className={`relative mb-3 flex h-20 gap-1.5 overflow-hidden rounded-xl p-2 ${locked ? 'opacity-60' : ''}`} style={{ background: th.sw[0] }} aria-hidden>
+          {th.k === 'riad' && <><div className="flex-1 space-y-1.5 pt-3"><div className="h-2.5 w-3/4 rounded-sm" style={{ background: th.sw[2] }} /><div className="h-1.5 w-1/2 rounded-sm opacity-40" style={{ background: th.sw[2] }} /></div><div className="w-10 rounded-t-full" style={{ background: th.sw[2] }} /></>}
+          {th.k === 'nuit' && <div className="flex flex-1 flex-col justify-end rounded-lg p-1.5" style={{ background: `linear-gradient(180deg, ${th.sw[1]}, #000)` }}><div className="h-3 w-2/3 rounded-sm" style={{ background: '#ECE4D6' }} /><div className="mt-1 h-1.5 w-1/3 rounded-full" style={{ background: th.sw[2] }} /></div>}
+          {th.k === 'atelier' && <div className="flex flex-1 flex-col"><div className="h-3 rounded-t-sm" style={{ background: `repeating-linear-gradient(90deg, ${th.sw[2]} 0 10px, #DCE7D3 10px 20px)` }} /><div className="flex flex-1 items-center justify-around"><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#E8D9C2' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#D9B98C' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#C99A6A' }} /></div></div>}
+          {th.k === 'moderne' && <><div className="flex-[2] rounded-lg" style={{ background: '#16181D' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="flex-1 rounded-lg" style={{ background: th.sw[2] }} /></div></>}
+          {th.k === 'maison' && <div className="flex flex-1 flex-col gap-1.5"><div className="h-3 w-4/5 rounded-sm" style={{ background: th.sw[1] }} /><div className="h-px" style={{ background: th.sw[1] }} /><div className="flex flex-1 gap-1.5"><div className="flex-[2] rounded-sm" style={{ background: '#C9B99A' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-sm" style={{ background: '#A8987A' }} /><div className="flex-1 rounded-sm" style={{ background: th.sw[2] }} /></div></div></div>}
+        </div>
+        <p className="flex items-center gap-2 font-semibold">{t(th.name)}{th.premium && <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand">{locked ? <Lock className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}{t('Premium')}</span>}</p>
+        <p className="text-sm text-muted">{t(th.text)}</p>
+        {locked && <p className="mt-2 text-xs font-semibold text-brand">{t('Site premium : 750 DH une fois. Demandez-le à Amplify.')}</p>}
+      </button>
+    );
+  };
+  const extra = premium ? THEMES.filter(th => th.premium) : [];
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {THEMES.map(th => (
-        <button key={th.k} type="button" onClick={() => onChange(th.k)} aria-pressed={value === th.k}
-          className={`rounded-2xl border-2 p-4 text-start transition ${value === th.k ? 'border-brand' : 'border-line/10 hover:border-line/30'}`}>
-          <div className="mb-3 flex h-20 gap-1.5 overflow-hidden rounded-xl p-2" style={{ background: th.sw[0] }} aria-hidden>
-            {th.k === 'riad' && <><div className="flex-1 space-y-1.5 pt-3"><div className="h-2.5 w-3/4 rounded-sm" style={{ background: th.sw[2] }} /><div className="h-1.5 w-1/2 rounded-sm opacity-40" style={{ background: th.sw[2] }} /></div><div className="w-10 rounded-t-full" style={{ background: th.sw[2] }} /></>}
-            {th.k === 'nuit' && <div className="flex flex-1 flex-col justify-end rounded-lg p-1.5" style={{ background: `linear-gradient(180deg, ${th.sw[1]}, #000)` }}><div className="h-3 w-2/3 rounded-sm" style={{ background: '#ECE4D6' }} /><div className="mt-1 h-1.5 w-1/3 rounded-full" style={{ background: th.sw[2] }} /></div>}
-            {th.k === 'atelier' && <div className="flex flex-1 flex-col"><div className="h-3 rounded-t-sm" style={{ background: `repeating-linear-gradient(90deg, ${th.sw[2]} 0 10px, #DCE7D3 10px 20px)` }} /><div className="flex flex-1 items-center justify-around"><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#E8D9C2' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#D9B98C' }} /><div className="h-7 w-7 rounded-full border-2 border-white" style={{ background: '#C99A6A' }} /></div></div>}
-            {th.k === 'moderne' && <><div className="flex-[2] rounded-lg" style={{ background: '#16181D' }} /><div className="flex flex-1 flex-col gap-1.5"><div className="flex-1 rounded-lg" style={{ background: th.sw[1] }} /><div className="flex-1 rounded-lg" style={{ background: th.sw[2] }} /></div></>}
-          </div>
-          <p className="font-semibold">{t(th.name)}</p><p className="text-sm text-muted">{t(th.text)}</p>
-        </button>
-      ))}
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{THEMES.filter(th => !th.premium).map(card)}</div>
+      {extra.length > 0 && <div><p className="mb-2 text-sm font-semibold">{t('Styles premium')}</p><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{extra.map(card)}</div></div>}
     </div>
   );
 }

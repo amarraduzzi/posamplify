@@ -7,6 +7,10 @@
 // * moderne: light bento grid of big photo cards, the menu as photo cards
 // * atelier: pâtisserie, boulangerie: a striped awning, products on plates like in a shop window, price tags,
 //   prices per kilo, and a block for orders and catering (a quote asked on WhatsApp)
+// Premium (site_plan 'premium', set by the platform):
+// * maison: a light house magazine: the name as a masthead, a photo collage, the story in numbered
+//   chapters, the dishes the house recommends, the chef, the menu as a printed card, and a request form
+//   (group, private event, catering) that arrives as a quote in the back office
 // Restaurants without online ordering (no till) can take orders on WhatsApp: the guest fills a
 // basket on the site and sends it as a ready-made WhatsApp message to the restaurant.
 
@@ -21,16 +25,20 @@ export interface SiteData {
   categories: { id: string; name: I18n; icon: string | null }[];
   items: SiteItem[];
   site: {
-    theme?: 'nuit' | 'riad' | 'moderne' | 'atelier'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
+    theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison'; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string;
     video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean; catering?: boolean;
+    story?: { title?: I18n; text?: I18n; image?: string }[]; chef?: { name?: string; role?: I18n; text?: I18n; photo?: string };
+    signatures?: { item_id: string; text?: I18n }[]; request?: boolean;
   };
+  site_plan?: 'basic' | 'premium';
   domain: string | null; noindex: boolean; booking: boolean; can_order: boolean;
   paused?: boolean;
   promotions?: { name: string; value: number; until: string | null }[];
 }
 export interface Ctx { base: string; origin: string; lang: string; menuUrl: string; now?: Date }
 type Lang = 'fr' | 'en' | 'ar';
-type Theme = 'nuit' | 'riad' | 'moderne' | 'atelier';
+type Theme = 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison';
+const PREMIUM: Theme[] = ['maison'];
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const safeUrl = (u?: string | null) => (u && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : '');
@@ -48,19 +56,22 @@ const T = {
     days: { mon: 'Lundi', tue: 'Mardi', wed: 'Mercredi', thu: 'Jeudi', fri: 'Vendredi', sat: 'Samedi', sun: 'Dimanche' } as Record<string, string>,
     add: 'Ajouter', search: 'Rechercher un plat', all: 'Tout', none: 'Aucun plat ne correspond.', basket: 'Votre commande', see: 'Voir la commande', total: 'Total', yourName: 'Votre prénom', takeaway: 'À emporter', delivery: 'Livraison', dineIn: 'Sur place', addr: 'Adresse de livraison', note: 'Remarque (facultatif)', send: 'Envoyer sur WhatsApp', close: 'Fermer', choose: 'Choisissez', empty: 'Votre commande est vide.', waHello: 'Bonjour {r}, je souhaite commander :', waName: 'Nom', waAddr: 'Adresse', waNoteL: 'Remarque', waFoot: 'Envoyé depuis votre site', waHint: 'WhatsApp s’ouvre avec votre message prêt. Il ne reste qu’à l’envoyer.', orderWa: 'Commander sur WhatsApp',
     tags: { popular: 'Populaire', spicy: 'Épicé', new: 'Nouveau', vegetarian: 'Végétarien' } as Record<string, string>,
-    vitrine: 'En vitrine', cater: 'Commandes et événements', caterText: 'Gâteaux d’anniversaire, plateaux et pièces pour vos fêtes, mariages et séminaires. Dites-nous la date et le nombre de personnes, nous vous préparons un devis.', caterBtn: 'Demander un devis', caterWa: 'Bonjour {r}, je voudrais un devis pour une commande. Date : … Nombre de personnes : … Ce que je souhaite : …', perKg: 'le kg' },
+    vitrine: 'En vitrine', cater: 'Commandes et événements', caterText: 'Gâteaux d’anniversaire, plateaux et pièces pour vos fêtes, mariages et séminaires. Dites-nous la date et le nombre de personnes, nous vous préparons un devis.', caterBtn: 'Demander un devis', caterWa: 'Bonjour {r}, je voudrais un devis pour une commande. Date : … Nombre de personnes : … Ce que je souhaite : …', perKg: 'le kg',
+    story: 'Notre histoire', recommends: 'La maison recommande', chapter: 'Chapitre', reqTitle: 'Recevoir chez nous', reqText: 'Un groupe, un anniversaire, une privatisation ou un traiteur : dites-nous tout, nous vous rappelons avec une proposition.', kinds: { group: 'Groupe', private: 'Privatisation', catering: 'Traiteur', other: 'Autre' } as Record<string, string>, fName: 'Votre nom', fPhone: 'Téléphone', fDate: 'Date', fGuests: 'Personnes', fMsg: 'Votre demande', fSend: 'Envoyer la demande', fSent: 'Merci, votre demande est bien arrivée. Nous vous rappelons rapidement.', fErr: 'Envoi impossible. Vérifiez le numéro et la date, ou appelez-nous.', fMany: 'Trop de demandes aujourd’hui. Appelez-nous directement.' },
   en: { menu: 'Menu', infos: 'Info', book: 'Book a table', order: 'Order online', orderShort: 'Order', bookShort: 'Book', directions: 'Directions', call: 'Call', hours: 'Opening hours', address: 'Address', fullMenu: 'See the full menu', signature: 'Signature dishes', gallery: 'Gallery', open: 'Open now', closed: 'Closed now', closedDay: 'Closed', today: 'Today', from: 'from', review: 'Leave a Google review', made: 'Website made with Amplify', about: 'Welcome', soldOut: 'sold out', orderNote: 'Take-away or delivery, no waiting.', waNote: 'Pick your dishes, we receive your order on WhatsApp.', happy: 'Happy hour now', in: 'in',
     opensToday: 'Opens today', opensTomorrow: 'Opens tomorrow', opensOn: 'Opens {d}',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' } as Record<string, string>,
     add: 'Add', search: 'Search a dish', all: 'All', none: 'No dish matches.', basket: 'Your order', see: 'View order', total: 'Total', yourName: 'Your first name', takeaway: 'Take-away', delivery: 'Delivery', dineIn: 'Dine in', addr: 'Delivery address', note: 'Note (optional)', send: 'Send on WhatsApp', close: 'Close', choose: 'Choose', empty: 'Your order is empty.', waHello: 'Hello {r}, I would like to order:', waName: 'Name', waAddr: 'Address', waNoteL: 'Note', waFoot: 'Sent from your website', waHint: 'WhatsApp opens with your message ready. Just press send.', orderWa: 'Order on WhatsApp',
     tags: { popular: 'Popular', spicy: 'Spicy', new: 'New', vegetarian: 'Vegetarian' } as Record<string, string>,
-    vitrine: 'In the window', cater: 'Orders and events', caterText: 'Birthday cakes, platters and pieces for your parties, weddings and seminars. Tell us the date and the number of guests, we prepare a quote for you.', caterBtn: 'Ask for a quote', caterWa: 'Hello {r}, I would like a quote for an order. Date: … Number of guests: … What I would like: …', perKg: 'per kg' },
+    vitrine: 'In the window', cater: 'Orders and events', caterText: 'Birthday cakes, platters and pieces for your parties, weddings and seminars. Tell us the date and the number of guests, we prepare a quote for you.', caterBtn: 'Ask for a quote', caterWa: 'Hello {r}, I would like a quote for an order. Date: … Number of guests: … What I would like: …', perKg: 'per kg',
+    story: 'Our story', recommends: 'The house recommends', chapter: 'Chapter', reqTitle: 'Host with us', reqText: 'A group, a birthday, a private event or catering: tell us everything, we call you back with a proposal.', kinds: { group: 'Group', private: 'Private event', catering: 'Catering', other: 'Other' } as Record<string, string>, fName: 'Your name', fPhone: 'Phone', fDate: 'Date', fGuests: 'Guests', fMsg: 'Your request', fSend: 'Send the request', fSent: 'Thank you, your request has arrived. We will call you back soon.', fErr: 'Could not send. Check the number and the date, or call us.', fMany: 'Too many requests today. Please call us directly.' },
   ar: { menu: 'القائمة', infos: 'معلومات', book: 'احجز طاولة', order: 'اطلب عبر الإنترنت', orderShort: 'اطلب', bookShort: 'احجز', directions: 'الاتجاهات', call: 'اتصل', hours: 'أوقات العمل', address: 'العنوان', fullMenu: 'القائمة الكاملة', signature: 'أطباقنا المميزة', gallery: 'صور', open: 'مفتوح الآن', closed: 'مغلق الآن', closedDay: 'مغلق', today: 'اليوم', from: 'ابتداء من', review: 'اترك تقييما على غوغل', made: 'موقع من إنجاز Amplify', about: 'مرحبا بكم', soldOut: 'نفد', orderNote: 'للأخذ أو التوصيل، بدون انتظار.', waNote: 'اختر أطباقك، ونستلم طلبك عبر واتساب.', happy: 'ساعة التخفيض الآن', in: 'في',
     opensToday: 'يفتح اليوم', opensTomorrow: 'يفتح غدا', opensOn: 'يفتح يوم {d}',
     days: { mon: 'الاثنين', tue: 'الثلاثاء', wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت', sun: 'الأحد' } as Record<string, string>,
     add: 'أضف', search: 'ابحث عن طبق', all: 'الكل', none: 'لا يوجد طبق مطابق.', basket: 'طلبك', see: 'عرض الطلب', total: 'المجموع', yourName: 'اسمك', takeaway: 'للأخذ', delivery: 'توصيل', dineIn: 'في المطعم', addr: 'عنوان التوصيل', note: 'ملاحظة (اختياري)', send: 'أرسل عبر واتساب', close: 'إغلاق', choose: 'اختر', empty: 'طلبك فارغ.', waHello: 'مرحبا {r}، أريد أن أطلب:', waName: 'الاسم', waAddr: 'العنوان', waNoteL: 'ملاحظة', waFoot: 'أرسل من موقعكم', waHint: 'يفتح واتساب ورسالتك جاهزة. اضغط إرسال فقط.', orderWa: 'اطلب عبر واتساب',
     tags: { popular: 'الأكثر طلبا', spicy: 'حار', new: 'جديد', vegetarian: 'نباتي' } as Record<string, string>,
-    vitrine: 'في الواجهة', cater: 'الطلبيات والمناسبات', caterText: 'كعكات أعياد الميلاد، صواني وقطع لحفلاتكم وأعراسكم وندواتكم. أخبرونا بالتاريخ وعدد الأشخاص، ونحضّر لكم عرض سعر.', caterBtn: 'اطلب عرض سعر', caterWa: 'مرحبا {r}، أريد عرض سعر لطلبية. التاريخ: … عدد الأشخاص: … ما أريده: …', perKg: 'للكيلو' },
+    vitrine: 'في الواجهة', cater: 'الطلبيات والمناسبات', caterText: 'كعكات أعياد الميلاد، صواني وقطع لحفلاتكم وأعراسكم وندواتكم. أخبرونا بالتاريخ وعدد الأشخاص، ونحضّر لكم عرض سعر.', caterBtn: 'اطلب عرض سعر', caterWa: 'مرحبا {r}، أريد عرض سعر لطلبية. التاريخ: … عدد الأشخاص: … ما أريده: …', perKg: 'للكيلو',
+    story: 'حكايتنا', recommends: 'اختيارات البيت', chapter: 'الفصل', reqTitle: 'استقبالكم عندنا', reqText: 'مجموعة، عيد ميلاد، حفل خاص أو ممون: أخبرونا بكل شيء، ونتصل بكم بعرض.', kinds: { group: 'مجموعة', private: 'حفل خاص', catering: 'ممون', other: 'أخرى' } as Record<string, string>, fName: 'اسمك', fPhone: 'الهاتف', fDate: 'التاريخ', fGuests: 'عدد الأشخاص', fMsg: 'طلبك', fSend: 'أرسل الطلب', fSent: 'شكرا، وصل طلبك. سنتصل بك قريبا.', fErr: 'تعذر الإرسال. تحقق من الرقم والتاريخ، أو اتصل بنا.', fMany: 'طلبات كثيرة اليوم. اتصل بنا مباشرة.' },
 };
 type Tx = typeof T.fr;
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -77,6 +88,9 @@ const THEMES: Record<Theme, { bg: string; surface: string; line: string; ink: st
   // chocolate ink, pistachio awning, caramel price tags on almost-white paper
   atelier: { bg: '#FFFCF7', surface: '#F5EFE6', line: 'rgba(43,26,18,.12)', ink: '#2B1A12', muted: '#7A6558', accent: '#557F3E', accentInk: '#FFFCF7', gold: '#B9803A',
     display: "'Italiana', 'Bodoni Moda', Didot, serif", displayAr: "'Amiri', serif", fonts: 'family=Italiana&family=Amiri:wght@400;700', dark: false },
+  // lime-washed plaster, olive-black ink, Majorelle blue, a little saffron
+  maison: { bg: '#F1EFE9', surface: '#E7E3D9', line: 'rgba(31,36,32,.14)', ink: '#1F2420', muted: '#5E625A', accent: '#2F3FA3', accentInk: '#F1EFE9', gold: '#C49A3A',
+    display: "'Gloock', Georgia, serif", displayAr: "'Amiri', serif", fonts: 'family=Gloock&family=Amiri:wght@400;700', dark: false },
 };
 
 // a zellige tile: an eight-pointed star in a square lattice
@@ -132,7 +146,7 @@ const icon = (n: string, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" 
 function css(k: Theme, th: typeof THEMES.nuit, accent: string, rtl: boolean) {
   const disp = rtl ? th.displayAr : th.display;
   return `
-:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : k === 'atelier' ? '18px' : '2px'}}
+:root{--bg:${th.bg};--surface:${th.surface};--line:${th.line};--ink:${th.ink};--muted:${th.muted};--accent:${accent};--accent-ink:${th.accentInk};--gold:${th.gold};--display:${disp};--r:${k === 'moderne' ? '26px' : k === 'riad' ? '6px' : k === 'atelier' ? '18px' : k === 'maison' ? '4px' : '2px'}}
 *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font:16px/1.6 ${rtl ? "'IBM Plex Sans Arabic'," : ''}'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}img,video{display:block;max-width:100%}button,input,textarea{font:inherit;color:inherit}
@@ -213,7 +227,7 @@ dialog::backdrop{background:rgba(10,8,6,.55);backdrop-filter:blur(3px)}
 .hint{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
 .vr{display:flex;justify-content:space-between;align-items:center;width:100%;padding:16px;margin-bottom:8px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;text-align:start}
 .star{width:18px;height:18px;color:var(--gold)}
-${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : k === 'atelier' ? atelierCss() : modCss()}
+${k === 'riad' ? riadCss(th) : k === 'nuit' ? nuitCss() : k === 'atelier' ? atelierCss() : k === 'maison' ? maisonCss() : modCss()}
 @media (max-width:860px){.links{display:none}.info,.ordr{grid-template-columns:1fr}.nav .btn{display:none}.bar{display:flex}section{padding:68px 0}.ordr{padding:32px}.card{padding:24px}.has-cart .bar{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 `;
@@ -399,6 +413,76 @@ function atelierCss() {
 @media (max-width:420px){.t-atelier .dish h3{font-size:16px}.t-atelier .price{padding:4px 10px 4px 20px;font-size:14px}}
 `;
 }
+function maisonCss() {
+  return `
+.t-maison h1,.t-maison h2,.t-maison h3{font-weight:400;letter-spacing:-.01em}
+.t-maison .brand{font-size:24px}
+.t-maison .btn.p{border-radius:4px}.t-maison .btn.g{border-radius:4px}
+/* masthead: the name across the page, then a line of facts and the photo collage */
+.mh{padding-block:46px 30px}
+.mh h1{font-size:clamp(56px,11.5vw,176px);line-height:.86;letter-spacing:-.03em;overflow-wrap:anywhere}
+.mh h1 span{display:inline-block;animation:mrise 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes mrise{from{opacity:0;transform:translateY(.35em)}}
+.mh .row2{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:end;margin-top:28px;padding-top:22px;border-top:1px solid var(--ink)}
+.mh .t{font-family:var(--display);font-size:clamp(22px,2.4vw,30px);line-height:1.2;max-width:26ch}
+.mh .side{display:flex;flex-direction:column;align-items:flex-end;gap:14px}.mh .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.mh .chip{background:var(--surface)}
+.col{display:grid;grid-template-columns:7fr 5fr;grid-template-rows:1fr 1fr;gap:14px;height:min(72vh,640px);margin-bottom:24px}
+.col img,.col .e{width:100%;height:100%;object-fit:cover;border-radius:var(--r);background:var(--surface)}
+.col img:first-child,.col .e:first-child{grid-row:span 2}
+.col.n1{grid-template-columns:1fr;grid-template-rows:1fr}
+/* chapters */
+.chs{display:flex;flex-direction:column;gap:110px}
+.ch{display:grid;grid-template-columns:5fr 7fr;gap:60px;align-items:center}
+.ch:nth-child(even) .ci{order:2}
+.ch .n{font-family:var(--display);font-size:clamp(90px,12vw,170px);line-height:.8;color:transparent;-webkit-text-stroke:1.5px var(--accent)}
+.ch .lbl{display:block;margin-top:14px;font-size:14px;font-weight:700;color:var(--accent)}
+.ch h3{font-size:clamp(32px,3.6vw,48px);margin-top:6px}
+.ch p{margin-top:16px;font-size:18px;color:var(--muted);max-width:52ch;white-space:pre-line}
+.ci img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:var(--r)}
+.js .rv{clip-path:inset(12% 12% 12% 12%);opacity:.3;transition:clip-path 1.2s cubic-bezier(.2,.8,.2,1),opacity 1s}
+.js .rv.in{clip-path:inset(0);opacity:1}
+/* the house recommends */
+.recs{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.rec{display:flex;flex-direction:column;gap:14px}
+.rec:first-child{grid-column:1/-1;display:grid;grid-template-columns:1.25fr 1fr;gap:44px;align-items:center}
+.rec img,.rec .e{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);background:var(--surface)}
+.rec:first-child img,.rec:first-child .e{aspect-ratio:16/11}
+.rec h3{font-size:30px}.rec:first-child h3{font-size:clamp(36px,4vw,54px)}
+.rec p{color:var(--muted);white-space:pre-line}
+.rec .ft{display:flex;align-items:center;gap:14px}
+/* chef */
+.chef{background:var(--ink);color:var(--bg)}
+.chef .w{display:grid;grid-template-columns:5fr 7fr;gap:64px;align-items:center}
+.chef img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r)}
+.chef blockquote{font-family:var(--display);font-size:clamp(26px,3vw,40px);line-height:1.22;white-space:pre-line}
+.chef .who{margin-top:26px;font-weight:700}.chef .who span{display:block;font-weight:500;opacity:.7}
+/* the card */
+.crd{border:1px solid var(--ink);border-radius:var(--r);padding:44px 48px;background:var(--bg)}
+.crd .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 64px}
+.crd h3{grid-column:1/-1;font-size:28px;margin:18px 0 6px;color:var(--accent)}.crd h3:first-child{margin-top:0}
+.crd .ln{display:flex;align-items:baseline;gap:10px;padding:8px 0}.crd .ln .nm{font-weight:600}.crd .ln .ld{flex:1;border-bottom:1px solid var(--line);transform:translateY(-4px);min-width:16px}
+/* request form */
+.rq{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:start}
+.rq form{background:var(--surface);border-radius:var(--r);padding:30px}
+.rq .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.rq .seg{flex-wrap:wrap}.rq .seg label{flex:1 1 40%}
+.rq .ok{display:none;padding:22px;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-weight:600}
+.rq form.done{display:none}.rq form.done+.ok{display:block}
+.rq .er{color:#B42318;font-size:14px;margin-top:10px;min-height:20px}
+.hp{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;opacity:0;pointer-events:none}
+.t-maison .gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:220px;gap:14px}
+.t-maison .gal img{width:100%;height:100%;object-fit:cover;border-radius:var(--r)}.t-maison .gal img:first-child{grid-column:span 2;grid-row:span 2}.t-maison .gal.n4 img:last-child,.t-maison .gal.n3 img:not(:first-child){grid-column:span 2}.t-maison #infos{padding-top:24px}
+.t-maison .ordr{background:var(--accent);border-radius:var(--r)}
+.t-maison .mcat>h2{border-bottom:1px solid var(--ink);padding-bottom:12px}
+.t-maison .mlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 56px}
+.t-maison .mi{border-bottom:0;padding:14px 0}.t-maison .mi .ph{width:72px;height:72px}
+.t-maison .mi .n{font-family:var(--display);font-size:22px;font-weight:400}
+.t-maison .mi .n .ld{flex:1;border-bottom:1px solid var(--line);transform:translateY(-6px);min-width:20px}.t-maison .mi .n .nm{flex:0 1 auto}
+.t-maison .mi .price{color:var(--ink);font-family:'Manrope',sans-serif;font-size:16px}
+@media (max-width:860px){.mh .row2{grid-template-columns:1fr;gap:20px}.mh .side{align-items:flex-start}.mh .chips{justify-content:flex-start}.col{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;height:auto}.col img:first-child,.col .e:first-child{grid-column:1/-1;grid-row:auto;aspect-ratio:4/3}.col img,.col .e{aspect-ratio:1}.chs{gap:64px}.ch{grid-template-columns:1fr;gap:26px}.ch:nth-child(even) .ci{order:0}.recs{grid-template-columns:1fr}.rec:first-child{grid-template-columns:1fr;gap:18px}.chef .w{grid-template-columns:1fr;gap:32px}.chef img{width:70%}.crd{padding:28px 20px}.crd .cols{grid-template-columns:1fr}.rq{grid-template-columns:1fr;gap:28px}.rq form{padding:20px}.t-maison .gal{grid-template-columns:1fr 1fr;grid-auto-rows:150px}.t-maison .mlist{grid-template-columns:minmax(0,1fr)}.t-maison .mi .n{flex-wrap:wrap;row-gap:2px}.t-maison .mi .n .nm{flex:1 1 100%}.t-maison .mi .ld{display:none}}
+@media (prefers-reduced-motion:reduce){.js .rv{clip-path:none;opacity:1}}
+`;
+}
 function unitPrices(it: SiteItem) {
   const off = (c: number) => (it.promo_bp ? c - Math.round(c * it.promo_bp / 10000) : c);
   const vs = (it.variants ?? []).map(v => ({ base: Number(v.price_cents), p: off(Number(v.price_cents)), name: v.name }));
@@ -414,7 +498,9 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   const r = d.restaurant, langs = r.languages?.length ? r.languages : ['fr'];
   const lang = (['fr', 'en', 'ar'].includes(c.lang) && langs.includes(c.lang) ? c.lang : (['fr', 'en', 'ar'].includes(langs[0]) ? langs[0] : 'fr')) as Lang;
   const t = T[lang], rtl = lang === 'ar';
-  const k: Theme = d.site.theme && THEMES[d.site.theme] ? d.site.theme : 'nuit';
+  const want: Theme = d.site.theme && THEMES[d.site.theme] ? d.site.theme : 'nuit';
+  // a premium style only on a premium site (the platform sets the plan once it is paid)
+  const k: Theme = PREMIUM.includes(want) && d.site_plan !== 'premium' ? 'moderne' : want;
   // Relais Marin: a warm sand tint instead of neutral grey, to echo the beach (only this restaurant)
   const rm = r.slug === 'relais-marin' && k === 'moderne';
   const th = rm ? { ...THEMES[k], surface: '#F4EDE0', line: 'rgba(22,24,29,.12)', muted: '#625C52' } : THEMES[k];
@@ -456,7 +542,7 @@ export function renderSite(d: SiteData, c: Ctx, page: 'home' | 'menu'): string {
   if (page === 'menu') ld.hasMenu = { '@type': 'Menu', hasMenuSection: (d.categories ?? []).map(cat => ({ '@type': 'MenuSection', name: L(cat.name), hasMenuItem: items.filter(i => i.category_id === cat.id).map(i => ({ '@type': 'MenuItem', name: L(i.name), ...(L(i.description) ? { description: L(i.description) } : {}), offers: { '@type': 'Offer', price: (unitPrices(i).p / 100).toFixed(2), priceCurrency: r.currency } })) })) };
 
   const fonts = `https://fonts.googleapis.com/css2?${th.fonts}&family=Manrope:wght@400;500;600;700;800${rtl ? '&family=IBM+Plex+Sans+Arabic:wght@400;600;700' : ''}&display=swap`;
-  const lcp = page === 'home' ? (k === 'moderne' || k === 'atelier' ? cover : k === 'riad' ? cover || gal[0] : video ? '' : cover) : '';
+  const lcp = page === 'home' ? (k === 'moderne' || k === 'atelier' || k === 'maison' ? cover : k === 'riad' ? cover || gal[0] : video ? '' : cover) : '';
   const head = `<!doctype html><html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(canonical)}">
 ${d.noindex ? '<meta name="robots" content="noindex">' : ''}${langs.map(l => `<link rel="alternate" hreflang="${l}" href="${esc(`${c.origin}${c.base}${page === 'menu' ? '/menu' : ''}${q(l)}`)}">`).join('')}
@@ -493,7 +579,7 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
     const nm = `${esc(L(i.name))}${i.available ? '' : ` <small>(${t.soldOut})</small>`}`;
     const body = k === 'moderne' || k === 'atelier'
       ? `<div class="b"><div class="n"><span class="nm">${nm}</span></div>${L(i.description) ? `<p>${esc(L(i.description))}</p>` : ''}${tg.length ? `<div class="tg">${tg.map(x => `<span>${t.tags[x]}</span>`).join('')}</div>` : ''}<div class="ft"><span class="price">${priceOf(i, r, lang, t)}</span>${addBtn(i)}</div></div>`
-      : `<div class="b"><div class="n"><span class="nm">${nm}</span>${k === 'riad' ? '<span class="ld"></span>' : ''}<span class="price">${priceOf(i, r, lang, t)}</span></div>${L(i.description) ? `<p>${esc(L(i.description))}</p>` : ''}${tg.length ? `<div class="tg">${tg.map(x => `<span>${t.tags[x]}</span>`).join('')}</div>` : ''}</div>${addBtn(i)}`;
+      : `<div class="b"><div class="n"><span class="nm">${nm}</span>${k === 'riad' || k === 'maison' ? '<span class="ld"></span>' : ''}<span class="price">${priceOf(i, r, lang, t)}</span></div>${L(i.description) ? `<p>${esc(L(i.description))}</p>` : ''}${tg.length ? `<div class="tg">${tg.map(x => `<span>${t.tags[x]}</span>`).join('')}</div>` : ''}</div>${addBtn(i)}`;
     return `<div class="mi${i.available ? '' : ' so'}" data-tags="${esc(tg.join(' '))}" data-q="${esc(`${L(i.name)} ${L(i.description)}`.toLowerCase())}">${img}${body}</div>`;
   };
 
@@ -518,7 +604,7 @@ ${socials ? `<div class="soc">${socials}</div>` : ''}<a class="made" href="https
   const track = `<script>(()=>{const E=${JSON.stringify(`${c.base}/e`)},M=${JSON.stringify(c.menuUrl).replace(/</g, '\\u003c')},S='v:'+${JSON.stringify(r.slug)};const s=k=>{try{navigator.sendBeacon?navigator.sendBeacon(E,k):fetch(E,{method:'POST',body:k,keepalive:true})}catch(e){}};window.__ev=s;if(navigator.webdriver)return;
 let seen=0;try{seen=sessionStorage.getItem(S);sessionStorage.setItem(S,1)}catch(e){}if(!seen)s('view');${page === 'menu' ? "s('menu');" : ''}
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.href;if(h.startsWith('tel:'))s('call');else if(/google\\.[a-z.]+\\/maps|maps\\.app\\.goo\\.gl|goo\\.gl\\/maps/.test(h))s('directions');else if(h.startsWith(M))s(/reserver/.test(h)?'book':'order')},true)})()</script>`;
-  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}${track}</body></html>`;
+  const end = `${foot}${page === 'menu' && wa ? '' : bar}${basket}${k === 'nuit' && page === 'home' ? NUIT_JS : ''}${k === 'maison' && page === 'home' ? MAISON_JS : ''}${track}</body></html>`;
 
   if (page === 'menu') {
     const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id));
@@ -578,6 +664,38 @@ ${d.site.catering !== false && (caterHref || tel) ? `<section style="padding-top
 ${orderBlock}
 ${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:34px">${t.gallery}</h2><div class="gal">${gal.slice(0, 6).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
 ${infos}`;
+  } else if (k === 'maison') {
+    const pics = [cover, ...gal].filter((u, i, a) => u && a.indexOf(u) === i) as string[];
+    const story = (d.site.story ?? []).filter(x => L(x.title) || L(x.text)).slice(0, 4);
+    const chapters = story.length ? story : about ? [{ title: { [lang]: t.about }, text: { [lang]: about }, image: pics[1] }] : [];
+    const byId = new Map(items.map(i => [i.id, i]));
+    const recs = (d.site.signatures ?? []).map(x => ({ it: byId.get(x.item_id), text: L(x.text) })).filter(x => x.it && x.it.available) as { it: SiteItem; text: string }[];
+    const recList = recs.length ? recs.slice(0, 3) : sig.slice(0, 3).map(it => ({ it, text: L(it.description) }));
+    const chef = d.site.chef;
+    const cats = (d.categories ?? []).filter(cat => items.some(i => i.category_id === cat.id && i.available)).slice(0, 3);
+    const tag = (i: number) => String(i + 1).padStart(2, '0');
+    const words = r.name.split(/\s+/).map(w2 => esc(w2));
+    const reqOn = d.site.request !== false;
+    body = `<div class="w mh"><h1 dir="auto">${words.map((w2, i) => `<span style="animation-delay:${120 + i * 110}ms">${w2}</span>`).join(' ')}</h1>
+<div class="row2">${tagline ? `<p class="t">${esc(tagline)}</p>` : `<p class="t">${esc([d.site.cuisine, r.city].filter(Boolean).join(', '))}</p>`}
+<div class="side"><div class="chips">${openChip}${todayHours ? `<span class="chip">${icon('clock')}${t.today} <span dir="ltr">${esc(todayHours)}</span></span>` : ''}${hhChip}</div>${ctas(true)}</div></div></div>
+${pics.length ? `<div class="w"><div class="col${pics.length < 3 ? ' n1' : ''}">${(pics.length < 3 ? pics.slice(0, 1) : pics.slice(0, 3)).map((u, i) => `<img src="${esc(u)}" alt="${name}"${i ? ' loading="lazy"' : ' fetchpriority="high"'}>`).join('')}</div></div>` : ''}
+${chapters.length ? `<section><div class="w"><h2 class="h2" style="margin-bottom:64px">${t.story}</h2><div class="chs">${chapters.map((c2, i) => {
+      const img = safeUrl(c2.image) || pics[(i + 1) % Math.max(pics.length, 1)];
+      return `<article class="ch"><div class="ci">${img ? `<img class="rv" src="${esc(img)}" alt="${esc(L(c2.title))}" loading="lazy">` : ''}</div><div><span class="n" aria-hidden="true">${tag(i)}</span><span class="lbl">${t.chapter} ${i + 1}</span>${L(c2.title) ? `<h3>${esc(L(c2.title))}</h3>` : ''}${L(c2.text) ? `<p>${esc(L(c2.text))}</p>` : ''}</div></article>`;
+    }).join('')}</div></div></section>` : ''}
+${recList.length ? `<section style="padding-top:${chapters.length ? '0' : '96px'}"><div class="w"><div class="sh" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:40px"><h2 class="h2">${t.recommends}</h2>${fullMenuBtn}</div><div class="recs">${recList.map(({ it, text }) => `<article class="rec">${safeUrl(it.image_url) ? `<img class="rv" src="${esc(it.image_url)}" alt="${esc(L(it.name))}" loading="lazy">` : '<div class="e"></div>'}<div><h3>${esc(L(it.name))}</h3>${text ? `<p style="margin-top:10px">${esc(text)}</p>` : ''}<div class="ft" style="margin-top:14px"><span class="price">${priceOf(it, r, lang, t)}</span>${addBtn(it)}</div></div></article>`).join('')}</div></div></section>` : ''}
+${chef && (chef.name || L(chef.text)) ? `<section class="chef"><div class="w">${safeUrl(chef.photo) ? `<img src="${esc(chef.photo)}" alt="${esc(chef.name ?? '')}" loading="lazy">` : '<div></div>'}<div>${L(chef.text) ? `<blockquote>${esc(L(chef.text))}</blockquote>` : ''}<p class="who">${esc(chef.name ?? '')}${L(chef.role) ? `<span>${esc(L(chef.role))}</span>` : ''}</p></div></div></section>` : ''}
+${cats.length ? `<section style="padding-bottom:0"><div class="w"><div class="crd"><div class="cols">${cats.map(cat => `<h3>${esc(L(cat.name))}</h3>${items.filter(i => i.category_id === cat.id && i.available).slice(0, 6).map(i => `<div class="ln"><span class="nm">${esc(L(i.name))}</span><span class="ld"></span><span class="price">${priceOf(i, r, lang, t)}</span></div>`).join('')}`).join('')}</div><div style="margin-top:30px;text-align:center">${fullMenuBtn}</div></div></div></section>` : ''}
+${orderBlock}
+${reqOn ? `<section id="demande" style="padding-top:0"><div class="w rq"><div><h2 class="h2">${t.reqTitle}</h2><p class="lead" style="margin-top:18px">${t.reqText}</p>${tel ? `<div class="row"><a class="btn g" href="tel:${esc(tel)}">${icon('phone')}${t.call}</a></div>` : ''}</div>
+<div><form id="rqf" data-u="${esc(`${c.base}/demande`)}" novalidate><div class="seg" role="radiogroup">${['group', 'private', 'catering', 'other'].map((x, i) => `<label><input type="radio" name="kind" value="${x}"${i ? '' : ' checked'}>${t.kinds[x]}</label>`).join('')}</div>
+<div class="grid"><label class="fld"><span>${t.fName}</span><input name="name" required maxlength="80" autocomplete="name"></label><label class="fld"><span>${t.fPhone}</span><input name="phone" required inputmode="tel" maxlength="20" autocomplete="tel" dir="ltr"></label>
+<label class="fld"><span>${t.fDate}</span><input name="date" type="date" required></label><label class="fld"><span>${t.fGuests}</span><input name="guests" inputmode="numeric" maxlength="4"></label></div>
+<label class="fld"><span>${t.fMsg}</span><textarea name="message" rows="3" maxlength="800"></textarea></label><label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+<button class="btn p" type="submit" style="width:100%;min-height:52px">${t.fSend}</button><p class="er" role="status" data-e="${esc(t.fErr)}" data-m="${esc(t.fMany)}"></p></form><p class="ok" role="status">${t.fSent}</p></div></div></section>` : ''}
+${gal.length >= 3 ? `<section style="padding-top:0"><div class="w"><h2 class="h2" style="margin-bottom:34px">${t.gallery}</h2><div class="gal n${Math.min(gal.length, 5)}">${gal.slice(0, 5).map(u => `<img src="${esc(u)}" alt="${name}" loading="lazy">`).join('')}</div></div></section>` : ''}
+${infos}`;
   } else if (k === 'nuit') {
     const media = video ? `<video class="m" autoplay muted loop playsinline preload="metadata"${cover ? ` poster="${esc(cover)}"` : ''}><source src="${esc(video)}" type="video/mp4"></video>` : cover ? `<img class="m" src="${esc(cover)}" alt="${name}" fetchpriority="high">` : '';
     body = `<section class="nh${media ? '' : ' none'}" style="padding:0">${media}<div class="w in">
@@ -614,6 +732,11 @@ const run=()=>{const s=(q.value||'').trim().toLowerCase(),on=fs.filter(b=>b.getA
 cats.forEach(c=>{let n=0;c.querySelectorAll('.mi').forEach(m=>{const ok=(!s||m.dataset.q.includes(s))&&on.every(f=>m.dataset.tags.split(' ').includes(f));m.hidden=!ok;n+=ok});c.hidden=!n;any+=n});nr.style.display=any?'none':'block'};
 q.addEventListener('input',run);fs.forEach(b=>b.addEventListener('click',()=>{b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');run()}));
 const links=[...document.querySelectorAll('.cats a')];if(links.length){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(a=>a.classList.toggle('on',a.dataset.c===e.target.id.slice(2)));const a=links.find(a=>a.classList.contains('on'));a&&a.parentElement.scrollTo({left:a.offsetLeft-a.parentElement.offsetLeft-20,behavior:'smooth'})}}),{rootMargin:'-150px 0px -60% 0px'});cats.forEach(c=>io.observe(c))}})()`;
+// Maison: photos open up once when they scroll in; the request form goes to the restaurant as a quote.
+const MAISON_JS = `<script>(()=>{document.documentElement.classList.add('js');const io='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.2}):null;document.querySelectorAll('.rv').forEach(x=>io?io.observe(x):x.classList.add('in'));
+const f=document.getElementById('rqf');if(!f)return;const er=f.querySelector('.er'),v=n=>f.elements[n].value;f.addEventListener('submit',async e=>{e.preventDefault();er.textContent='';if(!v('name').trim()||!v('phone').trim()||!v('date')){er.textContent=er.dataset.e;return}
+const b=f.querySelector('button[type=submit]');b.disabled=true;try{const r=await fetch(f.dataset.u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:v('kind'),name:v('name'),phone:v('phone'),date:v('date'),guests:v('guests'),message:v('message'),website:v('website')})});
+if(r.ok){f.classList.add('done');window.__ev&&window.__ev('request')}else{const j=await r.json().catch(()=>({}));er.textContent=j.error==='too_many'?er.dataset.m:er.dataset.e}}catch(x){er.textContent=er.dataset.e}b.disabled=false})})()</script>`;
 // Nuit: the transparent bar over the photo becomes solid once the photo has scrolled away.
 const NUIT_JS = `<script>(()=>{const n=document.querySelector('header.nav'),h=document.querySelector('.nh');if(!n||!h)return;new IntersectionObserver(([e])=>n.classList.toggle('solid',!e.isIntersecting),{rootMargin:'-80px 0px 0px 0px'}).observe(h)})()</script>`;
 // The WhatsApp basket. Kept for the visit only (sessionStorage), nothing is sent to us.
