@@ -13,12 +13,18 @@ export default defineConfig({
       registerType: 'prompt', // never reload in the middle of an order; updates apply at the staff lock screen
       injectRegister: false,
       manifest: {
-        name: 'Amplify POS · Caisse', short_name: 'Caisse', display: 'standalone',
+        name: 'Amplify Caisse', short_name: 'Amplify Caisse', description: 'La caisse Amplify POS', id: '/', start_url: '/', scope: '/', display: 'standalone',
         background_color: '#020F20', theme_color: '#020F20', lang: 'fr',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        globIgnores: ['**/*.exe'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         runtimeCaching: [{

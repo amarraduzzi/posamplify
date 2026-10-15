@@ -593,4 +593,5 @@ export const AR: Record<string, string> = {
   "Entre 1 g et 100 kg.": "بين 1 غ و100 كغ.",
   "Le poids lu sur la balance.": "الوزن المقروء على الميزان.",
   "Poids": "الوزن",
+  "Installer la caisse sur cet appareil": "تثبيت الصندوق على هذا الجهاز",
 };

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
 import { errorMessage } from './lib/api';
+import { useInstall } from './lib/install';
 import { Btn, Field, inputCls } from './components/ui';
 import { MenuPage } from './pages/MenuPage';
 import { StaffPage } from './pages/StaffPage';
@@ -62,6 +63,7 @@ function Toasts() {
 
 function Screens() {
   const a = useAdminCtx();
+  const inst = useInstall();
   const [page, setPage] = useState<Page>('briefing');
   const [navOpen, setNavOpen] = useState(false);
   // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
@@ -167,6 +169,7 @@ function Screens() {
         {(hasPos || hasOrders) && r && <a href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer" className="relative mt-4 flex items-center gap-2 rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10"><ExternalLink className="h-4 w-4" /> {t('Voir le menu client')}</a>}
         </div>
         <div className="relative shrink-0 border-t border-white/10 pt-3">
+          {inst.can && <button onClick={() => inst.install()} className="mb-2 flex w-full items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"><MonitorDown className="h-4 w-4 text-brand" /> {t('Installer l’application')}</button>}
           <LangSwitch dark className="mb-2 flex w-full" />
           <p className="mb-2 truncate px-1 text-xs text-white/40" dir="ltr">{a.session.user.email}</p>
           <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.06] hover:text-white" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4 rtl:-scale-x-100" /> {t('Déconnexion')}</button>

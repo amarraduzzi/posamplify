@@ -10,6 +10,7 @@ import { checkPinOffline, forgetPinIfStale, rememberPin } from '../lib/pins';
 import { AmplifyLogo, PatternBackdrop, initials } from './Brand';
 import { getLang, t } from '../lib/i18n';
 import { LangSwitch } from './LangSwitch';
+import { InstallButton } from './InstallButton';
 
 /** Staff pick their name and type their PIN. Shown at start and after the idle lock. */
 export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
@@ -54,6 +55,7 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
         <AmplifyLogo size="sm" className="opacity-90" />
         <LangSwitch />
       </div>
+      <InstallButton className="absolute end-6 top-5" />
       <Clock tz={r.timezone} />
       <div className="rise relative text-center">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">{who ? t('Code personnel') : t('Bienvenue')}</p>

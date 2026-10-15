@@ -2,6 +2,7 @@ import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { unlockAudio } from './lib/sound';
+import './lib/install'; // catch the browser's install offer before the app loads
 
 const root = createRoot(document.getElementById('root')!);
 const url = import.meta.env.VITE_SUPABASE_URL;

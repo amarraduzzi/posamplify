@@ -9,6 +9,7 @@ import { Btn, Field, inputCls } from './ui';
 import { AmplifyLogo, PatternBackdrop } from './Brand';
 import { t } from '../lib/i18n';
 import { LangSwitch } from './LangSwitch';
+import { InstallButton } from './InstallButton';
 
 // i18n:values
 const CODE_ERRORS: Record<string, string> = {
@@ -76,6 +77,7 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
             <AmplifyLogo className="whitespace-nowrap lg:hidden" />
             <LangSwitch />
           </div>
+          <InstallButton className="mb-6" />
           <p className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--brand)/.12)] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand">
             <span className="h-1.5 w-1.5 rounded-full bg-current" />{mode === 'code' ? t('Une seule fois par poste') : t('Compte du poste')}
           </p>

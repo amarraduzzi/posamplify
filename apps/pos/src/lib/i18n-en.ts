@@ -592,4 +592,5 @@ export const EN: Record<string, string> = {
   "Entre 1 g et 100 kg.": "Between 1 g and 100 kg.",
   "Le poids lu sur la balance.": "The weight shown on the scale.",
   "Poids": "Weight",
+  "Installer la caisse sur cet appareil": "Install the till on this device",
 };

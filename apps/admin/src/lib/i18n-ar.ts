@@ -2224,4 +2224,5 @@ export const AR: Record<string, string> = {
   "Rejoignez le club {r}": "انضموا إلى نادي {r}",
   "Un QR par événement : vous voyez qui est venu, et le client montre son écran pour recevoir l’offre.": "رمز لكل فعالية: ترون من حضر، ويُظهر الزبون شاشته للحصول على العرض.",
   "Une assiette offerte": "طبق مجاني",
+  "Installer l’application": "تثبيت التطبيق",
 };

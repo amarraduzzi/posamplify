@@ -2222,4 +2222,5 @@ export const EN: Record<string, string> = {
   "Rejoignez le club {r}": "Join the {r} club",
   "Un QR par événement : vous voyez qui est venu, et le client montre son écran pour recevoir l’offre.": "One QR per event: you see who came, and the guest shows their screen to get the offer.",
   "Une assiette offerte": "A free plate",
+  "Installer l’application": "Install the app",
 };
