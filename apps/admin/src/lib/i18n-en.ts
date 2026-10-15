@@ -1992,4 +1992,12 @@ export const EN: Record<string, string> = {
   "Signature": "Signature",
   "signature": "signature",
   "Un film : grande vidéo ou photo en ouverture, votre histoire en scènes, trois plats en plein cadre, le mot du chef et un formulaire pour les événements. Pour un lieu du soir ou une belle table.": "A film: a large video or photo to open, your story in scenes, three dishes in full frame, a word from the chef and a form for events. For an evening venue or a fine table.",
+  "= inclus : le site web est compris avec POS et Profit, Commandes est compris avec POS.": "= included: the website comes with POS and Profit, Commandes comes with POS.",
+  "Ajouter un accès": "Add a login",
+  "Classique": "Classic",
+  "Inclus avec POS": "Included with POS",
+  "Inclus avec POS et Profit": "Included with POS and Profit",
+  "Prolonger l’essai de 14 jours": "Extend the trial by 14 days",
+  "Services": "Services",
+  "gris": "grey",
 };

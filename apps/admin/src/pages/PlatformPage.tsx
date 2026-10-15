@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Copy, MessageCircle, Plus, RotateCcw, Trash2, UserPlus } from 'lucide-react';
+import { Check, Copy, MessageCircle, Pause, Play, Plus, RotateCcw, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -27,69 +27,100 @@ export function PlatformPage() {
       a.toast(t('{name} : {status}', { name: r.name, status: t(STATUS[s]) })); await load(); await a.reload();
     } catch (e) { a.fail(e); }
   };
+  // changes show at once; the list is reloaded only if the server says no
+  const patch = (id: string, p: Partial<Restaurant>) => setList(l => l.map(x => (x.id === id ? { ...x, ...p } : x)));
   const setProducts = async (r: Restaurant, products: string[], plan?: 'essentiel' | 'restaurant') => {
     if (!products.length) { a.toast(t('Gardez au moins un produit.'), 'error'); return; }
+    patch(r.id, { products: products as Restaurant['products'], ...(plan ? { pos_plan: plan } : {}) });
     try {
       const res = await rpc<{ products: string[]; pos_plan: string; devices: number }>('admin_set_products', { p_restaurant_id: r.id, p_products: products, p_pos_plan: plan ?? null });
-      a.toast(res.pos_plan === 'essentiel' && res.devices > 1 && res.products.includes('pos')
-        ? t('{name} : Essentiel, mais {n} caisses déjà reliées. Retirez-en pour n’en garder qu’une.', { name: r.name, n: res.devices })
-        : t('{name} : mis à jour', { name: r.name }));
-      await load(); await a.reload();
-    } catch (e) { a.fail(e); }
+      patch(r.id, { products: res.products as Restaurant['products'], pos_plan: res.pos_plan as Restaurant['pos_plan'] });
+      if (res.pos_plan === 'essentiel' && res.devices > 1 && res.products.includes('pos')) a.toast(t('{name} : Essentiel, mais {n} caisses déjà reliées. Retirez-en pour n’en garder qu’une.', { name: r.name, n: res.devices }), 'error');
+      void a.reload();
+    } catch (e) { a.fail(e); await load(); }
   };
   const setSitePlan = async (r: Restaurant, plan: 'basic' | 'premium') => {
-    try {
-      await rpc('admin_set_site_plan', { p_restaurant_id: r.id, p_plan: plan });
-      a.toast(t('{name} : mis à jour', { name: r.name })); await load(); await a.reload();
-    } catch (e) { a.fail(e); }
+    patch(r.id, { site_plan: plan });
+    try { await rpc('admin_set_site_plan', { p_restaurant_id: r.id, p_plan: plan }); void a.reload(); } catch (e) { a.fail(e); await load(); }
   };
+  // a service included in another one (Site with POS or Profit, Commandes with POS) is ticked and locked
+  const SERVICES = [['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes']] as const;
+  const included = (r: Restaurant, k: string) => {
+    const pr = r.products ?? [];
+    return (k === 'site' && (pr.includes('pos') || pr.includes('profit'))) || (k === 'orders' && pr.includes('pos'));
+  };
+  const toggle = (r: Restaurant, k: string) => {
+    const pr = (r.products ?? []) as string[];
+    void setProducts(r, pr.includes(k) ? pr.filter(x => x !== k) : [...pr, k]);
+  };
+  const sel = 'h-8 w-full rounded-lg border border-line/15 bg-surface ps-2 pe-1 text-xs font-semibold';
+  const iconBtn = 'grid h-8 w-7 shrink-0 place-items-center rounded-lg transition hover:bg-surface-2';
   return (
     <div>
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
-      <div className="overflow-x-auto card rounded-3xl">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-start text-muted"><tr><th className="px-4 py-2 text-start">{t('Restaurant')}</th><th className="text-start">{t('Statut')}</th><th className="text-start">{t("Fin d'essai")}</th><th className="text-start">{t('Produits')}</th><th className="px-4 text-end">{t('Actions')}</th></tr></thead>
+      <div className="card overflow-x-auto rounded-3xl">
+        <table className="w-full min-w-[1040px] table-fixed text-sm">
+          <colgroup><col /><col className="w-[106px]" /><col className="w-[328px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
+          <thead className="bg-surface-2 text-xs font-semibold text-muted">
+            <tr><th className="px-4 py-2.5 text-start">{t('Restaurant')}</th><th className="px-2 text-start">{t('Statut')}</th><th className="px-2 text-start">{t('Services')}</th><th className="pe-2 ps-3 text-start">{t('Caisse')}</th><th className="px-2 text-start">{t('Site web')}</th><th className="pe-3 text-end">{t('Actions')}</th></tr>
+          </thead>
           <tbody>
-            {list.map(r => (
-              <tr key={r.id} className="border-t border-line/10">
-                <td className="px-4 py-2.5"><p className="font-semibold">{r.name}</p><p className="text-xs text-muted">{r.slug}{r.is_demo ? ` · ${t('démo')}` : ''}</p></td>
-                <td><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${r.status === 'active' ? 'bg-ok/15 text-ok' : r.status === 'trial' ? 'bg-warn/15 text-warn' : 'bg-danger/10 text-danger'}`}>{t(STATUS[r.status])}</span></td>
-                <td className="tabular">{r.trial_ends_at && r.status === 'trial' ? new Date(r.trial_ends_at).toLocaleDateString(dateLocale()) : '—'}</td>
-                <td className="py-2">
-                  <div className="flex flex-wrap items-center gap-1">
-                    {(['pos', 'profit', 'site', 'orders'] as const).map(k => {
-                      const on = (r.products ?? []).includes(k);
-                      return <button key={k} onClick={() => setProducts(r, on ? (r.products ?? []).filter(x => x !== k) : [...(r.products ?? []), k], r.pos_plan)}
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted line-through'}`}>{k === 'pos' ? 'POS' : k === 'profit' ? 'Profit' : k === 'site' ? 'Site' : 'Commandes'}</button>;
-                    })}
-                    {(r.products ?? []).includes('pos') && (
-                      <select aria-label={t('Formule POS')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, r.products ?? ['pos'], e.target.value as 'essentiel' | 'restaurant')}>
+            {list.map(r => {
+              const pr = (r.products ?? []) as string[];
+              return (
+                <tr key={r.id} className="border-t border-line/10 align-middle">
+                  <td className="px-4 py-3"><p className="truncate font-semibold" title={r.name}>{r.name}</p><p className="truncate text-xs text-muted">{r.slug}{r.is_demo ? ` · ${t('démo')}` : ''}</p></td>
+                  <td className="px-2">
+                    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${r.status === 'active' ? 'bg-ok/15 text-ok' : r.status === 'trial' ? 'bg-warn/15 text-warn' : 'bg-danger/10 text-danger'}`}>
+                      {t(STATUS[r.status])}{r.status === 'trial' && r.trial_ends_at ? <span className="font-semibold tabular">{new Date(r.trial_ends_at).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit' })}</span> : null}
+                    </span>
+                  </td>
+                  <td className="px-2">
+                    <div className="flex gap-1">
+                      {SERVICES.map(([k, label]) => {
+                        const inc = included(r, k), on = inc || pr.includes(k);
+                        return (
+                          <button key={k} type="button" role="checkbox" aria-checked={on} disabled={inc} onClick={() => toggle(r, k)}
+                            title={inc ? (k === 'orders' ? t('Inclus avec POS') : t('Inclus avec POS et Profit')) : undefined}
+                            className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 text-xs font-bold transition ${inc ? 'cursor-default border-transparent bg-night/10 text-ink' : on ? 'border-night bg-night text-white' : 'border-line/20 text-muted hover:border-line/40 hover:text-ink'}`}>
+                            <span className={`grid h-4 w-4 place-items-center rounded ${on ? (inc ? 'bg-night/25 text-ink' : 'bg-white/20') : 'border border-line/30'}`}>{on && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="pe-2 ps-3">
+                    {pr.includes('pos') ? (
+                      <select aria-label={t('Formule POS')} className={sel} value={r.pos_plan ?? 'restaurant'} onChange={e => setProducts(r, pr, e.target.value as 'essentiel' | 'restaurant')}>
                         <option value="essentiel">{t('Essentiel')}</option><option value="restaurant">{t('Restaurant')}</option>
                       </select>
-                    )}
-                    {(
-                      <select aria-label={t('Formule du site')} className="rounded-lg border border-line/15 bg-surface px-1.5 py-1 text-xs" value={r.site_plan ?? 'basic'} onChange={e => setSitePlan(r, e.target.value as 'basic' | 'premium')}>
-                        <option value="basic">{t('Site basique')}</option><option value="premium">{t('Site premium')}</option>
-                      </select>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-2 text-end">
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <Btn className="px-2.5 py-1.5" aria-label={t('Accès à {name}', { name: r.name })} onClick={() => setMember(r)}><UserPlus className="h-4 w-4" /></Btn>
-                    {r.status !== 'active' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'active')}>{t('Activer')}</Btn>}
-                    {r.status === 'trial' && <Btn className="px-2.5 py-1.5" onClick={() => status(r, 'trial', 14)}>{t('+14 j')}</Btn>}
-                    <Btn className="px-2.5 py-1.5" aria-label={t('Remettre à zéro {name}', { name: r.name })} title={t('Remettre à zéro (ventes et stock)')} onClick={() => setResetting(r)}><RotateCcw className="h-4 w-4" /></Btn>
-                    {r.status !== 'paused' && <Btn tone="danger" className="px-2.5 py-1.5" onClick={() => status(r, 'paused')}>{t('Suspendre')}</Btn>}
-                    {(r.status === 'paused' || r.status === 'cancelled' || r.is_demo) && <Btn tone="danger" className="px-2.5 py-1.5" aria-label={t('Supprimer {name}', { name: r.name })} onClick={() => setRemoving(r)}><Trash2 className="h-4 w-4" /></Btn>}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    ) : <span className="px-2 text-muted">—</span>}
+                  </td>
+                  <td className="px-2">
+                    <select aria-label={t('Formule du site')} className={`${sel} ${r.site_plan === 'premium' ? 'border-brand/40 text-brand' : ''}`} value={r.site_plan ?? 'basic'} onChange={e => setSitePlan(r, e.target.value as 'basic' | 'premium')}>
+                      <option value="basic">{t('Classique')}</option><option value="premium">{t('Premium')}</option>
+                    </select>
+                  </td>
+                  <td className="pe-3 ps-2">
+                    {/* fixed slots, so the icons line up from one row to the next */}
+                    <div className="grid grid-cols-[40px_repeat(5,28px)] items-center justify-end gap-0.5">
+                      {r.status === 'trial' ? <button type="button" className={`${iconBtn} w-10 text-xs font-bold`} title={t('Prolonger l’essai de 14 jours')} onClick={() => status(r, 'trial', 14)}>{t('+14 j')}</button> : <span />}
+                      {r.status !== 'active' ? <button type="button" className={`${iconBtn} text-ok`} aria-label={t('Activer')} title={t('Activer')} onClick={() => status(r, 'active')}><Play className="h-4 w-4" /></button> : <span />}
+                      <button type="button" className={iconBtn} aria-label={t('Accès à {name}', { name: r.name })} title={t('Ajouter un accès')} onClick={() => setMember(r)}><UserPlus className="h-4 w-4" /></button>
+                      <button type="button" className={iconBtn} aria-label={t('Remettre à zéro {name}', { name: r.name })} title={t('Remettre à zéro (ventes et stock)')} onClick={() => setResetting(r)}><RotateCcw className="h-4 w-4" /></button>
+                      {r.status !== 'paused' ? <button type="button" className={`${iconBtn} text-danger hover:bg-danger/10`} aria-label={t('Suspendre')} title={t('Suspendre')} onClick={() => status(r, 'paused')}><Pause className="h-4 w-4" /></button> : <span />}
+                      {(r.status === 'paused' || r.status === 'cancelled' || r.is_demo) ? <button type="button" className={`${iconBtn} text-danger hover:bg-danger/10`} aria-label={t('Supprimer {name}', { name: r.name })} title={t('Supprimer')} onClick={() => setRemoving(r)}><Trash2 className="h-4 w-4" /></button> : <span />}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")} {t('Supprimer définitivement : possible une fois suspendu.')}</p>
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-muted"><span className="inline-flex h-5 items-center gap-1 rounded-md bg-night/10 px-1.5 text-xs font-bold text-ink"><Check className="h-3 w-3" strokeWidth={3} />{t('gris')}</span>{t('= inclus : le site web est compris avec POS et Profit, Commandes est compris avec POS.')}</p>
+      <p className="mt-1 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")} {t('Supprimer définitivement : possible une fois suspendu.')}</p>
       <SiteLeads />
       {creating && <CreateRestaurant onClose={() => setCreating(false)} onDone={async () => { setCreating(false); await load(); await a.reload(); }} />}
       {member && <AddMember r={member} onClose={() => setMember(null)} />}

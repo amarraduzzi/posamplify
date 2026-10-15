@@ -510,7 +510,7 @@ function maisonCss() {
 .mh h1{font-size:clamp(56px,11.5vw,176px);line-height:.86;letter-spacing:-.03em;overflow-wrap:anywhere}
 .mh h1 span{display:inline-block;animation:mrise 1s cubic-bezier(.2,.8,.2,1) both}
 @keyframes mrise{from{opacity:0;transform:translateY(.35em)}}
-.mh .row2{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:end;margin-top:28px;padding-top:22px;border-top:1px solid var(--ink)}
+.mh .row2{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:start;margin-top:28px;padding-top:22px;border-top:1px solid var(--ink)}
 .mh .t{font-family:var(--display);font-size:clamp(22px,2.4vw,30px);line-height:1.2;max-width:26ch}
 .mh .side{display:flex;flex-direction:column;align-items:flex-end;gap:14px}.mh .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.mh .chip{background:var(--surface)}
 .col{display:grid;grid-template-columns:7fr 5fr;grid-template-rows:1fr 1fr;gap:14px;height:min(72vh,640px);margin-bottom:24px}

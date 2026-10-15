@@ -1994,4 +1994,12 @@ export const AR: Record<string, string> = {
   "Signature": "سينياتور",
   "signature": "signature",
   "Un film : grande vidéo ou photo en ouverture, votre histoire en scènes, trois plats en plein cadre, le mot du chef et un formulaire pour les événements. Pour un lieu du soir ou une belle table.": "فيلم: فيديو أو صورة كبيرة في البداية، قصتكم في مشاهد، ثلاثة أطباق بإطار كامل، كلمة الشيف واستمارة للمناسبات. لمكان سهرة أو مائدة راقية.",
+  "= inclus : le site web est compris avec POS et Profit, Commandes est compris avec POS.": "= مشمول: الموقع مشمول مع POS و Profit، والطلبات مشمولة مع POS.",
+  "Ajouter un accès": "إضافة دخول",
+  "Classique": "كلاسيك",
+  "Inclus avec POS": "مشمول مع POS",
+  "Inclus avec POS et Profit": "مشمول مع POS و Profit",
+  "Prolonger l’essai de 14 jours": "تمديد التجربة 14 يوما",
+  "Services": "الخدمات",
+  "gris": "رمادي",
 };
