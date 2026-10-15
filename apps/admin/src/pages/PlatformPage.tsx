@@ -5,7 +5,10 @@ import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from '../components/ui';
-import { dateLocale, t } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import { billing, fmtDay, intlPhone, reminderText, waTo } from '../lib/billing';
+import { BillingModal } from '../components/BillingModal';
+import { mad } from '../lib/api';
 
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
@@ -19,6 +22,7 @@ export function PlatformPage() {
   const [member, setMember] = useState<Restaurant | null>(null);
   const [removing, setRemoving] = useState<Restaurant | null>(null);
   const [resetting, setResetting] = useState<Restaurant | null>(null);
+  const [billingOf, setBillingOf] = useState<Restaurant | null>(null);
   const load = async () => { try { setList(check(await supabase.from('restaurants').select('*').order('created_at')) as Restaurant[]); } catch (e) { a.fail(e); } };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const status = async (r: Restaurant, s: string, days?: number) => {
@@ -58,9 +62,10 @@ export function PlatformPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
+      <ToCollect list={list} onOpen={setBillingOf} />
       <div className="card overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[1040px] table-fixed text-sm">
-          <colgroup><col /><col className="w-[106px]" /><col className="w-[328px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
+        <table className="w-full min-w-[1060px] table-fixed text-sm">
+          <colgroup><col /><col className="w-[128px]" /><col className="w-[328px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
           <thead className="bg-surface-2 text-xs font-semibold text-muted">
             <tr><th className="px-4 py-2.5 text-start">{t('Restaurant')}</th><th className="px-2 text-start">{t('Statut')}</th><th className="px-2 text-start">{t('Services')}</th><th className="pe-2 ps-3 text-start">{t('Caisse')}</th><th className="px-2 text-start">{t('Site web')}</th><th className="pe-3 text-end">{t('Actions')}</th></tr>
           </thead>
@@ -71,9 +76,14 @@ export function PlatformPage() {
                 <tr key={r.id} className="border-t border-line/10 align-middle">
                   <td className="px-4 py-3"><p className="truncate font-semibold" title={r.name}>{r.name}</p><p className="truncate text-xs text-muted">{r.slug}{r.is_demo ? ` · ${t('démo')}` : ''}</p></td>
                   <td className="px-2">
-                    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${r.status === 'active' ? 'bg-ok/15 text-ok' : r.status === 'trial' ? 'bg-warn/15 text-warn' : 'bg-danger/10 text-danger'}`}>
-                      {t(STATUS[r.status])}{r.status === 'trial' && r.trial_ends_at ? <span className="font-semibold tabular">{new Date(r.trial_ends_at).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit' })}</span> : null}
-                    </span>
+                    {(() => {
+                      const bl = billing(r);
+                      const [label, tone] = bl.state === 'paused' ? [t('Suspendu'), 'bg-danger/10 text-danger'] : bl.state === 'cancelled' ? [t('Résilié'), 'bg-danger/10 text-danger']
+                        : bl.state === 'setup' ? [t('En préparation'), 'bg-surface-2 text-muted'] : bl.state === 'trial' ? [`${t('Essai')} ${bl.due ? fmtDay(bl.due) : ''}`, 'bg-warn/15 text-warn']
+                        : bl.state === 'late' ? [t('Retard {n} j', { n: -(bl.left ?? 0) }), 'bg-danger/15 text-danger'] : bl.state === 'soon' ? [`${t('À payer')} ${fmtDay(bl.due!)}`, 'bg-warn/15 text-warn']
+                        : [`${t('Payé')} → ${fmtDay(bl.due!)}`, 'bg-ok/15 text-ok'];
+                      return <button type="button" onClick={() => setBillingOf(r)} title={t('Paiements')} className={`inline-flex max-w-full items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold transition hover:ring-2 hover:ring-line/20 ${tone}`}>{label}</button>;
+                    })()}
                   </td>
                   <td className="px-2">
                     <div className="flex gap-1">
@@ -123,6 +133,7 @@ export function PlatformPage() {
       <p className="mt-1 text-sm text-muted">{t("Suspendre : le menu reste visible, mais les commandes et la caisse sont bloquées jusqu'à la réactivation.")} {t('Supprimer définitivement : possible une fois suspendu.')}</p>
       <SiteLeads />
       {creating && <CreateRestaurant onClose={() => setCreating(false)} onDone={async () => { setCreating(false); await load(); await a.reload(); }} />}
+      {billingOf && <BillingModal r={billingOf} onClose={() => setBillingOf(null)} onChanged={load} />}
       {member && <AddMember r={member} onClose={() => setMember(null)} />}
       {resetting && <ResetActivity r={resetting} onClose={() => setResetting(null)} onDone={async () => { setResetting(null); await load(); await a.reload(); }} />}
       {removing && <DeleteRestaurant r={removing} onClose={() => setRemoving(null)} onDone={async () => { setRemoving(null); await load(); await a.reload(); }} />}
@@ -382,6 +393,39 @@ function SiteLeads() {
           })}</tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Who has to pay: late first, then the next 7 days. A reminder on WhatsApp, or straight to the payment. */
+function ToCollect({ list, onOpen }: { list: Restaurant[]; onOpen: (r: Restaurant) => void }) {
+  const rows = list.map(r => ({ r, b: billing(r) })).filter(x => x.b.state === 'late' || x.b.state === 'soon' || (x.b.state === 'trial' && (x.b.left ?? 99) <= 7))
+    .sort((x, y) => (x.b.left ?? 0) - (y.b.left ?? 0));
+  if (!rows.length) return null;
+  const total = rows.filter(x => x.b.state !== 'trial').reduce((s, x) => s + (x.b.amount ?? 0), 0);
+  return (
+    <div className="card mb-5 rounded-3xl p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl font-semibold">{t('À encaisser')}</h2>
+        {total > 0 && <p className="text-sm text-muted">{t('Total attendu : {a}', { a: mad(total) })}</p>}
+      </div>
+      <ul className="divide-y divide-line/10">
+        {rows.map(({ r, b }) => {
+          const phone = intlPhone(r.owner_whatsapp || r.phone);
+          const when = b.state === 'late' ? t('en retard de {n} j', { n: -(b.left ?? 0) }) : b.state === 'trial' ? t('fin d’essai le {d}', { d: fmtDay(b.due!, true) }) : b.left === 0 ? t('aujourd’hui') : t('le {d}', { d: fmtDay(b.due!, true) });
+          return (
+            <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 text-sm">
+              <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
+              <span className={`w-40 whitespace-nowrap font-semibold ${b.state === 'late' ? 'text-danger' : 'text-warn'}`}>{when}</span>
+              <span className="w-24 whitespace-nowrap text-end font-semibold tabular">{b.amount ? mad(b.amount) : '—'}</span>
+              <span className="flex gap-1">
+                {phone && b.due && <a href={waTo(phone, reminderText(r, b.due, b.amount))} target="_blank" rel="noopener" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold hover:bg-surface-2"><MessageCircle className="h-4 w-4" />{t('Rappel')}</a>}
+                <button type="button" onClick={() => onOpen(r)} className="inline-flex h-8 items-center rounded-lg bg-night px-3 text-xs font-bold text-white">{t('Paiement reçu')}</button>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

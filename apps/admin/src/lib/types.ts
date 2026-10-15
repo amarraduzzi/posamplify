@@ -1,5 +1,6 @@
 import type { I18n } from '@resto/shared';
 export type { I18n };
+export type PayMethod = 'cash' | 'transfer' | 'cashplus' | 'card' | 'other';
 export interface Restaurant {
   id: string; slug: string; name: string; status: 'trial' | 'active' | 'paused' | 'cancelled'; trial_ends_at: string | null; is_demo: boolean;
   timezone: string; currency: string; languages: string[]; day_cutoff_hour: number; glovo_markup_bp?: number;
@@ -16,6 +17,8 @@ export interface Restaurant {
   pos_plan?: 'essentiel' | 'restaurant';
   kiosk_token?: string | null;
   owner_whatsapp?: string | null;
+  /** Amplify's billing of this customer (set by Amplify only). No billing_start: not started yet. */
+  billing_start?: string | null; billing_amount_cents?: number | null; billing_period?: 'month' | 'year'; billing_method?: PayMethod | null; paid_until?: string | null;
   /** 'premium' unlocks the premium website styles; set by Amplify only */
   site_plan?: 'basic' | 'premium';
   site?: { enabled?: boolean; theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison' | 'signature'; catering?: boolean; request?: boolean;

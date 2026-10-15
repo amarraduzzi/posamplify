@@ -9,6 +9,7 @@ import { useAdminCtx } from '../store';
 import { isSiteOnly, type I18n, type Restaurant } from '../lib/types';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
+import { BillingCard } from '../components/OwnerBilling';
 
 const LANGS: [string, string][] = [['fr', 'Français'], ['ar', 'العربية'], ['en', 'English'], ['es', 'Español']];
 
@@ -67,6 +68,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
         {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length || !reviewOk} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
       </div>
       {ro && <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm">{t('Seul le propriétaire peut modifier ces informations.')}</p>}
+      <BillingCard r={r} />
       <fieldset disabled={ro} className="space-y-6">
         <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Adresses')}</h2>

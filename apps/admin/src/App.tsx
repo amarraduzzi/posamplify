@@ -24,6 +24,7 @@ import { IngredientsPage } from './pages/IngredientsPage';
 import { ProductionPage } from './pages/ProductionPage';
 import { CateringPage } from './pages/CateringPage';
 import { SiteRequestBanner, useSiteRequests } from './components/SiteRequests';
+import { BillingBanner } from './components/OwnerBilling';
 import { unlockSound } from './lib/chime';
 import { ChargesPage } from './pages/ChargesPage';
 import { StockPage } from './pages/StockPage';
@@ -173,6 +174,7 @@ function Screens() {
           <span className="me-auto font-display text-lg font-semibold">{r?.name}</span>
           <LangSwitch dark />
         </div>
+        {r && a.role === 'owner' && <div className="no-print"><BillingBanner r={r} /></div>}
         {r && <div className="no-print"><SiteRequestBanner rows={siteReqs} onOpen={id => { setCatOpen(id); setPage('catering'); setNavOpen(false); }} /></div>}
         <div className="rise mx-auto max-w-6xl p-4 md:p-10" key={current}>
           {!r && !a.isAdmin && <p className="text-muted">{t('Ce compte ne gère aucun restaurant.')}</p>}

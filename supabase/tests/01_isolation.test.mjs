@@ -44,6 +44,8 @@ before(async () => {
       const [cb] = await sql(`insert into public.catering_orders (restaurant_id, customer_name, event_date) values ($1, 'Client iso B', current_date) returning id`, [w.B.r.id]);
       await sql(`insert into public.catering_lines (restaurant_id, catering_id, name, unit_price_cents, qty) values ($1, $2, 'Plateau iso B', 1000, 1)`, [w.B.r.id, cb.id]);
       await sql(`insert into public.catering_payments (restaurant_id, catering_id, method, amount_cents) values ($1, $2, 'cash', 1000)`, [w.B.r.id, cb.id]); }
+    if (await sql(`select to_regclass('public.platform_payments') r`).then(x => x[0].r)) {
+      await sql(`insert into public.platform_payments (restaurant_id, amount_cents, method, paid_on, period_from, period_to) values ($1, 29900, 'cash', current_date, current_date, current_date + 30)`, [w.B.r.id]); }
     await sql(`insert into public.supplier_documents (restaurant_id, supplier_id, file_path, mime_type, size_bytes) values ($1, $2, $3, 'image/jpeg', 1000)`, [w.B.r.id, sb.id, `${w.B.r.id}/x.jpg`]); }
   await sql(`insert into public.couriers (restaurant_id, name) values ($1, 'Livreur B')`, [w.B.r.id]);
   await sql(`insert into public.site_events (restaurant_id, day, kind, n) values ($1, current_date, 'view', 3)`, [w.B.r.id]);
