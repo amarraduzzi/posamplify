@@ -594,4 +594,6 @@ export const AR: Record<string, string> = {
   "Le poids lu sur la balance.": "الوزن المقروء على الميزان.",
   "Poids": "الوزن",
   "Installer la caisse sur cet appareil": "تثبيت الصندوق على هذا الجهاز",
+  "Plein écran automatique": "ملء الشاشة تلقائيا",
+  "Sans barre en haut. Échap pour sortir, un toucher pour revenir.": "بدون شريط في الأعلى. Esc للخروج، ولمسة للعودة.",
 };

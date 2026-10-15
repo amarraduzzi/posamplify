@@ -593,4 +593,6 @@ export const EN: Record<string, string> = {
   "Le poids lu sur la balance.": "The weight shown on the scale.",
   "Poids": "Weight",
   "Installer la caisse sur cet appareil": "Install the till on this device",
+  "Plein écran automatique": "Automatic full screen",
+  "Sans barre en haut. Échap pour sortir, un toucher pour revenir.": "No bar at the top. Esc to leave, one tap to come back.",
 };

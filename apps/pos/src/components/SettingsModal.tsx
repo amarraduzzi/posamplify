@@ -7,10 +7,12 @@ import * as P from '../lib/print';
 import { Btn, Modal } from './ui';
 import { t } from '../lib/i18n';
 import { LangSwitch } from './LangSwitch';
+import { autoFullscreen, setAutoFullscreen } from '../lib/fullscreen';
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const pos = usePos();
   const [photos, setPhotos] = useState(localStorage.getItem('pos-photos') !== 'off');
+  const [full, setFull] = useState(autoFullscreen());
   return (
     <Modal title={t('Réglages du poste')} onClose={onClose}>
       <h3 className="mb-2 font-bold">{t('Langue')}</h3>
@@ -21,6 +23,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <span>{t('Photos des articles')}<span className="block text-xs text-muted">{t('Désactivez sur un PC lent.')}</span></span>
         <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={photos}
           onChange={e => { const on = e.target.checked; setPhotos(on); localStorage.setItem('pos-photos', on ? 'on' : 'off'); }} />
+      </label>
+      <label className="mt-2 flex cursor-pointer items-center justify-between rounded-xl bg-surface-2 px-3 py-3">
+        <span>{t('Plein écran automatique')}<span className="block text-xs text-muted">{t('Sans barre en haut. Échap pour sortir, un toucher pour revenir.')}</span></span>
+        <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={full}
+          onChange={e => { const on = e.target.checked; setFull(on); setAutoFullscreen(on); }} />
       </label>
       <DisplaySetup />
       <h3 className="mb-2 mt-6 font-bold">{t('Poste')}</h3>

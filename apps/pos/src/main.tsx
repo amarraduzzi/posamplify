@@ -24,6 +24,7 @@ if (!url || !key) {
   root.render(<StrictMode><Suspense fallback={null}><Display code={code} /></Suspense></StrictMode>);
 } else {
   document.addEventListener('pointerdown', unlockAudio, { passive: true });
+  import('./lib/fullscreen').then(m => m.startAutoFullscreen()).catch(() => {});
   // keep the till app on this PC so it opens without internet (not in dev: it would cache stale code)
   if (import.meta.env.PROD) import('./lib/sw').then(m => m.startServiceWorker()).catch(() => {});
   const Root = lazy(async () => {
