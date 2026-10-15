@@ -7,7 +7,7 @@ import { ImportMenu } from '../components/ImportMenu';
 import { supabase, MENU_URL, POS_URL, SITE_URL } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
-import type { Restaurant } from '../lib/types';
+import { premiumAccess, premiumOnTrial, type Restaurant } from '../lib/types';
 import { Btn, Card, Field, ImageField, inputCls } from '../components/ui';
 import { LangSwitch } from '../components/LangSwitch';
 import { dateLocale, getLang, t } from '../lib/i18n';
@@ -191,7 +191,7 @@ function StepLook({ r, onNext }: { r: Restaurant; onNext: () => void }) {
         <Field group label={t('Logo (facultatif)')}><ImageField aspect="aspect-square" url={logo} onChange={setLogo} upload={f => uploadImage(r.id, 'brand', f, 512)} /></Field>
       </div>
       <h2 className="mb-3 mt-6 font-semibold">{t('Style')}</h2>
-      <ThemePicker value={theme} onChange={k => k && setTheme(k)} />
+      <ThemePicker value={theme} onChange={k => k && setTheme(k)} premium={premiumAccess(r) ? 'open' : 'locked'} trial={premiumOnTrial(r)} />
       <div className="mt-6 flex justify-end"><Btn tone="brand" disabled={busy} onClick={save}>{t('Créer mon site')} <ArrowRight className="h-4 w-4 rtl:rotate-180" /></Btn></div>
     </Card>
   );

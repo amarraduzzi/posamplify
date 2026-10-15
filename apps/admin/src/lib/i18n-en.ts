@@ -2000,4 +2000,10 @@ export const EN: Record<string, string> = {
   "Prolonger l’essai de 14 jours": "Extend the trial by 14 days",
   "Services": "Services",
   "gris": "grey",
+  "Bonjour, je veux garder le site Premium pour {name} (750 DH).": "Hello, I want to keep the Premium website for {name} (750 DH).",
+  "Demander le site Premium à Amplify": "Ask Amplify for the Premium website",
+  "Garder le Premium": "Keep Premium",
+  "Gratuit pendant l’essai, puis 750 DH une seule fois pour le garder.": "Free during the trial, then 750 DH one-off to keep it.",
+  "Premium offert pendant votre essai{d}. Pour le garder ensuite : 750 DH, une seule fois. Sinon, votre site passe au style Moderne.": "Premium is free during your trial{d}. To keep it afterwards: 750 DH, one-off. Otherwise your site switches to the Moderne style.",
+  "jusqu’au {d}": "until {d}",
 };

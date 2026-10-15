@@ -2002,4 +2002,10 @@ export const AR: Record<string, string> = {
   "Prolonger l’essai de 14 jours": "تمديد التجربة 14 يوما",
   "Services": "الخدمات",
   "gris": "رمادي",
+  "Bonjour, je veux garder le site Premium pour {name} (750 DH).": "السلام عليكم، أريد الاحتفاظ بموقع بريميوم لـ {name} (750 درهم).",
+  "Demander le site Premium à Amplify": "اطلبوا موقع بريميوم من Amplify",
+  "Garder le Premium": "الاحتفاظ بالبريميوم",
+  "Gratuit pendant l’essai, puis 750 DH une seule fois pour le garder.": "مجاني خلال التجربة، ثم 750 درهم مرة واحدة للاحتفاظ به.",
+  "Premium offert pendant votre essai{d}. Pour le garder ensuite : 750 DH, une seule fois. Sinon, votre site passe au style Moderne.": "البريميوم مجاني خلال تجربتكم{d}. للاحتفاظ به بعد ذلك: 750 درهم مرة واحدة. وإلا سينتقل موقعكم إلى النمط العصري.",
+  "jusqu’au {d}": "حتى {d}",
 };

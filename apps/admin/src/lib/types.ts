@@ -53,5 +53,11 @@ export interface ProfitDish {
   sold_by_weight?: boolean;
 }
 export interface ProfitData { target_food_cost_bp: number; days: number; uses_pos: boolean; dishes: ProfitDish[] }
+/** Premium website styles: paid (site_plan premium), or free to try during the trial. */
+export const premiumAccess = (r?: Pick<Restaurant, 'site_plan' | 'status' | 'trial_ends_at'> | null) =>
+  !!r && (r.site_plan === 'premium' || (r.status === 'trial' && (!r.trial_ends_at || new Date(r.trial_ends_at).getTime() > Date.now())));
+/** Using the premium styles for free, during the trial (not paid yet). */
+export const premiumOnTrial = (r?: Pick<Restaurant, 'site_plan' | 'status' | 'trial_ends_at'> | null) => premiumAccess(r) && r!.site_plan !== 'premium';
+
 /** The restaurant has only Amplify Site (website and menu, no till, no Profit). */
 export const isSiteOnly = (r?: { products?: string[] } | null) => !!r && (r.products ?? []).length === 1 && r.products![0] === 'site';

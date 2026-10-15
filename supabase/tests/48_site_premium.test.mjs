@@ -48,3 +48,16 @@ test('a website request arrives unseen; the owner marks it seen; own orders are 
   const [m] = await sql(`select seen_at from public.catering_orders where restaurant_id = $1 and customer_name = 'Client direct'`, [rid]);
   assert.ok(m.seen_at);
 });
+
+test('premium styles during the free trial, not after', async () => {
+  await sql(`update public.restaurants set site_plan = 'basic', status = 'trial', trial_ends_at = now() + interval '5 days' where id = $1`, [rid]);
+  const s1 = await rpc(null, 'get_site', [slug, null]);
+  if (s1) assert.equal(s1.site_plan, 'premium');
+  const d = await day();
+  assert.equal((await rpc(null, 'site_request', [slug, null, 'Essai', '0677889900', d, 6, 'group', '', null])).ok, true);
+  await sql(`update public.restaurants set trial_ends_at = now() - interval '1 day' where id = $1`, [rid]);
+  const s2 = await rpc(null, 'get_site', [slug, null]);
+  if (s2) assert.equal(s2.site_plan, 'basic');
+  await assert.rejects(rpc(null, 'site_request', [slug, null, 'Essai', '0677889911', d, 6, 'group', '', null]), /not_found/);
+  await sql(`update public.restaurants set status = 'active', site_plan = 'premium' where id = $1`, [rid]);
+});

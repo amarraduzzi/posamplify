@@ -5,9 +5,10 @@ import { Copy, ExternalLink, Globe, Image as ImageIcon, Lock, Save, Search, Spar
 import { supabase, SITE_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { uploadImage } from '../lib/image';
-import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
-import type { Restaurant } from '../lib/types';
+import { premiumAccess, premiumOnTrial, type Restaurant } from '../lib/types';
+import { AMPLIFY_WA } from './UpgradePage';
+import { dateLocale, t } from '../lib/i18n';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
 import { SiteStats } from '../components/SiteStats';
 import { SitePremium } from '../components/SitePremium';
@@ -31,7 +32,8 @@ export function SitePage({ r }: { r: Restaurant }) {
   const [s, setS] = useState<Site>({ theme: 'nuit', gallery: [], ...(r.site ?? {}) });
   const [busy, setBusy] = useState(false);
   const owner = a.canEditProfile;
-  const premium = r.site_plan === 'premium';
+  const premium = premiumAccess(r), onTrial = premiumOnTrial(r);
+  const keepWa = `https://wa.me/${AMPLIFY_WA}?text=${encodeURIComponent(t('Bonjour, je veux garder le site Premium pour {name} (750 DH).', { name: r.name }))}`;
   const link = s.domain ? `https://${s.domain}` : `${SITE_URL}/${r.slug}`;
   const preview = `${SITE_URL}/${r.slug}`;
   const set = (p: Partial<Site>) => setS(x => ({ ...x, ...p }));
@@ -75,7 +77,14 @@ export function SitePage({ r }: { r: Restaurant }) {
         <Card>
           <Toggle checked={!!s.enabled} onChange={v => set({ enabled: v })} label={t('Mettre le site en ligne (visible sur Google)')} />
           <h2 className="mb-3 mt-6 font-display text-xl font-semibold">{t('Style')}</h2>
-          <ThemePicker value={s.theme} onChange={k => set({ theme: k })} premium={premium ? 'open' : 'locked'} />
+          <ThemePicker value={s.theme} onChange={k => set({ theme: k })} premium={premium ? 'open' : 'locked'} trial={onTrial} />
+          {onTrial && (s.theme === 'maison' || s.theme === 'signature') && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-brand/10 px-4 py-3 text-sm">
+              <p className="min-w-0 flex-1">{t('Premium offert pendant votre essai{d}. Pour le garder ensuite : 750 DH, une seule fois. Sinon, votre site passe au style Moderne.', { d: r.trial_ends_at ? ` ${t('jusqu’au {d}', { d: new Date(r.trial_ends_at).toLocaleDateString(dateLocale()) })}` : '' })}</p>
+              <a href={keepWa} target="_blank" rel="noopener" className="rounded-xl bg-brand px-3 py-1.5 font-semibold text-brand-ink">{t('Garder le Premium')}</a>
+            </div>
+          )}
+          {!premium && <p className="mt-3 text-sm"><a href={keepWa} target="_blank" rel="noopener" className="font-semibold text-brand underline-offset-4 hover:underline">{t('Demander le site Premium à Amplify')}</a></p>}
           {s.theme === 'atelier' && <div className="mt-4"><Toggle checked={s.catering !== false} onChange={v => set({ catering: v })} label={t('Afficher le bloc « Commandes et événements » (devis sur WhatsApp)')} /></div>}
           <p className="mt-3 text-sm text-muted">{t('La couleur principale, le logo, la photo de couverture et le slogan viennent de la page Restaurant.')}</p>
         </Card>
@@ -153,7 +162,7 @@ export function SitePage({ r }: { r: Restaurant }) {
 
 /** The styles, each with a small sketch of its layout. Premium styles show only when `premium` is given:
  * 'open' when the restaurant has the premium website, 'locked' to show them as an offer. */
-export function ThemePicker({ value, onChange, premium }: { value?: Site['theme']; onChange: (k: Site['theme']) => void; premium?: 'open' | 'locked' }) {
+export function ThemePicker({ value, onChange, premium, trial }: { value?: Site['theme']; onChange: (k: Site['theme']) => void; premium?: 'open' | 'locked'; trial?: boolean }) {
   const card = (th: typeof THEMES[number]) => {
     const locked = th.premium && premium !== 'open';
     return (
@@ -170,6 +179,7 @@ export function ThemePicker({ value, onChange, premium }: { value?: Site['theme'
         <p className="flex items-center gap-2 font-semibold">{t(th.name)}{th.premium && <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand">{locked ? <Lock className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}{t('Premium')}</span>}</p>
         <p className="text-sm text-muted">{t(th.text)}</p>
         {locked && <p className="mt-2 text-xs font-semibold text-brand">{t('Site premium : 750 DH une fois. Demandez-le à Amplify.')}</p>}
+        {th.premium && !locked && trial && <p className="mt-2 text-xs font-semibold text-brand">{t('Gratuit pendant l’essai, puis 750 DH une seule fois pour le garder.')}</p>}
       </button>
     );
   };
