@@ -46,6 +46,10 @@ before(async () => {
       await sql(`insert into public.catering_payments (restaurant_id, catering_id, method, amount_cents) values ($1, $2, 'cash', 1000)`, [w.B.r.id, cb.id]); }
     if (await sql(`select to_regclass('public.platform_payments') r`).then(x => x[0].r)) {
       await sql(`insert into public.platform_payments (restaurant_id, amount_cents, method, paid_on, period_from, period_to) values ($1, 29900, 'cash', current_date, current_date, current_date + 30)`, [w.B.r.id]); }
+    if (await sql(`select to_regclass('public.signup_events') r`).then(x => x[0].r)) {
+      const [ev] = await sql(`insert into public.signup_events (restaurant_id, name) values ($1, 'Dégustation iso B') returning id`, [w.B.r.id]);
+      const [cu] = await sql(`insert into public.customers (restaurant_id, phone, name) values ($1, '0611223344', 'Iso B') on conflict (restaurant_id, phone) do update set name = excluded.name returning id`, [w.B.r.id]);
+      await sql(`insert into public.signup_event_people (restaurant_id, event_id, customer_id) values ($1, $2, $3)`, [w.B.r.id, ev.id, cu.id]); }
     await sql(`insert into public.supplier_documents (restaurant_id, supplier_id, file_path, mime_type, size_bytes) values ($1, $2, $3, 'image/jpeg', 1000)`, [w.B.r.id, sb.id, `${w.B.r.id}/x.jpg`]); }
   await sql(`insert into public.couriers (restaurant_id, name) values ($1, 'Livreur B')`, [w.B.r.id]);
   await sql(`insert into public.site_events (restaurant_id, day, kind, n) values ($1, current_date, 'view', 3)`, [w.B.r.id]);
@@ -80,7 +84,7 @@ test('only the intended functions are callable by guests', async () => {
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
     order by 1`);
-  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'place_order', 'reservation_cancel', 'reservation_status', 'site_request', 'site_track', 'waitlist_join']);
+  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'customer_signup', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'place_order', 'reservation_cancel', 'reservation_status', 'signup_info', 'site_request', 'site_track', 'waitlist_join']);
 });
 
 test('restaurant A users see zero rows of restaurant B, in every tenant table', async () => {

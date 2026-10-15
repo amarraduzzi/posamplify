@@ -13,6 +13,10 @@ const FeaturesLanding = lazy(() => import('./landing/FeaturesLanding'));
 // the courier's page (?livreur=<token>), from the till's WhatsApp message
 const courier = new URLSearchParams(location.search).get('livreur');
 const CourierApp = lazy(() => import('./courier/CourierApp'));
+// the sign-up page (?club, or ?club=<key> for a tasting), from the QR in the manager space > Clients
+const clubParam = new URLSearchParams(location.search).get('club');
+const club = clubParam !== null ? (/^[a-z0-9]{6,32}$/i.test(clubParam) ? clubParam : '') : null;
+const ClubSignup = lazy(() => import('./club/ClubSignup'));
 const slug = courier ? 'livreur' : resolveTenant().slug;
 const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
@@ -27,6 +31,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );

@@ -1,7 +1,7 @@
 // Customer file and loyalty points. OFF until the owner switches it on: only then
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Plus, Printer, Search, ShieldCheck, Upload, UserPlus, Users } from 'lucide-react';
+import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -9,11 +9,12 @@ import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { ImportData } from '../components/ImportData';
+import { SignupQrModal, type SignupEvent } from '../components/SignupQr';
 
 interface Customer {
   id: string; phone: string; name: string | null; birthday: string | null; note: string | null; marketing_ok: boolean;
   points: number; visits: number; spent_cents: number; first_visit_at: string | null; last_visit_at: string | null; created_at: string;
-  credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number;
+  credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number; source: 'qr' | 'event' | null;
 }
 type Loyalty = NonNullable<Restaurant['loyalty']>;
 type Filter = 'all' | 'birthday' | 'whatsapp' | 'lost' | 'debt';
@@ -28,6 +29,9 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   const [settings, setSettings] = useState(false);
   const [importing, setImporting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [qr, setQr] = useState(false);
+  // the guests of one tasting
+  const [event, setEvent] = useState<{ ev: SignupEvent; ids: Set<string> } | null>(null);
 
   const load = useCallback(async () => {
     if (!loyalty.customers) { setList([]); return; }
@@ -40,18 +44,24 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   const shown = useMemo(() => {
     const f = q.trim().toLowerCase().replace(/\s/g, '');
     return (list ?? []).filter(c =>
-      (!f || (c.name ?? '').toLowerCase().includes(f) || c.phone.includes(f.replace(/\D/g, '') || '§'))
+      (!event || event.ids.has(c.id)) && (!f || (c.name ?? '').toLowerCase().includes(f) || c.phone.includes(f.replace(/\D/g, '') || '§'))
       && (filter === 'all'
         || (filter === 'birthday' && c.birthday && Number(c.birthday.slice(5, 7)) === month)
         || (filter === 'whatsapp' && c.marketing_ok)
         || (filter === 'debt' && Number(c.balance_cents) !== 0)
         || (filter === 'lost' && c.last_visit_at && Date.now() - Date.parse(c.last_visit_at) > 30 * 864e5 && c.visits >= 2)));
-  }, [list, q, filter, month]);
+  }, [list, q, filter, month, event]);
 
   const saveLoyalty = async (l: Loyalty) => {
     try {
       check(await supabase.from('restaurants').update({ loyalty: l }).eq('id', r.id).select('id'));
       await a.reload(); a.toast(t('Enregistré'));
+    } catch (e) { a.fail(e); }
+  };
+  const showEvent = async (ev: SignupEvent) => {
+    try {
+      const ppl = check(await supabase.from('signup_event_people').select('customer_id').eq('event_id', ev.id)) as { customer_id: string }[];
+      setEvent({ ev, ids: new Set(ppl.map(p => p.customer_id)) }); setFilter('all'); setQr(false); load();
     } catch (e) { a.fail(e); }
   };
   const copyNumbers = async () => {
@@ -100,15 +110,18 @@ export function CustomersPage({ r }: { r: Restaurant }) {
         </div>
         {a.canEditProfile && <Btn onClick={() => setSettings(true)}><Gift className="h-4 w-4" /> {t('Fidélité et ardoise')}</Btn>}
         {loyalty.customers && <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>}
+        <Btn onClick={() => setQr(true)}><QrCode className="h-4 w-4" /> {t('QR d’inscription')}</Btn>
         <Btn tone="brand" onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> {t('Nouveau client')}</Btn>
       </div>
+      {qr && <SignupQrModal r={r} onClose={() => { setQr(false); load(); }} onShowEvent={showEvent} />}
       {importing && <ImportData kind="customers" r={r} onClose={() => setImporting(false)} onDone={load} />}
       {adding && <NewCustomer r={r} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        {event && <span className="flex items-center gap-1.5 rounded-full bg-brand/15 px-3 py-1.5 text-sm font-bold text-brand">{event.ev.name} · {event.ids.size}<button aria-label={t('Fermer')} onClick={() => setEvent(null)}><X className="h-4 w-4" /></button></span>}
         {FILTERS.map(([k, l]) => <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${filter === k ? 'bg-night text-white' : 'bg-surface-2 text-muted hover:text-ink'}`}>{l}</button>)}
         {credit && owed > 0 && <span className="ms-auto flex items-center gap-1.5 rounded-full bg-warn/15 px-3 py-1.5 text-sm font-bold text-warn"><NotebookPen className="h-4 w-4" /> {t('Total des ardoises : {m}', { m: mad(owed) })}</span>}
-        {filter === 'whatsapp' && shown.length > 0 && <Btn className="ms-auto px-3 py-1.5" onClick={copyNumbers}><Copy className="h-4 w-4" /> {t('Copier les numéros')}</Btn>}
+        {(filter === 'whatsapp' || event) && shown.some(c => c.marketing_ok) && <Btn className="ms-auto px-3 py-1.5" onClick={copyNumbers}><Copy className="h-4 w-4" /> {t('Copier les numéros')}</Btn>}
       </div>
 
       <div className="card overflow-x-auto rounded-3xl">
@@ -130,7 +143,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                 <td className="px-4 py-2.5">
                   <p className="flex items-center gap-1.5 font-semibold">{c.name || t('Sans nom')}
                     {c.birthday && Number(c.birthday.slice(5, 7)) === month && <Cake className="h-4 w-4 text-brand" />}
-                    {c.marketing_ok && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-bold text-ok">WhatsApp</span>}</p>
+                    {c.marketing_ok && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-bold text-ok">WhatsApp</span>}
+                    {c.source && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">QR</span>}</p>
                   <p dir="ltr" className="text-xs text-muted rtl:text-end">{c.phone}</p>
                 </td>
                 <td className="px-3 py-2.5 text-end tabular">{c.visits}</td>

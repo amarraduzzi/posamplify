@@ -72,3 +72,14 @@ export interface CourierPage {
 export const courierOrders = (token: string) => call<CourierPage>('courier_orders', { p_token: token });
 export const courierUpdate = (token: string, orderId: string, action: 'picked_up' | 'delivered' | 'failed', code?: string, note?: string) =>
   call<{ ok: boolean; error?: string; tries_left?: number }>('courier_update', { p_token: token, p_order_id: orderId, p_action: action, p_code: code ?? null, p_note: note ?? null });
+
+// ---- the sign-up QR (club, tastings)
+export interface SignupInfo {
+  name: string; branding: Record<string, unknown> | null; languages: string[]; enabled: boolean;
+  loyalty: { reward_points: number; reward_cents: number; per_dh: number } | null;
+  event: { name: string; offer: string | null; active: boolean } | null;
+}
+export interface SignupResult { name: string; existed: boolean; again: boolean; event: string | null; offer: string | null }
+export const signupInfo = (slug: string, event: string | null) => call<SignupInfo | null>('signup_info', { p_slug: slug, p_event: event });
+export const customerSignup = (slug: string, name: string, phone: string, consent: boolean, event: string | null) =>
+  call<SignupResult>('customer_signup', { p_slug: slug, p_name: name, p_phone: phone, p_consent: consent, p_event: event });
