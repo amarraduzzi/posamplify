@@ -10,6 +10,8 @@
     <title>Amplify App</title>
   </head>
   <body>
+    <!-- the installed app draws its own title bar (window-controls-overlay): no grey browser bar -->
+    <div class="wco-bar" aria-hidden="true"><img src="/icon.svg" alt="" />Amplify App</div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -90,3 +90,17 @@ body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-font-smoothin
   @keyframes lg-num { from { opacity: .3; transform: translateY(30%); } }
 }
 [dir="rtl"] .lg-num { font-family: "Archivo Variable", system-ui, sans-serif; font-stretch: 62%; font-weight: 800; line-height: .9; }
+
+/* Installed app (Amplify App) with window-controls-overlay: the browser's title bar is gone; this navy
+   strip takes its place (drag to move the window), the minimise/close buttons stay on the right.
+   The env() values only exist in that mode, so in a tab or a normal window the strip has no height. */
+.wco-bar {
+  position: fixed; top: 0; z-index: 60;
+  left: env(titlebar-area-x, 0); width: env(titlebar-area-width, 100%); height: env(titlebar-area-height, 0px);
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; overflow: hidden;
+  background: #001E3E; color: rgba(255, 255, 255, .75); font: 600 12px/1 "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  -webkit-app-region: drag; app-region: drag; user-select: none;
+}
+.wco-bar img { width: 16px; height: 16px; border-radius: 4px; }
+#root { padding-top: env(titlebar-area-height, 0px); }
+@media print { .wco-bar { display: none; } }

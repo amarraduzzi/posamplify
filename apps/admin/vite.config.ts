@@ -11,7 +11,7 @@ export default defineConfig({
       registerType: 'prompt', // a new version is switched on when the page is hidden, never mid-typing (src/lib/sw.ts)
       injectRegister: false,
       manifest: {
-        name: 'Amplify App', short_name: 'Amplify App', description: 'La gestion de votre restaurant', id: '/', start_url: '/', scope: '/', display: 'standalone',
+        name: 'Amplify App', short_name: 'Amplify App', description: 'La gestion de votre restaurant', id: '/', start_url: '/', scope: '/', display: 'standalone', display_override: ['window-controls-overlay', 'standalone'],
         background_color: '#001E3E', theme_color: '#001E3E', lang: 'fr',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
