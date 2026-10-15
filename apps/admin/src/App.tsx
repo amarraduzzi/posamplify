@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -23,6 +23,7 @@ import { ProfitPage } from './pages/ProfitPage';
 import { IngredientsPage } from './pages/IngredientsPage';
 import { ProductionPage } from './pages/ProductionPage';
 import { CateringPage } from './pages/CateringPage';
+import { AccountingPage, AccountantPage } from './pages/AccountingPage';
 import { SiteRequestBanner, useSiteRequests } from './components/SiteRequests';
 import { BillingBanner } from './components/OwnerBilling';
 import { unlockSound } from './lib/chime';
@@ -40,7 +41,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers';
+type Page = 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -76,6 +77,9 @@ function Screens() {
   }, []);
 
 
+  // the accountant's private link: no login
+  const compta = location.pathname.match(/^\/compta\/([A-Za-z0-9]{24,})\/?$/);
+  if (compta) return <AccountantPage keyParam={compta[1]} />;
   if (a.session === undefined) return null;
   if (!a.session) return <Login />;
   if (a.recovery) return <NewPassword />;
@@ -110,6 +114,7 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
+    { id: 'accounting', label: t('Comptabilité'), Icon: Calculator, show: (hasPos || hasProfit) && a.role !== 'manager' || a.isAdmin },
     { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly || (hasOrders && products.includes('site')) },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos || hasOrders || siteOnly || products.includes('site') },
@@ -189,6 +194,7 @@ function Screens() {
           {r && current === 'menu' && <MenuPage key={r.id} r={r} />}
           {r && current === 'profit' && <ProfitPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'ingredients' && <IngredientsPage key={r.id} r={r} />}
+          {r && current === 'accounting' && <AccountingPage key={r.id} r={r} />}
           {r && current === 'catering' && <CateringPage key={r.id} r={r} openId={catOpen} onOpened={() => setCatOpen(null)} />}
           {r && current === 'production' && <ProductionPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'stock' && <StockPage key={r.id} r={r} />}

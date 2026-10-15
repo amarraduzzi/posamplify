@@ -13,7 +13,7 @@ export interface SupplierDoc {
   id: string; restaurant_id: string; supplier_id: string | null; supplier_name: string | null; purchase_order_id: string | null;
   doc_date: string; amount_cents: number | null; note: string | null; file_path: string; mime_type: string; size_bytes: number; created_at: string;
 }
-export interface DocMeta { supplier_id?: string | null; supplier_name?: string | null; purchase_order_id?: string | null; doc_date: string; amount_cents?: number | null; note?: string | null }
+export interface DocMeta { supplier_id?: string | null; supplier_name?: string | null; purchase_order_id?: string | null; doc_date: string; amount_cents?: number | null; vat_cents?: number | null; doc_number?: string | null; note?: string | null }
 
 export const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 
@@ -48,6 +48,7 @@ export async function addInvoice(restaurantId: string, file: File, meta: DocMeta
       restaurant_id: restaurantId, supplier_id: meta.supplier_id ?? null, supplier_name: meta.supplier_name?.trim() || null,
       purchase_order_id: meta.purchase_order_id ?? null, doc_date: meta.doc_date, amount_cents: meta.amount_cents ?? null,
       note: meta.note?.trim() || null, file_path: path, mime_type: mime, size_bytes: blob.size,
+      ...(meta.vat_cents != null ? { vat_cents: meta.vat_cents } : {}), ...(meta.doc_number ? { doc_number: meta.doc_number } : {}),
     }).select('*').single()) as SupplierDoc;
   } catch (e) {
     await supabase.storage.from(DOC_BUCKET).remove([path]);

@@ -18,6 +18,8 @@ export interface Restaurant {
   kiosk_token?: string | null;
   owner_whatsapp?: string | null;
   /** Amplify's billing of this customer (set by Amplify only). No billing_start: not started yet. */
+  /** accountant's private link key, and own account numbers */
+  accounting_token?: string | null; accounting?: Record<string, string>;
   billing_start?: string | null; billing_amount_cents?: number | null; billing_period?: 'month' | 'year'; billing_method?: PayMethod | null; paid_until?: string | null;
   /** 'premium' unlocks the premium website styles; set by Amplify only */
   site_plan?: 'basic' | 'premium';

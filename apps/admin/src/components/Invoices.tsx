@@ -125,11 +125,13 @@ export function AddInvoiceModal({ r, sups, supplierId, supplierName, onClose, on
   const [sup, setSup] = useState(supplierId ?? '');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
+  const [vat, setVat] = useState('');
+  const [num, setNum] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const res = await addInvoices(r.id, files, { supplier_id: sup || null, doc_date: date, amount_cents: amount.trim() ? toCents(amount) : null, note });
+    const res = await addInvoices(r.id, files, { supplier_id: sup || null, doc_date: date, amount_cents: amount.trim() ? toCents(amount) : null, vat_cents: vat.trim() && amount.trim() ? toCents(vat) : null, doc_number: num.trim() || null, note });
     if (res.error) a.fail(res.error);
     if (res.saved) { a.toast(t('Facture enregistrée')); onSaved(); }
     setBusy(false);
@@ -149,8 +151,10 @@ export function AddInvoiceModal({ r, sups, supplierId, supplierName, onClose, on
             </Field>
           )}
           <Field label={t('Date de la facture')}><input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} /></Field>
-          <Field label={t('Montant (DH, facultatif)')}><input className={inputCls} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
-          <Field label={t('Note (facultatif)')}><input className={inputCls} maxLength={300} value={note} onChange={e => setNote(e.target.value)} placeholder={t('N° de facture, avoir…')} /></Field>
+          <Field label={t('Montant TTC (DH, facultatif)')}><input className={inputCls} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
+          <Field label={t('Dont TVA (DH, facultatif)')} hint={t('Pour votre comptable : la TVA est déduite.')}><input className={inputCls} inputMode="decimal" value={vat} onChange={e => setVat(e.target.value)} /></Field>
+          <Field label={t('N° de facture (facultatif)')}><input className={inputCls} maxLength={40} value={num} onChange={e => setNum(e.target.value)} /></Field>
+          <Field label={t('Note (facultatif)')}><input className={inputCls} maxLength={300} value={note} onChange={e => setNote(e.target.value)} placeholder={t('Avoir, remarque…')} /></Field>
         </div>
         <p className="text-xs text-muted">{t('Une photo par page (5 maximum), ou un PDF. Seuls le propriétaire et les managers les voient.')} {t('C’est un justificatif : pour le stock et ce que vous devez, notez l’achat ou réceptionnez la commande.')}</p>
       </div>
