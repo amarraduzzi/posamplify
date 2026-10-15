@@ -8,6 +8,7 @@ import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
+import { readInvoice } from '../lib/invoiceAi';
 import { MAX_FILES, addInvoices, isPdf, removeInvoice, signedUrls, type SupplierDoc } from '../lib/invoices';
 
 const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
@@ -129,6 +130,24 @@ export function AddInvoiceModal({ r, sups, supplierId, supplierName, onClose, on
   const [num, setNum] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
+  const shown = (x: number) => String(Math.round(x * 100) / 100).replace('.', ',');
+  // the AI reads supplier, date, number, total and VAT from the photo
+  const scan = async () => {
+    setReading(true);
+    try {
+      const res = await readInvoice(r.id, files, []);
+      if (res.date) setDate(res.date);
+      if (res.total_ttc != null) setAmount(shown(res.total_ttc));
+      if (res.total_vat != null) setVat(shown(res.total_vat));
+      if (res.number) setNum(res.number);
+      const low = (res.supplier ?? '').toLowerCase().trim();
+      const hit = !supplierId && low ? sups.find(x => x.name.toLowerCase().includes(low) || low.includes(x.name.toLowerCase())) : undefined;
+      if (hit) setSup(hit.id);
+      a.toast(t('Facture lue : vérifiez avant d’enregistrer'));
+    } catch (e) { a.fail(e); }
+    setReading(false);
+  };
   const save = async () => {
     setBusy(true);
     const res = await addInvoices(r.id, files, { supplier_id: sup || null, doc_date: date, amount_cents: amount.trim() ? toCents(amount) : null, vat_cents: vat.trim() && amount.trim() ? toCents(vat) : null, doc_number: num.trim() || null, note });
@@ -141,6 +160,7 @@ export function AddInvoiceModal({ r, sups, supplierId, supplierName, onClose, on
       footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !files.length || !date} onClick={save}>{busy ? t('Envoi…') : t('Enregistrer')}</Btn></div>}>
       <div className="space-y-4">
         <InvoicePicker files={files} onChange={setFiles} />
+        {files.length > 0 && <Btn tone="brand" disabled={reading} onClick={scan}>{reading ? t('Lecture…') : t('Lire la facture')}</Btn>}
         <div className="grid gap-3 sm:grid-cols-2">
           {supplierId ? <Field label={t('Fournisseur')}><input className={inputCls} value={supplierName ?? ''} disabled /></Field> : (
             <Field label={t('Fournisseur')}>

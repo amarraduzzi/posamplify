@@ -14,6 +14,7 @@ import { SupplierAccounts } from './SupplierAccounts';
 import { ImportData } from '../components/ImportData';
 import { InvoicePicker } from '../components/Invoices';
 import { addInvoices } from '../lib/invoices';
+import { readInvoice, toBase } from '../lib/invoiceAi';
 
 interface Count { id: string; counted_on: string; status: 'open' | 'closed'; note: string | null; closed_at: string | null }
 interface Line { count_id: string; ingredient_id: string; qty: number }
@@ -571,7 +572,7 @@ function CountSheet({ r, count, ings, lines, onBack }: { r: Restaurant; count: C
 }
 
 // ------------------------------------------------------------ a delivery (one or more products)
-interface Row { key: number; id: string; qty: string; unit: 'buy' | 'size'; total: string }
+interface Row { key: number; id: string; qty: string; unit: 'buy' | 'size'; total: string; label?: string; warn?: string }
 let rowKey = 0;
 function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; prefill: Prefill[]; countDays: string[]; onClose: () => void; onSaved: () => void }) {
   const a = useAdminCtx();
@@ -582,6 +583,9 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
   const [date, setDate] = useState(today());
   const [supplier, setSupplier] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  // read by the AI from the invoice photo: kept for the accountant (number, VAT, total)
+  const [inv, setInv] = useState<{ number: string; vat: string; total: string } | null>(null);
+  const [reading, setReading] = useState(false);
   // bought the day of a count: was it already on the shelf when counting?
   const [afterCount, setAfterCount] = useState(prefill.length > 0);
   const countDay = countDays.includes(date);
@@ -593,6 +597,26 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
     return num(x.qty) * (x.unit === 'buy' ? Number(g.purchase_qty) : SIZE_UNIT[g.base_unit].f);
   };
   const filled = rows.filter(x => x.id || x.qty.trim());
+  const scan = async () => {
+    setReading(true);
+    try {
+      const res = await readInvoice(r.id, files, ings);
+      if (res.date && res.date <= today()) setDate(res.date);
+      if (res.supplier && !supplier.trim()) setSupplier(res.supplier);
+      const got = res.lines.map(l => {
+        const g = ings.find(i => i.id === l.ingredient_id);
+        const base = g ? toBase(l.qty, l.unit, g.base_unit) : null;
+        const qtyText = l.qty != null ? `${shown(l.qty)} ${l.unit ?? ''}`.trim() : '';
+        return { key: ++rowKey, id: g?.id ?? '', unit: 'size' as const, total: l.total_ttc != null ? shown(l.total_ttc) : '',
+          qty: g && base != null ? shown(base / SIZE_UNIT[g.base_unit].f) : '',
+          label: l.label, warn: !g ? t('Pas reconnu : choisissez le produit ou supprimez la ligne.') : base == null ? t('Unité différente ({q}) : indiquez la quantité.', { q: qtyText || '?' }) : undefined };
+      });
+      if (got.length) setRows(rs => [...rs.filter(x => x.id || x.qty.trim() || x.total.trim()), ...got]);
+      setInv({ number: res.number ?? '', vat: res.total_vat != null ? shown(res.total_vat) : '', total: res.total_ttc != null ? shown(res.total_ttc) : '' });
+      a.toast(got.length ? t('{n} lignes lues : vérifiez avant d’enregistrer', { n: got.length }) : t('Aucune ligne trouvée, mais l’en-tête est lu.'));
+    } catch (e) { a.fail(e); }
+    setReading(false);
+  };
   const sum = filled.reduce((s, x) => s + (x.total.trim() ? toCents(x.total) : 0), 0);
 
   const save = async () => {
@@ -613,7 +637,9 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
         : filled[0].total.trim() ? t('Achat enregistré, prix mis à jour') : t('Achat enregistré'));
       // the invoice photo: linked to the supplier record when the typed name matches one
       if (files.length) {
-        const res = await addInvoices(r.id, files, { supplier_id: sup?.id ?? null, supplier_name: sup ? null : name || null, doc_date: date, amount_cents: sum > 0 ? sum : null });
+        const total = inv?.total.trim() ? toCents(inv.total) : sum;
+        const res = await addInvoices(r.id, files, { supplier_id: sup?.id ?? null, supplier_name: sup ? null : name || null, doc_date: date, amount_cents: total > 0 ? total : null,
+          vat_cents: inv?.vat.trim() && total > 0 ? Math.min(toCents(inv.vat), total) : null, doc_number: inv?.number.trim() || null });
         if (res.error) a.fail(res.error);
       }
       onSaved();
@@ -641,14 +667,39 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
           </div>
         )}
         <InvoicePicker files={files} onChange={setFiles} />
+        {files.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-brand/10 p-3">
+            <p className="min-w-0 flex-1 text-sm">{t('L’IA lit la facture : fournisseur, date, produits, quantités, prix et TVA. Vous vérifiez avant d’enregistrer.')}</p>
+            <Btn tone="brand" disabled={reading} onClick={scan}><Zap className="h-4 w-4" /> {reading ? t('Lecture…') : t('Lire la facture')}</Btn>
+          </div>
+        )}
+        {inv && (
+          <div className="grid gap-3 rounded-2xl border border-line/[0.1] p-3 sm:grid-cols-3">
+            <Field label={t('N° de facture')}><input className={inputCls} maxLength={40} value={inv.number} onChange={e => setInv({ ...inv, number: e.target.value })} /></Field>
+            <Field label={t('Total TTC (DH)')}><input className={inputCls} inputMode="decimal" value={inv.total} onChange={e => setInv({ ...inv, total: e.target.value })} /></Field>
+            <Field label={t('Dont TVA (DH)')}><input className={inputCls} inputMode="decimal" value={inv.vat} onChange={e => setInv({ ...inv, vat: e.target.value })} /></Field>
+            {inv.total.trim() && sum > 0 && Math.abs(toCents(inv.total) - sum) > 100 && <p className="text-xs text-warn sm:col-span-3">{t('Les lignes font {a}, la facture {b} : une ligne manque ou est mal lue.', { a: mad(sum), b: mad(toCents(inv.total)) })}</p>}
+          </div>
+        )}
         <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{t('Notez chaque produit reçu : c’est ce qui fait monter votre stock. Le prix payé met aussi à jour le coût de vos plats.')}</p>
         <div className="space-y-3">
           {rows.map((x, n) => {
             const g = ings.find(i => i.id === x.id);
             const sameUnit = g && Number(g.purchase_qty) === SIZE_UNIT[g.base_unit].f;
             const b = baseOf(x);
+            // the price per unit compared with the last one
+            const was = g && g.purchase_price_cents != null && Number(g.purchase_qty) > 0 ? Number(g.purchase_price_cents) / Number(g.purchase_qty) : null;
+            const now = b > 0 && x.total.trim() ? toCents(x.total) / b : null;
+            const diff = was && now ? Math.round((now / was - 1) * 100) : null;
             return (
-              <div key={x.key} className="grid grid-cols-[1fr_auto] gap-2 rounded-2xl border border-line/[0.1] p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-end">
+              <div key={x.key} className={`grid grid-cols-[1fr_auto] gap-2 rounded-2xl border p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-end ${x.warn && !(x.id && x.qty.trim()) ? 'border-warn/50 bg-warn/5' : 'border-line/[0.1]'}`}>
+                {(x.label || (diff != null && Math.abs(diff) >= 3)) && (
+                  <p className="col-span-full flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    {x.label && <span className="text-muted">{t('Sur la facture : « {l} »', { l: x.label })}</span>}
+                    {diff != null && Math.abs(diff) >= 3 && <span className={`rounded-full px-2 py-0.5 font-bold ${diff > 0 ? 'bg-danger/10 text-danger' : 'bg-ok/15 text-ok'}`}>{diff > 0 ? '+' : ''}{diff} % {t('vs dernier prix')}</span>}
+                    {x.warn && !(x.id && x.qty.trim()) && <span className="font-semibold text-warn">{x.warn}</span>}
+                  </p>
+                )}
                 <Field label={n === 0 ? t('Produit') : ''}>
                   <select aria-label={t('Produit')} className={inputCls} value={x.id} onChange={e => set(x.key, { id: e.target.value, unit: 'buy' })}>
                     <option value="">{t('Choisir…')}</option>
