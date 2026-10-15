@@ -1949,4 +1949,8 @@ export const AR: Record<string, string> = {
   "Vendu au poids (gâteaux secs, chocolats…)": "يباع بالوزن (حلويات جافة، شوكولاتة…)",
   "pour 1 kg": "لكل 1 كغ",
   "pour 1 kg, hors TVA": "لكل 1 كغ، دون ضريبة",
+  "Afficher la liste": "عرض القائمة",
+  "Choisir un ingrédient ou chercher": "اختر مكوّنًا أو ابحث",
+  "Créer « {n} »": "إنشاء « {n} »",
+  "déjà dans la recette": "موجود في الوصفة",
 };

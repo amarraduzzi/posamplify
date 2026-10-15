@@ -9,6 +9,7 @@ import { useAdminCtx } from '../store';
 import type { BaseUnit, I18n, Ingredient, ProfitData, ProfitDish, RecipeLine, Restaurant } from '../lib/types';
 import { RECIPE_UNITS, fcTone, fmtQty, pct, unitCost } from '../lib/profit';
 import { IngredientEditor } from '../components/IngredientEditor';
+import { IngredientPicker } from '../components/IngredientPicker';
 import { MenuMatrix } from '../components/MenuMatrix';
 import { Btn, Modal, inputCls } from '../components/ui';
 
@@ -186,7 +187,6 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
   const [ings, setIngs] = useState<Ingredient[]>([]);
   const [lines, setLines] = useState<Draft[] | null>(null);
   const [orig, setOrig] = useState<RecipeLine[]>([]);
-  const [pick, setPick] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const hasSizes = dish.variant_id !== null;
@@ -219,12 +219,6 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
   const add = (g: Ingredient) => {
     const qty = g.base_unit === 'pc' ? 1 : 100;
     setLines(ls => [...(ls ?? []), { ingredient_id: g.id, qty, variant_id: null, ...display(qty, g.base_unit) }]);
-    setPick('');
-  };
-  const onPick = (v: string) => {
-    setPick(v);
-    const g = ings.find(x => x.name.toLowerCase() === v.trim().toLowerCase());
-    if (g) add(g);
   };
 
   const save = async () => {
@@ -307,11 +301,9 @@ function RecipeEditor({ r, dish, sizes, target, onClose, onSaved }: {
             {!lines.length && <li className="px-4 py-6 text-center text-sm text-muted">{dish.sold_by_weight ? t('Ajoutez les ingrédients pour 1 kg vendu.') : t('Ajoutez les ingrédients d’une portion.')}</li>}
           </ul>
 
-          <div className="mt-3 flex gap-2">
-            <input list="ing-list" className={inputCls} placeholder={t('Ajouter un ingrédient (tapez son nom)')} value={pick}
-              onChange={e => onPick(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && pick.trim()) { e.preventDefault(); const g = ings.find(x => x.name.toLowerCase() === pick.trim().toLowerCase()); if (g) add(g); else setCreating(pick.trim()); } }} />
-            <datalist id="ing-list">{ings.map(g => <option key={g.id} value={g.name} />)}</datalist>
-            <Btn tone="ghost" onClick={() => setCreating(pick.trim())}><Plus className="h-4 w-4" /> {t('Nouveau')}</Btn>
+          <div className="mt-3 flex items-start gap-2">
+            <IngredientPicker ings={ings} used={lines.map(l => l.ingredient_id)} onPick={add} onCreate={name => setCreating(name)} />
+            <Btn tone="ghost" onClick={() => setCreating('')}><Plus className="h-4 w-4" /> {t('Nouveau')}</Btn>
           </div>
           {sizes.length > 1 && <p className="mt-3 text-xs text-muted">{t('Ce plat existe en plusieurs tailles : les lignes « toutes les tailles » comptent pour chacune.')}</p>}
         </div>

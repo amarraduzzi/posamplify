@@ -1947,4 +1947,8 @@ export const EN: Record<string, string> = {
   "Vendu au poids (gâteaux secs, chocolats…)": "Sold by weight (biscuits, chocolates…)",
   "pour 1 kg": "per 1 kg",
   "pour 1 kg, hors TVA": "per 1 kg, excl. VAT",
+  "Afficher la liste": "Show the list",
+  "Choisir un ingrédient ou chercher": "Choose an ingredient or search",
+  "Créer « {n} »": "Create “{n}”",
+  "déjà dans la recette": "already in the recipe",
 };
