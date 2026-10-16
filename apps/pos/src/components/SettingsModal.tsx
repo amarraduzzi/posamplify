@@ -80,7 +80,7 @@ function EpsonAppSetup() {
         <Btn tone={on ? undefined : 'brand'} onClick={toggle}>{on ? t('Désactiver') : t('Activer l’impression Epson')}</Btn>
         {on && <Btn onClick={() => { try { test(); } catch (e) { setMsg((e as Error).message); } }}><Printer className="h-4 w-4" /> {t('Test')}</Btn>}
       </div>
-      {on && <p className="text-xs text-muted">{t('Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.')}</p>}
+      {on && <p className="text-xs text-muted">{t('Après chaque ticket, touchez « ◀ » en haut à gauche de l’écran pour revenir à la caisse.')}</p>}
     </div>
     {msg && <p className="mt-2 text-sm font-semibold">{msg}</p>}
   </>;
