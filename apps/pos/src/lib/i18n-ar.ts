@@ -599,4 +599,11 @@ export const AR: Record<string, string> = {
   "Envoyé : {n} article(s), {l}": "أُرسل: {n} منتج، {l}",
   "Plat prêt à servir": "طبق جاهز للتقديم",
   "Populaires": "الأكثر طلبا",
+  "Autres": "آخرون",
+  "Bonjour": "صباح الخير",
+  "Bonsoir": "مساء الخير",
+  "En service": "في الخدمة",
+  "{n} commande(s) QR à accepter": "{n} طلب QR للقبول",
+  "{n} réservation(s) aujourd’hui": "{n} حجز اليوم",
+  "{n} table(s) occupée(s)": "{n} طاولة مشغولة",
 };

@@ -20,3 +20,12 @@ test('quick picks: popular dishes and learned remarks', async () => {
   assert.deepEqual(x.common_notes, ['Sans oignon']);
   assert.ok(o.id);
 });
+
+test('welcome screen: who is on duty and the bookings left today', async () => {
+  await assert.rejects(rpc(w.users.ownerB, 'pos_gate_info', [rid]));
+  const [s] = await sql(`select id from public.staff where restaurant_id = $1 limit 1`, [rid]);
+  await sql(`insert into public.staff_shifts (restaurant_id, staff_id, clock_in, source) values ($1, $2, now() - interval '1 hour', 'pos')`, [rid, s.id]);
+  const g = await rpc(w.users.deviceA, 'pos_gate_info', [rid]);
+  assert.deepEqual(g.on_duty, [s.id]);
+  assert.equal(typeof g.bookings_today, 'number');
+});

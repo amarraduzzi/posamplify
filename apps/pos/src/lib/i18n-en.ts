@@ -598,4 +598,11 @@ export const EN: Record<string, string> = {
   "Envoyé : {n} article(s), {l}": "Sent: {n} item(s), {l}",
   "Plat prêt à servir": "Dish ready to serve",
   "Populaires": "Popular",
+  "Autres": "Others",
+  "Bonjour": "Good morning",
+  "Bonsoir": "Good evening",
+  "En service": "On duty",
+  "{n} commande(s) QR à accepter": "{n} QR order(s) to accept",
+  "{n} réservation(s) aujourd’hui": "{n} booking(s) today",
+  "{n} table(s) occupée(s)": "{n} table(s) taken",
 };

@@ -3,15 +3,19 @@ import { Delete } from 'lucide-react';
 import { t } from '../lib/i18n';
 
 /** Numeric keypad for PINs and amounts; also works with the physical keyboard. */
-export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submitLabel, allowDecimal = false, value: controlled, onChange }: {
+export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submitLabel, allowDecimal = false, value: controlled, onChange, round = false }: {
   onSubmit: (v: string) => void; busy?: boolean; error?: string | null; masked?: boolean; maxLen?: number;
   submitLabel?: string; allowDecimal?: boolean; value?: string; onChange?: (v: string) => void;
+  /** round keys, like a banking app (the staff login) */ round?: boolean;
 }) {
   const [inner, setInner] = useState('');
   const v = controlled ?? inner;
   const set = (n: string) => (onChange ? onChange(n) : setInner(n));
+  const buzz = (ms: number | number[]) => { try { navigator.vibrate?.(ms); } catch { /* not supported */ } };
+  useEffect(() => { if (error) buzz([40, 60, 40]); }, [error]);
   const press = (k: string) => {
     if (busy) return;
+    buzz(8);
     if (k === 'back') return set(v.slice(0, -1));
     if (k === 'ok') { if (v) onSubmit(v); if (!controlled) setInner(''); return; }
     if (k === ',' && (!allowDecimal || v.includes(','))) return;
@@ -44,10 +48,10 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
         </div>
       )}
       {error && <p className="mb-3 text-center text-sm font-semibold text-danger">{error}</p>}
-      <div className="grid grid-cols-3 gap-2.5" dir="ltr">
+      <div className={`grid grid-cols-3 ${round ? 'justify-items-center gap-x-4 gap-y-3' : 'gap-2.5'}`} dir="ltr">
         {keys.map(k => (
           <button key={k} type="button" onClick={() => press(k)} disabled={busy}
-            className={`h-16 rounded-2xl text-2xl font-semibold transition active:scale-95 ${
+            className={`${round ? 'h-[4.25rem] w-[4.25rem] rounded-full' : 'h-16 rounded-2xl'} text-2xl font-semibold transition active:scale-95 ${
               k === 'ok' ? 'gold-fill text-brand-ink' : k === 'back' ? 'text-muted hover:bg-surface-2 hover:text-ink' : 'border border-line/[0.07] bg-surface-2 hover:bg-surface-3'}`}>
             {k === 'back' ? <Delete className="mx-auto h-6 w-6" /> : k === 'ok' ? '✓' : k}
           </button>
