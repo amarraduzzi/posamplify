@@ -260,9 +260,9 @@ function usePosState() {
   const dismissFailed = useCallback((seq: number) => changeQueue(q => q.filter(x => x.seq !== seq)), [changeQueue]);
 
   // the print program can be installed while the till is open: "check again" in the settings
-  const recheckPrinter = useCallback(() => P.pingPrinter().then(ok => { setPrinterOk(ok); return ok; }), []);
+  const recheckPrinter = useCallback(() => P.pingPrinter().then(ok => { ok = ok || P.usesEpsonApp(); setPrinterOk(ok); return ok; }), []);
   useEffect(() => {
-    const check = () => P.pingPrinter().then(setPrinterOk);
+    const check = () => P.pingPrinter().then(ok => setPrinterOk(ok || P.usesEpsonApp())); // iPad: the Epson app prints
     check();
     const t = window.setInterval(check, 30000);
     return () => window.clearInterval(t);

@@ -100,7 +100,66 @@ function escpos(lines: TicketLine[], opts: { cut?: boolean; drawer?: boolean } =
   return btoa(String.fromCharCode(...b));
 }
 
+// ---- iPad / iPhone: Safari may not talk to a printer, the free Epson app "TM Print Assistant" does.
+// The till hands each ticket to the app through its link (ePOS-Print XML); the app prints it on the
+// Epson printer chosen in the app. iOS only opens another app on a tap, so tickets printed later
+// (after the payment is saved, a bon sent from a phone) wait in a small "Imprimer" bar.
+/** An iPad or iPhone (iPadOS presents itself as a Mac with a touch screen). */
+export const isIOS = () => typeof navigator !== 'undefined'
+  && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const EPSON_KEY = 'pos-epson-app';
+/** This iPad prints through Epson TM Print Assistant (switched on in Réglages du poste). */
+export const usesEpsonApp = () => { try { return localStorage.getItem(EPSON_KEY) === 'on'; } catch { return false; } };
+export function setEpsonApp(on: boolean) {
+  try { if (on) localStorage.setItem(EPSON_KEY, 'on'); else localStorage.removeItem(EPSON_KEY); } catch { /* private mode */ }
+}
+const xmlEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** One ticket in ePOS-Print XML (without the <epos-print> wrapper). */
+function eposXml(lines: TicketLine[], opts: { cut?: boolean; drawer?: boolean } = {}) {
+  let x = '';
+  for (const l of lines) {
+    if (l.qr) { x += `<text align="center"/><symbol type="qrcode_model_2" level="level_m" width="6">${xmlEsc(ascii(l.qr).slice(0, 300))}</symbol><feed/><text align="left"/>`; continue; }
+    x += `<text align="${l.center ? 'center' : 'left'}" em="${l.bold ? 'true' : 'false'}" dw="${l.large ? 'true' : 'false'}" dh="${l.large ? 'true' : 'false'}">${xmlEsc(ascii(l.text)).replace(/\n/g, '&#10;')}&#10;</text>`;
+  }
+  x += '<text align="left" em="false" dw="false" dh="false"/>';
+  if (lines.length) x += opts.cut !== false ? '<feed line="3"/><cut type="feed"/>' : '<feed line="3"/>';
+  if (opts.drawer) x += '<pulse drawer="drawer_1" time="pulse_100"/>';
+  return x;
+}
+let epsonJobs: string[] = [];
+const epsonSubs = new Set<(n: number) => void>();
+/** Tickets waiting for a tap to go to the Epson app. */
+export const epsonWaiting = () => epsonJobs.length;
+export function onEpsonWaiting(f: (n: number) => void) { epsonSubs.add(f); return () => { epsonSubs.delete(f); }; }
+const epsonNotify = () => epsonSubs.forEach(f => f(epsonJobs.length));
+/** Sends every waiting ticket to the Epson app in one go (call it from a tap). */
+export function flushEpson() {
+  if (!epsonJobs.length) return;
+  const xml = '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' + epsonJobs.join('') + '</epos-print>';
+  epsonJobs = []; epsonNotify();
+  // after printing, the Epson app opens this link: the same page with a new #mark, so Safari just
+  // comes back to this tab (no reload); the mark is removed right away
+  const back = window.location.href.split('#')[0] + '#imprime-' + Date.now();
+  window.location.href = 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&reselect=no&data='
+    + encodeURIComponent(xml) + '&success=' + encodeURIComponent(back);
+}
+if (typeof window !== 'undefined') {
+  const clean = () => { if (window.location.hash.startsWith('#imprime-')) history.replaceState(history.state, '', window.location.pathname + window.location.search); };
+  window.addEventListener('hashchange', clean);
+  clean();
+}
+export function clearEpson() { epsonJobs = []; epsonNotify(); }
+function printEpson(lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean }) {
+  epsonJobs.push(eposXml(lines, opts));
+  // tickets made in the same moment (bons of several stations) go together
+  window.setTimeout(() => {
+    const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    if (ua?.isActive) flushEpson(); else epsonNotify();
+  }, 0);
+}
+
 export async function print(printer: string, title: string, lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean } = {}) {
+  if (usesEpsonApp()) { printEpson(lines, opts); return; }
   const r = await call<{ ok: boolean; error?: string }>('/print', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ printerName: printer, title, dataBase64: escpos(lines, opts) }),

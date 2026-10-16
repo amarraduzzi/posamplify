@@ -60,9 +60,40 @@ function DisplaySetup() {
   </>;
 }
 
+/** iPad / iPhone: printing through the free Epson app TM Print Assistant (the app finds the printer). */
+function EpsonAppSetup() {
+  const pos = usePos();
+  const [on, setOn] = useState(P.usesEpsonApp());
+  const [msg, setMsg] = useState<string | null>(null);
+  const toggle = async () => { P.setEpsonApp(!on); setOn(!on); setMsg(null); await pos.recheckPrinter(); };
+  const test = () => P.print('Epson', 'Test', [{ text: 'TEST IMPRESSION', bold: true, large: true, center: true }, { text: 'iPad', center: true }, { text: new Date().toLocaleString('fr-FR'), center: true }]);
+  return <>
+    <h3 className="mb-2 font-bold">{t('Imprimantes')}</h3>
+    <div className="space-y-3 rounded-xl bg-surface-2 p-4 text-sm">
+      <p className="font-semibold">{t('Sur iPad, les tickets s’impriment avec l’application gratuite Epson TM Print Assistant :')}</p>
+      <ol className="list-decimal space-y-1 ps-5 text-muted">
+        <li>{t('Installez Epson TM Print Assistant depuis l’App Store.')}</li>
+        <li>{t('Ouvrez-la, choisissez votre imprimante Epson (même wifi que l’iPad) et faites un test.')}</li>
+        <li>{t('Revenez ici, activez, puis touchez Test.')}</li>
+      </ol>
+      <div className="flex flex-wrap gap-2">
+        <Btn tone={on ? undefined : 'brand'} onClick={toggle}>{on ? t('Désactiver') : t('Activer l’impression Epson')}</Btn>
+        {on && <Btn onClick={() => { try { test(); } catch (e) { setMsg((e as Error).message); } }}><Printer className="h-4 w-4" /> {t('Test')}</Btn>}
+      </div>
+      {on && <p className="text-xs text-muted">{t('Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.')}</p>}
+    </div>
+    {msg && <p className="mt-2 text-sm font-semibold">{msg}</p>}
+  </>;
+}
+
 /** The printers of this PC: install the print program, then pick which printer prints what,
  *  from the printers Windows sees (USB or network). Kept on this PC. */
 function PrinterSetup() {
+  if (P.isIOS()) return <EpsonAppSetup />;
+  return <PcPrinterSetup />;
+}
+
+function PcPrinterSetup() {
   const pos = usePos();
   const s = pos.settings;
   const [list, setList] = useState<{ name: string; default: boolean }[] | null>(null);

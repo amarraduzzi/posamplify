@@ -15,6 +15,7 @@ import { LANGS, nextLang, t } from './lib/i18n';
 import { useIsPhone } from './lib/phone';
 import { ReservationsView, useReservations } from './components/Reservations';
 import { KitchenScreen, KdsSetup, kdsConfig, setKdsConfig, type KdsConfig } from './components/KitchenScreen';
+import * as P from './lib/print';
 
 type Tab = 'tables' | 'live' | 'resa' | 'history' | 'reports';
 
@@ -233,9 +234,26 @@ function Toasts() {
   const { toasts } = usePos();
   return (
     <div className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+      <EpsonBar />
       {toasts.map(x => (
         <div key={x.id} className={`pop rounded-2xl px-5 py-3 font-semibold shadow-2xl ${x.tone === 'error' ? 'bg-danger text-white' : x.tone === 'ok' ? 'bg-ok text-[#032A2A]' : 'panel text-ink'}`}>{x.text}</div>
       ))}
+    </div>
+  );
+}
+
+/** iPad: tickets made without a tap (after a payment is saved, bons sent from a phone) wait here,
+ *  because iOS only opens the Epson app on a tap. */
+function EpsonBar() {
+  const [n, setN] = useState(P.epsonWaiting());
+  useEffect(() => P.onEpsonWaiting(setN), []);
+  if (!n) return null;
+  return (
+    <div className="pop pointer-events-auto flex items-center gap-2 rounded-2xl bg-ok p-2 shadow-2xl">
+      <button onClick={P.flushEpson} className="flex items-center gap-2 rounded-xl px-5 py-3 text-lg font-bold text-[#032A2A]">
+        <Printer className="h-5 w-5" /> {n === 1 ? t('Imprimer le ticket') : t('Imprimer {n} tickets', { n })}
+      </button>
+      <button onClick={P.clearEpson} aria-label={t('Annuler')} className="rounded-xl px-3 py-3 text-sm font-semibold text-[#032A2A]/70">✕</button>
     </div>
   );
 }

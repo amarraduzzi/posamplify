@@ -624,4 +624,13 @@ export const AR: Record<string, string> = {
   "Recherche…": "جار البحث…",
   "Touchez Télécharger, puis ouvrez le fichier.": "اضغطوا تحميل، ثم افتحوا الملف.",
   "Télécharger l’application Android": "تحميل تطبيق أندرويد",
+  "Activer l’impression Epson": "تفعيل الطباعة عبر Epson",
+  "Désactiver": "إيقاف",
+  "Imprimer le ticket": "طباعة التذكرة",
+  "Imprimer {n} tickets": "طباعة {n} تذاكر",
+  "Installez Epson TM Print Assistant depuis l’App Store.": "ثبتوا تطبيق Epson TM Print Assistant من App Store.",
+  "Ouvrez-la, choisissez votre imprimante Epson (même wifi que l’iPad) et faites un test.": "افتحوه، اختاروا طابعة Epson (نفس الواي فاي مثل الآيباد) وقوموا بتجربة.",
+  "Revenez ici, activez, puis touchez Test.": "عودوا هنا، فعّلوا، ثم اضغطوا تجربة.",
+  "Sur iPad, les tickets s’impriment avec l’application gratuite Epson TM Print Assistant :": "على الآيباد، تُطبع التذاكر بتطبيق Epson TM Print Assistant المجاني:",
+  "Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.": "استعملوا الصندوق في Safari. بعد كل تذكرة، يعود الآيباد تلقائيا إلى الصندوق.",
 };

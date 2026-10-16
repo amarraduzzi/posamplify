@@ -623,4 +623,13 @@ export const EN: Record<string, string> = {
   "Recherche…": "Searching…",
   "Touchez Télécharger, puis ouvrez le fichier.": "Tap Download, then open the file.",
   "Télécharger l’application Android": "Download the Android app",
+  "Activer l’impression Epson": "Turn on Epson printing",
+  "Désactiver": "Turn off",
+  "Imprimer le ticket": "Print the ticket",
+  "Imprimer {n} tickets": "Print {n} tickets",
+  "Installez Epson TM Print Assistant depuis l’App Store.": "Install Epson TM Print Assistant from the App Store.",
+  "Ouvrez-la, choisissez votre imprimante Epson (même wifi que l’iPad) et faites un test.": "Open it, pick your Epson printer (same wifi as the iPad) and print a test.",
+  "Revenez ici, activez, puis touchez Test.": "Come back here, turn it on, then tap Test.",
+  "Sur iPad, les tickets s’impriment avec l’application gratuite Epson TM Print Assistant :": "On iPad, tickets print with the free Epson TM Print Assistant app:",
+  "Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.": "Use the till in Safari. After each ticket, the iPad comes back to the till by itself.",
 };
