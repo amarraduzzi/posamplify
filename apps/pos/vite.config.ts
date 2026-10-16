@@ -27,7 +27,7 @@ export default defineConfig({
         globIgnores: ['**/*.exe', '**/*.apk'],
         navigateFallback: 'index.html',
         // downloads (the Windows print program, the Android app) always come from the network
-        navigateFallbackDenylist: [/\.(exe|apk)$/],
+        navigateFallbackDenylist: [/\.(exe|apk|html)$/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [{
           urlPattern: ({ request, url }) => request.destination === 'image' && !url.pathname.includes('/rest/v1/'),
