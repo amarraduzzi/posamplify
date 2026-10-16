@@ -91,11 +91,29 @@ function PrinterSetup() {
   };
   const again = async () => { setChecking(true); const ok = await pos.recheckPrinter(); if (ok) await load(); setChecking(false); };
   const names = list?.map(p => p.name) ?? [];
+  // the Android app: look for printers on the network, add one by its IP address
+  const android = P.inAndroidApp();
+  const [ip, setIp] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const scan = async () => { setScanning(true); setMsg(null); const l = await P.scanPrinters(); if (l) setList(l); setScanning(false); if (l && !l.length) setMsg(t('Aucune imprimante trouvée sur le wifi. Vérifiez qu’elle est allumée et branchée au même réseau, ou ajoutez son adresse IP.')); };
+  const addIp = async () => { setMsg(null); try { setList(await P.addNetworkPrinter(ip)); setIp(''); setMsg(t('Imprimante ajoutée.')); } catch (e) { setMsg((e as Error).message); } };
   const download = <a href="/printhost.exe" download className="inline-flex items-center gap-2 rounded-xl gold-fill px-4 py-2.5 font-bold text-brand-ink"><Download className="h-4 w-4" /> {t('Télécharger le programme d’impression')}</a>;
 
   return <>
     <h3 className="mb-2 font-bold">{t('Imprimantes')}</h3>
-    {!pos.printerOk ? (
+    {!pos.printerOk && P.androidBrowser() ? (
+      <div className="space-y-3 rounded-xl bg-surface-2 p-4 text-sm">
+        <p className="font-semibold">{t('Pour imprimer depuis cette tablette Android, installez une fois l’application Amplify Caisse :')}</p>
+        <ol className="list-decimal space-y-1 ps-5 text-muted">
+          <li>{t('Touchez Télécharger, puis ouvrez le fichier.')}</li>
+          <li>{t('Android demande d’autoriser l’installation : Paramètres, puis Autoriser. Si « Application inconnue » s’affiche : Installer quand même.')}</li>
+          <li>{t('Ouvrez Amplify Caisse (nouvelle icône) et reliez la caisse avec un code, comme la première fois.')}</li>
+          <li>{t('Ici, dans Réglages du poste : Rechercher les imprimantes, puis Test.')}</li>
+        </ol>
+        <a href={P.ANDROID_APK} download="amplify-caisse.apk" className="inline-flex items-center gap-2 rounded-xl gold-fill px-4 py-2.5 font-bold text-brand-ink"><Download className="h-4 w-4" /> {t('Télécharger l’application Android')}</a>
+        <p className="text-xs text-muted">{t('Imprimantes wifi, Bluetooth, USB et imprimantes intégrées (Sunmi). Sans l’application, les bons s’impriment sur une autre caisse équipée d’une imprimante.')}</p>
+      </div>
+    ) : !pos.printerOk ? (
       <div className="space-y-3 rounded-xl bg-surface-2 p-4 text-sm">
         <p className="font-semibold">{t('Pour imprimer depuis ce PC (Windows), installez une fois le programme d’impression :')}</p>
         <ol className="list-decimal space-y-1 ps-5 text-muted">
@@ -113,7 +131,9 @@ function PrinterSetup() {
       </div>
     ) : (
       <div className="space-y-2">
-        <p className="text-sm text-muted">{list.length ? t('Choisissez l’imprimante de chaque ticket. Imprimantes vues par Windows sur ce PC : {n}.', { n: list.length }) : t('Programme d’impression actif, mais Windows ne voit aucune imprimante. Installez l’imprimante dans Windows (Paramètres > Imprimantes), puis touchez Vérifier.')}</p>
+        <p className="text-sm text-muted">{android
+          ? (list.length ? t('Choisissez l’imprimante de chaque ticket. Imprimantes trouvées par la tablette : {n}.', { n: list.length }) : t('Aucune imprimante pour le moment. Wifi : allumez-la sur le même réseau puis Rechercher. Bluetooth : associez-la d’abord dans les paramètres Bluetooth d’Android. USB : branchez-la.'))
+          : (list.length ? t('Choisissez l’imprimante de chaque ticket. Imprimantes vues par Windows sur ce PC : {n}.', { n: list.length }) : t('Programme d’impression actif, mais Windows ne voit aucune imprimante. Installez l’imprimante dans Windows (Paramètres > Imprimantes), puis touchez Vérifier.'))}</p>
         {roles.map(r => {
           const cur = nameOf(r.key);
           const missing = !names.some(n => n.toLowerCase() === cur.toLowerCase());
@@ -131,8 +151,17 @@ function PrinterSetup() {
         })}
         <div className="flex flex-wrap gap-2 pt-1">
           {list.length === 1 && roles.length > 1 && <Btn onClick={() => allOn(list[0].name)}>{t('Tout imprimer sur {n}', { n: list[0].name })}</Btn>}
-          <Btn onClick={again} disabled={checking}><RefreshCw className="h-4 w-4" /> {t('Vérifier')}</Btn>
+          {android
+            ? <Btn tone="brand" onClick={scan} disabled={scanning}><RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} /> {scanning ? t('Recherche…') : t('Rechercher les imprimantes')}</Btn>
+            : <Btn onClick={again} disabled={checking}><RefreshCw className="h-4 w-4" /> {t('Vérifier')}</Btn>}
         </div>
+        {android && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 px-3 py-2">
+            <span className="text-sm text-muted">{t('Imprimante wifi non trouvée ? Son adresse IP :')}</span>
+            <input value={ip} onChange={e => setIp(e.target.value)} inputMode="decimal" dir="ltr" placeholder="192.168.1.50" className="w-36 rounded-lg border border-line/15 bg-surface px-2 py-1.5 text-sm" />
+            <Btn className="py-1.5" disabled={!ip.trim()} onClick={addIp}>{t('Ajouter')}</Btn>
+          </div>
+        )}
       </div>
     )}
     {msg && <p className="mt-2 text-sm font-semibold">{msg}</p>}

@@ -23,6 +23,27 @@ async function call<T>(path: string, init?: RequestInit, ms = 4000): Promise<T |
 }
 
 export const pingPrinter = async () => !!(await call<{ ok: boolean }>('/ping', undefined, 1500))?.ok;
+
+// ---- the Android app (Amplify Caisse for Android): the same service, plus finding printers itself
+/** This till runs inside the Amplify Caisse Android app (it prints through the app). */
+export const inAndroidApp = () => typeof navigator !== 'undefined' && /AmplifyCaisseAndroid/.test(navigator.userAgent);
+/** An Android tablet or phone in the browser: the app is what lets it print. */
+export const androidBrowser = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent) && !inAndroidApp();
+/** The APK, built by GitHub and served by the till's own site. */
+export const ANDROID_APK = '/amplify-caisse.apk';
+type PrinterList = { ok: boolean; error?: string; printers?: { name: string; default: boolean; kind?: string }[] };
+/** Android app: looks for printers on the network (takes a few seconds), then lists them all. */
+export async function scanPrinters() {
+  const r = await call<PrinterList>('/scan', { method: 'POST' }, 15000);
+  return r?.ok && Array.isArray(r.printers) ? r.printers : null;
+}
+/** Android app: adds a network printer by its IP address. Throws the app's message when nobody answers there. */
+export async function addNetworkPrinter(ip: string) {
+  const r = await call<PrinterList>('/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: ip.trim(), port: 9100 }) }, 6000);
+  if (!r) throw new Error("L'application ne répond pas.");
+  if (!r.ok) throw new Error(r.error || 'Imprimante introuvable.');
+  return r.printers ?? [];
+}
 /** The printers Windows sees on this PC; null with the old Dom's printhost (no list: update it). */
 export async function listPrinters(): Promise<{ name: string; default: boolean }[] | null> {
   const r = await call<{ ok: boolean; printers?: { name: string; default: boolean }[] }>('/printers', undefined, 3000);
@@ -84,7 +105,7 @@ export async function print(printer: string, title: string, lines: TicketLine[],
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ printerName: printer, title, dataBase64: escpos(lines, opts) }),
   }, 8000);
-  if (!r) throw new Error("Impression impossible : le programme d'impression (printhost) ne répond pas sur ce PC.");
+  if (!r) throw new Error(inAndroidApp() ? "Impression impossible : l'application ne répond pas. Fermez-la et rouvrez-la." : "Impression impossible : le programme d'impression (printhost) ne répond pas sur ce PC.");
   if (!r.ok) throw new Error(r.error || "Échec de l'impression.");
 }
 
