@@ -137,19 +137,10 @@ export function flushEpson() {
   if (!epsonJobs.length) return;
   const xml = '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' + epsonJobs.join('') + '</epos-print>';
   epsonJobs = []; epsonNotify();
-  // after printing, the Epson app opens this link: the same page with a new #mark, so Safari just
-  // comes back to this tab (no reload); the mark is removed right away
-  // From the home-screen icon there is no link back into the till (iOS would open Safari instead):
-  // there the staff taps "◀ Caisse" at the top left of the Epson app.
-  const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
-  const back = window.location.href.split('#')[0] + '#imprime-' + Date.now();
+  // No return link: iOS opens it as a new Safari tab (the till restarts, or Safari opens instead of
+  // the home-screen app). The staff taps "◀ Caisse / ◀ Safari" at the top left: the till is exactly as it was.
   window.location.href = 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&reselect=no&data='
-    + encodeURIComponent(xml) + (standalone ? '' : '&success=' + encodeURIComponent(back));
-}
-if (typeof window !== 'undefined') {
-  const clean = () => { if (window.location.hash.startsWith('#imprime-')) history.replaceState(history.state, '', window.location.pathname + window.location.search); };
-  window.addEventListener('hashchange', clean);
-  clean();
+    + encodeURIComponent(xml);
 }
 export function clearEpson() { epsonJobs = []; epsonNotify(); }
 function printEpson(lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean }) {
