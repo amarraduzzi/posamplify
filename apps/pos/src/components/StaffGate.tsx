@@ -8,7 +8,8 @@ import { PinPad } from './PinPad';
 import { isNetworkError } from '../lib/supabase';
 import { checkPinOffline, forgetPinIfStale, rememberPin } from '../lib/pins';
 import { AmplifyLogo, PatternBackdrop, initials } from './Brand';
-import { LANGS, getLang, nextLang, t } from '../lib/i18n';
+import { getLang, t } from '../lib/i18n';
+import { LangMenu } from './LangMenu';
 import { readCache, writeCache } from '../lib/cache';
 import { isPhoneNow } from '../lib/phone';
 import { InstallButton } from './InstallButton';
@@ -99,10 +100,7 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
       <header className="relative flex items-center gap-3 px-5 pb-2 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pt-5">
         <AmplifyLogo size="sm" className="opacity-90" />
         <span className="ms-auto"><Clock tz={r.timezone} /></span>
-        <button onClick={() => pos.setLang(nextLang(pos.lang))} aria-label={t('Langue')} lang={nextLang(pos.lang)}
-          className="grid h-10 w-10 place-items-center rounded-full border border-line/[0.1] bg-surface/70 text-sm font-bold text-muted hover:text-ink">
-          {LANGS.find(l => l.id === nextLang(pos.lang))?.short}
-        </button>
+        <LangMenu dark />
       </header>
 
       <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-5 pb-4 pt-2 sm:justify-center sm:px-8">

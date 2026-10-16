@@ -8,7 +8,7 @@ import { usePos } from '../store';
 import { Btn, Field, inputCls } from './ui';
 import { AmplifyLogo, PatternBackdrop } from './Brand';
 import { t } from '../lib/i18n';
-import { LangSwitch } from './LangSwitch';
+import { LangMenu } from './LangMenu';
 import { InstallButton } from './InstallButton';
 
 // i18n:values
@@ -68,14 +68,13 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
 
   const clean = code.replace(/[^A-Z0-9]/g, '').slice(0, 8);
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <PairShowcase />
-      <div className="lg-side relative grid min-w-0 flex-1 items-start justify-items-center overflow-y-auto px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))] sm:place-items-center sm:p-6 lg:max-w-xl">
+      <div className="lg-side relative z-10 -mt-8 grid min-w-0 flex-1 items-start justify-items-center rounded-t-[2rem] border-t border-white/10 shadow-[0_-24px_48px_-24px_rgba(0,0,0,.7)] px-5 pb-8 pt-7 sm:place-items-center sm:p-6 lg:mt-0 lg:max-w-xl lg:overflow-y-auto lg:rounded-none lg:border-t-0 lg:shadow-none">
         <PatternBackdrop className="opacity-60 lg:hidden" />
         <div className="rise relative w-full min-w-0 max-w-sm">
-          <div className="mb-8 flex items-center justify-between gap-3 lg:justify-end">
-            <AmplifyLogo className="min-w-0 whitespace-nowrap lg:hidden" />
-            <LangSwitch compact />
+          <div className="mb-8 hidden items-center justify-end gap-3 lg:flex">
+            <LangMenu />
           </div>
           <InstallButton className="mb-6" />
           <p className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--brand)/.12)] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand">
@@ -91,7 +90,7 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold">{t('Code de connexion')}</span>
                 <span className="relative block" dir="ltr">
-                  <input autoFocus aria-label={t('Code de connexion')} className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0" maxLength={9} value={clean}
+                  <input autoFocus={typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches && !new URLSearchParams(window.location.search).get('code')} aria-label={t('Code de connexion')} className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0" maxLength={9} value={clean}
                     onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} autoComplete="off" autoCapitalize="characters" spellCheck={false}
                     onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} />
                   <span className="grid grid-cols-8 gap-1 sm:gap-1.5" aria-hidden>
@@ -160,10 +159,13 @@ function PairShowcase() {
   const steps = [t('Espace gérant'), t('Code sur la caisse'), t('Caisse prête')];
   const people = [['Karim', t('Manager')], ['Salma', t('Serveuse')], ['Youssef', t('Serveur')], ['Nadia', t('Caisse')]];
   return (
-    <section className="lg-show relative hidden flex-1 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+    <section className="lg-show relative flex shrink-0 flex-col justify-between gap-6 overflow-hidden px-5 pb-14 pt-[max(1.25rem,env(safe-area-inset-top))] text-white lg:flex-1 lg:gap-0 lg:p-12">
       <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_80%_60%,rgba(5,185,98,.22),transparent_70%),radial-gradient(40%_40%_at_0%_0%,rgba(5,185,98,.12),transparent_70%)]" />
       <span className="lg-grid pointer-events-none absolute inset-0" />
-      <AmplifyLogo size="lg" className="relative" />
+      <div className="relative z-20 flex items-center justify-between gap-3">
+        <AmplifyLogo className="min-w-0 lg:hidden" /><AmplifyLogo size="lg" className="hidden lg:flex" />
+        <LangMenu dark className="lg:hidden" />
+      </div>
 
       <div className="relative grid items-end gap-10 xl:grid-cols-[1fr_21rem]">
         <div>
@@ -171,11 +173,11 @@ function PairShowcase() {
             <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#05B962] opacity-60" /><span className="relative h-2 w-2 rounded-full bg-[#05B962]" /></span>
             {t('Amplify POS · la caisse')}
           </p>
-          <h2 className="lg-h mt-6 text-[clamp(3.4rem,5.6vw,6rem)]">
+          <h2 className="lg-h mt-4 text-[2.9rem] lg:mt-6 lg:text-[clamp(3.4rem,5.6vw,6rem)]">
             <span className="block overflow-hidden"><span className="lg-rise block">{t('Un code.')}</span></span>
             <span className="block overflow-hidden"><span className="lg-rise block text-[#05B962]" style={{ animationDelay: '.12s' }}>{t('Et on encaisse.')}</span></span>
           </h2>
-          <ul className="mt-8 space-y-2.5 text-white/80">
+          <ul className="mt-8 hidden space-y-2.5 text-white/80 lg:block">
             {[t('Chaque employé avec son code personnel'), t('Bons cuisine et bar imprimés tout seuls'), t('Même quand internet tombe')].map((x, i) => (
               <li key={x} className="lg-in flex items-center gap-3" style={{ animationDelay: `${.3 + i * .1}s` }}>
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#05B962] text-[#001E3E]"><Check className="h-3 w-3" strokeWidth={3.2} /></span>{x}
@@ -186,7 +188,7 @@ function PairShowcase() {
 
         {/* the loop */}
         <div className="lg-card" aria-hidden="true">
-          <div className="relative h-[17.5rem] overflow-hidden rounded-[1.75rem] bg-white/[0.06] p-4 ring-1 ring-white/15 backdrop-blur-md">
+          <div className="relative h-[14.5rem] overflow-hidden lg:h-[17.5rem] rounded-[1.75rem] bg-white/[0.06] p-4 ring-1 ring-white/15 backdrop-blur-md">
             {step === 0 && (
               <div key="s0" className="lg-in flex h-full flex-col">
                 <div className="flex items-center gap-1.5 px-1"><span className="h-2 w-2 rounded-full bg-white/25" /><span className="h-2 w-2 rounded-full bg-white/25" /><span className="h-2 w-2 rounded-full bg-white/25" /><span className="ms-2 text-[0.65rem] text-white/50" dir="ltr">app.amplifygrowthstudio.com</span></div>
@@ -241,7 +243,7 @@ function PairShowcase() {
         </div>
       </div>
 
-      <div className="relative flex items-center justify-between gap-4">
+      <div className="relative hidden items-center justify-between gap-4 lg:flex">
         <p className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold ring-1 ring-white/15"><span className="text-[#05B962]">★</span> {t('Pas de compte e-mail pour la caisse')}</p>
         <p className="text-xs text-white/35">{t('Illustration')}</p>
       </div>

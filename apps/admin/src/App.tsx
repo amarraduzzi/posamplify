@@ -18,6 +18,7 @@ import { BriefingPage } from './pages/BriefingPage';
 import { LoginShowcase } from './components/LoginShowcase';
 import { AmplifyLogo, PatternBackdrop } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
+import { LangMenu } from './components/LangMenu';
 import { dateLocale, t } from './lib/i18n';
 import { useCaptcha } from './lib/captcha';
 import { ProfitPage } from './pages/ProfitPage';
@@ -180,7 +181,7 @@ function Screens() {
         <div className="night no-print sticky top-0 z-20 flex items-center gap-3 px-4 py-2.5 md:hidden">
           <button onClick={() => setNavOpen(true)} aria-label={t('Menu')} className="relative grid h-10 w-10 place-items-center rounded-xl bg-white/10"><MenuIcon className="h-5 w-5" />{siteReqs.length > 0 && <span className="absolute -end-1 -top-1 h-3 w-3 rounded-full border-2 border-night bg-danger" />}</button>
           <span className="me-auto min-w-0 truncate font-display text-lg font-semibold">{r?.name}</span>
-          <LangSwitch dark compact />
+          <LangMenu dark />
         </div>
         {r && a.role === 'owner' && <div className="no-print"><BillingBanner r={r} /></div>}
         {r && <div className="no-print"><SiteRequestBanner rows={siteReqs} onOpen={id => { setCatOpen(id); setPage('catering'); setNavOpen(false); }} /></div>}
@@ -270,13 +271,12 @@ function Login() {
     setBusy(false);
   };
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <LoginShowcase product={product} />
-      <div className="lg-side grid min-w-0 flex-1 items-start justify-items-center overflow-y-auto px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))] sm:place-items-center sm:p-6 lg:max-w-xl">
+      <div className="lg-side relative z-10 -mt-8 grid min-w-0 flex-1 items-start justify-items-center rounded-t-[2rem] px-5 pb-8 pt-7 sm:place-items-center sm:p-6 lg:mt-0 lg:max-w-xl lg:overflow-y-auto lg:rounded-none">
         <form onSubmit={submit} className="rise w-full min-w-0 max-w-sm space-y-5">
-          <div className="mb-8 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
-            <AmplifyLogo tone="light" product={product} className="min-w-0 lg:hidden" />
-            <LangSwitch compact />
+          <div className="mb-6 hidden items-center justify-end gap-3 lg:flex">
+            <LangMenu />
           </div>
           <div>
             {mode !== 'forgot' && (

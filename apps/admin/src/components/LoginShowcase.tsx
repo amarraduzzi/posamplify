@@ -2,6 +2,7 @@
 // a loud condensed headline and a live "service of the day" card. Orders come in, the kitchen ticket
 // goes out, the counters climb. Illustration only (no real data).
 import { useEffect, useState } from 'react';
+import { LangMenu } from './LangMenu';
 import { AmplifyLogo } from './Brand';
 import { t } from '../lib/i18n';
 
@@ -31,12 +32,15 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' | 'SITE' 
   const margin = 68 + (n % 3);
 
   return (
-    <section className="lg-show relative hidden flex-1 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+    <section className="lg-show relative flex shrink-0 flex-col justify-between gap-6 overflow-hidden px-5 pb-14 pt-[max(1.25rem,env(safe-area-inset-top))] text-white lg:flex-1 lg:gap-0 lg:p-12">
       {/* glow + grid */}
       <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_80%_60%,rgba(5,185,98,.22),transparent_70%),radial-gradient(40%_40%_at_0%_0%,rgba(5,185,98,.12),transparent_70%)]" />
       <span className="lg-grid pointer-events-none absolute inset-0" />
 
-      <AmplifyLogo size="lg" product={product} className="relative" />
+      <div className="relative z-20 flex items-center justify-between gap-3">
+        <AmplifyLogo product={product} className="min-w-0 lg:hidden" /><AmplifyLogo size="lg" product={product} className="hidden lg:flex" />
+        <LangMenu dark className="lg:hidden" />
+      </div>
 
       <div className="relative grid items-end gap-10 xl:grid-cols-[1fr_20rem]">
         <div>
@@ -44,11 +48,11 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' | 'SITE' 
             <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#05B962] opacity-60" /><span className="relative h-2 w-2 rounded-full bg-[#05B962]" /></span>
             {t('Fait pour le Maroc')}
           </p>
-          <h2 className="lg-h mt-6 text-[clamp(3.4rem,5.6vw,6rem)]">
+          <h2 className="lg-h mt-4 text-[2.9rem] lg:mt-6 lg:text-[clamp(3.4rem,5.6vw,6rem)]">
             <span className="block overflow-hidden"><span className="lg-rise block">{site ? t('Votre site web.') : t('Votre service.')}</span></span>
             <span className="block overflow-hidden"><span className="lg-rise block text-[#05B962]" style={{ animationDelay: '.12s' }}>{site ? t('Prêt ce soir.') : t('Sous contrôle.')}</span></span>
           </h2>
-          <ul className="mt-8 space-y-2.5 text-white/80">
+          <ul className="mt-8 hidden space-y-2.5 text-white/80 lg:block">
             {(site ? [t('Votre carte depuis une simple photo'), t('Trouvé sur Google, en 3 langues'), t('Les commandes arrivent sur votre WhatsApp')] : [t('Menu QR en français, arabe et anglais'), t('Caisse, bons cuisine et rapports Z'), t('Même quand internet tombe')]).map((x, i) => (
               <li key={x} className="lg-in flex items-center gap-3" style={{ animationDelay: `${.3 + i * .1}s` }}>
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#05B962] text-[#001E3E]"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M5 12l4 4 10-10" /></svg></span>{x}
@@ -73,7 +77,7 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' | 'SITE' 
           </div>
           <ul className="mt-3 space-y-1.5">
             {feed.map((e, i) => (
-              <li key={e.key} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[0.8rem] ring-1 transition-colors ${i === 0 ? 'lg-new bg-white text-[#001E3E] ring-transparent' : 'bg-white/[0.04] ring-white/10'}`}>
+              <li key={e.key} className={`${i >= 2 ? 'max-lg:hidden' : ''} flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[0.8rem] ring-1 transition-colors ${i === 0 ? 'lg-new bg-white text-[#001E3E] ring-transparent' : 'bg-white/[0.04] ring-white/10'}`}>
                 <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[0.6rem] font-black ${e.kind === 'qr' ? 'bg-[#05B962] text-[#001E3E]' : i === 0 ? 'bg-[#001E3E] text-white' : 'bg-white/10'}`}>{e.kind === 'qr' ? 'QR' : 'POS'}</span>
                 <span className="min-w-0 flex-1 leading-tight"><span className="block font-semibold">{e.table}</span><span className={`block truncate ${i === 0 ? 'text-[#4A5A6E]' : 'text-white/55'}`}>{e.line}</span></span>
                 <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[0.65rem] font-bold ${i === 0 ? 'bg-[#DDF6E8] text-[#00552C]' : 'text-white/45'}`}>{i === 0 ? t('En cuisine ✓') : '✓'}</span>
@@ -83,7 +87,7 @@ export function LoginShowcase({ product }: { product: 'POS' | 'PROFIT' | 'SITE' 
         </div>}
       </div>
 
-      <div className="relative flex items-center justify-between gap-4">
+      <div className="relative hidden items-center justify-between gap-4 lg:flex">
         <p className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold ring-1 ring-white/15"><span className="text-[#05B962]">★</span> {t('14 jours gratuits · sans engagement')}</p>
         <p className="text-xs text-white/35">{t('Illustration')}</p>
       </div>
