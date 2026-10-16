@@ -1,0 +1,35 @@
+plugins { id 'com.android.application' }
+
+// version: the GitHub build number, so every new APK installs over the previous one
+def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
+android {
+    namespace 'com.amplify.caisse'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.amplify.caisse'
+        minSdk 24
+        targetSdk 34
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+    }
+    signingConfigs {
+        // the same key for every build, or Android refuses to update the app
+        release {
+            storeFile file('../amplify-caisse.jks')
+            storePassword 'amplify-caisse-2026'
+            keyAlias 'amplify'
+            keyPassword 'amplify-caisse-2026'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
