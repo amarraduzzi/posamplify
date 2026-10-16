@@ -157,8 +157,17 @@ function printEpson(lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean
   // tickets made in the same moment (bons of several stations) go together
   window.setTimeout(() => {
     const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
-    if (ua?.isActive) flushEpson(); else epsonNotify();
+    if (ua?.isActive) flushEpson(); else { epsonNotify(); armEpsonTap(); }
   }, 0);
+}
+// A ticket made after a wait (the payment saved on the server) prints at the very next touch
+// anywhere (usually "Terminé"): iOS accepts opening the Epson app from any tap.
+let armed = false;
+function armEpsonTap() {
+  if (armed) return;
+  armed = true;
+  const go = () => { armed = false; document.removeEventListener('click', go, true); flushEpson(); };
+  document.addEventListener('click', go, true);
 }
 
 export async function print(printer: string, title: string, lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean } = {}) {
