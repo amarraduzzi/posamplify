@@ -2,36 +2,29 @@
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Test imprimante</title>
 <style>
-body{font-family:-apple-system,system-ui,sans-serif;background:#020F20;color:#fff;margin:0;padding:24px;max-width:520px}
-h1{font-size:22px}input,button{font-size:18px;padding:12px 14px;border-radius:12px;border:0;width:100%;box-sizing:border-box;margin:6px 0}
-button{background:#1D6BFF;color:#fff;font-weight:600}pre{white-space:pre-wrap;background:#0B1F3A;padding:12px;border-radius:12px;font-size:14px}
+body{font-family:-apple-system,system-ui,sans-serif;background:#020F20;color:#fff;margin:0;padding:24px;max-width:560px}
+h1{font-size:22px}button{font-size:18px;padding:16px;border-radius:12px;border:0;width:100%;margin:8px 0;background:#1D6BFF;color:#fff;font-weight:600}
+p{color:#9fb3d1}pre{white-space:pre-wrap;background:#0B1F3A;padding:12px;border-radius:12px;font-size:13px}
 </style></head><body>
-<h1>Test imprimante Epson (iPad)</h1>
-<label>Adresse IP de l'imprimante</label>
-<input id="ip" value="192.168.0.88" inputmode="decimal">
-<button id="go">Imprimer un test</button>
-<pre id="out">Pas encore testé.</pre>
+<h1>Test TM Print Assistant</h1>
+<p>Appuyez sur A. Si rien ne sort, essayez B, puis C.</p>
+<button data-v="A">A</button>
+<button data-v="B">B</button>
+<button data-v="C">C</button>
+<pre id="out"></pre>
 <script>
-const xml = '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>'
- + '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'
- + '<text align="center" dw="true" dh="true">AMPLIFY&#10;</text><text dw="false" dh="false">Test iPad OK&#10;' + new Date().toLocaleString('fr-FR') + '&#10;</text>'
- + '<feed line="3"/><cut type="feed"/></epos-print></s:Body></s:Envelope>';
-const out = document.getElementById('out');
-const log = (s) => { out.textContent += '\n' + s; };
-document.getElementById('go').onclick = async () => {
-  const ip = document.getElementById('ip').value.trim();
-  out.textContent = 'Envoi vers ' + ip + ' ...';
-  const url = 'https://' + ip + '/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000';
-  try {
-    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' }, body: xml });
-    const t = await r.text();
-    log('A) HTTP ' + r.status);
-    log(t.slice(0, 600));
-    return;
-  } catch (e) { log('A) échec: ' + e.message); }
-  try {
-    await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: xml });
-    log('B) envoyé sans réponse lisible. Le ticket est-il sorti ?');
-  } catch (e) { log('B) échec: ' + e.message); }
+const body = '<text align="center" dw="true" dh="true">AMPLIFY&#10;</text><text dw="false" dh="false">Test iPad OK&#10;' + new Date().toLocaleString('fr-FR') + '&#10;</text><feed line="3"/><cut type="feed"/>';
+const epos = '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' + body + '</epos-print>';
+const soap = '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>' + epos + '</s:Body></s:Envelope>';
+const back = encodeURIComponent(location.href.split('#')[0] + '#ok');
+if (location.hash === '#ok') document.getElementById('out').textContent = 'Retour de TM Print Assistant reçu.';
+const urls = {
+  A: 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&data=' + encodeURIComponent(epos) + '&reselect=no&success=' + back,
+  B: 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&data=' + encodeURIComponent(soap) + '&reselect=no&success=' + back,
+  C: 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&data=' + encodeURIComponent(epos),
 };
+document.querySelectorAll('button').forEach(b => b.onclick = () => {
+  document.getElementById('out').textContent = 'Ouverture ' + b.dataset.v + ' ...';
+  location.href = urls[b.dataset.v];
+});
 </script></body></html>
