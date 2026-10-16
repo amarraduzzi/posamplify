@@ -253,7 +253,7 @@ function EpsonBar() {
       <button onClick={P.flushEpson} className="flex items-center gap-2 rounded-xl px-5 py-3 text-lg font-bold text-[#032A2A]">
         <Printer className="h-5 w-5" /> {n === 1 ? t('Imprimer le ticket') : t('Imprimer {n} tickets', { n })}
       </button>
-      <button onClick={P.clearEpson} aria-label={t('Annuler')} className="rounded-xl px-3 py-3 text-sm font-semibold text-[#032A2A]/70">✕</button>
+      <button data-epson-cancel onClick={P.clearEpson} aria-label={t('Annuler')} className="rounded-xl px-3 py-3 text-sm font-semibold text-[#032A2A]/70">✕</button>
     </div>
   );
 }

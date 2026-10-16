@@ -166,7 +166,7 @@ let armed = false;
 function armEpsonTap() {
   if (armed) return;
   armed = true;
-  const go = () => { armed = false; document.removeEventListener('click', go, true); flushEpson(); };
+  const go = (e: Event) => { if ((e.target as Element | null)?.closest?.('[data-epson-cancel]')) return; armed = false; document.removeEventListener('click', go, true); flushEpson(); };
   document.addEventListener('click', go, true);
 }
 
