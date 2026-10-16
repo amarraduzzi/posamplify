@@ -451,6 +451,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
               <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
               {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>
                 : <Btn disabled={busy} onClick={() => setSheet(false)}>{t('Ajouter')}</Btn>}
+              {/* cancel / free the table: an empty order needs no PIN, otherwise a manager approves (same as the till) */}
+              {order && <Btn tone="danger" disabled={busy} onClick={() => pos.requireOnline() && setDialog('cancel')} className="col-span-2"><Ban className="h-4 w-4" /> {order.order_lines.length ? t('Annuler la commande') : t('Libérer la table')}</Btn>}
               <p className="col-span-2 pt-1 text-center text-xs text-muted">{t('L’encaissement se fait à la caisse.')}</p>
             </div>
           </div>
