@@ -139,9 +139,12 @@ export function flushEpson() {
   epsonJobs = []; epsonNotify();
   // after printing, the Epson app opens this link: the same page with a new #mark, so Safari just
   // comes back to this tab (no reload); the mark is removed right away
+  // From the home-screen icon there is no link back into the till (iOS would open Safari instead):
+  // there the staff taps "◀ Caisse" at the top left of the Epson app.
+  const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
   const back = window.location.href.split('#')[0] + '#imprime-' + Date.now();
   window.location.href = 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&reselect=no&data='
-    + encodeURIComponent(xml) + '&success=' + encodeURIComponent(back);
+    + encodeURIComponent(xml) + (standalone ? '' : '&success=' + encodeURIComponent(back));
 }
 if (typeof window !== 'undefined') {
   const clean = () => { if (window.location.hash.startsWith('#imprime-')) history.replaceState(history.state, '', window.location.pathname + window.location.search); };
