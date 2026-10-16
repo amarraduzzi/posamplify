@@ -98,6 +98,7 @@ export default function App() {
           <ConnectionPill stale={stale} onClick={() => setShowSync(true)} />
           <button onClick={() => pos.setLang(nextLang(pos.lang))} aria-label={LANGS.find(x => x.id === nextLang(pos.lang))!.label}
             className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted">{LANGS.find(x => x.id === nextLang(pos.lang))!.short}</button>
+          <button onClick={() => setShowSettings(true)} aria-label={t('Réglages')} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-muted"><Settings className="h-4 w-4" /></button>
           <button aria-label={t('Verrouiller')} onClick={() => pos.setStaff(null)} className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2"><Lock className="h-4 w-4" /></button>
         </header>
         {!pos.online && <p className="bg-warn/15 py-1.5 text-center text-xs font-semibold text-warn">{t('Hors ligne : les commandes partent au retour d’internet.')}</p>}
@@ -115,6 +116,7 @@ export default function App() {
         </nav>
         {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
         {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
         <Toasts />
       </div>
     );
