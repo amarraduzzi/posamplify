@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Monitor, Trash2, Plus, Copy, ExternalLink, RefreshCw, Tablet } from 'lucide-react';
+import { Monitor, Trash2, Plus, Copy, ExternalLink, RefreshCw, Tablet, Download, Smartphone } from 'lucide-react';
 import QRCode from 'qrcode';
 import { MENU_URL } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
@@ -49,6 +49,7 @@ export function DevicesPage({ r }: { r: Restaurant }) {
         ))}
         {!tills.length && <li className="px-4 py-8 text-center text-muted">{t('Aucune caisse reliée.')}</li>}
       </ul>
+      <AndroidAppCard />
       <h2 className="mb-3 font-display text-xl font-semibold">{t("Accès à l'espace gérant")}</h2>
       <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
         {people.map(m => (
@@ -104,5 +105,27 @@ function KioskCard({ r }: { r: Restaurant }) {
       )}
       <p className="mt-4 rounded-xl bg-surface-2 p-3 text-sm text-muted"><Monitor className="me-1 inline h-4 w-4" />{t('Écran client : se règle sur la caisse, dans Réglages du poste > Écran client.')}</p>
     </div>
+  );
+}
+
+/** Android tablets and phones: the Amplify Caisse app prints on any ticket printer (wifi, Bluetooth, USB, built-in). */
+function AndroidAppCard() {
+  const url = `${location.origin}/amplify-caisse.apk`;
+  const [qr, setQr] = useState('');
+  useEffect(() => { QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }).then(setQr).catch(() => {}); }, [url]);
+  return (
+    <section className="card mb-8 flex flex-wrap items-center gap-5 rounded-3xl p-5">
+      <div className="h-32 w-32 shrink-0 rounded-2xl bg-white p-2" aria-label={t('QR code de téléchargement')} dangerouslySetInnerHTML={{ __html: qr }} />
+      <div className="min-w-[15rem] flex-1">
+        <h2 className="flex items-center gap-2 font-display text-xl font-semibold"><Smartphone className="h-5 w-5 text-brand" />{t('Tablette Android : l’application Amplify Caisse')}</h2>
+        <p className="mt-1 text-sm text-muted">{t('Pour imprimer depuis une tablette Android sur n’importe quelle imprimante à tickets : wifi, Bluetooth, USB ou intégrée (Sunmi).')}</p>
+        <ol className="mt-2 list-decimal space-y-0.5 ps-5 text-sm text-muted">
+          <li>{t('Scannez le QR code avec la tablette et ouvrez le fichier.')}</li>
+          <li>{t('Autorisez l’installation. Si « Application inconnue » s’affiche : Installer quand même.')}</li>
+          <li>{t('Ouvrez Amplify Caisse, reliez la caisse avec un code (Relier une caisse), puis Réglages du poste : Rechercher les imprimantes.')}</li>
+        </ol>
+        <a href={url} download="amplify-caisse.apk" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-brand underline underline-offset-4"><Download className="h-4 w-4" /> {t('Télécharger l’application Android')}</a>
+      </div>
+    </section>
   );
 }

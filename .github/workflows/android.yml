@@ -29,9 +29,10 @@ jobs:
       - name: Publish it on the till's site
         run: |
           cp apps/android/app/build/outputs/apk/release/app-release.apk apps/pos/public/amplify-caisse.apk
+          cp apps/android/app/build/outputs/apk/release/app-release.apk apps/admin/public/amplify-caisse.apk
           git config user.name "Amplify build"
           git config user.email "build@amplifygrowthstudio.com"
-          git add apps/pos/public/amplify-caisse.apk
+          git add apps/pos/public/amplify-caisse.apk apps/admin/public/amplify-caisse.apk
           git commit -m "Android app: new APK (build ${{ github.run_number }})" || exit 0
           git pull --rebase
           git push

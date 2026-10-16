@@ -2227,4 +2227,11 @@ export const EN: Record<string, string> = {
   "Installer": "Install",
   "Installer Amplify Screen sur cet appareil": "Install Amplify Screen on this device",
   "Le son à chaque commande, le plein écran et l’écran toujours allumé.": "A sound for every order, full screen and the screen always on.",
+  "Autorisez l’installation. Si « Application inconnue » s’affiche : Installer quand même.": "Allow the install. If “Unknown app” shows: Install anyway.",
+  "Ouvrez Amplify Caisse, reliez la caisse avec un code (Relier une caisse), puis Réglages du poste : Rechercher les imprimantes.": "Open Amplify Caisse, link the till with a code (Link a till), then Device settings: Search for printers.",
+  "Pour imprimer depuis une tablette Android sur n’importe quelle imprimante à tickets : wifi, Bluetooth, USB ou intégrée (Sunmi).": "To print from an Android tablet on any ticket printer: wifi, Bluetooth, USB or built-in (Sunmi).",
+  "QR code de téléchargement": "Download QR code",
+  "Scannez le QR code avec la tablette et ouvrez le fichier.": "Scan the QR code with the tablet and open the file.",
+  "Tablette Android : l’application Amplify Caisse": "Android tablet: the Amplify Caisse app",
+  "Télécharger l’application Android": "Download the Android app",
 };

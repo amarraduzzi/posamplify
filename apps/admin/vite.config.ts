@@ -22,10 +22,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        globIgnores: ['**/*.exe'],
+        globIgnores: ['**/*.exe', '**/*.apk'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/compta\//],
+        navigateFallbackDenylist: [/^\/compta\//, /\.(exe|apk)$/],
         cleanupOutdatedCaches: true,
       },
     }),

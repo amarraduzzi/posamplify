@@ -2229,4 +2229,11 @@ export const AR: Record<string, string> = {
   "Installer": "تثبيت",
   "Installer Amplify Screen sur cet appareil": "تثبيت Amplify Screen على هذا الجهاز",
   "Le son à chaque commande, le plein écran et l’écran toujours allumé.": "صوت مع كل طلب، ملء الشاشة والشاشة مضاءة دائما.",
+  "Autorisez l’installation. Si « Application inconnue » s’affiche : Installer quand même.": "اسمحوا بالتثبيت. إذا ظهر «تطبيق غير معروف»: التثبيت على أي حال.",
+  "Ouvrez Amplify Caisse, reliez la caisse avec un code (Relier une caisse), puis Réglages du poste : Rechercher les imprimantes.": "افتحوا Amplify Caisse، اربطوا الصندوق برمز (ربط صندوق)، ثم إعدادات الجهاز: البحث عن الطابعات.",
+  "Pour imprimer depuis une tablette Android sur n’importe quelle imprimante à tickets : wifi, Bluetooth, USB ou intégrée (Sunmi).": "للطباعة من جهاز أندرويد على أي طابعة وصولات: واي فاي، بلوتوث، USB أو مدمجة (Sunmi).",
+  "QR code de téléchargement": "رمز QR للتحميل",
+  "Scannez le QR code avec la tablette et ouvrez le fichier.": "امسحوا رمز QR بالجهاز وافتحوا الملف.",
+  "Tablette Android : l’application Amplify Caisse": "جهاز أندرويد: تطبيق Amplify Caisse",
+  "Télécharger l’application Android": "تحميل تطبيق أندرويد",
 };
