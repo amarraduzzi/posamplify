@@ -104,3 +104,7 @@ body { background: rgb(var(--bg)); color: rgb(var(--ink)); -webkit-font-smoothin
 .wco-bar img { width: 16px; height: 16px; border-radius: 4px; }
 #root { padding-top: env(titlebar-area-height, 0px); }
 @media print { .wco-bar { display: none; } }
+
+/* a phone never scrolls sideways: whatever is too wide is clipped, not panned */
+html, body { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }

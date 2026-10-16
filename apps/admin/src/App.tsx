@@ -179,8 +179,8 @@ function Screens() {
       <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="night no-print sticky top-0 z-20 flex items-center gap-3 px-4 py-2.5 md:hidden">
           <button onClick={() => setNavOpen(true)} aria-label={t('Menu')} className="relative grid h-10 w-10 place-items-center rounded-xl bg-white/10"><MenuIcon className="h-5 w-5" />{siteReqs.length > 0 && <span className="absolute -end-1 -top-1 h-3 w-3 rounded-full border-2 border-night bg-danger" />}</button>
-          <span className="me-auto font-display text-lg font-semibold">{r?.name}</span>
-          <LangSwitch dark />
+          <span className="me-auto min-w-0 truncate font-display text-lg font-semibold">{r?.name}</span>
+          <LangSwitch dark compact />
         </div>
         {r && a.role === 'owner' && <div className="no-print"><BillingBanner r={r} /></div>}
         {r && <div className="no-print"><SiteRequestBanner rows={siteReqs} onOpen={id => { setCatOpen(id); setPage('catering'); setNavOpen(false); }} /></div>}
@@ -272,11 +272,11 @@ function Login() {
   return (
     <div className="flex h-full">
       <LoginShowcase product={product} />
-      <div className="lg-side grid flex-1 place-items-center p-6 lg:max-w-xl">
-        <form onSubmit={submit} className="rise w-full max-w-sm space-y-5">
-          <div className="mb-10 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
-            <AmplifyLogo tone="light" product={product} className="lg:hidden" />
-            <LangSwitch />
+      <div className="lg-side grid min-w-0 flex-1 items-start justify-items-center overflow-y-auto px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))] sm:place-items-center sm:p-6 lg:max-w-xl">
+        <form onSubmit={submit} className="rise w-full min-w-0 max-w-sm space-y-5">
+          <div className="mb-8 flex items-center justify-between gap-3 lg:mb-6 lg:justify-end">
+            <AmplifyLogo tone="light" product={product} className="min-w-0 lg:hidden" />
+            <LangSwitch compact />
           </div>
           <div>
             {mode !== 'forgot' && (
@@ -289,7 +289,7 @@ function Login() {
                 ))}
               </div>
             )}
-            <h1 className="lg-h text-5xl">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
+            <h1 className="lg-h text-[2.75rem] sm:text-5xl">{mode === 'login' ? t('Espace gérant') : mode === 'forgot' ? t('Mot de passe oublié') : t('Créer mon compte')}</h1>
             <p className="mt-2 text-muted">{mode === 'login' ? t('Menu, personnel, tables et ventes.') : mode === 'forgot' ? t('Indiquez votre e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.') : t('Menu QR, caisse et gestion. 14 jours gratuits, sans engagement.')}</p>
           </div>
           <Field label={t('E-mail')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></Field>
@@ -308,6 +308,14 @@ function Login() {
           {mode === 'forgot'
             ? <button type="button" onClick={() => switchTo('login')} className="w-full text-center text-sm font-semibold text-muted hover:text-ink">{t('Déjà un compte ? Se connecter')}</button>
             : <p className="text-center text-sm font-semibold text-muted lg:hidden"><span className="text-brand">★</span> {t('14 jours gratuits · sans engagement')}</p>}
+          {/* on a phone the showcase on the left is hidden: its three promises close the page instead */}
+          {mode !== 'forgot' && (
+            <ul className="space-y-3 border-t border-line/[0.08] pt-5 text-sm text-muted lg:hidden">
+              {(product === 'SITE' ? [t('Votre carte depuis une simple photo'), t('Trouvé sur Google, en 3 langues'), t('Les commandes arrivent sur votre WhatsApp')] : [t('Menu QR en français, arabe et anglais'), t('Caisse, bons cuisine et rapports Z'), t('Même quand internet tombe')]).map(x => (
+                <li key={x} className="flex items-center gap-3"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#05B962] text-[#001E3E]"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M5 12l4 4 10-10" /></svg></span>{x}</li>
+              ))}
+            </ul>
+          )}
         </form>
       </div>
     </div>

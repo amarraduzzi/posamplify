@@ -70,18 +70,18 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
   return (
     <div className="flex h-full">
       <PairShowcase />
-      <div className="lg-side relative grid flex-1 place-items-center overflow-y-auto p-6 lg:max-w-xl">
+      <div className="lg-side relative grid min-w-0 flex-1 items-start justify-items-center overflow-y-auto px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))] sm:place-items-center sm:p-6 lg:max-w-xl">
         <PatternBackdrop className="opacity-60 lg:hidden" />
-        <div className="rise relative w-full max-w-sm">
-          <div className="mb-10 flex items-center justify-between gap-3 lg:justify-end">
-            <AmplifyLogo className="whitespace-nowrap lg:hidden" />
-            <LangSwitch />
+        <div className="rise relative w-full min-w-0 max-w-sm">
+          <div className="mb-8 flex items-center justify-between gap-3 lg:justify-end">
+            <AmplifyLogo className="min-w-0 whitespace-nowrap lg:hidden" />
+            <LangSwitch compact />
           </div>
           <InstallButton className="mb-6" />
           <p className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--brand)/.12)] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand">
             <span className="h-1.5 w-1.5 rounded-full bg-current" />{mode === 'code' ? t('Une seule fois par poste') : t('Compte du poste')}
           </p>
-          <h1 className="lg-h mt-4 text-[clamp(3rem,9vw,4.25rem)]">
+          <h1 className="lg-h mt-4 text-[clamp(2.75rem,12vw,4.25rem)]">
             <span className="block overflow-hidden"><span className="lg-rise block">{t('Relier')}</span></span>
             <span className="block overflow-hidden"><span className="lg-rise block text-brand" style={{ animationDelay: '.1s' }}>{t('cette caisse.')}</span></span>
           </h1>
@@ -94,9 +94,9 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
                   <input autoFocus aria-label={t('Code de connexion')} className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0" maxLength={9} value={clean}
                     onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} autoComplete="off" autoCapitalize="characters" spellCheck={false}
                     onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} />
-                  <span className="grid grid-cols-8 gap-1.5" aria-hidden>
+                  <span className="grid grid-cols-8 gap-1 sm:gap-1.5" aria-hidden>
                     {Array.from({ length: 8 }, (_, i) => (
-                      <span key={i} className={`lg-box relative grid h-14 place-items-center rounded-xl border-2 border-[rgb(var(--line)/.14)] bg-surface ${i === 4 ? 'ms-2' : ''} ${clean[i] ? 'full' : ''} ${focus && i === Math.min(clean.length, 7) ? 'on' : ''}`}>
+                      <span key={i} className={`lg-box relative grid h-14 place-items-center rounded-xl border-2 border-[rgb(var(--line)/.14)] bg-surface ${i === 4 ? 'ms-1.5 sm:ms-2' : ''} ${clean[i] ? 'full' : ''} ${focus && i === Math.min(clean.length, 7) ? 'on' : ''}`}>
                         {clean[i] ? <span key={clean[i] + i} className="lg-ch lg-code text-3xl">{clean[i]}</span>
                           : focus && i === clean.length ? <span className="lg-caret h-6 w-0.5 rounded bg-brand" /> : <span className="h-1 w-3 rounded bg-[rgb(var(--line)/.18)]" />}
                       </span>
@@ -125,6 +125,12 @@ export function Login({ disconnected }: { disconnected?: boolean }) {
             {mode === 'code' ? <><Mail className="h-4 w-4" /> {t('Se connecter avec un e-mail')}</> : <><KeyRound className="h-4 w-4" /> {t('Utiliser un code de connexion')}</>}
           </button>
           {disconnected && <button onClick={pos.logout} className="mx-auto mt-2 block text-xs text-muted/70 hover:text-ink">{t('Se déconnecter')}</button>}
+          {/* on a phone the showcase on the left is hidden: its three promises close the page instead */}
+          <ul className="mt-10 space-y-3 border-t border-line/[0.08] pt-6 text-sm text-muted lg:hidden">
+            {[t('Chaque employé avec son code personnel'), t('Bons cuisine et bar imprimés tout seuls'), t('Même quand internet tombe')].map(x => (
+              <li key={x} className="flex items-center gap-3"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#05B962] text-[#001E3E]"><Check className="h-3 w-3" strokeWidth={3.2} /></span>{x}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

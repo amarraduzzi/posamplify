@@ -112,3 +112,7 @@ input, textarea { user-select: text; }
   .lg-bar { animation: lg-bar 2.8s linear both; }
   @keyframes lg-bar { from { transform: scaleX(0); } }
 }
+
+/* a phone never scrolls sideways: whatever is too wide is clipped, not panned */
+html, body { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
