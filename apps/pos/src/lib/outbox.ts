@@ -165,7 +165,11 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
       }
       case 'deleteLine': {
         const o = lineOwner.get(op.id);
-        if (o) { o.order_lines = o.order_lines.filter(x => x.id !== op.id); lineOwner.delete(op.id); touched.add(o); }
+        if (o) {
+          o.order_lines = o.order_lines.filter(x => x.id !== op.id); lineOwner.delete(op.id); touched.add(o);
+          // the last line gone: the server closes the empty order, the table is free (see free_empty_tables)
+          if (!o.order_lines.length && !o.closed_at) o.status = 'cancelled';
+        }
         break;
       }
       case 'pay':

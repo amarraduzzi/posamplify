@@ -605,4 +605,8 @@ export const EN: Record<string, string> = {
   "{n} commande(s) QR à accepter": "{n} QR order(s) to accept",
   "{n} réservation(s) aujourd’hui": "{n} booking(s) today",
   "{n} table(s) occupée(s)": "{n} table(s) taken",
+  "Libérer": "Free",
+  "Libérer la table": "Free the table",
+  "Supprimer": "Delete",
+  "{l} libérée": "{l} is free",
 };

@@ -166,6 +166,17 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   };
 
   const sendNow = () => run(async () => { await commit(true); });
+  // nothing to pay on this table (empty, or only free items): one tap frees it, no PIN (the server agrees)
+  const freeOrder = !!order && Number(order.total_cents) === 0 && !draft.length && order.source !== 'qr';
+  const freeTable = () => run(async () => {
+    if (!order || !pos.requireOnline()) return;
+    const res = await db.rpc<{ ok: boolean; error?: string }>('cancel_order', { p_order_id: order.id, p_reason: null, p_manager_staff_id: null, p_pin: null });
+    if (!res.ok) { setDialog('cancel'); return; }
+    await pos.reloadOrders();
+    try { navigator.vibrate?.(40); } catch { /* not supported */ }
+    pos.toast(t('{l} libérée', { l: label }), 'ok');
+    onClose();
+  });
   // phone at the table: a clear confirmation, a short buzz, then back to the tables for the next one
   const sendPhone = () => run(async () => {
     const n = draft.reduce((s, d) => s + d.quantity, 0);
@@ -292,7 +303,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           <Btn disabled={busy || !order || !order.order_lines.length} onClick={() => pos.requireOnline() && setDialog('promo')}><Ticket className="h-4 w-4" /> {order?.discount_kind === 'promo' ? t('Retirer le code') : t('Code promo')}</Btn>
           <Btn disabled={busy || !order?.order_lines.length} onClick={resend}><RotateCcw className="h-4 w-4" /> {t('Renvoyer bon')}</Btn>
           {order?.table_id && <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>}
-          <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {t('Annuler')}</Btn>
+          {freeOrder
+            ? <Btn tone="danger" disabled={busy} onClick={freeTable} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {order?.table_id ? t('Libérer la table') : t('Supprimer')}</Btn>
+            : <Btn tone="danger" disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('cancel')} className={order?.table_id ? '' : 'col-span-2'}><Ban className="h-4 w-4" /> {t('Annuler')}</Btn>}
         </div>
     </>;
   const dialogs = <>
@@ -434,7 +447,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             <ChevronUp className="h-5 w-5 shrink-0 text-muted" />
             <span className="min-w-0 flex-1"><span className="block text-xs text-muted">{t('Ticket · {n} article(s)', { n: count })}</span><b className="tabular">{mad(total)}</b></span>
           </button>
-          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendPhone} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
+          {freeOrder
+            ? <Btn tone="danger" disabled={busy} onClick={freeTable} className="px-4 text-base"><Ban className="h-5 w-5" /> {t('Libérer')}</Btn>
+            : <Btn tone="brand" disabled={busy || !draft.length} onClick={sendPhone} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>}
         </div>
         {sheet && (
           <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -447,13 +462,15 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             {totalsBox}
             <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
               {fireBtn}
-              <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { setSheet(false); sendPhone(); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>
+              {freeOrder
+                ? <Btn tone="danger" disabled={busy} onClick={() => { setSheet(false); freeTable(); }} className="col-span-2 py-4 text-base"><Ban className="h-5 w-5" /> {order?.table_id ? t('Libérer la table') : t('Supprimer')}</Btn>
+                : <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { setSheet(false); sendPhone(); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>}
               <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
               {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>
                 : <Btn disabled={busy} onClick={() => setSheet(false)}>{t('Ajouter')}</Btn>}
-              {/* cancel / free the table: an empty order needs no PIN, otherwise a manager approves (same as the till) */}
-              {order && <Btn tone="danger" disabled={busy} onClick={() => pos.requireOnline() && setDialog('cancel')} className="col-span-2"><Ban className="h-4 w-4" /> {order.order_lines.length ? t('Annuler la commande') : t('Libérer la table')}</Btn>}
               <p className="col-span-2 pt-1 text-center text-xs text-muted">{t('L’encaissement se fait à la caisse.')}</p>
+              {/* an order with money: a manager approves the cancel (same as the till), kept quiet so nobody taps it by mistake */}
+              {order && !freeOrder && <button disabled={busy} onClick={() => pos.requireOnline() && setDialog('cancel')} className="col-span-2 mx-auto mt-1 flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-danger hover:bg-danger/10"><Ban className="h-4 w-4" /> {t('Annuler la commande')}</button>}
             </div>
           </div>
         )}

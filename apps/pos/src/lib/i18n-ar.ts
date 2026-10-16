@@ -606,4 +606,8 @@ export const AR: Record<string, string> = {
   "{n} commande(s) QR à accepter": "{n} طلب QR للقبول",
   "{n} réservation(s) aujourd’hui": "{n} حجز اليوم",
   "{n} table(s) occupée(s)": "{n} طاولة مشغولة",
+  "Libérer": "تحرير",
+  "Libérer la table": "تحرير الطاولة",
+  "Supprimer": "حذف",
+  "{l} libérée": "{l} أصبحت فارغة",
 };
