@@ -139,8 +139,11 @@ export function flushEpson() {
   epsonJobs = []; epsonNotify();
   // No return link: iOS opens it as a new Safari tab (the till restarts, or Safari opens instead of
   // the home-screen app). The staff taps "◀ Caisse / ◀ Safari" at the top left: the till is exactly as it was.
+  // In Safari: after printing the Epson app opens a tiny page that closes itself, so Safari shows the
+  // till tab again as it was. From the home-screen icon there is no way back but "◀".
+  const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
   window.location.href = 'tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&reselect=no&data='
-    + encodeURIComponent(xml);
+    + encodeURIComponent(xml) + (standalone ? '' : '&success=' + encodeURIComponent(window.location.origin + '/terug.html'));
 }
 export function clearEpson() { epsonJobs = []; epsonNotify(); }
 function printEpson(lines: TicketLine[], opts: { drawer?: boolean; cut?: boolean }) {
