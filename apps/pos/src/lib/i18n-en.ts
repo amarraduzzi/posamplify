@@ -595,4 +595,7 @@ export const EN: Record<string, string> = {
   "Installer la caisse sur cet appareil": "Install the till on this device",
   "Plein écran automatique": "Automatic full screen",
   "Sans barre en haut. Échap pour sortir, un toucher pour revenir.": "No bar at the top. Esc to leave, one tap to come back.",
+  "Envoyé : {n} article(s), {l}": "Sent: {n} item(s), {l}",
+  "Plat prêt à servir": "Dish ready to serve",
+  "Populaires": "Popular",
 };

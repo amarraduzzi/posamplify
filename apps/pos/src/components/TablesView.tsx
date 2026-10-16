@@ -1,4 +1,4 @@
-import { QrCode, ShoppingBag, Clock } from 'lucide-react';
+import { QrCode, ShoppingBag, Clock, BellRing } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
 import { mad, minutesSince } from '../lib/format';
 import { Star8 } from './Brand';
@@ -9,6 +9,8 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const byTable = new Map<string, typeof pos.orders>();
   pos.orders.forEach(o => { if (o.table_id) byTable.set(o.table_id, [...(byTable.get(o.table_id) ?? []), o]); });
   const zones = [...new Set(pos.tables.map(x => x.zone ?? ''))];
+  // the kitchen screen marked a dish ready and nobody has served it yet: the waiter sees it at a glance
+  const ready = new Set(pos.orders.filter(o => o.table_id && o.order_lines.some(l => l.ready_at && !l.served_at)).map(o => o.table_id!));
 
   return (
     <div className="space-y-6">
@@ -17,6 +19,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
         <span className="flex items-center gap-1.5"><i className="gold-fill h-3 w-3 rounded" /> {t('Occupée')}</span>
         <span className="flex items-center gap-1.5"><i className="grid h-4 w-4 place-items-center rounded-full bg-qr"><QrCode className="h-2.5 w-2.5 text-white" /></i> {t('Commande client (QR)')}</span>
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border-2 border-qr" /> {t('À accepter')}</span>
+        {ready.size > 0 && <span className="flex items-center gap-1.5"><i className="grid h-4 w-4 place-items-center rounded-full bg-warn"><BellRing className="h-2.5 w-2.5 text-white" /></i> {t('Plat prêt à servir')}</span>}
       </div>
       {zones.map(z => (
         <section key={z}>
@@ -38,7 +41,9 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
                   <span className={`relative font-display text-3xl font-semibold leading-none ${os.length ? '' : 'text-ink/90'}`}>{tb.label}</span>
                   {os.length > 0 && <>
                     <span className="relative mt-1.5 text-sm font-bold tabular">{mad(total)}</span>
-                    <span className="relative mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold opacity-70"><Clock className="h-3 w-3" />{t('{n} min', { n: since })}</span>
+                    {ready.has(tb.id)
+                      ? <span className="relative mt-1 flex items-center gap-1 rounded-full bg-warn px-2 py-0.5 text-[11px] font-bold text-white shadow"><BellRing className="h-3 w-3" />{t('Prêt')}</span>
+                      : <span className="relative mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold opacity-70"><Clock className="h-3 w-3" />{t('{n} min', { n: since })}</span>}
                   </>}
                 </button>
               );

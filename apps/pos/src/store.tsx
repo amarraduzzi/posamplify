@@ -8,6 +8,7 @@ import { errorMessage } from './lib/errors';
 import { uid } from './lib/format';
 import { readCache, writeCache } from './lib/cache';
 import { applyLang, isLang, t, type Lang } from './lib/i18n';
+import { isPhoneNow } from './lib/phone';
 import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type Queued } from './lib/outbox';
 import type { Category, DraftLine, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
@@ -322,7 +323,8 @@ function usePosState() {
     // a phone (no printer here): the till with the printer prints the bons
     if (!printerOk) {
       enqueue([{ kind: 'requestPrint', ids: unsent.map(l => l.id), at: now() }]);
-      toast(t('Envoyé : le bon s’imprime à la caisse'), 'ok');
+      // on a phone the order screen says it itself (what was sent, for which table)
+      if (!isPhoneNow()) toast(t('Envoyé : le bon s’imprime à la caisse'), 'ok');
       return;
     }
     let printed = true;

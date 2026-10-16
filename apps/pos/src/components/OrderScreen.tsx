@@ -16,8 +16,9 @@ import { useIsPhone } from '../lib/phone';
 import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
+import { dayPart, useQuickPicks } from '../lib/quickPicks';
 
-type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string } | { weigh: Item };
+type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
 
 export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarget; onClose: () => void; onRetarget: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -47,7 +48,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const [cust, setCust] = useState<Customer | null>(null);
   const loyalty = r.loyalty ?? {};
   const [busy, setBusy] = useState(false);
+  // phone: the dishes sold most at this time of day come first ("Populaires")
+  const picks = useQuickPicks(r.id);
+  const popular = useMemo(() => (picks.popular[dayPart(r.timezone)] ?? []).filter(id => pos.itemById.has(id)), [picks, r.timezone, pos.itemById]);
+  const hasPopular = phone && popular.length >= 4;
   const [cat, setCat] = useState<string>(pos.categories[0]?.id ?? '');
+  const [popOn, setPopOn] = useState(true);
+  const showPopular = hasPopular && popOn;
   const [query, setQuery] = useState('');
   const showPhotos = localStorage.getItem('pos-photos') !== 'off';
   // new takeaway / delivery / glovo order details
@@ -104,8 +111,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const visibleItems = useMemo(() => {
     const q = query.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (q) return pos.items.filter(i => Object.values(i.name).some(n => n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q))).map(priced);
+    if (showPopular) return popular.map(id => pos.itemById.get(id)!).filter(Boolean).map(priced);
     return pos.items.filter(i => i.category_id === cat).map(priced);
-  }, [pos.items, cat, query, glovo, gm]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pos.items, cat, query, glovo, gm, showPopular, popular]); // eslint-disable-line react-hooks/exhaustive-deps
   const courseOf = (i: Item) => pos.categories.find(c => c.id === i.category_id)?.course ?? null;
   const usesCourses = pos.categories.some(c => c.course);
   const cycleCourse = (key: string) => setDraft(d => d.map(x => x.key === key ? { ...x, course: x.course === 3 ? null : (x.course ?? 0) + 1 } : x));
@@ -158,6 +166,17 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   };
 
   const sendNow = () => run(async () => { await commit(true); });
+  // phone at the table: a clear confirmation, a short buzz, then back to the tables for the next one
+  const sendPhone = () => run(async () => {
+    const n = draft.reduce((s, d) => s + d.quantity, 0);
+    const o = await commit(true);
+    if (!o) return;
+    try { navigator.vibrate?.(60); } catch { /* not supported */ }
+    pos.toast(t('Envoyé : {n} article(s), {l}', { n, l: label }), 'ok');
+    onClose();
+  });
+  // the last draft line of a dish (the one − and "précision" act on)
+  const lastDraft = (itemId: string) => [...draft].reverse().find(d => d.item_id === itemId) ?? null;
   const payNow = () => run(async () => {
     const o = draft.length ? await commit(true) : order;
     if (!o) return;
@@ -314,6 +333,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       )}
       {dialog && typeof dialog === 'object' && 'lineNote' in dialog && (
         <LineNoteDialog initial={draft.find(d => d.key === dialog.lineNote)?.note ?? ''} onClose={() => setDialog(null)}
+          learned={[...(picks.notes[dialog.itemId ?? draft.find(d => d.key === dialog.lineNote)?.item_id ?? ''] ?? []), ...picks.common_notes]}
           onSave={n => { setDraft(d => d.map(x => x.key === dialog.lineNote ? { ...x, note: n } : x)); setDialog(null); }} />
       )}
       {dialog && typeof dialog === 'object' && 'void' in dialog && order && (
@@ -360,9 +380,13 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           </div>
           {!query && (
             <div className="scroll-thin -mx-3 mt-2 flex gap-2 overflow-x-auto px-3 pb-1">
+              {hasPopular && (
+                <button onClick={() => setPopOn(true)}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold ${showPopular ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>★ {t('Populaires')}</button>
+              )}
               {pos.categories.map(c => (
-                <button key={c.id} onClick={() => setCat(c.id)}
-                  className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold ${cat === c.id ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
+                <button key={c.id} onClick={() => { setCat(c.id); setPopOn(false); }}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-bold ${!showPopular && cat === c.id ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>
                   {c.icon ? `${c.icon} ` : ''}{nameOf(c.name)}
                 </button>
               ))}
@@ -372,20 +396,34 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <ul className="scroll-thin flex-1 divide-y divide-line/[0.07] overflow-y-auto">
           {visibleItems.map(i => {
             const inDraft = draft.filter(d => d.item_id === i.id).reduce((n, d) => n + d.quantity, 0);
+            const last = inDraft ? lastDraft(i.id) : null;
             return (
-              <li key={i.id}>
+              <li key={i.id} className={`flex items-center gap-2 pe-3 ${inDraft ? 'bg-brand/[0.07]' : ''}`}>
                 <button onClick={() => addItem(i)} disabled={!i.available}
-                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-surface-2 disabled:opacity-35 ${inDraft ? 'bg-brand/[0.07]' : ''}`}>
+                  onContextMenu={e => { e.preventDefault(); if (last) setDialog({ lineNote: last.key, itemId: i.id }); }}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3.5 ps-4 text-start active:bg-surface-2 disabled:opacity-35">
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold leading-tight">{nameOf(i.name)}</span>
                     <span className="text-sm text-brand tabular">{i.variants.length ? t('{n} options', { n: i.variants.length }) : mad(Math.max(0, i.price_cents - offOf(i)))}{i.sold_by_weight ? ' / kg' : ''}{!i.available && ` · ${t('épuisé')}`}</span>
                     {i.available && hhOf(i) > 0 && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">-{hhOf(i) / 100}%</span>}
                     {i.available && (pos.stockLow[i.id] ?? 99) <= 5 && <span className={`ms-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${pos.stockLow[i.id] <= 2 ? 'bg-danger/15 text-danger' : 'bg-warn/15 text-warn'}`}>{t('plus que {n}', { n: pos.stockLow[i.id] })}</span>}
                   </span>
-                  {inDraft > 0
-                    ? <span className="grid h-9 min-w-9 place-items-center rounded-full bg-brand px-2 font-bold text-brand-ink tabular">{inDraft}</span>
-                    : <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-brand"><Plus className="h-5 w-5" /></span>}
                 </button>
+                {last && (
+                  <button onClick={() => setDialog({ lineNote: last.key, itemId: i.id })}
+                    className={`max-w-[6.5rem] shrink truncate rounded-full px-2.5 py-1.5 text-xs font-semibold ${last.note ? 'bg-brand/15 text-brand' : 'bg-surface-2 text-muted'}`}>
+                    {last.note || t('+ précision')}
+                  </button>
+                )}
+                {inDraft > 0 ? (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => last && bump(last.key, -1)} aria-label={t('Retirer')} className="grid h-10 w-10 place-items-center rounded-full bg-surface-2 active:scale-95"><Minus className="h-5 w-5" /></button>
+                    <span className="w-6 text-center text-lg font-bold tabular">{inDraft}</span>
+                    <button onClick={() => addItem(i)} aria-label={t('Ajouter')} className="grid h-10 w-10 place-items-center rounded-full bg-brand text-brand-ink active:scale-95"><Plus className="h-5 w-5" /></button>
+                  </span>
+                ) : (
+                  <button onClick={() => addItem(i)} disabled={!i.available} aria-label={t('Ajouter')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-2 text-brand active:scale-95 disabled:opacity-35"><Plus className="h-5 w-5" /></button>
+                )}
               </li>
             );
           })}
@@ -396,7 +434,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             <ChevronUp className="h-5 w-5 shrink-0 text-muted" />
             <span className="min-w-0 flex-1"><span className="block text-xs text-muted">{t('Ticket · {n} article(s)', { n: count })}</span><b className="tabular">{mad(total)}</b></span>
           </button>
-          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
+          <Btn tone="brand" disabled={busy || !draft.length} onClick={sendPhone} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
         </div>
         {sheet && (
           <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -409,7 +447,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             {totalsBox}
             <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
               {fireBtn}
-              <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { sendNow(); setSheet(false); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>
+              <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { setSheet(false); sendPhone(); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>
               <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
               {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>
                 : <Btn disabled={busy} onClick={() => setSheet(false)}>{t('Ajouter')}</Btn>}
@@ -692,13 +730,18 @@ function WeighDialog({ name, perKg, onClose, onWeigh }: { name: string; perKg: n
   );
 }
 
-function LineNoteDialog({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (n: string) => void }) {
+function LineNoteDialog({ initial, onClose, onSave, learned = [] }: { initial: string; onClose: () => void; onSave: (n: string) => void; learned?: string[] }) {
   const [note, setNote] = useState(initial);
+  // what staff typed most often for this dish (and overall) first, then the usual ones
+  const DEFAULTS = ['Sans oignon', 'Bien cuit', 'Saignant', 'Sans sucre', 'Épicé', 'À part'];
+  const seen = new Set<string>();
+  const chips = [...learned.map(x => ({ x, mine: true })), ...DEFAULTS.map(x => ({ x, mine: false }))]
+    .filter(c => { const k = c.x.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
   return (
     <Modal title={t('Précision pour la cuisine')} onClose={onClose} footer={<div className="flex justify-end"><Btn tone="brand" onClick={() => onSave(note.trim())}>{t('OK')}</Btn></div>}>
       {/* the kitchen bon is printed in French: the chips insert French text whatever the till language */}
       <div className="mb-3 flex flex-wrap gap-2">
-        {['Sans oignon', 'Bien cuit', 'Saignant', 'Sans sucre', 'Épicé', 'À part'].map(x => <button key={x} onClick={() => setNote(n => n ? `${n}, ${x.toLowerCase()}` : x)} className="rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold">{t(x)}</button>)}
+        {chips.map(({ x, mine }) => <button key={x} onClick={() => setNote(n => n ? `${n}, ${x.toLowerCase()}` : x)} className={`rounded-full px-3.5 py-2 text-sm font-semibold ${mine ? 'bg-brand/15 text-brand' : 'bg-surface-2'}`}>{mine ? x : t(x)}</button>)}
       </div>
       <input autoFocus maxLength={200} className={inputCls} value={note} onChange={e => setNote(e.target.value)} />
     </Modal>

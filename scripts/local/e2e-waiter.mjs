@@ -44,7 +44,7 @@ try {
   await phone.getByRole('button', { name: /Ticket ·/ }).click();
   await phone.screenshot({ path: `${OUT}/w3-phone-ticket.png` });
   await phone.getByRole('button', { name: 'Envoyer en cuisine' }).click();
-  await phone.getByText('Envoyé : le bon s’imprime à la caisse').waitFor();
+  await phone.getByText(/Envoyé : 2 article/).waitFor();
 
   // the till prints it
   for (let i = 0; i < 40 && !tickets().slice(before).includes(dish.normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, 10)); i++) await till.waitForTimeout(500);

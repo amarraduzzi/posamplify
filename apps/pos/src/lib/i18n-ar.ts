@@ -596,4 +596,7 @@ export const AR: Record<string, string> = {
   "Installer la caisse sur cet appareil": "تثبيت الصندوق على هذا الجهاز",
   "Plein écran automatique": "ملء الشاشة تلقائيا",
   "Sans barre en haut. Échap pour sortir, un toucher pour revenir.": "بدون شريط في الأعلى. Esc للخروج، ولمسة للعودة.",
+  "Envoyé : {n} article(s), {l}": "أُرسل: {n} منتج، {l}",
+  "Plat prêt à servir": "طبق جاهز للتقديم",
+  "Populaires": "الأكثر طلبا",
 };
