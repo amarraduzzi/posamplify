@@ -12,6 +12,10 @@ export interface PosSettings {
   stations?: { key: string; name: string }[];
   idle_lock_minutes?: number;
   receipt_footer?: string;
+  /** 'caisse' = customer receipt laid out like caisse.ma's (see print.ts caisseTicket) */
+  receipt_layout?: 'classic' | 'caisse';
+  /** characters per line of the 'caisse' layout: 48 (80 mm paper, default), 42 or 32 */
+  receipt_cols?: 32 | 42 | 48;
 }
 
 export interface Restaurant {
