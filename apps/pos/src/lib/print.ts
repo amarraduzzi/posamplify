@@ -187,8 +187,9 @@ const row = (left: string, right: string, width = W) => {
   const space = Math.max(1, width - l.length - r.length);
   return l.length + r.length + 1 > width ? `${l}\n${' '.repeat(Math.max(0, width - r.length))}${r}` : l + ' '.repeat(space) + r;
 };
-const rows = (left: string, right: string, extra: Partial<TicketLine> = {}): TicketLine[] =>
-  row(left, right, extra.large ? W / 2 : W).split('\n').map(text => ({ text, ...extra }));
+const rowsW = (left: string, right: string, width: number, extra: Partial<TicketLine> = {}): TicketLine[] =>
+  row(left, right, extra.large ? Math.floor(width / 2) : width).split('\n').map(text => ({ text, ...extra }));
+const rows = (left: string, right: string, extra: Partial<TicketLine> = {}): TicketLine[] => rowsW(left, right, W, extra);
 
 function header(r: Restaurant, seller?: FiscalDoc['seller']): TicketLine[] {
   const s = seller ?? { name: r.name, legal_name: r.legal_name ?? undefined, ice: r.ice ?? undefined, if: r.tax_id ?? undefined, rc: r.rc ?? undefined, address: r.address ?? undefined, city: r.city ?? undefined };
@@ -280,8 +281,51 @@ export function provisionalTicket(r: Restaurant, o: Order, extra: { label: strin
   return out;
 }
 
+/** The "caisse" layout: the customer receipt laid out like the one Zayna's customers got from caisse.ma.
+ *  Switched on per restaurant with pos_settings.receipt_layout = 'caisse' (80 mm paper: receipt_cols 48, or 42 / 32). */
+function caisseTicket(r: Restaurant, d: FiscalDoc, extra: { label?: string; staff?: string; copy?: boolean }): TicketLine[] {
+  const want = r.pos_settings?.receipt_cols;
+  const C = want === 32 || want === 42 || want === 48 ? want : 48;
+  const line = (c = '-'): TicketLine => ({ text: c.repeat(C) });
+  const blank = (): TicketLine => ({ text: '' });
+  const s = d.seller ?? { name: r.name };
+  const out: TicketLine[] = [{ text: ascii(s.name ?? r.name), bold: true, center: true }];
+  if (s.address) out.push({ text: s.address, center: true });
+  if (r.phone) out.push({ text: r.phone, center: true });
+  if (s.ice) out.push({ text: s.ice, center: true });
+  out.push(line());
+  out.push({ text: `Date creation : ${dateTime(d.issued_at, r.timezone)}` });
+  out.push({ text: `Ticket : ${d.doc_number}` });
+  if (extra.copy) out.push({ text: 'DUPLICATA', bold: true });
+  out.push(blank());
+  if (extra.label) out.push({ text: /^table/i.test(extra.label) ? `Sur place ( ${extra.label} )` : extra.label });
+  if (extra.staff) out.push({ text: `Caissier : ${extra.staff}` });
+  out.push(line());
+  const art = '* ARTICLE *';
+  const pos = Math.max(4, Math.floor((C - art.length) / 2));
+  out.push({ text: 'QTE'.padEnd(pos) + art + ' '.repeat(Math.max(1, C - pos - art.length - 4)) + 'PRIX' });
+  out.push(line());
+  for (const l of d.lines) out.push(...rowsW(`${l.qty}`.padEnd(5) + l.name, amount(l.total_ttc), C));
+  out.push(line());
+  const sub = d.lines.reduce((t, l) => t + l.total_ttc, 0);
+  out.push(...rowsW('Sous-total', `${amount(sub)} MAD`, C));
+  if (d.discount_cents) out.push(...rowsW('Remise', amount(-Math.abs(d.discount_cents) * Math.sign(d.total_ttc_cents || 1)), C));
+  out.push(line());
+  out.push(...rowsW('Total', `${amount(d.total_ttc_cents)} MAD`, C, { bold: true, large: true }));
+  out.push(line());
+  const w1 = Math.max(9, Math.floor(C / 3)), w2 = Math.max(13, Math.floor(C / 3));
+  out.push({ text: 'Taux TVA'.padEnd(w1) + 'Montant H.T.'.padEnd(w2) + 'T.V.A' });
+  for (const v of d.vat_breakdown) out.push({ text: `${(v.vat_bp / 100).toFixed(0)} %`.padEnd(w1) + amount(v.ht).padEnd(w2) + amount(v.vat) });
+  out.push(blank());
+  out.push({ text: r.pos_settings?.receipt_footer || 'Merci pour votre visite', center: true });
+  out.push({ text: `Ctrl ${d.hash.slice(0, 16)}`, center: true });
+  out.push(...reviewBlock(r));
+  return out;
+}
+
 /** The official receipt, printed from the immutable fiscal document. */
 export function fiscalTicket(r: Restaurant, d: FiscalDoc, extra: { label?: string; staff?: string; change_cents?: number; copy?: boolean }): TicketLine[] {
+  if (r.pos_settings?.receipt_layout === 'caisse' && d.doc_type === 'ticket') return caisseTicket(r, d, extra);
   const tz = r.timezone;
   const title = d.doc_type === 'credit_note' ? 'AVOIR' : d.doc_type === 'invoice' ? 'FACTURE' : 'TICKET';
   const out = header(r, d.seller);
