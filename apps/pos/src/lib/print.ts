@@ -260,6 +260,15 @@ export const ticketRef = (o: Pick<Order, 'ticket_number' | 'local_ref'>) =>
 
 /** Receipt printed when paying without internet. The fiscal ticket follows automatically on reconnection. */
 export function provisionalTicket(r: Restaurant, o: Order, extra: { label: string; staff?: string; payments: { method: string; amount_cents: number; tip_cents: number }[]; change_cents: number; tz: string }): TicketLine[] {
+  if (r.pos_settings?.receipt_layout === 'caisse') {
+    // the VAT rates are only known to the server: the table uses the one rate set in receipt_vat_bp (if any);
+    // the numbered ticket that follows has the real figures
+    const bp = r.pos_settings?.receipt_vat_bp;
+    const ht = bp ? Math.round(o.total_cents * 10000 / (10000 + bp)) : 0;
+    return caisseLayout(r, { name: r.name, address: r.address, phone: r.phone, ice: r.ice, issuedAt: new Date().toISOString(), ticketNo: o.ticket_number ? String(o.ticket_number) : (o.local_ref ?? '-'),
+      label: extra.label, staff: extra.staff, lines: o.order_lines.map(l => ({ qty: l.quantity, name: l.name, total: l.line_total_cents })),
+      discount: o.discount_cents, total: o.total_cents, vat: bp ? [{ vat_bp: bp, ht, vat: o.total_cents - ht }] : undefined });
+  }
   const out = header(r);
   out.push(rule(), { text: 'RECU PROVISOIRE', bold: true, center: true }, { text: dateTime(new Date().toISOString(), extra.tz), center: true });
   out.push({ text: `${extra.label}  ${ticketRef(o)}` });
@@ -282,50 +291,66 @@ export function provisionalTicket(r: Restaurant, o: Order, extra: { label: strin
 }
 
 /** The "caisse" layout: the customer receipt laid out like the one Zayna's customers got from caisse.ma.
- *  Switched on per restaurant with pos_settings.receipt_layout = 'caisse' (80 mm paper: receipt_cols 48, or 42 / 32). */
-function caisseTicket(r: Restaurant, d: FiscalDoc, extra: { label?: string; staff?: string; copy?: boolean }): TicketLine[] {
+ *  Switched on per restaurant with pos_settings.receipt_layout = 'caisse' (80 mm paper: receipt_cols 48, or 42 / 32).
+ *  Used for the fiscal ticket and for the provisional receipt (offline), so "TOTAL TTC" never shows on it. */
+interface CaisseData {
+  name: string; address?: string | null; phone?: string | null; ice?: string | null;
+  issuedAt: string; ticketNo: string; label?: string; staff?: string; copy?: boolean;
+  lines: { qty: number; name: string; total: number }[]; discount: number; total: number;
+  vat?: { vat_bp: number; ht: number; vat: number }[];
+}
+function caisseLayout(r: Restaurant, x: CaisseData): TicketLine[] {
   const want = r.pos_settings?.receipt_cols;
   const C = want === 32 || want === 42 || want === 48 ? want : 48;
   const line = (c = '-'): TicketLine => ({ text: c.repeat(C) });
   const blank = (): TicketLine => ({ text: '' });
-  const s = d.seller ?? { name: r.name };
-  const out: TicketLine[] = [{ text: ascii(s.name ?? r.name), bold: true, center: true }];
-  if (s.address) out.push({ text: s.address, center: true });
-  if (r.phone) out.push({ text: r.phone, center: true });
-  if (s.ice) out.push({ text: s.ice, center: true });
+  const ps = r.pos_settings ?? {};
+  const out: TicketLine[] = [{ text: ascii(ps.receipt_name || x.name), bold: true, center: true }];
+  const address = ps.receipt_address || x.address;
+  if (address) out.push({ text: address, center: true });
+  if (x.phone) out.push({ text: x.phone, center: true });
+  if (x.ice) out.push({ text: x.ice, center: true });
   out.push(line());
-  out.push({ text: `Date creation : ${dateTime(d.issued_at, r.timezone)}` });
-  out.push({ text: `Ticket : ${d.doc_number}` });
-  if (extra.copy) out.push({ text: 'DUPLICATA', bold: true });
+  out.push({ text: `Date creation : ${dateTime(x.issuedAt, r.timezone)}` });
+  out.push({ text: `${ps.receipt_boutique ? `Boutique : ${ps.receipt_boutique}   ` : ''}Ticket:${x.ticketNo}` });
+  if (x.copy) out.push({ text: 'DUPLICATA', bold: true });
   out.push(blank());
-  if (extra.label) out.push({ text: /^table/i.test(extra.label) ? `Sur place ( ${extra.label} )` : extra.label });
-  if (extra.staff) out.push({ text: `Caissier : ${extra.staff}` });
+  if (x.label) out.push({ text: /^table/i.test(x.label) ? `Sur place ( ${x.label} )` : x.label });
+  if (x.staff) out.push({ text: `Caissier : ${x.staff}` });
   out.push(line());
   const art = '* ARTICLE *';
   const pos = Math.max(4, Math.floor((C - art.length) / 2));
   out.push({ text: 'QTE'.padEnd(pos) + art + ' '.repeat(Math.max(1, C - pos - art.length - 4)) + 'PRIX' });
   out.push(line());
-  for (const l of d.lines) out.push(...rowsW(`${l.qty}`.padEnd(5) + l.name, amount(l.total_ttc), C));
+  for (const l of x.lines) out.push(...rowsW(`${l.qty}`.padEnd(5) + l.name, amount(l.total), C));
   out.push(line());
-  const sub = d.lines.reduce((t, l) => t + l.total_ttc, 0);
+  const sub = x.lines.reduce((t, l) => t + l.total, 0);
   out.push(...rowsW('Sous-total', `${amount(sub)} MAD`, C));
-  if (d.discount_cents) out.push(...rowsW('Remise', amount(-Math.abs(d.discount_cents) * Math.sign(d.total_ttc_cents || 1)), C));
+  if (x.discount) out.push(...rowsW('Remise', amount(-Math.abs(x.discount) * Math.sign(x.total || 1)), C));
   out.push(line());
-  out.push(...rowsW('Total', `${amount(d.total_ttc_cents)} MAD`, C, { bold: true, large: true }));
+  out.push(...rowsW('Total', `${amount(x.total)} MAD`, C, { bold: true, large: true }));
   out.push(line());
-  const w1 = Math.max(9, Math.floor(C / 3)), w2 = Math.max(13, Math.floor(C / 3));
-  out.push({ text: 'Taux TVA'.padEnd(w1) + 'Montant H.T.'.padEnd(w2) + 'T.V.A' });
-  for (const v of d.vat_breakdown) out.push({ text: `${(v.vat_bp / 100).toFixed(0)} %`.padEnd(w1) + amount(v.ht).padEnd(w2) + amount(v.vat) });
+  if (x.vat) {
+    const w1 = Math.max(9, Math.floor(C / 3)), w2 = Math.max(13, Math.floor(C / 3));
+    out.push({ text: 'Taux TVA'.padEnd(w1) + 'Montant H.T.'.padEnd(w2) + 'T.V.A' });
+    for (const v of x.vat) out.push({ text: `${(v.vat_bp / 100).toFixed(0)} %`.padEnd(w1) + amount(v.ht).padEnd(w2) + amount(v.vat) });
+  }
   out.push(blank());
-  out.push({ text: r.pos_settings?.receipt_footer || 'Merci pour votre visite', center: true });
-  out.push({ text: `Ctrl ${d.hash.slice(0, 16)}`, center: true });
+  out.push({ text: 'NOTE', large: true, center: true });
+  out.push(blank());
+  out.push({ text: ps.receipt_footer || 'Merci pour votre visite', center: true });
   out.push(...reviewBlock(r));
   return out;
 }
 
 /** The official receipt, printed from the immutable fiscal document. */
 export function fiscalTicket(r: Restaurant, d: FiscalDoc, extra: { label?: string; staff?: string; change_cents?: number; copy?: boolean }): TicketLine[] {
-  if (r.pos_settings?.receipt_layout === 'caisse' && d.doc_type === 'ticket') return caisseTicket(r, d, extra);
+  if (r.pos_settings?.receipt_layout === 'caisse' && d.doc_type === 'ticket') {
+    const sel = d.seller ?? { name: r.name };
+    return caisseLayout(r, { name: sel.name ?? r.name, address: sel.address, phone: r.phone, ice: sel.ice, issuedAt: d.issued_at, ticketNo: String(Number(d.doc_number.split('-').pop()) || d.doc_number),
+      label: extra.label, staff: extra.staff, copy: extra.copy, lines: d.lines.map(l => ({ qty: l.qty, name: l.name, total: l.total_ttc })),
+      discount: d.discount_cents, total: d.total_ttc_cents, vat: d.vat_breakdown });
+  }
   const tz = r.timezone;
   const title = d.doc_type === 'credit_note' ? 'AVOIR' : d.doc_type === 'invoice' ? 'FACTURE' : 'TICKET';
   const out = header(r, d.seller);
