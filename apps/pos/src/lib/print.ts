@@ -179,20 +179,24 @@ export const printerFor = (s: PosSettings, station: string) =>
 export const receiptPrinter = (s: PosSettings) => localPrinters().receipt || s.printers?.receipt || 'TICKET';
 
 const rule = (c = '-') => ({ text: c.repeat(W) });
-const row = (left: string, right: string) => {
+// Large text is printed twice as wide, so only half as many characters fit on a line: a large row
+// is laid out on W / 2 columns. (At full width the amount wrapped to the next line, and its first
+// digit was left behind: "60.00 MAD" came out as "6" + "0.00 MAD".)
+const row = (left: string, right: string, width = W) => {
   const l = ascii(left), r = ascii(right);
-  const space = Math.max(1, W - l.length - r.length);
-  return l.length + r.length + 1 > W ? `${l}\n${' '.repeat(Math.max(0, W - r.length))}${r}` : l + ' '.repeat(space) + r;
+  const space = Math.max(1, width - l.length - r.length);
+  return l.length + r.length + 1 > width ? `${l}\n${' '.repeat(Math.max(0, width - r.length))}${r}` : l + ' '.repeat(space) + r;
 };
 const rows = (left: string, right: string, extra: Partial<TicketLine> = {}): TicketLine[] =>
-  row(left, right).split('\n').map(text => ({ text, ...extra }));
+  row(left, right, extra.large ? W / 2 : W).split('\n').map(text => ({ text, ...extra }));
 
 function header(r: Restaurant, seller?: FiscalDoc['seller']): TicketLine[] {
   const s = seller ?? { name: r.name, legal_name: r.legal_name ?? undefined, ice: r.ice ?? undefined, if: r.tax_id ?? undefined, rc: r.rc ?? undefined, address: r.address ?? undefined, city: r.city ?? undefined };
   const out: TicketLine[] = [{ text: (s.name ?? r.name).toUpperCase(), bold: true, large: true, center: true }];
   if (s.legal_name) out.push({ text: s.legal_name, center: true });
   if (s.address) out.push({ text: s.address, center: true });
-  if (s.city) out.push({ text: s.city, center: true });
+  // "12 Rue X, Rabat 10000" + city "Rabat" would print the city twice
+  if (s.city && !(s.address ?? '').toLowerCase().includes(s.city.toLowerCase())) out.push({ text: s.city, center: true });
   if (r.phone) out.push({ text: `Tel ${r.phone}`, center: true });
   const ids = [s.ice && `ICE ${s.ice}`, s.if && `IF ${s.if}`, s.rc && `RC ${s.rc}`].filter(Boolean) as string[];
   ids.forEach(t => out.push({ text: t, center: true }));
