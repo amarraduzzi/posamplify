@@ -165,9 +165,19 @@ export function drawStory(c: HTMLCanvasElement, o: StoryInput, t: number, pre: S
     const D = tall ? w * 0.76 : o.format === 'feed' ? h * 0.46 : h * 0.42, top = tall ? 400 : o.format === 'feed' ? 300 : 240, cx = w / 2, cy = top + D / 2;
     const bg = g.createRadialGradient(cx, cy, 40, cx, cy, Math.max(w, h) * 0.85); bg.addColorStop(0, mix(P, '#ffffff', 0.1)); bg.addColorStop(0.45, mix(P, '#000000', 0.48)); bg.addColorStop(1, mix(P, '#000000', 0.9)); g.fillStyle = bg; g.fillRect(0, 0, w, h);
     const spot = g.createRadialGradient(cx, cy - D * 0.1, 0, cx, cy - D * 0.1, D * 0.75); spot.addColorStop(0, 'rgba(255,235,200,.32)'); spot.addColorStop(1, 'rgba(255,235,200,0)'); g.fillStyle = spot; g.fillRect(0, 0, w, h);
-    // giant name behind the dish
-    const big = fitName(g, o.name.toUpperCase(), w - 60, tall ? 3 : 2, tall ? 380 : 240, 110, 800); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-    big.l.forEach((ln, i) => { const p = kk(0.08 + i * 0.07, 0.45 + i * 0.07); g.save(); g.globalAlpha *= clamp(p); g.translate((i % 2 ? 1 : -1) * (1 - p) * w * 0.6, 0); g.font = `800 ${big.s}px ${SERIF}`; const y = cy - D * (tall ? 0.4 : 0.3) - ((big.l.length - 1) * big.s * 0.84) / 2 + i * big.s * 0.84 + big.s * 0.3; g.fillStyle = 'rgba(255,255,255,.2)'; g.fillText(ln, cx, y); g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 3; g.strokeText(ln, cx, y); g.restore(); });
+    // the name repeated in big rows behind the dish: filled and outlined rows slide in opposite directions and settle
+    const fs = tall ? 190 : o.format === 'feed' ? 140 : 118, rows = tall ? 6 : o.format === 'feed' ? 5 : 4, rowH = fs * 0.92;
+    g.save(); g.direction = 'ltr'; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = `800 ${fs}px ${SERIF}`;
+    const unit = o.name.toUpperCase() + '   \u2022   ', uw = Math.max(g.measureText(unit).width, 200);
+    for (let i = 0; i < rows; i++) {
+      const dir = i % 2 ? 1 : -1, shift = dir * uw * 1.2 * (1 - kk(0, 1)), y = cy - D * 0.05 + (i - (rows - 1) / 2) * rowH + fs * 0.32, a0 = clamp(kk(0.03 + i * 0.05, 0.3 + i * 0.05));
+      g.globalAlpha = a0; const x0 = ((shift - uw * 0.3) % uw) - uw;
+      for (let x = x0; x < w + uw; x += uw) {
+        if (i % 2) { g.fillStyle = 'rgba(255,255,255,.26)'; g.fillText(unit, x, y); }
+        else { g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 3; g.strokeText(unit, x, y); }
+      }
+    }
+    g.restore();
     // floor shadow + the dish
     const dp = kk(0.08, 0.42, true), sc = 0.55 + 0.45 * dp, mv = kk(0.45, 0.55), bob = mv * Math.sin(T * Math.PI * 6) * 14, rot = mv * Math.sin(T * Math.PI * 4) * 0.012;
     g.save(); g.translate(cx, cy + D * 0.47); g.scale(1, 0.16); g.globalAlpha = clamp(dp); const sh = g.createRadialGradient(0, 0, 0, 0, 0, D * 0.52 * sc * (1 - bob / 500)); sh.addColorStop(0, 'rgba(0,0,0,.6)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.fillRect(-D, -D, D * 2, D * 2); g.restore();
