@@ -10,6 +10,7 @@ import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../c
 import { t } from '../lib/i18n';
 import { ImportMenu } from '../components/ImportMenu';
 import { StoryMaker } from '../components/StoryMaker';
+import { StoryIdeas } from '../components/StoryIdeas';
 import { ModifiersManager } from '../components/ModifiersManager';
 import { COURSES, stationsOf } from '../lib/stations';
 import { glovoPrice } from '../lib/glovo';
@@ -29,6 +30,8 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [q, setQ] = useState('');
   const [editCat, setEditCat] = useState<Category | 'new' | null>(null);
   const [storyItem, setStoryItem] = useState<Item | null>(null);
+  const [storyOpts, setStoryOpts] = useState<{ badge: string; reason: string } | null>(null);
+  const [ideas, setIdeas] = useState(false);
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
   const [mods, setMods] = useState(false);
@@ -117,7 +120,10 @@ export function MenuPage({ r }: { r: Restaurant }) {
         <section className="min-w-0">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="min-w-0 truncate font-bold">{q ? t('Résultats') : cat ? tr(cat.name, lang) : t('Articles')}</h2>
-            {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> {t('Ajouter un article')}</Btn>}
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <Btn onClick={() => setIdeas(true)}><Instagram className="h-4 w-4" /> {t('Idées de stories')}</Btn>
+              {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> {t('Ajouter un article')}</Btn>}
+            </div>
           </div>
           <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
             {shown.map((i, idx) => (
@@ -138,7 +144,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
                 <div className="ms-auto flex items-center gap-1 max-[520px]:w-full max-[520px]:justify-between">
                 <Toggle checked={i.available} onChange={v => upd('menu_items', i.id, { available: v })} label={i.available ? t('Disponible') : t('Épuisé')} />
                 <div className="flex items-center">
-                <button onClick={() => setStoryItem(i)} title={t('Story Instagram')} aria-label={t('Story Instagram')} className="grid h-9 w-9 place-items-center rounded-lg text-brand hover:bg-surface-2"><Instagram className="h-4 w-4" /></button>
+                <button onClick={() => { setStoryOpts(null); setStoryItem(i); }} title={t('Story Instagram')} aria-label={t('Story Instagram')} className="grid h-9 w-9 place-items-center rounded-lg text-brand hover:bg-surface-2"><Instagram className="h-4 w-4" /></button>
                 <button onClick={() => upd('menu_items', i.id, { active: !i.active })} title={i.active ? t('Masquer du menu') : t('Afficher')} aria-label={i.active ? t('Masquer du menu') : t('Afficher')} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-surface-2">
                   {i.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
@@ -156,7 +162,8 @@ export function MenuPage({ r }: { r: Restaurant }) {
         </section>
       </div>
 
-      {storyItem && <StoryMaker r={r} item={storyItem} onClose={() => setStoryItem(null)} />}
+      {ideas && <StoryIdeas r={r} items={items} onClose={() => setIdeas(false)} onPick={(item, badge, reason) => { setStoryOpts({ badge, reason }); setStoryItem(item); setIdeas(false); }} />}
+      {storyItem && <StoryMaker r={r} item={storyItem} badge={storyOpts?.badge} reason={storyOpts?.reason} onClose={() => { setStoryItem(null); setStoryOpts(null); }} />}
       {glovo && <GlovoSettings r={r} onClose={() => setGlovo(false)} />}
       {mods && <ModifiersManager r={r} cats={cats} items={items} onClose={() => setMods(false)} />}
       {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}

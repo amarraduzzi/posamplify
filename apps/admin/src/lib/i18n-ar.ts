@@ -2268,4 +2268,13 @@ export const AR: Record<string, string> = {
   "Détourer le plat (effet studio)": "قص الطبق (تأثير الاستوديو)",
   "Le plat flotte devant le nom en grand. La première fois, un modèle d'environ 50 Mo se télécharge : comptez 20 à 60 secondes.": "يطفو الطبق أمام الاسم الكبير. في المرة الأولى يتم تنزيل نموذج بحجم 50 ميغابايت تقريبا: انتظر من 20 إلى 60 ثانية.",
   "La découpe a échoué. Vérifiez la connexion et réessayez, ou choisissez une autre photo.": "فشل القص. تحقق من الاتصال وأعد المحاولة أو اختر صورة أخرى.",
+  "Idées de stories": "أفكار ستوري",
+  "Les plats à poster cette semaine, choisis d'après vos ventes et vos marges.": "الأطباق التي يُنصح بنشرها هذا الأسبوع، مختارة حسب مبيعاتك وهوامش ربحك.",
+  "Ajoutez des photos à vos plats : les idées apparaissent dès qu'un plat a une photo.": "أضف صورًا لأطباقك: تظهر الأفكار بمجرد أن يكون للطبق صورة.",
+  "Créer la story": "إنشاء الستوري",
+  "Votre best-seller : {n} ventes en {days} jours. Un bon moyen de faire venir de nouveaux clients.": "الأكثر مبيعًا: {n} عملية بيع في {days} يومًا. وسيلة جيدة لجذب زبائن جدد.",
+  "Marge {m} % mais commandé seulement {n} fois en {days} jours : chaque vente de plus rapporte gros.": "هامش ربح {m} % لكنه طُلب {n} مرات فقط في {days} يومًا: كل بيعة إضافية تدرّ ربحًا كبيرًا.",
+  "Peu commandé ({n} ventes en {days} jours) : une mise en avant peut le relancer.": "قليل الطلب ({n} مبيعات في {days} يومًا): الترويج له قد يعيده إلى الواجهة.",
+  "Légende et hashtags": "التعليق والهاشتاغات",
+  "Copier la légende": "نسخ التعليق",
 };

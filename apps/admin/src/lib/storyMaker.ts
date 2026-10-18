@@ -112,6 +112,13 @@ function nameBlock(g: Ctx, o: StoryInput, x: number, y: number, maxW: number, fg
   return yy;
 }
 
+/** height of the name block below its first baseline, and the cap height of its first line: lets a layout reserve exactly the room the text will take */
+function measureName(g: Ctx, o: StoryInput, maxW: number, size: number, maxLines: number) {
+  const { l, s } = fitName(g, o.name, maxW, maxLines, size, 64); let h = (l.length - 1) * s * 1.08 + s * 0.25;
+  if (o.description) { g.font = `500 ${Math.round(size * 0.3)}px ${SANS}`; const d = lines(g, o.description, maxW, 2); h = (l.length - 1) * s * 1.08 + size * 0.5 + (d.length - 1) * size * 0.4 + size * 0.3; }
+  return { h, cap: s * 0.75 };
+}
+
 // ---- cinematic photo grading: split toning, saturation, S-curve contrast, then vignette and a soft light leak
 const MOODS: Record<Exclude<Mood, 'none'>, { gain: number[]; lift: number[]; contrast: number; sat: number; bright: number; vig: number; leak: string }> = {
   warm: { gain: [1.07, 1.02, 0.9], lift: [0.02, 0, -0.01], contrast: 1.14, sat: 1.2, bright: 1.02, vig: 0.4, leak: '255,170,90' },
@@ -229,27 +236,32 @@ export function drawStory(c: HTMLCanvasElement, o: StoryInput, t: number, pre: S
     nameBlock(g, o, w / 2, py + ph + (tall ? 200 : 150), w - 220, '#2b1d12', 'rgba(43,29,18,.68)', tall ? 104 : 84, 'center');
     footer(g, o, logo, w, h - (tall ? 190 : 140), '#2b1d12', P);
     grain(g, w, h, 0.035);
-  } else if (o.style === 'polaroid') {      // tilted polaroid on brand colour
+  } else if (o.style === 'polaroid') {      // tilted polaroid on brand colour, sized to the space between the badge and the footer
     const bg = g.createLinearGradient(0, 0, w, h); bg.addColorStop(0, mix(P, '#fff', 0.12)); bg.addColorStop(1, mix(P, '#000', 0.35)); g.fillStyle = bg; g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(255,255,255,.07)'; for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(((i * 337) % w), ((i * 521) % h), 90 + (i % 3) * 70, 0, 7); g.fill(); }
-    const pw = w * 0.76, ph = pw * 1.18, cx = w / 2, cy = tall ? 760 : h * 0.44;
+    const footY = h - (tall ? 190 : 120), topY = tall ? 260 : 200, botY = footY - 80;
+    const ph = Math.min(w * 0.78 * 1.1, botY - topY - 50), pw = ph / 1.1, cx = w / 2, cy = (topY + botY) / 2 + 10, strip = Math.round(ph * 0.26);
     g.save(); g.translate(cx, cy); g.rotate(-0.05); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 70; g.shadowOffsetY = 36; g.fillStyle = '#fffdf8'; g.fillRect(-pw / 2, -ph / 2, pw, ph); g.shadowColor = 'transparent';
-    const m = 36, iw = pw - m * 2, ih = ph - m - 250; g.save(); g.beginPath(); g.rect(-pw / 2 + m, -ph / 2 + m, iw, ih); g.clip(); if (photo) cover(g, photo, -pw / 2 + m, -ph / 2 + m, iw, ih); else { g.fillStyle = rgba(P, 0.4); g.fillRect(-pw / 2 + m, -ph / 2 + m, iw, ih); } g.restore();
-    g.fillStyle = '#2b1d12'; g.textAlign = 'center'; g.textBaseline = 'middle'; const f = fitName(g, o.name, iw, 2, 64, 36, 600, SERIF); f.l.forEach((t, i) => g.fillText(t, 0, ph / 2 - 125 + (i - (f.l.length - 1) / 2) * f.s * 1.05));
+    const m = 34, iw = pw - m * 2, ih = ph - m - strip; g.save(); g.beginPath(); g.rect(-pw / 2 + m, -ph / 2 + m, iw, ih); g.clip(); if (photo) cover(g, photo, -pw / 2 + m, -ph / 2 + m, iw, ih); else { g.fillStyle = rgba(P, 0.4); g.fillRect(-pw / 2 + m, -ph / 2 + m, iw, ih); } g.restore();
+    g.fillStyle = '#2b1d12'; g.textAlign = 'center'; g.textBaseline = 'middle'; const f = fitName(g, o.name, iw - 20, 2, 64, 34, 600, SERIF); f.l.forEach((t, i) => g.fillText(t, 0, ph / 2 - strip / 2 + 4 + (i - (f.l.length - 1) / 2) * f.s * 1.05));
     g.fillStyle = rgba(P, 0.85); g.fillRect(-90, -ph / 2 - 26, 180, 52); g.restore();
-    if (hasP) priceTag(g, o.price!, cx + pw / 2 - 30, cy + ph / 2 - 40, 125, '#fffdf8', '#2b1d12', 0.14);
+    if (hasP) priceTag(g, o.price!, cx + pw / 2 - 20, cy - ph / 2 + (tall ? 150 : 120), tall ? 125 : 100, '#fffdf8', '#2b1d12', 0.14);
     pill(g, o.badge || 'Coup de cœur', w / 2, tall ? 150 : 100, '#fffdf8', '#2b1d12', 30);
-    footer(g, o, logo, w, h - (tall ? 190 : 120), '#fff', '#fff');
+    footer(g, o, logo, w, footY, '#fff', '#fff');
     grain(g, w, h, 0.05);
-  } else {                                   // sunburst: solid brand colour, photo circle, rays
-    g.fillStyle = P; g.fillRect(0, 0, w, h); const cx = w / 2, cy = tall ? 700 : h * 0.4, R = w * 0.38;
+  } else {                                   // sunburst: solid brand colour, photo circle, rays; the circle shrinks to leave room for the name and footer
+    g.fillStyle = P; g.fillRect(0, 0, w, h);
+    const footY = h - (tall ? 190 : 120), limit = footY - 75, sz = tall ? 112 : 90, maxW = w - 160;
+    const oo = tall || o.format === 'feed' ? o : { ...o, description: '' };         // the square has no room for the description
+    const ms = measureName(g, oo, maxW, sz, 2), yN = limit - ms.h, circTop = tall ? 270 : 175, circBot = yN - ms.cap - 45;
+    const R = Math.min(w * 0.38, (circBot - circTop) / 2 - 26), cx = w / 2, cy = (circTop + circBot) / 2;
     g.save(); g.translate(cx, cy); for (let i = 0; i < 24; i++) { g.rotate(Math.PI / 12); g.fillStyle = i % 2 ? 'rgba(255,255,255,.09)' : 'rgba(0,0,0,.06)'; g.beginPath(); g.moveTo(0, 0); g.lineTo(-w, -h * 1.2); g.lineTo(w, -h * 1.2); g.closePath(); g.fill(); } g.restore();
     g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 60; g.shadowOffsetY = 30; g.fillStyle = bright ? '#1a1410' : '#fff'; g.beginPath(); g.arc(cx, cy, R + 26, 0, 7); g.fill(); g.restore();
     g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip(); if (photo) cover(g, photo, cx - R, cy - R, R * 2, R * 2); else { g.fillStyle = mix(P, '#000', 0.3); g.fillRect(cx - R, cy - R, R * 2, R * 2); } g.restore();
     pill(g, o.badge || 'Coup de cœur', w / 2, tall ? 170 : 100, bright ? '#1a1410' : '#fff', bright ? '#fff' : P, 30);
-    if (hasP) priceTag(g, o.price!, cx + R - 40, cy + R - 30, tall ? 135 : 110, bright ? '#1a1410' : '#fff', bright ? '#fff' : P, 0.16);
-    nameBlock(g, o, w / 2, cy + R + (tall ? 190 : 150), w - 160, onP, bright ? 'rgba(26,20,16,.75)' : 'rgba(255,255,255,.82)', tall ? 112 : 90, 'center');
-    footer(g, o, logo, w, h - (tall ? 190 : 120), onP, onP);
+    if (hasP) priceTag(g, o.price!, cx + R * 0.78, cy + R * 0.78, tall ? 135 : 105, bright ? '#1a1410' : '#fff', bright ? '#fff' : P, 0.16);
+    nameBlock(g, oo, w / 2, yN, maxW, onP, bright ? 'rgba(26,20,16,.75)' : 'rgba(255,255,255,.82)', sz, 'center', 2);
+    footer(g, o, logo, w, footY, onP, onP);
     grain(g, w, h, 0.04);
   }
   if (T < 1) bokeh(g, w, h);

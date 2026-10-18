@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Film, Play, Scissors, Share2, Square } from 'lucide-react';
+import { Check, Copy, Download, Film, Play, Scissors, Share2, Square } from 'lucide-react';
 import '@fontsource-variable/fraunces';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
@@ -24,12 +24,22 @@ const CUT_VERSION = '1.5.5'; // pinned on purpose
 const hashOf = (x: string) => { let h = 0; for (let i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 const handleOf = (u?: string) => /instagram\.com\/([\w.]+)/i.exec(u ?? '')?.[1] ?? '';
 
-export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; onClose: () => void }) {
+const slug = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+const CAPTION: Record<string, (n: string, p: string, rest: string, d: string, b: string) => string> = {
+  fr: (n, p, rest, d, b) => `✨ ${b} : ${n}${p ? ` à ${p}` : ''} !\n${d ? d + '\n' : ''}\nÀ déguster chez ${rest}. Commandez ou réservez via le lien en bio 👆`,
+  en: (n, p, rest, d, b) => `✨ ${b}: ${n}${p ? ` for ${p}` : ''}!\n${d ? d + '\n' : ''}\nCome and enjoy it at ${rest}. Order or book via the link in bio 👆`,
+  ar: (n, p, rest, d, b) => `✨ ${b}: ${n}${p ? ` بـ ${p}` : ''}!\n${d ? d + '\n' : ''}\nتعالوا تذوقوه في ${rest}. اطلبوا أو احجزوا عبر الرابط في البايو 👆`,
+};
+const TAGS: Record<string, string> = { fr: '#maroc #foodmaroc #instafood #restaurantmaroc', en: '#morocco #moroccanfood #instafood #foodie', ar: '#المغرب #مطعم #اكل_مغربي #instafood' };
+
+export function StoryMaker({ r, item, onClose, badge: startBadge, reason }: { r: Restaurant; item: Item; onClose: () => void; badge?: string; reason?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [style, setStyle] = useState<StoryStyle>('studio');
   const [format, setFormat] = useState<StoryFormat>('story');
   const [lang, setLang] = useState(r.languages[0]);
-  const [badge, setBadge] = useState('heart');
+  const [badge, setBadge] = useState(startBadge && BADGES[startBadge] ? startBadge : 'heart');
+  const [capEdit, setCapEdit] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [showPrice, setShowPrice] = useState(true);
   const [handle, setHandle] = useState(handleOf(r.site?.instagram));
   const [busy, setBusy] = useState(false);
@@ -50,6 +60,15 @@ export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; on
     price, showPrice, badge: BADGES[badge][lang] ?? BADGES[badge].fr, restaurant: r.name, handle, logo: r.branding.logo_url,
     photo: item.image_url, primary: r.branding.primary_color || '#c8553d', rtl: lang === 'ar', mood, cutout: cutUrl,
   }), [style, format, lang, badge, showPrice, handle, price, item, r, mood, cutUrl]);
+
+  // caption + hashtags, ready to paste into Instagram (editable)
+  const capAuto = useMemo(() => {
+    const nm = tr(item.name, lang, r.languages), b = BADGES[badge][lang] ?? BADGES[badge].fr, d = tr(item.description, lang, r.languages).slice(0, 110);
+    return `${(CAPTION[lang] ?? CAPTION.fr)(nm, showPrice ? price : '', r.name, d, b)}\n\n#${slug(r.name)} ${slug(nm) ? '#' + slug(nm) + ' ' : ''}${TAGS[lang] ?? TAGS.fr}`;
+  }, [item, lang, badge, showPrice, price, r]);
+  useEffect(() => { setCapEdit(null); }, [capAuto]);
+  const caption = capEdit ?? capAuto;
+  async function copyCaption() { try { await navigator.clipboard.writeText(caption); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }
 
   // a cut-out made earlier for this photo is kept in the restaurant's storage
   useEffect(() => {
@@ -122,6 +141,7 @@ export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; on
           {!item.image_url && <p className="mt-2 text-xs text-muted">{t("Ajoutez une photo à l'article : l'image sera bien plus belle.")}</p>}
         </div>
         <div className="space-y-4">
+          {reason && <p className="rounded-2xl bg-brand/10 p-3 text-sm">💡 {reason}</p>}
           <Field label={t('Style')}>
             <div className="flex flex-wrap gap-2">{STYLES.map(s => <button key={s} onClick={() => setStyle(s)} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${style === s ? 'border-brand bg-brand text-white' : 'border-line/20 hover:bg-surface-2'}`}>{t(STYLE_NAMES[s])}</button>)}</div>
           </Field>
@@ -144,6 +164,10 @@ export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; on
           </div>
           <Field label="Instagram"><input className={inputCls} dir="ltr" value={handle} onChange={e => setHandle(e.target.value.replace(/^@/, '').trim())} placeholder="nom_du_restaurant" /></Field>
           <Toggle checked={showPrice} onChange={setShowPrice} label={t('Afficher le prix')} />
+          <Field label={t('Légende et hashtags')}>
+            <textarea className={inputCls} rows={6} dir={lang === 'ar' ? 'rtl' : 'ltr'} value={caption} onChange={e => setCapEdit(e.target.value)} />
+            <Btn className="mt-2" onClick={copyCaption}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? t('Copié') : t('Copier la légende')}</Btn>
+          </Field>
           <div className="flex flex-wrap gap-2 border-t border-line/10 pt-4">
             {!clip && <Btn onClick={() => setPlaying(p => !p)} disabled={rec !== null}>{playing ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />} {playing ? t('Arrêter') : t("Voir l'animation")}</Btn>}
             {!clip && <Btn tone="brand" onClick={makeVideo} disabled={rec !== null}><Film className="h-4 w-4" /> {rec !== null ? t('Création de la vidéo…') : t('Créer la vidéo (6 s)')}</Btn>}
