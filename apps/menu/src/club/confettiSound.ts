@@ -1,6 +1,6 @@
 // A party-popper "bang" for the confetti, synthesised with Web Audio (no audio file to load).
 // Browsers only allow sound after a tap: call unlockAudio() inside the tap handler (before any await),
-// then playPop() when the confetti fires. Without a tap (the opening on a fresh QR scan) the pop is
+// then playPop() when the confetti fires. On iPhone the silent switch normally mutes Web Audio: unlockAudio() works around that. Without a tap (the opening on a fresh QR scan) the pop is
 // simply skipped when the browser keeps the audio locked.
 
 const VOLUME = 0.8; // 0 to 1: master level of the pop
@@ -19,10 +19,32 @@ function context(): Ctx | null {
   return ctx;
 }
 
+// A silent clip: playing it makes iOS treat the page as "media", which ignores the silent switch.
+function silentWav(): string {
+  const n = 800, b = new Uint8Array(44 + n), v = new DataView(b.buffer);
+  const tag = (o: number, t: string) => { for (let i = 0; i < 4; i++) b[o + i] = t.charCodeAt(i); };
+  tag(0, 'RIFF'); v.setUint32(4, 36 + n, true); tag(8, 'WAVE'); tag(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  tag(36, 'data'); v.setUint32(40, n, true); b.fill(128, 44);
+  let bin = ''; for (const x of b) bin += String.fromCharCode(x);
+  return `data:audio/wav;base64,${btoa(bin)}`;
+}
+let silent: HTMLAudioElement | null = null;
+const stopSilent = () => { try { silent?.pause(); } catch { /* ignore */ } };
+
 // Call from a tap/click handler, synchronously.
 export function unlockAudio() {
+  // iOS 16.4+: play even when the phone is on silent
+  try { const a = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (a) a.type = 'playback'; } catch { /* ignore */ }
   const c = context();
   if (c && c.state === 'suspended') void c.resume().catch(() => { /* locked */ });
+  // older iOS: a silent clip moves the page to the media channel (the silent switch no longer mutes it)
+  try {
+    if (!silent) { silent = new Audio(silentWav()); silent.loop = true; silent.setAttribute('playsinline', ''); }
+    void silent.play().catch(() => { /* locked */ });
+    setTimeout(stopSilent, 15000);
+  } catch { /* ignore */ }
 }
 
 function noiseBuffer(c: Ctx) {
@@ -40,6 +62,7 @@ export function playPop(delay = 0, onlyIfRunning = false) {
     if (!c || (onlyIfRunning && c.state !== 'running')) return;
     if (c.state === 'suspended') void c.resume().catch(() => { /* locked */ });
     const t0 = c.currentTime + delay;
+    setTimeout(stopSilent, (delay + 2) * 1000);
 
     const master = c.createGain();
     master.gain.value = VOLUME;
