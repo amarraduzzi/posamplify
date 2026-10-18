@@ -4,7 +4,7 @@ export type PayMethod = 'cash' | 'transfer' | 'cashplus' | 'card' | 'other';
 export interface Restaurant {
   id: string; slug: string; name: string; status: 'trial' | 'active' | 'paused' | 'cancelled'; trial_ends_at: string | null; is_demo: boolean;
   timezone: string; currency: string; languages: string[]; day_cutoff_hour: number; glovo_markup_bp?: number;
-  branding: { primary_color?: string; theme?: 'dark' | 'light'; logo_url?: string; cover_url?: string; tagline?: I18n; font_display?: string; review_url?: string; review_on_receipt?: boolean };
+  branding: { primary_color?: string; theme?: 'dark' | 'light'; logo_url?: string; cover_url?: string; tagline?: I18n; font_display?: string; review_url?: string; review_on_receipt?: boolean; guest_share?: boolean; instagram?: string; guest_reward_on?: boolean; guest_reward?: string };
   opening_hours: Record<string, [string, string][]>;
   booking?: { enabled?: boolean; waitlist?: boolean; auto_confirm?: boolean; capacity?: number; duration_min?: number; slot_minutes?: number; lead_minutes?: number; days_ahead?: number; max_party?: number; note?: string | null };
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };

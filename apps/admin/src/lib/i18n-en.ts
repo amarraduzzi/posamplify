@@ -2273,4 +2273,13 @@ export const EN: Record<string, string> = {
   "Oriental": "Oriental",
   "Festif": "Upbeat",
   "Musique et bruitages créés par l'appli : aucun droit d'auteur, vous pouvez les publier sur Instagram. Cliquez sur « Voir l'animation » pour écouter.": "Music and sound effects made by the app: no copyright, you can post them on Instagram. Click “Play animation” to listen.",
+  "Photos Instagram des clients": "Guest Instagram photos",
+  "Après sa commande, le client photographie son plat : l'appli en fait un Polaroïd avec votre logo, prêt pour sa story Instagram. Vos clients font votre publicité.": "After ordering, the guest photographs their dish: the app turns it into a Polaroid with your logo, ready for their Instagram story. Your guests do your advertising.",
+  "Proposer le Polaroïd aux clients": "Offer the Polaroid to guests",
+  "Votre compte Instagram": "Your Instagram account",
+  "Affiché sur le Polaroïd et dans le conseil « mentionnez-nous ».": "Shown on the Polaroid and in the “tag us” tip.",
+  "Offrir un cadeau à ceux qui partagent (facultatif)": "Give a gift to guests who share (optional)",
+  "Le cadeau": "The gift",
+  "Le client montre sa story au serveur, qui lui remet le cadeau. Un seul cadeau par commande.": "The guest shows their story to the waiter, who hands over the gift. One gift per order.",
+  "Ex : un café offert": "E.g. a free coffee",
 };

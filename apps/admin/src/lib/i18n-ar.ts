@@ -2275,4 +2275,13 @@ export const AR: Record<string, string> = {
   "Oriental": "شرقي",
   "Festif": "احتفالي",
   "Musique et bruitages créés par l'appli : aucun droit d'auteur, vous pouvez les publier sur Instagram. Cliquez sur « Voir l'animation » pour écouter.": "الموسيقى والمؤثرات من إنتاج التطبيق: بدون حقوق نشر، يمكنك نشرها على إنستغرام. اضغط على «عرض الحركة» للاستماع.",
+  "Photos Instagram des clients": "صور إنستغرام للزبائن",
+  "Après sa commande, le client photographie son plat : l'appli en fait un Polaroïd avec votre logo, prêt pour sa story Instagram. Vos clients font votre publicité.": "بعد الطلب يصوّر الزبون طبقه فيحوّله التطبيق إلى صورة بولارويد بشعاركم، جاهزة لستوري إنستغرام. زبائنكم يقومون بالدعاية لكم.",
+  "Proposer le Polaroïd aux clients": "اقتراح البولارويد على الزبائن",
+  "Votre compte Instagram": "حسابكم على إنستغرام",
+  "Affiché sur le Polaroïd et dans le conseil « mentionnez-nous ».": "يظهر على البولارويد وفي نصيحة «اذكرونا».",
+  "Offrir un cadeau à ceux qui partagent (facultatif)": "تقديم هدية لمن يشارك (اختياري)",
+  "Le cadeau": "الهدية",
+  "Le client montre sa story au serveur, qui lui remet le cadeau. Un seul cadeau par commande.": "يُري الزبون الستوري للنادل فيسلمه الهدية. هدية واحدة لكل طلب.",
+  "Ex : un café offert": "مثال: قهوة مجانية",
 };

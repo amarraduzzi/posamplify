@@ -1,6 +1,7 @@
 import { ReviewButton } from './ReviewButton';
+import { GuestPolaroid, type ShareConfig } from './GuestPolaroid';
 import { useEffect, useState } from 'react';
-import { Check, ChefHat, BellRing, UtensilsCrossed, XCircle, MessageCircle, Clock } from 'lucide-react';
+import { Camera, Check, ChefHat, BellRing, UtensilsCrossed, XCircle, MessageCircle, Clock } from 'lucide-react';
 import { formatMoney, type OrderStatus, type OrderStatusResult } from '@resto/shared';
 import { getOrderStatus } from '../lib/api';
 import type { Strings } from '../lib/strings';
@@ -15,8 +16,9 @@ const STEPS: { key: OrderStatus; Icon: typeof Check }[] = [
   { key: 'served', Icon: UtensilsCrossed },
 ];
 
-export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, reviewUrl, timezone, onClose }: {
+export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantName, reviewUrl, timezone, share, onClose }: {
   reviewUrl?: string;
+  share?: ShareConfig | null;
   timezone?: string;
   order: TrackedOrder;
   t: Strings;
@@ -28,6 +30,7 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
 }) {
   const [status, setStatus] = useState<OrderStatus>('new');
   const [info, setInfo] = useState<OrderStatusResult | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     let stop = false;
@@ -124,6 +127,13 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
           </ol>
         )}
 
+        {share && !cancelled && (
+          <button onClick={() => setShareOpen(true)} className="press mt-8 flex w-full items-center gap-3 rounded-3xl card p-4 text-start animate-rise">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-brand text-brand-ink"><Camera className="size-5" /></span>
+            <span className="min-w-0"><span className="block font-semibold">{t.shareCta}</span><span className="block text-sm text-muted">{t.shareHint}</span></span>
+          </button>
+        )}
+        {share && <GuestPolaroid open={shareOpen} onClose={() => setShareOpen(false)} t={t} lang={lang} restaurant={restaurantName} orderId={order.order_id} ticket={order.ticket_number} cfg={share} />}
         {status === 'served' && <div className="mt-8 animate-rise"><ReviewButton url={reviewUrl} label={t.reviewCta} hint={t.reviewHint} /></div>}
         {online && wa && !cancelled && status !== 'served' && (
           <a href={`https://wa.me/${wa}?text=${encodeURIComponent(`${t.ticket} #${order.ticket_number}`)}`} target="_blank" rel="noopener"

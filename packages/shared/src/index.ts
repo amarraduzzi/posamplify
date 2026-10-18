@@ -16,6 +16,12 @@ export interface Branding {
   /** Google 'ask for reviews' link: QR on the receipt and a button on the guest menu */
   review_url?: string;
   review_on_receipt?: boolean;
+  /** guests can turn a photo of their dish into a Polaroid story (default on) */
+  guest_share?: boolean;
+  instagram?: string;
+  /** optional gift for guests who share; empty / off = no gift */
+  guest_reward_on?: boolean;
+  guest_reward?: string;
 }
 
 export interface PublicRestaurant {

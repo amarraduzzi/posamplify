@@ -557,6 +557,7 @@ export default function App() {
           tableLabel={menu.table?.label ?? null}
           restaurantName={r.name}
           reviewUrl={r.branding?.review_url}
+          share={r.branding?.guest_share === false ? null : { handle: r.branding?.instagram, reward: r.branding?.guest_reward_on ? r.branding?.guest_reward?.trim() || undefined : undefined, primary: r.branding?.primary_color || '#c8553d', logoUrl: r.branding?.logo_url }}
           timezone={r.timezone}
           onClose={() => setTrackerOpen(false)}
         />

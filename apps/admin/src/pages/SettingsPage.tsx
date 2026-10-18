@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Save, ExternalLink, Star, Download, Plus, Trash2 } from 'lucide-react';
+import { Save, ExternalLink, Star, Download, Plus, Trash2, Camera } from 'lucide-react';
 import { stationKey, stationsOf, type Station } from '../lib/stations';
 import { supabase, MENU_URL, SITE_URL } from '../lib/supabase';
 import { check } from '../lib/api';
@@ -28,7 +28,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
   });
   const [brand, setBrand] = useState({ primary_color: r.branding.primary_color ?? '#C2410C', theme: r.branding.theme ?? 'light',
     logo_url: r.branding.logo_url ?? null as string | null, cover_url: r.branding.cover_url ?? null as string | null, tagline: (r.branding.tagline ?? {}) as I18n,
-    review_url: r.branding.review_url ?? '', review_on_receipt: r.branding.review_on_receipt ?? true });
+    review_url: r.branding.review_url ?? '', review_on_receipt: r.branding.review_on_receipt ?? true,
+    guest_share: r.branding.guest_share ?? true, instagram: r.branding.instagram ?? '', guest_reward_on: r.branding.guest_reward_on ?? false, guest_reward: r.branding.guest_reward ?? '' });
   const reviewOk = !brand.review_url.trim() || /^https:\/\/\S+$/.test(brand.review_url.trim());
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
@@ -50,7 +51,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       check(await supabase.from('restaurants').update({
         ...f, name: f.name.trim(), ice: f.ice.trim() || null, legal_name: f.legal_name.trim() || null, tax_id: f.tax_id.trim() || null,
         rc: f.rc.trim() || null, phone: f.phone.trim() || null, address: f.address.trim() || null, city: f.city.trim() || null,
-        branding: { ...r.branding, ...brand, primary_color: ownColor ? brand.primary_color : undefined, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined },
+        branding: { ...r.branding, ...brand, primary_color: ownColor ? brand.primary_color : undefined, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined, instagram: brand.instagram.replace(/^@/, '').trim() || undefined, guest_reward: brand.guest_reward.trim() || undefined },
         pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: Object.fromEntries(stations.map(x => [x.key, x.printer.trim() || 'CUISINE'])) },
           stations: stations.map(x => ({ key: x.key, name: x.name.trim() || x.key })),
           idle_lock_minutes: Math.max(0, Math.min(120, Number(pos.idle) || 0)), receipt_footer: pos.footer.trim() || undefined },
@@ -130,6 +131,26 @@ export function SettingsPage({ r }: { r: Restaurant }) {
                 <img src={qr} alt={t('QR code avis Google')} className="mx-auto h-40 w-40 rounded-xl border border-line/10 bg-white p-1" />
                 <a href={qr} download={`avis-google-${r.slug}.png`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand"><Download className="h-4 w-4" /> {t('Télécharger pour les tables')}</a>
               </div>
+            )}
+          </div>
+        </Card>
+        <Card>
+          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Camera className="h-5 w-5 text-brand" /> {t('Photos Instagram des clients')}</h2>
+          <p className="mb-4 text-sm text-muted">{t("Après sa commande, le client photographie son plat : l'appli en fait un Polaroïd avec votre logo, prêt pour sa story Instagram. Vos clients font votre publicité.")}</p>
+          <div className="space-y-4">
+            <Toggle checked={brand.guest_share} onChange={v => setBrand({ ...brand, guest_share: v })} label={t('Proposer le Polaroïd aux clients')} />
+            {brand.guest_share && (
+              <>
+                <Field label={t('Votre compte Instagram')} hint={t('Affiché sur le Polaroïd et dans le conseil « mentionnez-nous ».')}>
+                  <input dir="ltr" className={inputCls} value={brand.instagram} onChange={e => setBrand({ ...brand, instagram: e.target.value.replace(/^@/, '').trim() })} placeholder="nom_du_restaurant" />
+                </Field>
+                <Toggle checked={brand.guest_reward_on} onChange={v => setBrand({ ...brand, guest_reward_on: v })} label={t('Offrir un cadeau à ceux qui partagent (facultatif)')} />
+                {brand.guest_reward_on && (
+                  <Field label={t('Le cadeau')} hint={t('Le client montre sa story au serveur, qui lui remet le cadeau. Un seul cadeau par commande.')}>
+                    <input className={inputCls} maxLength={60} value={brand.guest_reward} onChange={e => setBrand({ ...brand, guest_reward: e.target.value })} placeholder={t('Ex : un café offert')} />
+                  </Field>
+                )}
+              </>
             )}
           </div>
         </Card>
