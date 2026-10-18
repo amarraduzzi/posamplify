@@ -136,7 +136,23 @@ body { -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antiali
 .club-cta { position: relative; overflow: hidden; box-shadow: 0 12px 32px -10px color-mix(in srgb, var(--brand) 70%, transparent), inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 70%, #000); }
 .club-cta::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 38%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.38), transparent); animation: club-shine 3.4s 2.6s ease-in-out infinite; pointer-events: none; }
 .confetti { position: absolute; top: 0; height: 1.1rem; border-radius: 2px; animation: confetti var(--t, 3s) var(--dl, 0s) cubic-bezier(.3, .6, .4, 1) both; }
+/* the club door: two doors swing apart, the content fades, a flash of light, the page is behind */
+@keyframes door-l { to { transform: translateX(-102%); } }
+@keyframes door-r { to { transform: translateX(102%); } }
+@keyframes gate-out { to { opacity: 0; transform: scale(1.1); } }
+@keyframes gate-light { 0% { opacity: 0; } 22% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes gate-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes gate-sway { 0%, 100% { transform: rotate(calc(var(--sw, 5deg) * -1)); } 50% { transform: rotate(var(--sw, 5deg)); } }
+@keyframes gate-twinkle { 0%, 100% { opacity: .1; transform: scale(.5) rotate(0); } 50% { opacity: .95; transform: scale(1) rotate(25deg); } }
+.gate-door-l.is-open { animation: door-l 1.15s .2s cubic-bezier(.7, 0, .2, 1) forwards; }
+.gate-door-r.is-open { animation: door-r 1.15s .2s cubic-bezier(.7, 0, .2, 1) forwards; }
+.gate-content.is-open { animation: gate-out .5s ease-in forwards; }
+.gate-light { animation: gate-light 1.4s .1s ease-out forwards; }
+.gate-cta { animation: gate-pulse 1.8s ease-in-out infinite; }
+.gate-beam { background: linear-gradient(to bottom, rgba(255,255,255,.26), transparent 85%); animation: gate-sway 6s ease-in-out infinite; }
+.gate-star { animation: gate-twinkle 2.6s ease-in-out infinite; animation-delay: var(--dl, 0s); }
 @media (prefers-reduced-motion: reduce) {
+  .gate-cta, .gate-star, .gate-beam { animation: none; }
   .club-intro, .club-intro-logo, .club-intro-ring, .club-rise, .club-cta::after, .confetti { animation: none; }
   .club-intro { display: none; }
 }
