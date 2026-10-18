@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Film, Play, Share2, Square } from 'lucide-react';
 import '@fontsource-variable/fraunces';
 import { tr } from '@resto/shared';
 import type { Item, Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from './ui';
 import { t } from '../lib/i18n';
-import { FORMATS, STYLES, canvasBlob, renderStory, type StoryFormat, type StoryStyle } from '../lib/storyMaker';
+import { FORMATS, STYLES, canvasBlob, drawStory, prepareStory, recordStory, type StoryFormat, type StoryInput, type StoryStyle } from '../lib/storyMaker';
 
 // i18n:values
 const STYLE_NAMES: Record<StoryStyle, string> = { signature: 'Signature', poster: 'Affiche', editorial: 'Magazine', polaroid: 'Polaroïd', sunburst: 'Soleil' };
@@ -29,37 +29,65 @@ export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; on
   const [showPrice, setShowPrice] = useState(true);
   const [handle, setHandle] = useState(handleOf(r.site?.instagram));
   const [busy, setBusy] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [rec, setRec] = useState<number | null>(null);
+  const [clip, setClip] = useState<{ blob: Blob; url: string; ext: string } | null>(null);
+  const [err, setErr] = useState('');
   const prices = item.item_variants.length ? item.item_variants.map(v => v.price_cents) : [item.price_cents];
   const price = useMemo(() => `${String(Math.min(...prices) / 100).replace('.', ',')} ${lang === 'ar' ? 'درهم' : 'DH'}`, [item, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const fileName = `${(tr(item.name, r.languages[0]) || 'plat').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${format}.png`;
 
-  useEffect(() => {
-    let live = true;
-    if (!canvas.current) return;
-    renderStory(canvas.current, {
-      style, format, name: tr(item.name, lang, r.languages), description: tr(item.description, lang, r.languages).slice(0, 110),
-      price, showPrice, badge: BADGES[badge][lang] ?? BADGES[badge].fr, restaurant: r.name, handle, logo: r.branding.logo_url,
-      photo: item.image_url, primary: r.branding.primary_color || '#c8553d', rtl: lang === 'ar',
-    }).catch(() => live && undefined);
-    return () => { live = false; };
-  }, [style, format, lang, badge, showPrice, handle, price, item, r]);
+  const input: StoryInput = useMemo(() => ({
+    style, format, name: tr(item.name, lang, r.languages), description: tr(item.description, lang, r.languages).slice(0, 110),
+    price, showPrice, badge: BADGES[badge][lang] ?? BADGES[badge].fr, restaurant: r.name, handle, logo: r.branding.logo_url,
+    photo: item.image_url, primary: r.branding.primary_color || '#c8553d', rtl: lang === 'ar',
+  }), [style, format, lang, badge, showPrice, handle, price, item, r]);
 
+  // a changed setting makes an old video out of date
+  useEffect(() => { setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; }); }, [input]);
+  useEffect(() => () => { setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; }); }, []);
+
+  // preview: still picture, or the looping animation
+  useEffect(() => {
+    if (!canvas.current || clip) return;
+    let live = true, raf = 0; const c = canvas.current;
+    prepareStory(input).then(pre => {
+      if (!live) return;
+      if (!playing) { drawStory(c, input, 1, pre, 0.5); return; }
+      const t0 = performance.now();
+      const f = () => { if (!live) return; const e = (performance.now() - t0) % 7000; drawStory(c, input, Math.min(1, e / 4500), pre, 0.5); raf = requestAnimationFrame(f); };
+      f();
+    });
+    return () => { live = false; cancelAnimationFrame(raf); };
+  }, [input, playing, clip]);
+
+  async function makeVideo() {
+    setErr(''); setPlaying(false); setRec(0);
+    try { const v = await recordStory(input, setRec); setClip({ blob: v.blob, ext: v.ext, url: URL.createObjectURL(v.blob) }); }
+    catch { setErr(t("Ce navigateur ne peut pas créer la vidéo. Utilisez Chrome ou Safari à jour, ou partagez l'image.")); }
+    finally { setRec(null); }
+  }
+  /** the finished picture at full size (the preview canvas is smaller) */
+  async function still() { const c = document.createElement('canvas'); drawStory(c, input, 1, await prepareStory(input), 1); return c; }
   async function share() {
-    if (!canvas.current) return; setBusy(true);
+    setBusy(true);
     try {
-      const blob = await canvasBlob(canvas.current), file = new File([blob], fileName, { type: 'image/png' });
+      const blob = clip ? clip.blob : await canvasBlob(await still()), name = clip ? fileName.replace(/\.png$/, `.${clip.ext}`) : fileName, file = new File([blob], name, { type: blob.type });
       if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); }
-      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileName; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
     } catch { /* cancelled */ } finally { setBusy(false); }
   }
   const { w, h } = FORMATS[format];
 
   return (
     <Modal wide title={t('Story Instagram')} onClose={onClose}
-      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy} onClick={share}>{typeof navigator.canShare === 'function' ? <Share2 className="h-4 w-4" /> : <Download className="h-4 w-4" />} {typeof navigator.canShare === 'function' ? t('Partager') : t('Télécharger')}</Btn></div>}>
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || rec !== null} onClick={share}>{typeof navigator.canShare === 'function' ? <Share2 className="h-4 w-4" /> : <Download className="h-4 w-4" />} {typeof navigator.canShare === 'function' ? t('Partager') : t('Télécharger')}</Btn></div>}>
       <div className="grid gap-5 md:grid-cols-[minmax(0,300px)_1fr]">
         <div className="mx-auto w-full max-w-[300px]">
-          <canvas ref={canvas} style={{ aspectRatio: `${w}/${h}` }} className="w-full rounded-2xl shadow-xl" />
+          {clip
+            ? <video src={clip.url} autoPlay loop muted playsInline controls style={{ aspectRatio: `${w}/${h}` }} className="w-full rounded-2xl bg-black shadow-xl" />
+            : <canvas ref={canvas} style={{ aspectRatio: `${w}/${h}` }} className="w-full rounded-2xl shadow-xl" />}
+          {rec !== null && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full bg-brand transition-[width]" style={{ width: `${Math.round(rec * 100)}%` }} /></div>}
           {!item.image_url && <p className="mt-2 text-xs text-muted">{t("Ajoutez une photo à l'article : l'image sera bien plus belle.")}</p>}
         </div>
         <div className="space-y-4">
@@ -75,6 +103,13 @@ export function StoryMaker({ r, item, onClose }: { r: Restaurant; item: Item; on
           </div>
           <Field label="Instagram"><input className={inputCls} dir="ltr" value={handle} onChange={e => setHandle(e.target.value.replace(/^@/, '').trim())} placeholder="nom_du_restaurant" /></Field>
           <Toggle checked={showPrice} onChange={setShowPrice} label={t('Afficher le prix')} />
+          <div className="flex flex-wrap gap-2 border-t border-line/10 pt-4">
+            {!clip && <Btn onClick={() => setPlaying(p => !p)} disabled={rec !== null}>{playing ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />} {playing ? t('Arrêter') : t("Voir l'animation")}</Btn>}
+            {!clip && <Btn tone="brand" onClick={makeVideo} disabled={rec !== null}><Film className="h-4 w-4" /> {rec !== null ? t('Création de la vidéo…') : t('Créer la vidéo (6 s)')}</Btn>}
+            {clip && <Btn onClick={() => setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; })}>{t("Revenir à l'image")}</Btn>}
+          </div>
+          {err && <p className="text-sm text-danger">{err}</p>}
+          {clip?.ext === 'webm' && <p className="text-xs text-muted">{t("Ce navigateur crée un fichier webm : Instagram l'accepte mal. Sur iPhone ou avec Chrome à jour, c'est un mp4.")}</p>}
         </div>
       </div>
     </Modal>

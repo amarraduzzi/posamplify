@@ -13,6 +13,10 @@ export interface StoryInput {
 const SERIF = '"Fraunces Variable", "IBM Plex Sans Arabic", Georgia, serif';
 const SANS = '"Plus Jakarta Sans Variable", "IBM Plex Sans Arabic", system-ui, sans-serif';
 type Ctx = CanvasRenderingContext2D;
+// animation state for the frame being drawn: T = progress 0..1 (1 = finished still), ZM = photo zoom, PHOTO = the dish photo
+let T = 1, ZM = 1, PHOTO: HTMLImageElement | null = null;
+const clamp = (x: number) => Math.max(0, Math.min(1, x));
+const kk = (a: number, b: number, back = false) => { const x = clamp((T - a) / (b - a)); return back ? 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2) : 1 - Math.pow(1 - x, 3); };
 
 function rgb(hex: string): [number, number, number] {
   let h = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())?.[1] ?? 'c8553d'; if (h.length === 3) h = h.replace(/./g, '$&$&');
@@ -27,7 +31,7 @@ function loadImg(url?: string | null): Promise<HTMLImageElement | null> {
   return new Promise(res => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => res(null); i.src = url; });
 }
 function cover(g: Ctx, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
-  const s = Math.max(w / img.naturalWidth, h / img.naturalHeight), dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+  const s = Math.max(w / img.naturalWidth, h / img.naturalHeight) * (img === PHOTO ? ZM : 1), dw = img.naturalWidth * s, dh = img.naturalHeight * s;
   g.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 function lines(g: Ctx, text: string, maxW: number, maxLines: number): string[] {
@@ -44,23 +48,39 @@ function fitName(g: Ctx, text: string, maxW: number, maxLines: number, size: num
   g.font = `${weight} ${s}px ${family}`; l = lines(g, text, maxW, maxLines);
   return { l, s };
 }
+const grainCache = new Map<number, HTMLCanvasElement>();
 function grain(g: Ctx, w: number, h: number, a = 0.06) {
-  const n = document.createElement('canvas'); n.width = n.height = 160; const x = n.getContext('2d')!; const d = x.createImageData(160, 160);
-  for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255 * a; }
-  x.putImageData(d, 0, 0); g.fillStyle = g.createPattern(n, 'repeat')!; g.fillRect(0, 0, w, h);
+  let n = grainCache.get(a);
+  if (!n) { n = document.createElement('canvas'); n.width = n.height = 160; const x = n.getContext('2d')!; const d = x.createImageData(160, 160);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255 * a; }
+    x.putImageData(d, 0, 0); grainCache.set(a, n); }
+  g.fillStyle = g.createPattern(n, 'repeat')!; g.fillRect(0, 0, w, h);
+}
+function bokeh(g: Ctx, w: number, h: number) {
+  const fade = 1 - clamp((T - 0.8) / 0.2); if (fade <= 0) return;
+  for (let i = 0; i < 16; i++) {
+    const sp = 0.35 + (i % 5) * 0.12, x = (i * 397) % w + Math.sin(T * 6 + i) * 20, y = h - (((i * 211) % h) + T * h * sp) % h, r = 10 + (i % 4) * 9;
+    g.fillStyle = rgba('#ffffff', 0.12 + (i % 3) * 0.05); g.globalAlpha = fade;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
 }
 function pill(g: Ctx, text: string, cx: number, cy: number, bg: string, fg: string, size = 34) {
+  const p = kk(0.05, 0.25); g.save(); g.globalAlpha *= clamp(p); g.translate(0, -30 * (1 - p));
   g.font = `700 ${size}px ${SANS}`; if ('letterSpacing' in g) (g as any).letterSpacing = `${size * 0.14}px`;
   const t = text.toUpperCase(), w = g.measureText(t).width + size * 2.2, h = size * 2;
   g.fillStyle = bg; g.beginPath(); g.roundRect(cx - w / 2, cy - h / 2, w, h, h / 2); g.fill();
   g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, cx + size * 0.07, cy + 2);
   if ('letterSpacing' in g) (g as any).letterSpacing = '0px';
+  g.restore();
 }
 function priceTag(g: Ctx, text: string, cx: number, cy: number, r: number, bg: string, fg: string, rot = -0.14) {
-  g.save(); g.translate(cx, cy); g.rotate(rot);
+  const p = kk(0.4, 0.62, true); g.save(); g.translate(cx, cy); g.scale(Math.max(p, 0.001), Math.max(p, 0.001)); g.globalAlpha *= clamp(p * 2); g.rotate(rot);
   g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 40; g.shadowOffsetY = 14;
   g.fillStyle = bg; g.beginPath(); for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2, rr = i % 2 ? r * 0.93 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.fill();
-  g.shadowColor = 'transparent'; g.strokeStyle = rgba(fg, 0.5); g.lineWidth = 3; g.setLineDash([10, 8]); g.beginPath(); g.arc(0, 0, r * 0.82, 0, 7); g.stroke(); g.setLineDash([]);
+  g.shadowColor = 'transparent';
+  if (T < 1) { const sx = (-1.5 + 3 * kk(0.62, 0.95)) * r, gr = g.createLinearGradient(sx - r * 0.3, -r, sx + r * 0.3, r); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.save(); g.clip(); g.fillStyle = gr; g.fillRect(-r, -r, r * 2, r * 2); g.restore(); }
+  g.strokeStyle = rgba(fg, 0.5); g.lineWidth = 3; g.setLineDash([10, 8]); g.beginPath(); g.arc(0, 0, r * 0.82, 0, 7); g.stroke(); g.setLineDash([]);
   const parts = text.split(' '), num = parts[0], unit = parts.slice(1).join(' ');
   g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
   let s = r * 0.62; g.font = `800 ${s}px ${SERIF}`; while (g.measureText(num).width > r * 1.35 && s > 30) { s -= 4; g.font = `800 ${s}px ${SERIF}`; }
@@ -68,25 +88,37 @@ function priceTag(g: Ctx, text: string, cx: number, cy: number, r: number, bg: s
   g.restore();
 }
 function footer(g: Ctx, o: StoryInput, logo: HTMLImageElement | null, w: number, y: number, fg: string, accent: string) {
+  const fp = kk(0.7, 0.95); g.save(); g.globalAlpha *= fp;
   g.textBaseline = 'middle'; g.textAlign = 'center'; let x = w / 2;
   g.font = `700 40px ${SERIF}`; const nm = o.restaurant, nw = g.measureText(nm).width, lw = logo ? 72 : 0, gap = logo ? 22 : 0, tot = lw + gap + nw;
   x = w / 2 - tot / 2;
   if (logo) { g.save(); g.beginPath(); g.arc(x + 36, y, 36, 0, 7); g.clip(); cover(g, logo, x, y - 36, 72, 72); g.restore(); g.strokeStyle = accent; g.lineWidth = 3; g.beginPath(); g.arc(x + 36, y, 36, 0, 7); g.stroke(); }
   g.fillStyle = fg; g.textAlign = 'left'; g.fillText(nm, x + lw + gap, y);
   if (o.handle) { g.textAlign = 'center'; g.font = `600 30px ${SANS}`; g.fillStyle = accent; g.fillText('@' + o.handle.replace(/^@/, ''), w / 2, y + 62); }
+  g.restore();
 }
 function nameBlock(g: Ctx, o: StoryInput, x: number, y: number, maxW: number, fg: string, sub: string, size: number, align: CanvasTextAlign, maxLines = 3) {
+  const np = kk(0.45, 0.78); g.save(); g.globalAlpha *= clamp(np * 1.3); g.translate(0, 50 * (1 - np));
   g.textAlign = align; g.textBaseline = 'alphabetic';
   const { l, s } = fitName(g, o.name, maxW, maxLines, size, 64); g.fillStyle = fg;
   l.forEach((t, i) => g.fillText(t, x, y + i * s * 1.08)); let yy = y + (l.length - 1) * s * 1.08;
   if (o.description) { g.font = `500 ${Math.round(size * 0.3)}px ${SANS}`; const d = lines(g, o.description, maxW, 2); g.fillStyle = sub; d.forEach((t, i) => g.fillText(t, x, yy + size * 0.5 + i * size * 0.4)); yy += size * 0.5 + (d.length - 1) * size * 0.4; }
+  g.restore();
   return yy;
 }
 
-export async function renderStory(c: HTMLCanvasElement, o: StoryInput) {
-  const { w, h } = FORMATS[o.format]; c.width = w; c.height = h; const g = c.getContext('2d')!;
+export interface StoryAssets { photo: HTMLImageElement | null; logo: HTMLImageElement | null }
+export async function prepareStory(o: Pick<StoryInput, 'photo' | 'logo'>): Promise<StoryAssets> {
   if (document.fonts) await Promise.all(['800 60px "Fraunces Variable"', '700 40px "Plus Jakarta Sans Variable"', '600 40px "IBM Plex Sans Arabic"'].map(f => document.fonts.load(f, 'Aa أب').catch(() => null)));
   const [photo, logo] = await Promise.all([loadImg(o.photo), loadImg(o.logo)]);
+  return { photo, logo };
+}
+export async function renderStory(c: HTMLCanvasElement, o: StoryInput, t = 1, pre?: StoryAssets, scale = 1) { drawStory(c, o, t, pre ?? await prepareStory(o), scale); }
+
+/** Draws one frame. t = 0..1 (1 = the finished picture). Synchronous so it can run every animation frame. */
+export function drawStory(c: HTMLCanvasElement, o: StoryInput, t: number, pre: StoryAssets, scale = 1) {
+  const { w, h } = FORMATS[o.format]; c.width = Math.round(w * scale); c.height = Math.round(h * scale); const g = c.getContext('2d')!; g.setTransform(scale, 0, 0, scale, 0, 0);
+  const { photo, logo } = pre; T = clamp(t); PHOTO = photo; ZM = 1.14 - 0.14 * (1 - Math.pow(1 - T, 2));
   g.direction = o.rtl ? 'rtl' : 'ltr'; g.clearRect(0, 0, w, h);
   const P = o.primary, tall = h > 1500, hasP = !!(o.showPrice && o.price);
   const bright = lum(P) > 0.62, onP = bright ? '#1a1410' : '#fff';
@@ -146,5 +178,22 @@ export async function renderStory(c: HTMLCanvasElement, o: StoryInput) {
     footer(g, o, logo, w, h - (tall ? 190 : 120), onP, onP);
     grain(g, w, h, 0.04);
   }
+  if (T < 1) bokeh(g, w, h);
 }
 export const canvasBlob = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('png'))), 'image/png'));
+
+/** Records the animation (about 6 s: motion for 4.5 s, then the finished picture) as a video. mp4 where the browser can, else webm. */
+export async function recordStory(o: StoryInput, onProgress?: (p: number) => void, ms = 6000, motionMs = 4500): Promise<{ blob: Blob; ext: 'mp4' | 'webm' }> {
+  if (typeof MediaRecorder === 'undefined') throw new Error('video');
+  const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const type = types.find(x => MediaRecorder.isTypeSupported(x)); if (!type) throw new Error('video');
+  const pre = await prepareStory(o), c = document.createElement('canvas'), scale = 2 / 3;
+  drawStory(c, o, 0, pre, scale);
+  const stream = c.captureStream(30), rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 }), chunks: Blob[] = [];
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  const done = new Promise<Blob>(res => { rec.onstop = () => res(new Blob(chunks, { type: type.split(';')[0] })); });
+  rec.start(250); const t0 = performance.now();
+  await new Promise<void>(res => { const f = () => { const e = performance.now() - t0; drawStory(c, o, Math.min(1, e / motionMs), pre, scale); onProgress?.(Math.min(1, e / ms)); if (e < ms) requestAnimationFrame(f); else res(); }; f(); });
+  rec.stop(); stream.getTracks().forEach(x => x.stop());
+  return { blob: await done, ext: type.includes('mp4') ? 'mp4' : 'webm' };
+}
