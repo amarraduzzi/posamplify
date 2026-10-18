@@ -12,7 +12,7 @@ import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
 import { ApiError, customerSignup, signupInfo, type SignupInfo, type SignupResult } from '../lib/api';
-import { playPop, unlockAudio } from './confettiSound';
+import { playPop, preloadCheer, unlockAudio } from './confettiSound';
 
 const S = {
   fr: {
@@ -102,6 +102,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   };
 
   useEffect(() => {
+    preloadCheer();
     signupInfo(slug, eventKey).then(x => {
       setInfo(x);
       if (!x) return;

@@ -1,4 +1,5 @@
-// A party-popper "bang" for the confetti, synthesised with Web Audio (no audio file to load).
+// The celebration sound: a short recording of a crowd cheering and applauding (public/sounds/crowd-cheer.mp3),
+// played with Web Audio. If the file is not loaded in time, a synthesised party-popper stands in.
 // Browsers only allow sound after a tap: call unlockAudio() inside the tap handler (before any await),
 // then playPop() when the confetti fires. On iPhone the silent switch normally mutes Web Audio: unlockAudio() works around that. Without a tap (the opening on a fresh QR scan) the pop is
 // simply skipped when the browser keeps the audio locked.
@@ -8,6 +9,23 @@ const VOLUME = 1; // 0 to 1: master level of the pop
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
 let noise: AudioBuffer | null = null;
+
+const CHEER_URL = `${import.meta.env.BASE_URL}sounds/crowd-cheer.mp3`;
+let cheer: AudioBuffer | null = null;
+let cheerLoading = false;
+
+// Fetch and decode the recording ahead of time (no tap needed for this), so the cheer starts instantly.
+export function preloadCheer() {
+  if (cheer || cheerLoading) return;
+  const c = context();
+  if (!c) return;
+  cheerLoading = true;
+  fetch(CHEER_URL)
+    .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('cheer'))))
+    .then(b => c.decodeAudioData(b))
+    .then(b => { cheer = b; })
+    .catch(() => { cheerLoading = false; });
+}
 
 function context(): Ctx | null {
   if (ctx) return ctx;
@@ -111,6 +129,15 @@ export function playPop(delay = 0, onlyIfRunning = false, big = false) {
     if (!c || (onlyIfRunning && c.state !== 'running')) return;
     if (c.state === 'suspended') void c.resume().catch(() => { /* locked */ });
     const t0 = c.currentTime + delay;
+
+    // the recording, when it has loaded
+    if (cheer) {
+      setTimeout(stopSilent, (delay + cheer.duration + 0.5) * 1000);
+      const src = c.createBufferSource(); src.buffer = cheer;
+      const g = c.createGain(); g.gain.value = 0.9 * VOLUME; // the recording is already at full level: leave headroom
+      src.connect(g); g.connect(c.destination); src.start(t0);
+      return;
+    }
     setTimeout(stopSilent, (delay + (big ? 3 : 2)) * 1000);
 
     const master = c.createGain(); master.gain.value = VOLUME;
