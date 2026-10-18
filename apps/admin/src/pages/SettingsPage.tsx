@@ -72,8 +72,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       <fieldset disabled={ro} className="space-y-6">
         <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Adresses')}</h2>
-          {siteOnly && <p className="mb-1 text-sm">{t('Site web :')} <a dir="ltr" className="font-semibold text-brand underline" href={r.site?.domain ? `https://${r.site.domain}` : `${SITE_URL}/${r.slug}`} target="_blank" rel="noreferrer">{r.site?.domain || `${SITE_URL}/${r.slug}`} <ExternalLink className="inline h-3 w-3" /></a></p>}
-          <p className="text-sm">{t('Menu client :')} <a dir="ltr" className="font-semibold text-brand underline" href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer">{MENU_URL}/{r.slug} <ExternalLink className="inline h-3 w-3" /></a></p>
+          {siteOnly && <p className="mb-1 text-sm">{t('Site web :')} <a dir="ltr" className="break-all font-semibold text-brand underline" href={r.site?.domain ? `https://${r.site.domain}` : `${SITE_URL}/${r.slug}`} target="_blank" rel="noreferrer">{r.site?.domain || `${SITE_URL}/${r.slug}`} <ExternalLink className="inline h-3 w-3" /></a></p>}
+          <p className="text-sm">{t('Menu client :')} <a dir="ltr" className="break-all font-semibold text-brand underline" href={`${MENU_URL}/${r.slug}`} target="_blank" rel="noreferrer">{MENU_URL}/{r.slug} <ExternalLink className="inline h-3 w-3" /></a></p>
           {!siteOnly && <p className="mt-1 text-sm text-muted">{t('Les QR codes des tables (page Tables) ajoutent le numéro de table à cette adresse.')}</p>}
         </Card>
         <Card>

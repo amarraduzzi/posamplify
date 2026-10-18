@@ -119,3 +119,6 @@ html, body { overflow-x: hidden; }
   .overflow-x-auto > table th { white-space: nowrap; }
   .overflow-x-auto > table th, .overflow-x-auto > table td { padding-inline: .75rem; }
 }
+
+/* a <fieldset> never grows wider than its parent because of one long word or address (browsers default to min-content) */
+fieldset { min-width: 0; }
