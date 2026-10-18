@@ -2275,4 +2275,11 @@ export const EN: Record<string, string> = {
   "Peu commandé ({n} ventes en {days} jours) : une mise en avant peut le relancer.": "Rarely ordered ({n} sales in {days} days): a spotlight can revive it.",
   "Légende et hashtags": "Caption and hashtags",
   "Copier la légende": "Copy the caption",
+  "Son": "Sound",
+  "Sans son": "No sound",
+  "Effets": "Effects",
+  "Lounge": "Lounge",
+  "Oriental": "Oriental",
+  "Festif": "Upbeat",
+  "Musique et bruitages créés par l'appli : aucun droit d'auteur, vous pouvez les publier sur Instagram. Cliquez sur « Voir l'animation » pour écouter.": "Music and sound effects made by the app: no copyright, you can post them on Instagram. Click “Play animation” to listen.",
 };

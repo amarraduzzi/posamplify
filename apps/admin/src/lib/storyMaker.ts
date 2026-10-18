@@ -1,3 +1,4 @@
+import { runAudio, type Sound } from './storyAudio';
 // Story Maker engine: draws a dish as a shareable Instagram image on a canvas, in the restaurant's brand colours.
 export type Mood = 'none' | 'warm' | 'fresh' | 'moody';
 export type StoryStyle = 'studio' | 'signature' | 'poster' | 'editorial' | 'polaroid' | 'sunburst';
@@ -269,17 +270,20 @@ export function drawStory(c: HTMLCanvasElement, o: StoryInput, t: number, pre: S
 export const canvasBlob = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('png'))), 'image/png'));
 
 /** Records the animation (about 6 s: motion for 4.5 s, then the finished picture) as a video. mp4 where the browser can, else webm. */
-export async function recordStory(o: StoryInput, onProgress?: (p: number) => void, ms = 6000, motionMs = 4500): Promise<{ blob: Blob; ext: 'mp4' | 'webm' }> {
+export async function recordStory(o: StoryInput, onProgress?: (p: number) => void, ms = 6000, motionMs = 4500, sound: Sound = 'off'): Promise<{ blob: Blob; ext: 'mp4' | 'webm'; sound: boolean }> {
   if (typeof MediaRecorder === 'undefined') throw new Error('video');
-  const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-  const type = types.find(x => MediaRecorder.isTypeSupported(x)); if (!type) throw new Error('video');
+  const au = sound !== 'off' ? runAudio(sound, { ms, record: true }) : null, hasAudio = !!au?.stream?.getAudioTracks().length;
+  const types = [...(hasAudio ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus'] : []), 'video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const type = types.find(x => MediaRecorder.isTypeSupported(x)); if (!type) { au?.stop(); throw new Error('video'); }
   const pre = await prepareStory(o), c = document.createElement('canvas'), scale = 2 / 3;
   drawStory(c, o, 0, pre, scale);
-  const stream = c.captureStream(30), rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 }), chunks: Blob[] = [];
+  const stream = c.captureStream(30); let withSound = false;
+  if (hasAudio) { au!.stream!.getAudioTracks().forEach(tk => stream.addTrack(tk)); withSound = true; }
+  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 }), chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<Blob>(res => { rec.onstop = () => res(new Blob(chunks, { type: type.split(';')[0] })); });
-  rec.start(250); const t0 = performance.now();
+  rec.start(250); if (withSound) au!.start(); const t0 = performance.now();
   await new Promise<void>(res => { const f = () => { const e = performance.now() - t0; drawStory(c, o, Math.min(1, e / motionMs), pre, scale); onProgress?.(Math.min(1, e / ms)); if (e < ms) requestAnimationFrame(f); else res(); }; f(); });
-  rec.stop(); stream.getTracks().forEach(x => x.stop());
-  return { blob: await done, ext: type.includes('mp4') ? 'mp4' : 'webm' };
+  rec.stop(); stream.getTracks().forEach(x => x.stop()); au?.stop();
+  return { blob: await done, ext: type.includes('mp4') ? 'mp4' : 'webm', sound: withSound };
 }

@@ -2277,4 +2277,11 @@ export const AR: Record<string, string> = {
   "Peu commandé ({n} ventes en {days} jours) : une mise en avant peut le relancer.": "قليل الطلب ({n} مبيعات في {days} يومًا): الترويج له قد يعيده إلى الواجهة.",
   "Légende et hashtags": "التعليق والهاشتاغات",
   "Copier la légende": "نسخ التعليق",
+  "Son": "الصوت",
+  "Sans son": "بدون صوت",
+  "Effets": "مؤثرات",
+  "Lounge": "لاونج",
+  "Oriental": "شرقي",
+  "Festif": "احتفالي",
+  "Musique et bruitages créés par l'appli : aucun droit d'auteur, vous pouvez les publier sur Instagram. Cliquez sur « Voir l'animation » pour écouter.": "الموسيقى والمؤثرات من إنتاج التطبيق: بدون حقوق نشر، يمكنك نشرها على إنستغرام. اضغط على «عرض الحركة» للاستماع.",
 };

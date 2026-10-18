@@ -6,11 +6,13 @@ import { supabase } from '../lib/supabase';
 import type { Item, Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from './ui';
 import { t } from '../lib/i18n';
+import { runAudio, SOUNDS, type AudioRun, type Sound } from '../lib/storyAudio';
 import { FORMATS, STYLES, canvasBlob, drawStory, prepareStory, recordStory, type Mood, type StoryFormat, type StoryInput, type StoryStyle } from '../lib/storyMaker';
 
 // i18n:values
 const STYLE_NAMES: Record<StoryStyle, string> = { studio: 'Studio', signature: 'Signature', poster: 'Affiche', editorial: 'Magazine', polaroid: 'Polaroïd', sunburst: 'Soleil' };
 const FORMAT_NAMES: Record<StoryFormat, string> = { story: 'Story 9:16', feed: 'Post 4:5', square: 'Carré 1:1' };
+const SOUND_NAMES: Record<Sound, string> = { off: 'Sans son', fx: 'Effets', lounge: 'Lounge', oriental: 'Oriental', upbeat: 'Festif' };
 const MOOD_NAMES: Record<Mood, string> = { warm: 'Chaud', fresh: 'Frais', moody: 'Moody', none: 'Naturel' };
 // i18n:end
 const BADGES: Record<string, Record<string, string>> = {
@@ -48,6 +50,7 @@ export function StoryMaker({ r, item, onClose, badge: startBadge, reason }: { r:
   const [clip, setClip] = useState<{ blob: Blob; url: string; ext: string } | null>(null);
   const [err, setErr] = useState('');
   const [mood, setMood] = useState<Mood>('warm');
+  const [sound, setSound] = useState<Sound>('fx');
   const [cutUrl, setCutUrl] = useState<string | null>(null);
   const [cutP, setCutP] = useState<number | null>(null);
   const cutPath = item.image_url ? `${r.id}/cutouts/${item.id}-${hashOf(item.image_url)}.png` : '';
@@ -94,26 +97,30 @@ export function StoryMaker({ r, item, onClose, badge: startBadge, reason }: { r:
 
 
   // a changed setting makes an old video out of date
-  useEffect(() => { setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; }); }, [input]);
+  useEffect(() => { setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; }); }, [input, sound]);
   useEffect(() => () => { setClip(c => { if (c) URL.revokeObjectURL(c.url); return null; }); }, []);
 
   // preview: still picture, or the looping animation
   useEffect(() => {
     if (!canvas.current || clip) return;
-    let live = true, raf = 0; const c = canvas.current;
+    let live = true, raf = 0, au: AudioRun | null = null; const c = canvas.current;
     prepareStory(input).then(pre => {
       if (!live) return;
       if (!playing) { drawStory(c, input, 1, pre, 0.5); return; }
-      const t0 = performance.now();
-      const f = () => { if (!live) return; const e = (performance.now() - t0) % 7000; drawStory(c, input, Math.min(1, e / 4500), pre, 0.5); raf = requestAnimationFrame(f); };
+      const t0 = performance.now(); let cyc = -1;
+      const f = () => {
+        if (!live) return; const el = performance.now() - t0, k = Math.floor(el / 7000);
+        if (k !== cyc) { cyc = k; au?.stop(); au = null; if (sound !== 'off') { try { au = runAudio(sound, { ms: 6000, record: false }); au.start(); } catch { au = null; } } }   // the sound restarts with every loop
+        drawStory(c, input, Math.min(1, (el % 7000) / 4500), pre, 0.5); raf = requestAnimationFrame(f);
+      };
       f();
     });
-    return () => { live = false; cancelAnimationFrame(raf); };
-  }, [input, playing, clip]);
+    return () => { live = false; cancelAnimationFrame(raf); au?.stop(); };
+  }, [input, playing, clip, sound]);
 
   async function makeVideo() {
     setErr(''); setPlaying(false); setRec(0);
-    try { const v = await recordStory(input, setRec); setClip({ blob: v.blob, ext: v.ext, url: URL.createObjectURL(v.blob) }); }
+    try { const v = await recordStory(input, setRec, 6000, 4500, sound); setClip({ blob: v.blob, ext: v.ext, url: URL.createObjectURL(v.blob) }); }
     catch { setErr(t("Ce navigateur ne peut pas créer la vidéo. Utilisez Chrome ou Safari à jour, ou partagez l'image.")); }
     finally { setRec(null); }
   }
@@ -155,6 +162,10 @@ export function StoryMaker({ r, item, onClose, badge: startBadge, reason }: { r:
                 : <p className="mt-1.5 text-xs text-muted">{t("Le plat flotte devant le nom en grand. La première fois, un modèle d'environ 50 Mo se télécharge : comptez 20 à 60 secondes.")}</p>}
             </div>
           )}
+          <Field label={t('Son')}>
+            <div className="flex flex-wrap gap-2">{SOUNDS.map(x => <button key={x} onClick={() => setSound(x)} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${sound === x ? 'border-brand bg-brand text-white' : 'border-line/20 hover:bg-surface-2'}`}>{t(SOUND_NAMES[x])}</button>)}</div>
+            {sound !== 'off' && <p className="mt-1.5 text-xs text-muted">{t("Musique et bruitages créés par l'appli : aucun droit d'auteur, vous pouvez les publier sur Instagram. Cliquez sur « Voir l'animation » pour écouter.")}</p>}
+          </Field>
           <Field label={t('Format')}>
             <div className="flex flex-wrap gap-2">{(Object.keys(FORMAT_NAMES) as StoryFormat[]).map(f => <button key={f} onClick={() => setFormat(f)} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${format === f ? 'border-brand bg-brand text-white' : 'border-line/20 hover:bg-surface-2'}`}>{t(FORMAT_NAMES[f])}</button>)}</div>
           </Field>
