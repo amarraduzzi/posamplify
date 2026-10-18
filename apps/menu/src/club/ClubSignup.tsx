@@ -26,7 +26,7 @@ const S = {
     off: 'Les inscriptions ne sont pas ouvertes pour le moment.', closed: 'Cette dégustation est terminée.', notFound: 'Ce restaurant est introuvable.',
     errors: { customer_required: 'Indiquez votre prénom et un numéro valide.', rate_limited: 'Trop d’inscriptions en même temps. Réessayez dans une minute.',
       event_closed: 'Cette dégustation est terminée.', signup_off: 'Les inscriptions ne sont pas ouvertes pour le moment.', network: 'Pas de connexion. Réessayez.' } as Record<string, string>,
-    other: 'Une erreur est survenue. Réessayez.', notMe: 'Ce n’est pas moi',
+    other: 'Une erreur est survenue. Réessayez.', notMe: 'Ce n’est pas moi', tap: 'Touchez pour ouvrir',
   },
   en: {
     join: (r: string) => `Join the ${r} club`, event: 'Sign up for the tasting',
@@ -39,7 +39,7 @@ const S = {
     off: 'Sign-ups are not open right now.', closed: 'This tasting is over.', notFound: 'This restaurant could not be found.',
     errors: { customer_required: 'Please enter your name and a valid number.', rate_limited: 'Too many sign-ups at once. Try again in a minute.',
       event_closed: 'This tasting is over.', signup_off: 'Sign-ups are not open right now.', network: 'No connection. Try again.' } as Record<string, string>,
-    other: 'Something went wrong. Try again.', notMe: 'Not me',
+    other: 'Something went wrong. Try again.', notMe: 'Not me', tap: 'Tap to open',
   },
   ar: {
     join: (r: string) => `انضموا إلى نادي ${r}`, event: 'سجلوا للتذوق',
@@ -52,7 +52,7 @@ const S = {
     off: 'التسجيل غير مفتوح حاليا.', closed: 'انتهى هذا التذوق.', notFound: 'لم يتم العثور على هذا المطعم.',
     errors: { customer_required: 'أدخلوا اسمكم ورقما صحيحا.', rate_limited: 'تسجيلات كثيرة في نفس الوقت. أعيدوا المحاولة بعد دقيقة.',
       event_closed: 'انتهى هذا التذوق.', signup_off: 'التسجيل غير مفتوح حاليا.', network: 'لا يوجد اتصال. أعيدوا المحاولة.' } as Record<string, string>,
-    other: 'حدث خطأ. أعيدوا المحاولة.', notMe: 'لست أنا',
+    other: 'حدث خطأ. أعيدوا المحاولة.', notMe: 'لست أنا', tap: 'المسوا للفتح',
   },
 };
 type Lang = keyof typeof S;
@@ -61,6 +61,10 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const PERK_ICONS = [Tag, Sparkles, Gift];
 const INTRO_MS = 2100;      // length of the brand intro (the wipe at its end)
 const INTRO_BASE = 1500;    // the page content starts rising while the panel lifts away
+
+// Phones only play sound after a tap: with TAP_TO_OPEN the first visit starts with a "tap to open" screen,
+// and that tap starts the opening with its sound. Set to false for the silent, automatic opening.
+const TAP_TO_OPEN = true;
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const seenIntro = (slug: string) => { try { return !!sessionStorage.getItem(`club-intro:${slug}`); } catch { return false; } };
@@ -88,7 +92,14 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const [base, setBase] = useState(0);
   const [confetti, setConfetti] = useState(false);
   const [openConfetti, setOpenConfetti] = useState(false);
+  const [gate, setGate] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+
+  // starts the opening: the brand panel, the confetti and the pop
+  const begin = (sl: string) => {
+    markIntro(sl); unlockAudio(); setGate(false); setBase(INTRO_BASE); setIntro(true); setOpenConfetti(true);
+    setTimeout(() => setOpenConfetti(false), 5600); setTimeout(() => playPop(), 550);
+  };
 
   useEffect(() => {
     signupInfo(slug, eventKey).then(x => {
@@ -101,7 +112,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
       applyBranding((x.branding ?? {}) as Branding, x.name);
       // first visit in this session, nothing remembered: play the brand intro (a returning guest goes straight in)
       const open = x.enabled && !(eventKey && (!x.event || !x.event.active));
-      if (open && !mine && !reduced() && !seenIntro(slug)) { markIntro(slug); setBase(INTRO_BASE); setIntro(true); setOpenConfetti(true); setTimeout(() => setOpenConfetti(false), 5600); unlockAudio(); setTimeout(() => playPop(0, true), 550); }
+      if (open && !mine && !reduced() && !seenIntro(slug)) { if (TAP_TO_OPEN) setGate(true); else begin(slug); }
     }).catch(() => setInfo(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, eventKey]);
@@ -132,7 +143,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
       const res = await customerSignup(slug, name, phone, true, eventKey);
       save(`club:${slug}`, { name: name.trim(), phone });
       setDone(res);
-      if (!res.again && !reduced()) { setConfetti(true); playPop(); setTimeout(() => setConfetti(false), 5200); }
+      if (!res.again && !reduced()) { setConfetti(true); playPop(0, false, true); setTimeout(() => setConfetti(false), 5200); }
       window.scrollTo(0, 0);
     } catch (x) {
       const m = x instanceof ApiError ? x.message : '';
@@ -179,8 +190,9 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   }
 
   const rise = (d: number) => ({ '--d': `${d}ms` } as React.CSSProperties);
-  return (
-    <main className="min-h-dvh md:grid md:grid-cols-[1.05fr_1fr]" style={vars}>
+  return (<>
+    {gate && <Gate label={t.tap} onTap={() => begin(slug)} />}
+    <main className="min-h-dvh md:grid md:grid-cols-[1.05fr_1fr]" style={gate ? { ...vars, display: 'none' } : vars}>
       {openConfetti && <Confetti brand={brand} offset={0.55} top />}
       {intro && <Intro logo={logo} name={r} onSkip={() => { setIntro(false); setBase(0); }} onEnd={() => setIntro(false)} />}
 
@@ -254,7 +266,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
         </div>
       </section>
     </main>
-  );
+  </>);
 }
 
 // The colour fills the hero: soft highlights, the restaurant's lattice, slow floating shapes, and the
@@ -270,6 +282,22 @@ function Backdrop({ cover }: { cover?: string }) {
       <span className="float pointer-events-none absolute -start-16 top-10 -z-10 h-56 w-56 rounded-full opacity-40 blur-3xl" style={{ background: 'color-mix(in srgb, var(--brand-ink) 55%, transparent)' }} aria-hidden="true" />
       <span className="float pointer-events-none absolute -end-12 bottom-24 -z-10 h-44 w-44 rounded-full opacity-30 blur-3xl" style={{ background: 'var(--brand-ink)', animationDelay: '-3s' }} aria-hidden="true" />
     </>
+  );
+}
+
+// Before the opening: the colour fills the screen and asks for a tap (the tap unlocks the sound).
+function Gate({ label, onTap }: { label: string; onTap: () => void }) {
+  return (
+    <button type="button" onClick={onTap} className="club-hero fixed inset-0 z-50 grid w-full place-items-center text-brand-ink" aria-label={label}>
+      <div className="pointer-events-none absolute inset-0 fade-down"><div className="zellige-ink absolute inset-0 opacity-[.13]" /></div>
+      <span className="relative flex flex-col items-center gap-6">
+        <span className="relative grid h-24 w-24 place-items-center">
+          <span className="animate-pulse-ring absolute inset-0 rounded-full bg-brand-ink/25" aria-hidden="true" />
+          <span className="relative grid h-20 w-20 place-items-center rounded-full bg-brand-ink/15 ring-2 ring-brand-ink/40"><Sparkles className="h-9 w-9" /></span>
+        </span>
+        <span className="font-display text-2xl font-semibold">{label}</span>
+      </span>
+    </button>
   );
 }
 

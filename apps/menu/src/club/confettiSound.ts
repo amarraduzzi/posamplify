@@ -3,7 +3,7 @@
 // then playPop() when the confetti fires. On iPhone the silent switch normally mutes Web Audio: unlockAudio() works around that. Without a tap (the opening on a fresh QR scan) the pop is
 // simply skipped when the browser keeps the audio locked.
 
-const VOLUME = 0.8; // 0 to 1: master level of the pop
+const VOLUME = 1; // 0 to 1: master level of the pop
 
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
@@ -55,53 +55,77 @@ function noiseBuffer(c: Ctx) {
   return noise;
 }
 
-// delay in seconds; onlyIfRunning: skip quietly when the browser still keeps the audio locked
-export function playPop(delay = 0, onlyIfRunning = false) {
+// One popper: crack (mid/high noise), body (mid noise), thump (pitch-dropping sine) and a confetti rustle.
+// Phone speakers are weak in the bass, so most of the punch sits in the mids (500 to 3000 Hz).
+function burst(c: Ctx, out: AudioNode, t0: number, level: number, pitch: number) {
+  const env = (g: GainNode, peak: number, attack: number, end: number) => {
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak * level, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + end);
+  };
+  const src = (when: number, len: number) => {
+    const s = c.createBufferSource(); s.buffer = noiseBuffer(c);
+    s.start(when, Math.random() * 0.6, len); return s;
+  };
+  // crack
+  const crack = src(t0, 0.3), bp = c.createBiquadFilter(), gc = c.createGain();
+  bp.type = 'bandpass'; bp.frequency.value = 2200 * pitch; bp.Q.value = 0.5; env(gc, 1.4, 0.002, 0.26);
+  crack.connect(bp); bp.connect(gc); gc.connect(out);
+  // body
+  const body = src(t0, 0.3), lp = c.createBiquadFilter(), gb = c.createGain();
+  lp.type = 'lowpass'; lp.frequency.setValueAtTime(1400 * pitch, t0); lp.frequency.exponentialRampToValueAtTime(220, t0 + 0.22); env(gb, 1.2, 0.003, 0.3);
+  body.connect(lp); lp.connect(gb); gb.connect(out);
+  // thump
+  const o = c.createOscillator(), gt = c.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(260 * pitch, t0); o.frequency.exponentialRampToValueAtTime(55, t0 + 0.14); env(gt, 1.1, 0.004, 0.24);
+  o.connect(gt); gt.connect(out); o.start(t0); o.stop(t0 + 0.3);
+  // confetti rustle
+  const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3800; hp.connect(out);
+  for (let i = 0; i < 22; i++) {
+    const at = t0 + 0.07 + i * 0.04 + Math.random() * 0.03;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.3 * level * (1 - i / 28), at + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.035);
+    const s = src(at, 0.05); s.connect(g); g.connect(hp);
+  }
+}
+
+// a short "ta-da" after the bangs
+function chime(c: Ctx, out: AudioNode, t0: number) {
+  [1046.5, 1318.5, 1568, 2093].forEach((f, i) => {
+    const at = t0 + i * 0.085, o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.22, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + (i === 3 ? 0.7 : 0.22));
+    o.connect(g); g.connect(out); o.start(at); o.stop(at + 0.8);
+  });
+}
+
+// delay in seconds; onlyIfRunning: skip quietly when the browser still keeps the audio locked;
+// big: three poppers in a row plus a "ta-da" (the sign-up), otherwise a single, full pop (the opening)
+export function playPop(delay = 0, onlyIfRunning = false, big = false) {
   try {
     const c = context();
     if (!c || (onlyIfRunning && c.state !== 'running')) return;
     if (c.state === 'suspended') void c.resume().catch(() => { /* locked */ });
     const t0 = c.currentTime + delay;
-    setTimeout(stopSilent, (delay + 2) * 1000);
+    setTimeout(stopSilent, (delay + (big ? 3 : 2)) * 1000);
 
-    const master = c.createGain();
-    master.gain.value = VOLUME;
+    const master = c.createGain(); master.gain.value = VOLUME;
     const comp = c.createDynamicsCompressor();
-    master.connect(comp); comp.connect(c.destination);
+    comp.threshold.value = -20; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.12;
+    const makeup = c.createGain(); makeup.gain.value = 1.5;
+    const limit = c.createDynamicsCompressor();
+    limit.threshold.value = -2; limit.knee.value = 0; limit.ratio.value = 20; limit.attack.value = 0.001; limit.release.value = 0.05;
+    master.connect(comp); comp.connect(makeup); makeup.connect(limit); limit.connect(c.destination);
 
-    // 1. the crack: a short burst of filtered noise
-    const crack = c.createBufferSource(); crack.buffer = noiseBuffer(c);
-    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 0.6;
-    const gCrack = c.createGain();
-    gCrack.gain.setValueAtTime(0.0001, t0);
-    gCrack.gain.exponentialRampToValueAtTime(1, t0 + 0.003);
-    gCrack.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
-    crack.connect(bp); bp.connect(gCrack); gCrack.connect(master);
-    crack.start(t0, Math.random() * 0.5, 0.25);
-
-    // 2. the thump: a sine that drops fast in pitch
-    const o = c.createOscillator(); o.type = 'sine';
-    o.frequency.setValueAtTime(190, t0);
-    o.frequency.exponentialRampToValueAtTime(48, t0 + 0.13);
-    const gThump = c.createGain();
-    gThump.gain.setValueAtTime(0.0001, t0);
-    gThump.gain.exponentialRampToValueAtTime(0.9, t0 + 0.004);
-    gThump.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
-    o.connect(gThump); gThump.connect(master);
-    o.start(t0); o.stop(t0 + 0.25);
-
-    // 3. the confetti rustle: a few tiny high crackles right after the bang
-    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4500;
-    hp.connect(master);
-    for (let i = 0; i < 14; i++) {
-      const at = t0 + 0.06 + i * 0.045 + Math.random() * 0.03;
-      const s = c.createBufferSource(); s.buffer = noiseBuffer(c);
-      const g = c.createGain();
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(0.16 * (1 - i / 18), at + 0.002);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.03);
-      s.connect(g); g.connect(hp);
-      s.start(at, Math.random() * 0.8, 0.04);
+    burst(c, master, t0, 1, 1);
+    if (big) {
+      burst(c, master, t0 + 0.17, 0.9, 0.85);
+      burst(c, master, t0 + 0.36, 0.8, 1.15);
+      chime(c, master, t0 + 0.62);
     }
   } catch { /* sound is a bonus: never break the page */ }
 }
