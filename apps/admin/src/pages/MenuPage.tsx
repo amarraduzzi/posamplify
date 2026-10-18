@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera, ListPlus, Bike } from 'lucide-react';
+import { Plus, Pencil, ArrowUp, ArrowDown, Search, Trash2, Eye, EyeOff, Upload, Camera, ListPlus, Bike, Instagram } from 'lucide-react';
 import { tr } from '@resto/shared';
 import { supabase } from '../lib/supabase';
 import { check, fromCents, mad, toCents } from '../lib/api';
@@ -9,6 +9,7 @@ import type { Category, I18n, Item, Restaurant, Variant } from '../lib/types';
 import { Btn, Field, I18nInput, ImageField, Modal, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
 import { ImportMenu } from '../components/ImportMenu';
+import { StoryMaker } from '../components/StoryMaker';
 import { ModifiersManager } from '../components/ModifiersManager';
 import { COURSES, stationsOf } from '../lib/stations';
 import { glovoPrice } from '../lib/glovo';
@@ -27,6 +28,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [sel, setSel] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [editCat, setEditCat] = useState<Category | 'new' | null>(null);
+  const [storyItem, setStoryItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
   const [mods, setMods] = useState(false);
@@ -136,6 +138,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
                 <div className="ms-auto flex items-center gap-1 max-[520px]:w-full max-[520px]:justify-between">
                 <Toggle checked={i.available} onChange={v => upd('menu_items', i.id, { available: v })} label={i.available ? t('Disponible') : t('Épuisé')} />
                 <div className="flex items-center">
+                <button onClick={() => setStoryItem(i)} title={t('Story Instagram')} aria-label={t('Story Instagram')} className="grid h-9 w-9 place-items-center rounded-lg text-brand hover:bg-surface-2"><Instagram className="h-4 w-4" /></button>
                 <button onClick={() => upd('menu_items', i.id, { active: !i.active })} title={i.active ? t('Masquer du menu') : t('Afficher')} aria-label={i.active ? t('Masquer du menu') : t('Afficher')} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-surface-2">
                   {i.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
@@ -153,6 +156,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
         </section>
       </div>
 
+      {storyItem && <StoryMaker r={r} item={storyItem} onClose={() => setStoryItem(null)} />}
       {glovo && <GlovoSettings r={r} onClose={() => setGlovo(false)} />}
       {mods && <ModifiersManager r={r} cats={cats} items={items} onClose={() => setMods(false)} />}
       {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}
