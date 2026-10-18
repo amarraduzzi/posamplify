@@ -89,8 +89,8 @@ export function MenuPage({ r }: { r: Restaurant }) {
           <span className="hidden rounded-xl gold-fill px-4 py-2.5 text-sm font-semibold text-brand-ink sm:block">{t('Importer mon menu')}</span>
         </button>
       )}
-      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-        <section>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <section className="min-w-0">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-bold">{t('Catégories')}</h2>
             <Btn className="px-3 py-1.5" onClick={() => setEditCat('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
@@ -112,16 +112,16 @@ export function MenuPage({ r }: { r: Restaurant }) {
           {!cats.length && <p className="text-sm text-muted">{t('Commencez par créer une catégorie (Boissons, Plats…).')}</p>}
         </section>
 
-        <section>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-bold">{q ? t('Résultats') : cat ? tr(cat.name, lang) : t('Articles')}</h2>
+        <section className="min-w-0">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="min-w-0 truncate font-bold">{q ? t('Résultats') : cat ? tr(cat.name, lang) : t('Articles')}</h2>
             {cat && <Btn tone="brand" onClick={() => setEditItem('new')}><Plus className="h-4 w-4" /> {t('Ajouter un article')}</Btn>}
           </div>
           <ul className="divide-y divide-line/10 overflow-hidden card rounded-3xl">
             {shown.map((i, idx) => (
-              <li key={i.id} className={`flex items-center gap-3 px-3 py-2.5 ${i.active ? '' : 'opacity-50'}`}>
+              <li key={i.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5 ${i.active ? '' : 'opacity-50'}`}>
                 {i.image_url ? <img src={i.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-lg bg-surface-2" />}
-                <button onClick={() => setEditItem(i)} className="min-w-0 flex-1 text-start">
+                <button onClick={() => setEditItem(i)} className="min-w-0 flex-1 basis-40 text-start">
                   <p className="truncate font-semibold"><bdi>{tr(i.name, lang)}</bdi></p>
                   <p className="text-sm text-muted tabular">
                     {i.item_variants.length ? i.item_variants.map(v => `${tr(v.name, lang)} ${mad(v.price_cents)}`).join(' · ') : mad(i.price_cents)}
@@ -133,7 +133,9 @@ export function MenuPage({ r }: { r: Restaurant }) {
                     {i.tags.map(g => <span key={g} className="ms-2 rounded bg-surface-2 px-1.5 text-xs">{TAGS[g] ? t(TAGS[g]) : g}</span>)}
                   </p>
                 </button>
+                <div className="ms-auto flex items-center gap-1 max-[520px]:w-full max-[520px]:justify-between">
                 <Toggle checked={i.available} onChange={v => upd('menu_items', i.id, { available: v })} label={i.available ? t('Disponible') : t('Épuisé')} />
+                <div className="flex items-center">
                 <button onClick={() => upd('menu_items', i.id, { active: !i.active })} title={i.active ? t('Masquer du menu') : t('Afficher')} aria-label={i.active ? t('Masquer du menu') : t('Afficher')} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-surface-2">
                   {i.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
@@ -141,6 +143,8 @@ export function MenuPage({ r }: { r: Restaurant }) {
                   <button onClick={() => move(shown, idx, -1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label={t('Monter')}><ArrowUp className="h-4 w-4" /></button>
                   <button onClick={() => move(shown, idx, 1, 'menu_items')} className="grid h-9 w-7 place-items-center rounded-lg hover:bg-surface-2" aria-label={t('Descendre')}><ArrowDown className="h-4 w-4" /></button>
                 </>}
+                </div>
+                </div>
               </li>
             ))}
             {!shown.length && <li className="px-4 py-10 text-center text-muted">{q ? t('Aucun article trouvé.') : t('Aucun article dans cette catégorie.')}</li>}

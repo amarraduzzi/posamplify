@@ -11,14 +11,14 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
   }, [onClose]);
   // rendered on <body>: an animated page (transform) would otherwise hold it far down a long page
   return createPortal((
-    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-night/50 p-3 backdrop-blur-[2px]" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" className={`pop flex max-h-full w-full flex-col overflow-hidden rounded-3xl bg-surface shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
-        <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-6 py-4">
+    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-night/50 p-2 backdrop-blur-[2px] sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" className={`pop flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl sm:rounded-3xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
+        <div className="flex items-center justify-between gap-3 border-b border-line/[0.07] px-4 py-3 sm:px-6 sm:py-4">
           <h2 className="font-display text-xl font-semibold">{title}</h2>
           <button onClick={onClose} aria-label={t('Fermer')} className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="border-t border-line/[0.07] bg-surface-2/50 px-6 py-4">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+        {footer && <div className="border-t border-line/[0.07] bg-surface-2/50 px-4 py-3 sm:px-6 sm:py-4">{footer}</div>}
       </div>
     </div>
   ), document.body);
@@ -32,7 +32,7 @@ const T: Record<Tone, string> = {
   danger: 'border border-danger/30 bg-danger/10 text-danger hover:bg-danger/15',
 };
 export function Btn({ tone = 'plain', className = '', ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone }) {
-  return <button {...p} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-40 ${T[tone]} ${className}`} />;
+  return <button {...p} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition active:scale-[.98] sm:px-4 disabled:pointer-events-none disabled:opacity-40 ${T[tone]} ${className}`} />;
 }
 export const inputCls = 'w-full rounded-xl border border-line/[0.12] bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/60 focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:bg-surface-2 disabled:text-muted';
 /** A labelled control. Use group for button groups / multi-input widgets (a <label> would name the first button). */
@@ -49,7 +49,7 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
   );
 }
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`card rounded-3xl p-6 ${className}`}>{children}</div>;
+  return <div className={`card rounded-2xl p-4 sm:rounded-3xl sm:p-6 ${className}`}>{children}</div>;
 }
 
 const LBL: Record<string, string> = { fr: 'Français', en: 'English', ar: 'العربية', es: 'Español' };
