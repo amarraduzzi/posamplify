@@ -5,13 +5,14 @@
 // One fixed design for every restaurant: only the colour, the logo and (when there is one) the cover
 // photo come from the restaurant's branding. A first visit opens with a short brand intro (the colour
 // fills the screen, the logo lands, the panel lifts away); a returning guest skips it. After signing
-// up, confetti in the restaurant's colours.
+// up, confetti in the restaurant's colours, with a party-popper bang.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Gift, Loader2, Phone, ShieldCheck, Sparkles, Tag, User } from 'lucide-react';
 import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
 import { ApiError, customerSignup, signupInfo, type SignupInfo, type SignupResult } from '../lib/api';
+import { playPop, unlockAudio } from './confettiSound';
 
 const S = {
   fr: {
@@ -100,7 +101,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
       applyBranding((x.branding ?? {}) as Branding, x.name);
       // first visit in this session, nothing remembered: play the brand intro (a returning guest goes straight in)
       const open = x.enabled && !(eventKey && (!x.event || !x.event.active));
-      if (open && !mine && !reduced() && !seenIntro(slug)) { markIntro(slug); setBase(INTRO_BASE); setIntro(true); setOpenConfetti(true); setTimeout(() => setOpenConfetti(false), 5600); }
+      if (open && !mine && !reduced() && !seenIntro(slug)) { markIntro(slug); setBase(INTRO_BASE); setIntro(true); setOpenConfetti(true); setTimeout(() => setOpenConfetti(false), 5600); unlockAudio(); setTimeout(() => playPop(0, true), 550); }
     }).catch(() => setInfo(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, eventKey]);
@@ -123,6 +124,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
+    unlockAudio(); // inside the tap, so the browser allows the pop after the sign-up
     setErr('');
     if (!name.trim() || phone.replace(/\D/g, '').length < 9) { setErr(t.errors.customer_required); return; }
     setBusy(true);
@@ -130,7 +132,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
       const res = await customerSignup(slug, name, phone, true, eventKey);
       save(`club:${slug}`, { name: name.trim(), phone });
       setDone(res);
-      if (!res.again && !reduced()) { setConfetti(true); setTimeout(() => setConfetti(false), 5200); }
+      if (!res.again && !reduced()) { setConfetti(true); playPop(); setTimeout(() => setConfetti(false), 5200); }
       window.scrollTo(0, 0);
     } catch (x) {
       const m = x instanceof ApiError ? x.message : '';
