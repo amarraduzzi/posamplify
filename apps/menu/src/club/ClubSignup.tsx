@@ -86,6 +86,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const [intro, setIntro] = useState(false);
   const [base, setBase] = useState(0);
   const [confetti, setConfetti] = useState(false);
+  const [openConfetti, setOpenConfetti] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,7 +100,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
       applyBranding((x.branding ?? {}) as Branding, x.name);
       // first visit in this session, nothing remembered: play the brand intro (a returning guest goes straight in)
       const open = x.enabled && !(eventKey && (!x.event || !x.event.active));
-      if (open && !mine && !reduced() && !seenIntro(slug)) { markIntro(slug); setBase(INTRO_BASE); setIntro(true); }
+      if (open && !mine && !reduced() && !seenIntro(slug)) { markIntro(slug); setBase(INTRO_BASE); setIntro(true); setOpenConfetti(true); setTimeout(() => setOpenConfetti(false), 5600); }
     }).catch(() => setInfo(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, eventKey]);
@@ -178,6 +179,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const rise = (d: number) => ({ '--d': `${d}ms` } as React.CSSProperties);
   return (
     <main className="min-h-dvh md:grid md:grid-cols-[1.05fr_1fr]" style={vars}>
+      {openConfetti && <Confetti brand={brand} offset={0.55} top />}
       {intro && <Intro logo={logo} name={r} onSkip={() => { setIntro(false); setBase(0); }} onEnd={() => setIntro(false)} />}
 
       {/* the hero: the restaurant's colour, its logo, the promise */}
@@ -289,21 +291,21 @@ function Intro({ logo, name, onSkip, onEnd }: { logo?: string; name: string; onS
 }
 
 // Confetti in the restaurant's colours; falls once and is then removed.
-function Confetti({ brand }: { brand: string }) {
+function Confetti({ brand, offset = 0, top = false }: { brand: string; offset?: number; top?: boolean }) {
   const pieces = useMemo(() => {
     const palette = ['#ffffff', '#F2AD46', brand, 'color-mix(in srgb, var(--brand) 45%, white)', 'var(--brand-ink)', 'var(--anti)'];
     return Array.from({ length: 44 }, (_, i) => ({
       left: `${(i * 23 + (i % 5) * 7) % 100}%`,
       bg: palette[i % palette.length],
-      dl: `${((i * 37) % 100) / 100 * 0.9}s`,
+      dl: `${offset + ((i * 37) % 100) / 100 * 0.9}s`,
       t: `${2.6 + ((i * 17) % 10) / 10 * 1.6}s`,
       x: `${((i * 53) % 61) - 30}vw`,
       r: `${(i % 2 ? 1 : -1) * (360 + (i * 41) % 540)}deg`,
       w: `${0.4 + ((i * 13) % 5) / 10}rem`,
     }));
-  }, [brand]);
+  }, [brand, offset]);
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden="true">
+    <div className={`pointer-events-none fixed inset-0 ${top ? 'z-[60]' : 'z-40'} overflow-hidden`} aria-hidden="true">
       {pieces.map((p, i) => <span key={i} className="confetti" style={{ left: p.left, background: p.bg, width: p.w, '--dl': p.dl, '--t': p.t, '--x': p.x, '--r': p.r } as React.CSSProperties} />)}
     </div>
   );
