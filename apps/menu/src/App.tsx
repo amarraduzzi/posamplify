@@ -171,7 +171,7 @@ export default function App() {
       });
       if (kiosk) { drop(`pending:${slug}`); setBusy(false); cart.clear(); setCartOpen(false); setKioskDone(res.ticket_number); return; }
       const order: TrackedOrder = { order_id: res.order_id, ticket_number: res.ticket_number,
-                                    total_cents: Number(res.total_cents), placed_at: Date.now() };
+                                    total_cents: Number(res.total_cents), placed_at: Date.now(), item_ids: [...new Set(cart.lines.map(l => l.item_id))] };
       save(`order:${slug}`, order);
       if (!isDineIn) save('customer', { name: checkout.name, phone: checkout.phone, address: checkout.address });
       else if (!menu.table && menu.table_entry && checkout.tableNumber?.trim()) save(`table:${slug}`, checkout.tableNumber.trim());
@@ -557,6 +557,13 @@ export default function App() {
           tableLabel={menu.table?.label ?? null}
           restaurantName={r.name}
           reviewUrl={r.branding?.review_url}
+          dishes={(() => {
+            // the dishes of this order with a photo first, then the other photographed dishes (for "Une autre blague")
+            const ordered = new Set(tracked.item_ids ?? []);
+            const pics = menu.items.filter(i => i.image_url && i.available !== false);
+            return [...pics.filter(i => ordered.has(i.id)), ...pics.filter(i => !ordered.has(i.id))].slice(0, 12)
+              .map(i => ({ name: tr(i.name, lang, fallbacks), image: i.image_url as string }));
+          })()}
           share={r.branding?.guest_share === false ? null : { handle: r.branding?.instagram, reward: r.branding?.guest_reward_on ? r.branding?.guest_reward?.trim() || undefined : undefined, primary: r.branding?.primary_color || '#c8553d', logoUrl: r.branding?.logo_url }}
           timezone={r.timezone}
           onClose={() => setTrackerOpen(false)}
