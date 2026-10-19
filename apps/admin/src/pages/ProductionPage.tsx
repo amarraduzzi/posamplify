@@ -14,7 +14,7 @@ import { DemandForecast } from '../components/DemandForecast';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
-  made_today: number; catering: number; suggested: number; cost_cents: number | null;
+  made_today: number; catering: number; expired_qty?: number; suggested: number; cost_cents: number | null;
 }
 interface Batch { id: string; ingredient_id: string; qty: number; produced_on: string; cost_cents: number | null; note: string | null; cancelled_at: string | null; created_at: string }
 
@@ -121,6 +121,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                       {t('En stock')}: <b className={`tabular ${stock != null && stock < 0 ? 'text-danger' : 'text-ink'}`}>{stock == null ? t('pas encore compté') : fmtQty(stock, i.base_unit)}</b>
                       {' · '}{t('vendu en moyenne')}: <b className="tabular text-ink">{fmtQty(Number(i.daily), i.base_unit)}</b>
                       {Number(i.catering) > 0 && <> · {t('traiteur')}: <b className="tabular text-brand">{fmtQty(Number(i.catering), i.base_unit)}</b></>}
+                      {Number(i.expired_qty) > 0 && <> · {t('Périmé')}: <b className="tabular text-danger">{fmtQty(Number(i.expired_qty), i.base_unit)}</b></>}
                       {Number(i.made_today) > 0 && <> · {t('déjà produit')}: <b className="tabular text-ok">{fmtQty(Number(i.made_today), i.base_unit)}</b></>}
                     </p>
                   </div>

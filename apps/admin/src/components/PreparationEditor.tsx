@@ -29,6 +29,9 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
   const [yUnit, setYUnit] = useState(() => (prep ? bestUnit(prep.base_unit, Number(prep.purchase_qty)).u : 'pc'));
   const [yQty, setYQty] = useState(() => (prep ? show(Number(prep.purchase_qty) / bestUnit(prep.base_unit, Number(prep.purchase_qty)).f) : ''));
   const [ahead, setAhead] = useState(prep?.made_ahead ?? true);
+  const [track, setTrack] = useState(prep?.track_expiry ?? false);
+  const [shelf, setShelf] = useState(prep?.shelf_life_days != null ? String(prep.shelf_life_days) : '');
+  const [warnDays, setWarnDays] = useState(String(prep?.expiry_warn_days ?? 1));
   const [rows, setRows] = useState<Row[] | null>(prep ? null : [{ key: String(++seq), ingredient_id: '', qty: '', unit: '' }]);
   const [busy, setBusy] = useState(false);
 
@@ -75,9 +78,15 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
     if (!lines.length) { a.toast(t('Ajoutez au moins un ingrédient.'), 'error'); return; }
     const ids = lines.map(x => x.ingredient_id);
     if (new Set(ids).size !== ids.length) { a.toast(t('Un ingrédient apparaît deux fois : additionnez les quantités sur une seule ligne.'), 'error'); return; }
+    const useExpiry = track && ahead;
+    const shelfN = Math.round(Number(shelf.replace(',', '.')));
+    const warnN = Math.round(Number(warnDays.replace(',', '.')));
+    if (useExpiry && !(shelfN >= 1 && shelfN <= 3650)) { a.toast(t('La durée doit être entre 1 et 3650 jours.'), 'error'); return; }
+    if (useExpiry && !(warnN >= 0 && warnN <= 60)) { a.toast(t('Le délai d’alerte doit être entre 0 et 60 jours.'), 'error'); return; }
     setBusy(true);
     const row = { name: name.trim(), name_ar: nameAr.trim() || null, base_unit: base, purchase_unit: 'fournée', purchase_qty: yieldQty,
-      waste_bp: 0, is_preparation: true, made_ahead: ahead, category: 'preparation' };
+      waste_bp: 0, is_preparation: true, made_ahead: ahead, category: 'preparation',
+      track_expiry: useExpiry, expiry_type: 'dlc' as const, shelf_life_days: useExpiry ? shelfN : null, expiry_warn_days: useExpiry ? warnN : 2 };
     try {
       const saved = (prep
         ? check(await supabase.from('ingredients').update(row).eq('id', prep.id).select('id').single())
@@ -130,6 +139,22 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
             <p className="text-xs text-muted">{ahead ? t('Vous la produisez sur la page Production ; les ventes prennent dans son stock.') : t('Faite à la minute : chaque vente prend directement ses ingrédients.')}</p>
           </div>
         </div>
+        {ahead && (
+          <div className="rounded-2xl bg-surface-2 p-4">
+            <p className="mb-3 text-sm font-bold">{t('Durée de conservation')}</p>
+            <Toggle checked={track} onChange={setTrack} label={t('Suivre les dates de péremption')} />
+            {track && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label={t('Durée de conservation (jours)')}>
+                  <input className={inputCls} inputMode="numeric" value={shelf} onChange={e => setShelf(e.target.value)} placeholder="2" />
+                </Field>
+                <Field label={t('Prévenir (jours avant)')}>
+                  <input className={inputCls} inputMode="numeric" value={warnDays} onChange={e => setWarnDays(e.target.value)} />
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="rounded-2xl bg-surface-2 p-4">
           <p className="mb-3 text-sm font-bold">{t('Ingrédients pour une fournée')}</p>
