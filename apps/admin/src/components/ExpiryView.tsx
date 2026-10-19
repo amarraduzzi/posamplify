@@ -39,6 +39,8 @@ export function ExpiryView({ r, ings, today, onChanged }: { r: Restaurant; ings:
   const [discard, setDiscard] = useState<StockLot | null>(null);
   const [edit, setEdit] = useState<StockLot | null>(null);
   const [rest, setRest] = useState<{ g: Ingredient; qty: number } | null>(null);
+  const [auto, setAuto] = useState(!!r.profit_settings?.expiry_auto_discard);
+  const [busy, setBusy] = useState(false);
   const byId = useMemo(() => new Map(ings.map(g => [g.id, g])), [ings]);
   const tracked = useMemo(() => ings.filter(g => g.track_expiry), [ings]);
 
@@ -49,6 +51,19 @@ export function ExpiryView({ r, ings, today, onChanged }: { r: Restaurant; ings:
   }, [r.id, a]);
   useEffect(() => { load(); }, [load]);
   const done = () => { load(); onChanged(); };
+  // everything past its date goes in one go (what expires today stays until tomorrow)
+  const sweep = async (n: number, cents: number) => {
+    if (!window.confirm(t('Jeter {n} livraison(s) périmée(s){m} ? Le stock est mis à jour.', { n, m: cents > 0 ? ` (${mad(cents)})` : '' }))) return;
+    setBusy(true);
+    try { const x = await rpc<{ lots: number }>('expiry_sweep', { p_restaurant_id: r.id }); a.toast(t('{n} livraison(s) jetée(s)', { n: x.lots })); done(); }
+    catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  const setAutoDiscard = async (v: boolean) => {
+    setAuto(v);
+    try { check(await supabase.from('restaurants').update({ profit_settings: { ...(r.profit_settings ?? {}), expiry_auto_discard: v } }).eq('id', r.id).select('id')); a.toast(t('Enregistré')); }
+    catch (e) { setAuto(!v); a.fail(e); }
+  };
 
   if (!tracked.length) return (
     <div className="card rounded-3xl p-10 text-center">
@@ -71,6 +86,8 @@ export function ExpiryView({ r, ings, today, onChanged }: { r: Restaurant; ings:
   lots.forEach(l => datedBy.set(l.ingredient_id, (datedBy.get(l.ingredient_id) ?? 0) + Number(l.qty_remaining)));
   const undated = tracked.filter(g => g.stock_qty != null).map(g => ({ g, qty: Number(g.stock_qty) - (datedBy.get(g.id) ?? 0) })).filter(x => x.qty > 0.0005);
   const notStarted = tracked.filter(g => g.stock_qty == null);
+  const gone = rows.filter(x => iso(x.l.expires_on) < today);
+  const goneCents = gone.reduce((n, x) => n + (x.value ?? 0), 0);
 
   return (
     <div className="space-y-5">
@@ -83,6 +100,18 @@ export function ExpiryView({ r, ings, today, onChanged }: { r: Restaurant; ings:
           </div>
         ))}
       </div>
+
+      {(gone.length > 0 || a.canEditProfile) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
+          {gone.length > 0 && <Btn tone="brand" disabled={busy} onClick={() => sweep(gone.length, goneCents)}><Trash2 className="h-4 w-4" /> {t('Jeter tout ce qui est périmé ({n})', { n: gone.length })}</Btn>}
+          {a.canEditProfile && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" className="h-4 w-4" checked={auto} onChange={e => setAutoDiscard(e.target.checked)} />
+              {t('Jeter automatiquement ce qui est périmé à la clôture de la journée')}
+            </label>
+          )}
+        </div>
+      )}
 
       <section className="card rounded-3xl p-6">
         <h2 className="mb-4 font-display text-xl font-semibold">{t('Par date, la plus proche d’abord')}</h2>

@@ -25,7 +25,7 @@ export interface Restaurant {
   site_plan?: 'basic' | 'premium';
   site?: { enabled?: boolean; theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison' | 'signature'; catering?: boolean; request?: boolean;
     story?: { title?: I18n; text?: I18n; image?: string }[]; chef?: { name?: string; role?: I18n; text?: I18n; photo?: string }; signatures?: { item_id: string; text?: I18n }[]; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string; domain?: string; video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean };
-  profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean };
+  profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean; expiry_auto_discard?: boolean };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
@@ -62,6 +62,17 @@ export interface ExpiryAlertItem {
 /** expired / today / soon: how many ingredients, the amount in cents (priced lots only), how many have no price, and the first 8. */
 export interface ExpiryBucket { count: number; value_cents: number; unpriced: number; items: ExpiryAlertItem[] }
 export interface ExpiryAlerts { date: string; expired: ExpiryBucket; today: ExpiryBucket; soon: ExpiryBucket }
+/** What went into one production: per ingredient, the lots used (soonest date first) and the part that came from undated stock. */
+export interface ProductionTrace {
+  production_id: string; name: string; base_unit: BaseUnit; qty: number; produced_on: string; cancelled: boolean;
+  ingredients: { ingredient_id: string; name: string; base_unit: BaseUnit; used: number; traced: number; untraced: number;
+    lots: { lot_code: string | null; supplier: string | null; received_on: string | null; expires_on: string | null; qty: number }[] }[];
+}
+/** Catering: for the confirmed orders of a day, what is still good on that day. */
+export interface CateringExpiryCheck {
+  date: string; short_count: number;
+  items: { ingredient_id: string; name: string; base_unit: BaseUnit; need: number; usable: number; expiring: number; short: number }[];
+}
 /** What was thrown away because it expired over the last `days` days, against the `days` before. */
 export interface ExpiryLosses {
   from: string; to: string; days: number; tracking: number;

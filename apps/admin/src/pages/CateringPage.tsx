@@ -10,6 +10,7 @@ import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { I18n, Restaurant } from '../lib/types';
 import { Btn, Card, Field, inputCls } from '../components/ui';
+import { CateringExpiryWarning } from '../components/CateringExpiryWarning';
 
 type Status = 'quote' | 'confirmed' | 'delivered' | 'cancelled';
 type Method = 'cash' | 'card' | 'transfer' | 'other';
@@ -335,6 +336,7 @@ function CateringEditor({ r, id, onBack, onOpen }: { r: Restaurant; id: string |
 
       <fieldset disabled={frozen} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-5">
+          {c?.status === 'confirmed' && <CateringExpiryWarning r={r} date={c.event_date} />}
           <Card>
             <h2 className="mb-4 font-display text-xl font-semibold">{t('Client et événement')}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
