@@ -1,18 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 import { formatMoney, promoPrice, tr, type PublicItem } from '@resto/shared';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import { TagPills } from './ItemRow';
 import type { Strings } from '../lib/strings';
 
-export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClose, onAdd }: {
+/** the menu link without the table code: a friend must never end up ordering on the sender's table */
+function friendLink(): string {
+  const u = new URL(window.location.href);
+  u.search = ''; u.hash = '';
+  u.pathname = u.pathname.replace(/\/?t\/[^/]+\/?$/, '/');
+  return u.toString();
+}
+
+export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restaurantName, onClose, onAdd }: {
   item: PublicItem | null;
   lang: string;
   fallbacks: string[];
   currency: string;
   t: Strings;
   canOrder: boolean;
+  /** set = show the "send to a friend" button (not on the restaurant's own kiosk) */
+  restaurantName?: string;
   onClose: () => void;
   onAdd: (variantId: string | null, qty: number, note: string, modifiers: string[]) => void;
 }) {
@@ -47,6 +57,24 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
   const desc = tr(item.description, lang, fallbacks);
   const hasPhoto = !!item.image_url && !imgFailed;
 
+  // send the dish to a friend: the photo (when the browser allows it) and the text with the link to the menu
+  async function sendToFriend() {
+    if (!item || !restaurantName) return;
+    const price = formatMoney(promoPrice(Number(item.variants.length ? Math.min(...item.variants.map(v => Number(v.price_cents))) : item.price_cents), item.promo_bp), currency, lang);
+    const text = `${t.sendDishText(tr(item.name, lang, fallbacks), restaurantName, price)}\n${friendLink()}`;
+    try {
+      if (item.image_url && navigator.canShare) {
+        try {
+          const blob = await (await fetch(item.image_url)).blob();
+          const file = new File([blob], 'plat.jpg', { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; }
+        } catch (e) { if (e instanceof DOMException && e.name === 'AbortError') return; /* photo not reachable: send the text only */ }
+      }
+      if (navigator.share) await navigator.share({ text });
+      else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    } catch { /* the friend sheet was closed: nothing to do */ }
+  }
+
   return (
     <Sheet
       open
@@ -65,6 +93,11 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, onClos
             <p className="mt-1 text-lg font-bold text-brand tabular-nums">{item.promo_bp ? <span className="me-2 text-sm font-medium text-muted line-through">{formatMoney(unit - promoPrice(Number(item.price_cents), item.promo_bp) + Number(item.price_cents), currency, lang)}</span> : null}{formatMoney(unit, currency, lang)}{item.sold_by_weight ? ' / kg' : ''}</p>
           )}
           {item.sold_by_weight && <p className="mt-1 text-sm text-muted">{t.byWeight}</p>}
+          {restaurantName && (
+            <button type="button" onClick={sendToFriend} className="press mt-3 inline-flex h-10 items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold">
+              <Send className="size-4 text-brand" />{t.sendDish}
+            </button>
+          )}
         </div>
       }
       footer={canOrder && item.available ? (

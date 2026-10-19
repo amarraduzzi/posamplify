@@ -514,6 +514,7 @@ export default function App() {
         currency={currency}
         t={t}
         canOrder={canOrder && !openItem?.sold_by_weight}
+        restaurantName={kiosk ? undefined : r.name}
         onClose={() => setOpenItem(null)}
         onAdd={(variantId, qty, note, mods) => { if (openItem) { setError(null); cart.add(openItem, variantId, qty, note, mods); setBump(b => b + 1); } setOpenItem(null); }}
       />
