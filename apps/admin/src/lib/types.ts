@@ -53,7 +53,23 @@ export interface Ingredient {
 /** A delivery with its expiry date (the dated part of an ingredient's stock). */
 export interface StockLot {
   id: string; restaurant_id: string; ingredient_id: string; qty_initial: number; qty_remaining: number; expires_on: string;
-  estimated: boolean; received_on: string; lot_code: string | null; supplier: string | null; unit_cost_cents: number | null; source: 'purchase' | 'opening';
+  estimated: boolean; received_on: string; lot_code: string | null; supplier: string | null; unit_cost_cents: number | null; source: 'purchase' | 'opening' | 'production';
+}
+/** One ingredient in a bucket of the expiry alerts (its lots added up). */
+export interface ExpiryAlertItem {
+  ingredient_id: string; name: string; base_unit: BaseUnit; qty: number; value_cents: number | null; expires_on: string; days_left: number; lots: number;
+}
+/** expired / today / soon: how many ingredients, the amount in cents (priced lots only), how many have no price, and the first 8. */
+export interface ExpiryBucket { count: number; value_cents: number; unpriced: number; items: ExpiryAlertItem[] }
+export interface ExpiryAlerts { date: string; expired: ExpiryBucket; today: ExpiryBucket; soon: ExpiryBucket }
+/** What was thrown away because it expired over the last `days` days, against the `days` before. */
+export interface ExpiryLosses {
+  from: string; to: string; days: number; tracking: number;
+  expired_cents: number; expired_count: number; expired_unpriced: number; previous_cents: number; other_cents: number;
+  by_reason: { reason: string; cents: number; n: number }[];
+  by_ingredient: { ingredient_id: string; name: string; base_unit: BaseUnit; qty: number; cents: number; n: number }[];
+  by_day: { date: string; cents: number }[];
+  at_stake: { count: number; cents: number; unpriced: number };
 }
 export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number; dine_in_only?: boolean }
 export interface ProfitDish {

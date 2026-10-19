@@ -3,7 +3,8 @@ import { AlertTriangle, ChevronLeft, ChevronRight, Info, Lightbulb, TrendingDown
 import { mad, rpc } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useAdminCtx } from '../store';
-import type { Restaurant } from '../lib/types';
+import type { ExpiryAlerts, ExpiryBucket, Restaurant } from '../lib/types';
+import { fmtQty } from '../lib/profit';
 import { Card } from '../components/ui';
 import { Star8 } from '../components/Brand';
 import { dateLocale, getLang, t } from '../lib/i18n';
@@ -29,6 +30,23 @@ interface Signal { level: Level; text: string }
 const shift = (d: string, days: number) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + days); return x.toISOString().slice(0, 10); };
 const weekday = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(dateLocale(), { weekday: 'long', timeZone: 'UTC' });
 const pct = (a: number, b: number) => (b ? Math.round(((a - b) / b) * 100) : null);
+
+/** The stock with a date that needs action, as signals: past its date (to throw away), to use today, to use soon.
+ *  An amount is shown only when there is one: "at least" when some lots have no price. */
+function expirySignals(x: ExpiryAlerts): Signal[] {
+  const list = (b: ExpiryBucket) => {
+    const names = b.items.slice(0, 3).map(i => `${i.name} (${fmtQty(Number(i.qty), i.base_unit)})`).join(', ');
+    return b.count > 3 ? t('{list} et {n} autre(s)', { list: names, n: b.count - 3 }) : names;
+  };
+  const amount = (b: ExpiryBucket) => Number(b.value_cents) > 0 ? (b.unpriced > 0 ? t('au moins {m}', { m: mad(Number(b.value_cents)) }) : mad(Number(b.value_cents))) : null;
+  const out: Signal[] = [];
+  // the texts stay literal t('…') calls, so the translation check can find them
+  const one = (b: ExpiryBucket, level: Level, text: (l: string, m: string | null) => string) => { if (b.count) out.push({ level, text: text(list(b), amount(b)) }); };
+  one(x.expired, 'warn', (l, m) => m ? t('Périmé et encore en stock : {list} ({m}). À jeter.', { list: l, m }) : t('Périmé et encore en stock : {list}. À jeter.', { list: l }));
+  one(x.today, 'warn', (l, m) => m ? t('À utiliser aujourd’hui : {list} ({m}).', { list: l, m }) : t('À utiliser aujourd’hui : {list}.', { list: l }));
+  one(x.soon, 'info', (l, m) => m ? t('À écouler dans les prochains jours : {list} ({m}).', { list: l, m }) : t('À écouler dans les prochains jours : {list}.', { list: l }));
+  return out;
+}
 
 /** Plain rules on exact numbers. Never an accusation: things "to check". */
 function signals(b: Briefing, today: string, hasTables: boolean): Signal[] {
@@ -117,14 +135,17 @@ export function BriefingPage({ r }: { r: Restaurant }) {
     Promise.all([
       rpc<{ order_days: number; items: { name: string; base_unit: string; days_left: number | null; daily: number; to_buy: number }[] }>('stock_forecast', { p_restaurant_id: r.id }).catch(() => null),
       rpc<{ name: string; overdue_cents: number; oldest_overdue: string | null }[]>('supplier_balances', { p_restaurant_id: r.id }).catch(() => []),
-    ]).then(([fc, sup]) => {
+      // dated stock to throw away or use up (empty until the database has the expiry update, or nothing is tracked)
+      rpc<ExpiryAlerts>('expiry_alerts', { p_restaurant_id: r.id }).catch(() => null),
+    ]).then(([fc, sup, exp]) => {
       const qty = (q: number, u: string) => u === 'g' && q >= 1000 ? `${Math.ceil(q / 100) / 10} kg` : u === 'ml' && q >= 1000 ? `${Math.ceil(q / 100) / 10} L` : `${Math.ceil(q)} ${u === 'piece' || u === 'pc' ? t('pièce(s)') : u}`;
-      const out: Signal[] = [];
+      const out: Signal[] = exp ? expirySignals(exp) : [];
       for (const i of (fc?.items ?? []).filter(i => i.days_left != null && i.days_left < 2 && i.daily > 0 && i.to_buy > 0).sort((x, y) => x.days_left! - y.days_left!).slice(0, 3))
         out.push({ level: 'warn', text: t('À ce rythme, il vous reste {d} jour(s) de {p}. Commandez {q} pour couvrir les {n} prochains jours.', { d: String(i.days_left).replace('.', ','), p: i.name, q: qty(i.to_buy, i.base_unit), n: fc!.order_days }) });
       for (const x of (sup ?? []).filter(x => Number(x.overdue_cents) > 0).slice(0, 2))
         out.push({ level: 'warn', text: t('Paiement en retard : {m} dus à {s} depuis le {d}.', { m: mad(Number(x.overdue_cents)), s: x.name, d: x.oldest_overdue ? new Date(`${x.oldest_overdue}T12:00:00`).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long' }) : '' }) });
-      setExtra(out);
+      const rank: Level[] = ['warn', 'good', 'info', 'idea'];
+      setExtra(out.sort((x, y) => rank.indexOf(x.level) - rank.indexOf(y.level)));   // stable: the order inside a level stays
     });
   }, [r.id, r.products, date, today]);
   const list = useMemo(() => [...extra, ...(b && today ? signals(b, today, hasTables) : [])], [b, today, hasTables, extra]);
