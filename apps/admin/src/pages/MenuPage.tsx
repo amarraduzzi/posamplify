@@ -30,7 +30,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
   const [q, setQ] = useState('');
   const [editCat, setEditCat] = useState<Category | 'new' | null>(null);
   const [storyItem, setStoryItem] = useState<Item | null>(null);
-  const [storyOpts, setStoryOpts] = useState<{ badge: string; reason: string } | null>(null);
+  const [, setStoryOpts] = useState<{ badge: string; reason: string } | null>(null);
   const [ideas, setIdeas] = useState(false);
   const [editItem, setEditItem] = useState<Item | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
@@ -163,7 +163,7 @@ export function MenuPage({ r }: { r: Restaurant }) {
       </div>
 
       {ideas && <StoryIdeas r={r} items={items} onClose={() => setIdeas(false)} onPick={(item, badge, reason) => { setStoryOpts({ badge, reason }); setStoryItem(item); setIdeas(false); }} />}
-      {storyItem && <StoryMaker r={r} item={storyItem} badge={storyOpts?.badge} reason={storyOpts?.reason} onClose={() => { setStoryItem(null); setStoryOpts(null); }} />}
+      {storyItem && <StoryMaker r={r} item={storyItem} onClose={() => { setStoryItem(null); setStoryOpts(null); }} />}
       {glovo && <GlovoSettings r={r} onClose={() => setGlovo(false)} />}
       {mods && <ModifiersManager r={r} cats={cats} items={items} onClose={() => setMods(false)} />}
       {importing && <ImportMenu r={r} cats={cats} items={items} onClose={() => setImporting(false)} onDone={load} />}
