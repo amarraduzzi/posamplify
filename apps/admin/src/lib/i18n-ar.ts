@@ -2325,4 +2325,8 @@ export const AR: Record<string, string> = {
   "-10 % prochaine visite": "-10 % في الزيارة القادمة",
   "Montant offert prochaine visite": "مبلغ مخفّض في الزيارة القادمة",
   "Cadeau tout de suite": "هدية في الحين",
+  "Employé supprimé": "تم حذف الموظف",
+  "Impossible : c'est le seul manager actif. Ajoutez d'abord un autre manager.": "غير ممكن: هذا هو المسير النشيط الوحيد. أضيفوا مسيرا آخر أولا.",
+  "Son nom disparaît de la liste et de la caisse. Les ventes restent enregistrées, mais sans son nom.": "يختفي اسمه من اللائحة ومن الصندوق. تبقى المبيعات مسجلة ولكن بدون اسمه.",
+  "Ses heures de travail et son tarif sont aussi effacés. Pour quelqu’un qui peut revenir, mettez-le plutôt « Inactif ».": "تمسح أيضا ساعات عمله وأجرته. إذا كان قد يعود، ضعوه كـ «غير نشيط» بدلا من ذلك.",
 };

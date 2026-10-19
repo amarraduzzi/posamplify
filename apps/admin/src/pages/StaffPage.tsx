@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, KeyRound, Pencil } from 'lucide-react';
+import { Plus, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
@@ -12,6 +12,7 @@ export function StaffPage({ r }: { r: Restaurant }) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [edit, setEdit] = useState<Staff | 'new' | null>(null);
   const [pinFor, setPinFor] = useState<Staff | null>(null);
+  const [del, setDel] = useState<Staff | null>(null);
   const load = useCallback(async () => {
     try { setStaff(check(await supabase.from('staff').select('id,name,role,active').eq('restaurant_id', r.id).order('active', { ascending: false }).order('name')) as Staff[]); } catch (e) { a.fail(e); }
   }, [r.id, a]);
@@ -27,6 +28,7 @@ export function StaffPage({ r }: { r: Restaurant }) {
             <div className="flex-1"><p className="font-semibold">{s.name}</p><p className="text-sm text-muted">{s.role === 'manager' ? t('Manager') : t('Employé')}</p></div>
             <Btn onClick={() => setPinFor(s)}><KeyRound className="h-4 w-4" /> {t('Code')}</Btn>
             <Btn onClick={() => setEdit(s)} aria-label={t('Modifier {name}', { name: s.name })}><Pencil className="h-4 w-4" /></Btn>
+            <Btn tone="danger" onClick={() => setDel(s)} aria-label={t('Supprimer {name}', { name: s.name })}><Trash2 className="h-4 w-4" /></Btn>
             <Toggle checked={s.active} onChange={() => toggle(s)} label={s.active ? t('Actif') : t('Inactif')} />
           </li>
         ))}
@@ -34,6 +36,7 @@ export function StaffPage({ r }: { r: Restaurant }) {
       </ul>
       {edit && <StaffEditor r={r} s={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
       {pinFor && <PinEditor s={pinFor} onClose={() => setPinFor(null)} />}
+      {del && <DeleteStaff s={del} others={staff.filter(x => x.id !== del.id)} onClose={() => setDel(null)} onDone={() => { setDel(null); load(); }} />}
     </div>
   );
 }
@@ -79,6 +82,30 @@ function PinEditor({ s, onClose }: { s: Staff; onClose: () => void }) {
       <Field label={t('Code (4 à 6 chiffres)')} hint={t("Le code n'est jamais affiché ni stocké en clair. Un changement débloque aussi un compte bloqué après 5 erreurs.")}>
         <input autoFocus className={inputCls} inputMode="numeric" maxLength={6} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} />
       </Field>
+    </Modal>
+  );
+}
+
+function DeleteStaff({ s, others, onClose, onDone }: { s: Staff; others: Staff[]; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const [busy, setBusy] = useState(false);
+  // the till needs at least one active manager to approve discounts, cancellations and the Z close
+  const lastManager = s.role === 'manager' && s.active && !others.some(x => x.role === 'manager' && x.active);
+  const remove = async () => {
+    setBusy(true);
+    try { check(await supabase.from('staff').delete().eq('id', s.id).select('id')); a.toast(t('Employé supprimé')); onDone(); } catch (e) { a.fail(e); setBusy(false); }
+  };
+  return (
+    <Modal title={t('Supprimer {name} ?', { name: s.name })} onClose={onClose}
+      footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Annuler')}</Btn>{!lastManager && <Btn tone="danger" disabled={busy} onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer')}</Btn>}</div>}>
+      {lastManager ? (
+        <p>{t("Impossible : c'est le seul manager actif. Ajoutez d'abord un autre manager.")}</p>
+      ) : (
+        <div className="space-y-3">
+          <p>{t('Son nom disparaît de la liste et de la caisse. Les ventes restent enregistrées, mais sans son nom.')}</p>
+          <p className="text-sm text-muted">{t('Ses heures de travail et son tarif sont aussi effacés. Pour quelqu’un qui peut revenir, mettez-le plutôt « Inactif ».')}</p>
+        </div>
+      )}
     </Modal>
   );
 }

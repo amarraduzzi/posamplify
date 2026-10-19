@@ -2323,4 +2323,8 @@ export const EN: Record<string, string> = {
   "-10 % prochaine visite": "-10 % next visit",
   "Montant offert prochaine visite": "Amount off next visit",
   "Cadeau tout de suite": "Gift right away",
+  "Employé supprimé": "Staff member deleted",
+  "Impossible : c'est le seul manager actif. Ajoutez d'abord un autre manager.": "Not possible: this is the only active manager. Add another manager first.",
+  "Son nom disparaît de la liste et de la caisse. Les ventes restent enregistrées, mais sans son nom.": "Their name disappears from the list and the till. Sales stay recorded, but without their name.",
+  "Ses heures de travail et son tarif sont aussi effacés. Pour quelqu’un qui peut revenir, mettez-le plutôt « Inactif ».": "Their worked hours and pay rate are erased too. For someone who may come back, set them to “Inactive” instead.",
 };

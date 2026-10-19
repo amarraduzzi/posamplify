@@ -94,8 +94,8 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restau
           )}
           {item.sold_by_weight && <p className="mt-1 text-sm text-muted">{t.byWeight}</p>}
           {restaurantName && (
-            <button type="button" onClick={sendToFriend} className="press mt-3 inline-flex h-10 items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold">
-              <Send className="size-4 text-brand" />{t.sendDish}
+            <button type="button" onClick={sendToFriend} className="press mt-3 inline-flex h-11 items-center gap-2.5 rounded-full bg-brand/12 px-5 text-[15px] font-semibold text-brand transition hover:bg-brand/20">
+              <Send className="size-5" />{t.sendDish}
             </button>
           )}
         </div>
