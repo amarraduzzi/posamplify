@@ -1,11 +1,10 @@
 import { ReviewButton } from './ReviewButton';
 import { GuestStory, type ShareConfig, type ShareDish } from './GuestStory';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Check, ChefHat, BellRing, UtensilsCrossed, XCircle, MessageCircle, Clock } from 'lucide-react';
 import { formatMoney, type OrderStatus, type OrderStatusResult } from '@resto/shared';
 import { getOrderStatus } from '../lib/api';
 import type { Strings } from '../lib/strings';
-import { Divider, Star8 } from './Ornament';
 
 export interface TrackedOrder { order_id: string; ticket_number: number; total_cents: number; placed_at: number; item_ids?: string[] }
 
@@ -62,87 +61,80 @@ export function OrderTracker({ order, t, lang, currency, tableLabel, restaurantN
       <div className="absolute inset-x-0 top-0 h-96 hero-glow" aria-hidden>
         <div className="absolute inset-0 fade-down"><div className="absolute inset-0 zellige zellige-hero" /></div>
       </div>
-      <div className="relative mx-auto max-w-md px-6 pt-8 pb-10 min-h-full flex flex-col">
-        {share && !cancelled && (
-          <div className="mb-8"><GuestStory t={t} lang={lang} restaurant={restaurantName} orderId={order.order_id} ticket={order.ticket_number} cfg={share} dishes={dishes ?? []} /></div>
-        )}
-        <div className="text-center">
-          <div className="relative mx-auto size-20">
-            {!cancelled && <span className="absolute inset-0 rounded-full bg-brand animate-pulse-ring" aria-hidden />}
-            <div className={`relative grid place-items-center size-20 rounded-full animate-pop ${cancelled ? 'bg-danger text-white' : 'bg-brand text-brand-ink glow-brand'}`}>
-              {cancelled ? <XCircle className="size-9" /> : <Check className="size-9" strokeWidth={3} />}
+      <div className="relative mx-auto max-w-md px-5 pt-6 pb-8 min-h-full flex flex-col">
+        {/* 1. confirmation: small and clear, the order number stays big enough for the waiter */}
+        <div className="rounded-3xl card p-4 animate-rise">
+          <div className="flex items-center gap-3">
+            <div className={`grid size-11 shrink-0 place-items-center rounded-full ${cancelled ? 'bg-danger text-white' : 'bg-brand text-brand-ink'}`}>
+              {cancelled ? <XCircle className="size-6" /> : <Check className="size-6" strokeWidth={3} />}
+            </div>
+            <div className="min-w-0 flex-1 text-start">
+              <h1 className="font-display text-xl font-semibold leading-tight">{t.thanks}</h1>
+              <p className="truncate text-sm text-muted">
+                <bdi>{restaurantName}</bdi>{tableLabel ? <> · {t.table} <bdi className="font-semibold text-ink">{tableLabel}</bdi></> : ''}
+              </p>
+            </div>
+            <div className="shrink-0 text-end">
+              <p dir="ltr" className="font-display text-3xl font-semibold tabular-nums leading-none text-brand">#{order.ticket_number}</p>
+              <p className="mt-1 text-sm font-semibold"><bdi>{formatMoney(order.total_cents, currency, lang)}</bdi></p>
             </div>
           </div>
-          <h1 className="mt-6 font-display text-[1.9rem] font-semibold leading-tight animate-rise" style={{ ['--i' as string]: 2 }}>{t.thanks}</h1>
-          <p className="mt-1 text-muted animate-rise" style={{ ['--i' as string]: 3 }}>{restaurantName}</p>
-
-          <div className="relative mt-8 mx-auto w-full max-w-xs rounded-[2rem] card px-6 py-6 overflow-hidden animate-rise" style={{ ['--i' as string]: 4 }}>
-            <Star8 className="absolute -top-16 -end-16 size-44 text-brand opacity-[0.06] animate-spin-slow" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted">{t.ticket}</p>
-            <p dir="ltr" className="mt-1 font-display text-7xl font-semibold tabular-nums text-gradient-brand leading-none py-1">#{order.ticket_number}</p>
-            <Divider className="mt-4" />
-            {online && (
-              <p className={`mt-4 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${info?.eta_at ? 'bg-brand/15 text-brand' : 'bg-surface-2 text-muted'}`}>
-                <Clock className="size-4" />{when ?? t.waitingConfirm}
-              </p>
-            )}
-            {info?.delivery_code && (
-              <div className="mt-4 rounded-2xl bg-brand/12 px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand">{t.deliveryCode}</p>
-                <p dir="ltr" className="font-display text-4xl font-semibold tracking-[0.3em] tabular-nums">{info.delivery_code}</p>
-                <p className="mt-1 text-xs text-muted">{info.delivery_status === 'picked_up' && info.courier ? t.courierOnWay(info.courier) : t.deliveryCodeHint}</p>
-              </div>
-            )}
-            <p className="mt-4 text-sm text-muted">
-              {tableLabel ? <>{t.table} <bdi className="font-semibold text-ink">{tableLabel}</bdi> · </> : ''}
-              <bdi className="font-semibold text-ink">{formatMoney(order.total_cents, currency, lang)}</bdi>
+          {online && (
+            <p className={`mt-3 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${info?.eta_at ? 'bg-brand/15 text-brand' : 'bg-surface-2 text-muted'}`}>
+              <Clock className="size-4" />{when ?? t.waitingConfirm}
             </p>
-          </div>
+          )}
+          {info?.delivery_code && (
+            <div className="mt-3 rounded-2xl bg-brand/12 px-4 py-3 text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand">{t.deliveryCode}</p>
+              <p dir="ltr" className="font-display text-4xl font-semibold tracking-[0.3em] tabular-nums">{info.delivery_code}</p>
+              <p className="mt-1 text-xs text-muted">{info.delivery_status === 'picked_up' && info.courier ? t.courierOnWay(info.courier) : t.deliveryCodeHint}</p>
+            </div>
+          )}
         </div>
 
-        {cancelled ? (
-          <p className="mt-8 rounded-2xl card p-4 text-center">{t.statusHint.cancelled}</p>
-        ) : (
-          <ol className="mt-10 animate-rise" style={{ ['--i' as string]: 6 }} aria-label="status">
-            {STEPS.map((s, i) => {
-              const done = i <= current;
-              const active = i === current;
-              return (
-                <li key={s.key} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`relative grid place-items-center size-11 rounded-full transition-all duration-500 ${
-                      done ? 'bg-brand text-brand-ink' : 'bg-surface border border-line text-muted'} ${active ? 'glow-brand scale-110' : ''}`}>
-                      {active && <span className="absolute inset-0 rounded-full bg-brand animate-pulse-ring" aria-hidden />}
-                      <s.Icon className="relative size-5" />
-                    </div>
-                    {i < STEPS.length - 1 && (
-                      <div className="w-0.5 flex-1 min-h-7 bg-line overflow-hidden rounded-full">
-                        <div className={`w-full bg-brand transition-all duration-700 ${i < current ? 'h-full' : 'h-0'}`} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="pb-7 pt-2.5">
-                    <p className={`font-semibold ${done ? '' : 'text-muted'}`}>{t.status[s.key]}</p>
-                    {active && <p className="text-sm text-muted mt-0.5">{t.statusHint[s.key]}</p>}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+        {/* 2. the story: the main thing on this page */}
+        {share && !cancelled && (
+          <div className="mt-5"><GuestStory t={t} lang={lang} restaurant={restaurantName} orderId={order.order_id} ticket={order.ticket_number} cfg={share} dishes={dishes ?? []} /></div>
         )}
 
-        {status === 'served' && <div className="mt-8 animate-rise"><ReviewButton url={reviewUrl} label={t.reviewCta} hint={t.reviewHint} /></div>}
+        {/* 3. status: one line of icons and the current step, not a long list */}
+        {cancelled ? (
+          <p className="mt-6 rounded-2xl card p-4 text-center">{t.statusHint.cancelled}</p>
+        ) : (
+          <div className="mt-6 animate-rise" aria-label="status">
+            <div className="flex items-center px-2">
+              {STEPS.map((s, i) => {
+                const done = i <= current;
+                const active = i === current;
+                return (
+                  <Fragment key={s.key}>
+                    <div className={`relative grid size-9 shrink-0 place-items-center rounded-full transition-all duration-500 ${done ? 'bg-brand text-brand-ink' : 'bg-surface border border-line text-muted'} ${active ? 'glow-brand' : ''}`}>
+                      {active && <span className="absolute inset-0 rounded-full bg-brand animate-pulse-ring" aria-hidden />}
+                      <s.Icon className="relative size-4" />
+                    </div>
+                    {i < STEPS.length - 1 && <div className={`h-0.5 flex-1 rounded-full ${i < current ? 'bg-brand' : 'bg-line'}`} />}
+                  </Fragment>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-center font-semibold">{t.status[status]}</p>
+            <p className="text-center text-sm text-muted">{t.statusHint[status]}</p>
+          </div>
+        )}
+
+        {status === 'served' && <div className="mt-6 animate-rise"><ReviewButton url={reviewUrl} label={t.reviewCta} hint={t.reviewHint} /></div>}
         {online && wa && !cancelled && status !== 'served' && (
           <a href={`https://wa.me/${wa}?text=${encodeURIComponent(`${t.ticket} #${order.ticket_number}`)}`} target="_blank" rel="noopener"
-            className="mt-8 flex h-12 items-center justify-center gap-2 rounded-full border border-line font-semibold press">
+            className="mt-6 flex h-12 items-center justify-center gap-2 rounded-full border border-line font-semibold press">
             <MessageCircle className="size-5 text-brand" />{t.contactWhatsApp}
           </a>
         )}
-        <p className="mt-auto pt-6 text-center text-sm text-muted">{info?.order_type === 'takeaway' ? t.payOnPickup : info?.order_type === 'delivery' ? t.payOnDelivery : t.payAtCounter}</p>
+        <p className="mt-auto pt-6 text-center text-xs text-muted">{info?.order_type === 'takeaway' ? t.payOnPickup : info?.order_type === 'delivery' ? t.payOnDelivery : t.payAtCounter}</p>
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 h-13 rounded-full card font-semibold press"
+          className="mt-3 h-12 rounded-full card font-semibold press"
         >
           {t.backToMenu}
         </button>

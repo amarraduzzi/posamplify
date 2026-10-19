@@ -108,24 +108,32 @@ export function GuestStory({ t, lang, restaurant, orderId, ticket, cfg, dishes }
   return (
     <section className="story-banner relative overflow-hidden rounded-[2rem] bg-brand p-4 text-brand-ink glow-brand animate-pop" aria-label={t.shareCta}>
       <span className="story-shine" aria-hidden />
-      <div className="relative flex items-center gap-4">
-        <canvas ref={canvas} style={{ aspectRatio: `${W}/${H}` }} className="story-wobble w-[34%] max-w-[132px] shrink-0 rounded-xl bg-white/20 shadow-2xl ring-4 ring-white" />
-        <div className="min-w-0 flex-1 text-start">
-          <p className="font-display text-2xl font-semibold leading-tight">{t.shareCta}</p>
-          <p className="mt-1 text-sm opacity-90">{t.shareHint}</p>
-          {teaser && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-ink shadow-lg">
-              <Gift className="size-4 shrink-0 text-brand" /><span>{teaser}</span>
-            </p>
-          )}
-        </div>
+      <div className="relative text-center">
+        {teaser ? (
+          <>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] opacity-90">{t.shareCta}</p>
+            <p className="mt-1.5 font-display text-[1.75rem] font-semibold leading-tight"><bdi>{teaser}</bdi></p>
+          </>
+        ) : (
+          <>
+            <p className="font-display text-2xl font-semibold leading-tight">{t.shareCta}</p>
+            <p className="mt-1 text-sm opacity-90">{t.shareHint}</p>
+          </>
+        )}
       </div>
+      <canvas ref={canvas} style={{ aspectRatio: `${W}/${H}` }} className="story-wobble relative mx-auto mt-4 block w-[60%] max-w-[240px] rounded-2xl bg-white/20 shadow-2xl ring-4 ring-white" />
+      {teaser && !showReward && (
+        <ol className="relative mx-auto mt-4 w-fit max-w-full space-y-1.5 text-start text-sm font-semibold">
+          <li className="flex items-center gap-2.5"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-ink">1</span>{t.stepPost}</li>
+          <li className="flex items-center gap-2.5"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-ink">2</span>{t.stepReward}</li>
+        </ol>
+      )}
       <button onClick={post} disabled={busy} className="press relative mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-white text-lg font-bold text-ink shadow-xl disabled:opacity-60">
         <Share2 className="size-5" />{t.shareGo}
       </button>
-      <div className="relative mt-3 flex items-center justify-center gap-5 text-sm font-semibold">
-        <button onClick={() => setRoll(r => r + 1)} className="flex items-center gap-1.5 underline-offset-4 hover:underline"><Shuffle className="size-4" />{t.shareAnother}</button>
-        <button onClick={saveOnly} disabled={busy} className="flex items-center gap-1.5 underline-offset-4 hover:underline"><Download className="size-4" />{t.shareSave}</button>
+      <div className="relative mt-3 flex items-center justify-center gap-5 text-xs font-semibold opacity-90">
+        <button onClick={() => setRoll(r => r + 1)} className="flex items-center gap-1.5 underline-offset-4 hover:underline"><Shuffle className="size-3.5" />{t.shareAnother}</button>
+        <button onClick={saveOnly} disabled={busy} className="flex items-center gap-1.5 underline-offset-4 hover:underline"><Download className="size-3.5" />{t.shareSave}</button>
       </div>
       {cfg.handle && <p className="relative mt-2 text-center text-xs opacity-85">{t.shareTag(cfg.handle.replace(/^@/, ''))}</p>}
       {err && <p className="relative mt-2 text-center text-sm font-semibold">{t.shareError}</p>}
