@@ -43,6 +43,15 @@ export interface PromoInfo { code: string; name: string; discount_type: 'percent
 export const checkPromo = (slug: string, code: string, subtotal: number) =>
   call<PromoInfo>('check_promo_code', { p_slug: slug, p_code: code, p_subtotal_cents: subtotal });
 
+// ---- the story actions: a one-time code for the next visit
+export interface GuestVoucher {
+  code: string; name: string; discount_type: 'percent' | 'amount'; value: number; min_order_cents: number;
+  starts_on: string; ends_on: string; days: number[]; start_time: string | null; end_time: string | null; channels: string[];
+}
+export type VoucherResult = { status: 'ok'; voucher: GuestVoucher } | { status: 'none' | 'full' };
+export const issueVoucher = (orderId: string, actionId: string) =>
+  call<VoucherResult>('issue_guest_voucher', { p_order_id: orderId, p_action_id: actionId });
+
 // ---- reservations and waitlist
 export interface BookingInfo { enabled: boolean; waitlist: boolean; max_party: number; days_ahead: number; note: string | null; name: string; timezone: string }
 export interface ReservationStatus {

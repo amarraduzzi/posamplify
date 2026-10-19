@@ -19,9 +19,44 @@ export interface Branding {
   /** guests can turn a photo of their dish into a Polaroid story (default on) */
   guest_share?: boolean;
   instagram?: string;
-  /** optional gift for guests who share; empty / off = no gift */
+  /** old single gift (before the list of actions below); still read when there is no list */
   guest_reward_on?: boolean;
   guest_reward?: string;
+  /** what guests get for sharing their story, built by the owner; empty = a story without any reward */
+  guest_actions?: GuestAction[];
+}
+
+/**
+ * One thing a guest can get for sharing the "J'étais là" story.
+ *  when 'table': a gift handed over by the waiter now (type 'gift', the name is the gift)
+ *  when 'next' : a one-time code for the next visit (type 'percent' or 'amount'), made by issue_guest_voucher
+ */
+export interface GuestAction {
+  id: string;
+  on: boolean;
+  name: string;
+  when: 'table' | 'next';
+  type: 'gift' | 'percent' | 'amount';
+  /** percent: 1 to 100; amount: in the restaurant's currency (not cents) */
+  value?: number;
+  /** minimum order, in the restaurant's currency */
+  min?: number;
+  valid_days?: number;
+  /** the code works from the next day (default) or straight away */
+  delay?: 'next_day' | 'now';
+  /** weekdays the code works on (1 = Monday ... 7 = Sunday), empty = every day */
+  days?: number[];
+  from?: string;
+  to?: string;
+  max_per_week?: number;
+  in_store_only?: boolean;
+}
+
+/** The actions of a restaurant. The old single gift counts as one 'table' action. */
+export function guestActionsOf(b: Branding | null | undefined): GuestAction[] {
+  if (Array.isArray(b?.guest_actions)) return b!.guest_actions;
+  const gift = b?.guest_reward_on ? b.guest_reward?.trim() : '';
+  return gift ? [{ id: 'legacy', on: true, name: gift, when: 'table', type: 'gift' }] : [];
 }
 
 export interface PublicRestaurant {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Bike, Clock, LocateFixed, PauseCircle, QrCode, ShoppingBag, Ticket, X } from 'lucide-react';
 import { errorCode, formatMoney, tr, type OrderType, type PublicMenu } from '@resto/shared';
 import { checkPromo, type PromoInfo } from '../lib/api';
+import { savedVouchers } from '../lib/vouchers';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import type { Cart } from '../lib/cart';
@@ -99,9 +100,11 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   const [code, setCode] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeErr, setCodeErr] = useState<string | null>(null);
-  const applyCode = async () => {
+  // the codes this guest got for sharing his story, kept on his phone: one tap to use one
+  const mine = useMemo(() => savedVouchers(menu.restaurant.slug).filter(v => v.channels.includes('online')), [menu.restaurant.slug, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const applyCode = async (c = code) => {
     setCodeBusy(true); setCodeErr(null);
-    try { const p = await checkPromo(menu.restaurant.slug, code.trim(), sub + fee); setCheckout({ ...checkout, promo: p }); setCode(''); }
+    try { const p = await checkPromo(menu.restaurant.slug, c.trim(), sub + fee); setCheckout({ ...checkout, promo: p }); setCode(''); }
     catch (e) { setCodeErr(t.errors[errorCode(e)]); }
     setCodeBusy(false);
   };
@@ -302,13 +305,19 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
               ) : (
                 <div className="flex gap-2">
                   <input value={code} onChange={e => { setCode(e.target.value.replace(/[^A-Za-z0-9_-]/g, '').toUpperCase().slice(0, 20)); setCodeErr(null); }}
-                    onKeyDown={e => { if (e.key === 'Enter' && code.length >= 3) applyCode(); }}
+                    onKeyDown={e => { if (e.key === 'Enter' && code.length >= 3) void applyCode(); }}
                     placeholder={t.promoCode} dir="ltr" autoCapitalize="characters"
                     className="h-12 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 font-mono uppercase outline-none focus:border-brand placeholder:font-sans placeholder:normal-case placeholder:text-muted" />
-                  <button type="button" disabled={code.length < 3 || codeBusy} onClick={applyCode}
+                  <button type="button" disabled={code.length < 3 || codeBusy} onClick={() => void applyCode()}
                     className="h-12 rounded-2xl border border-line px-4 text-sm font-semibold disabled:opacity-40 press">{codeBusy ? '…' : t.apply}</button>
                 </div>
               )}
+              {!promo && mine.map(v => (
+                <button key={v.code} type="button" disabled={codeBusy} onClick={() => void applyCode(v.code)}
+                  className="press mt-2 flex w-full items-center gap-2 rounded-2xl bg-brand/10 px-4 py-2.5 text-start text-sm font-semibold disabled:opacity-50">
+                  <Ticket className="size-4 shrink-0 text-brand" /><span className="flex-1">{t.voucherYour}</span><span dir="ltr" className="font-mono tracking-wider text-brand">{v.code}</span>
+                </button>
+              ))}
               {codeErr && <p className="mt-1.5 text-sm text-danger">{codeErr}</p>}
             </div>
           )}

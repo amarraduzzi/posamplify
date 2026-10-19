@@ -10,6 +10,8 @@ import { isSiteOnly, type I18n, type Restaurant } from '../lib/types';
 import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
 import { BillingCard } from '../components/OwnerBilling';
+import { GuestActions } from '../components/GuestActions';
+import { guestActionsOf, type GuestAction } from '@resto/shared';
 
 const LANGS: [string, string][] = [['fr', 'Français'], ['ar', 'العربية'], ['en', 'English'], ['es', 'Español']];
 
@@ -29,7 +31,10 @@ export function SettingsPage({ r }: { r: Restaurant }) {
   const [brand, setBrand] = useState({ primary_color: r.branding.primary_color ?? '#C2410C', theme: r.branding.theme ?? 'light',
     logo_url: r.branding.logo_url ?? null as string | null, cover_url: r.branding.cover_url ?? null as string | null, tagline: (r.branding.tagline ?? {}) as I18n,
     review_url: r.branding.review_url ?? '', review_on_receipt: r.branding.review_on_receipt ?? true,
-    guest_share: r.branding.guest_share ?? true, instagram: r.branding.instagram ?? '', guest_reward_on: r.branding.guest_reward_on ?? false, guest_reward: r.branding.guest_reward ?? '' });
+    guest_share: r.branding.guest_share ?? true, instagram: r.branding.instagram ?? '' });
+  const [actions, setActions] = useState<GuestAction[]>(() => guestActionsOf(r.branding));
+  // an action needs a name; a code for the next visit needs an amount
+  const actionsOk = actions.every(a => a.name.trim() && (a.when === 'table' || (a.value ?? 0) > 0));
   const reviewOk = !brand.review_url.trim() || /^https:\/\/\S+$/.test(brand.review_url.trim());
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
@@ -51,7 +56,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
       check(await supabase.from('restaurants').update({
         ...f, name: f.name.trim(), ice: f.ice.trim() || null, legal_name: f.legal_name.trim() || null, tax_id: f.tax_id.trim() || null,
         rc: f.rc.trim() || null, phone: f.phone.trim() || null, address: f.address.trim() || null, city: f.city.trim() || null,
-        branding: { ...r.branding, ...brand, primary_color: ownColor ? brand.primary_color : undefined, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined, instagram: brand.instagram.replace(/^@/, '').trim() || undefined, guest_reward: brand.guest_reward.trim() || undefined },
+        branding: { ...r.branding, ...brand, primary_color: ownColor ? brand.primary_color : undefined, logo_url: brand.logo_url || undefined, cover_url: brand.cover_url || undefined, review_url: brand.review_url.trim() || undefined, instagram: brand.instagram.replace(/^@/, '').trim() || undefined,
+          guest_actions: actions.map(a => ({ ...a, name: a.name.trim() })), guest_reward_on: undefined, guest_reward: undefined },
         pos_settings: { ...ps, printers: { receipt: pos.receipt.trim() || 'TICKET', stations: Object.fromEntries(stations.map(x => [x.key, x.printer.trim() || 'CUISINE'])) },
           stations: stations.map(x => ({ key: x.key, name: x.name.trim() || x.key })),
           idle_lock_minutes: Math.max(0, Math.min(120, Number(pos.idle) || 0)), receipt_footer: pos.footer.trim() || undefined },
@@ -66,7 +72,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="me-auto font-display text-3xl font-semibold">{t('Restaurant')}</h1>
-        {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length || !reviewOk} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
+        {!ro && <Btn tone="brand" disabled={busy || !f.name.trim() || !f.languages.length || !reviewOk || !actionsOk} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn>}
       </div>
       {ro && <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm">{t('Seul le propriétaire peut modifier ces informations.')}</p>}
       <BillingCard r={r} />
@@ -135,21 +141,20 @@ export function SettingsPage({ r }: { r: Restaurant }) {
           </div>
         </Card>
         <Card>
-          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Camera className="h-5 w-5 text-brand" /> {t('Photos Instagram des clients')}</h2>
-          <p className="mb-4 text-sm text-muted">{t("Après sa commande, le client photographie son plat : l'appli en fait un Polaroïd avec votre logo, prêt pour sa story Instagram. Vos clients font votre publicité.")}</p>
+          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Camera className="h-5 w-5 text-brand" /> {t('Stories Instagram des clients')}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Après sa commande, le client reçoit une story prête à poster : son plat, un tampon « J’étais là » et une phrase drôle, avec votre logo. Vos clients font votre publicité.')}</p>
           <div className="space-y-4">
-            <Toggle checked={brand.guest_share} onChange={v => setBrand({ ...brand, guest_share: v })} label={t('Proposer le Polaroïd aux clients')} />
+            <Toggle checked={brand.guest_share} onChange={v => setBrand({ ...brand, guest_share: v })} label={t('Proposer la story « J’étais là » aux clients')} />
             {brand.guest_share && (
               <>
-                <Field label={t('Votre compte Instagram')} hint={t('Affiché sur le Polaroïd et dans le conseil « mentionnez-nous ».')}>
+                <Field label={t('Votre compte Instagram')} hint={t('Affiché sur la story et dans le conseil « mentionnez-nous ».')}>
                   <input dir="ltr" className={inputCls} value={brand.instagram} onChange={e => setBrand({ ...brand, instagram: e.target.value.replace(/^@/, '').trim() })} placeholder="nom_du_restaurant" />
                 </Field>
-                <Toggle checked={brand.guest_reward_on} onChange={v => setBrand({ ...brand, guest_reward_on: v })} label={t('Offrir un cadeau à ceux qui partagent (facultatif)')} />
-                {brand.guest_reward_on && (
-                  <Field label={t('Le cadeau')} hint={t('Le client montre sa story au serveur, qui lui remet le cadeau. Un seul cadeau par commande.')}>
-                    <input className={inputCls} maxLength={60} value={brand.guest_reward} onChange={e => setBrand({ ...brand, guest_reward: e.target.value })} placeholder={t('Ex : un café offert')} />
-                  </Field>
-                )}
+                <div className="border-t border-line/10 pt-4">
+                  <h3 className="font-display text-lg font-semibold">{t('Récompenses pour ceux qui partagent (facultatif)')}</h3>
+                  <p className="mb-3 text-sm text-muted">{t('Vous décidez : rien du tout, un cadeau à table, ou un code personnel de réduction pour la prochaine visite. Le code est unique, ne marche qu’une fois et se saisit en caisse comme un code promo.')}</p>
+                  <GuestActions restaurantId={r.id} actions={actions} onChange={setActions} currency={r.currency} />
+                </div>
               </>
             )}
           </div>

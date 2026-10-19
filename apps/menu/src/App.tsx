@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
-import { errorCode, formatMoney, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
+import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
 import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo } from './lib/api';
 import { BookingSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
@@ -564,7 +564,7 @@ export default function App() {
             return [...pics.filter(i => ordered.has(i.id)), ...pics.filter(i => !ordered.has(i.id))].slice(0, 12)
               .map(i => ({ name: tr(i.name, lang, fallbacks), image: i.image_url as string }));
           })()}
-          share={r.branding?.guest_share === false ? null : { handle: r.branding?.instagram, reward: r.branding?.guest_reward_on ? r.branding?.guest_reward?.trim() || undefined : undefined, primary: r.branding?.primary_color || '#c8553d', logoUrl: r.branding?.logo_url }}
+          share={r.branding?.guest_share === false ? null : { handle: r.branding?.instagram, actions: guestActionsOf(r.branding), slug, currency, primary: r.branding?.primary_color || '#c8553d', logoUrl: r.branding?.logo_url }}
           timezone={r.timezone}
           onClose={() => setTrackerOpen(false)}
         />

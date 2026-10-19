@@ -38,7 +38,7 @@ export function PromotionsPage({ r }: { r: Restaurant }) {
     try {
       const to = ymd(new Date()), from = ymd(new Date(Date.now() - 29 * 86400_000));
       const [p, c, i, x] = await Promise.all([
-        supabase.from('promotions').select('*').eq('restaurant_id', r.id).order('created_at'),
+        supabase.from('promotions').select('*').eq('restaurant_id', r.id).eq('voucher', false).order('created_at'),
         supabase.from('categories').select('*').eq('restaurant_id', r.id).eq('active', true).order('sort_order'),
         supabase.from('menu_items').select('id,name,category_id,price_cents').eq('restaurant_id', r.id).eq('active', true).order('sort_order'),
         rpc<Report[]>('promo_report', { p_restaurant_id: r.id, p_from: from, p_to: to }),
