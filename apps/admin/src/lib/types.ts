@@ -48,6 +48,12 @@ export interface Ingredient {
   waste_bp: number; price_estimated: boolean; supplier: string | null; active: boolean; updated_at: string;
   stock_qty?: number | null; stock_min?: number | null; stock_since?: string | null; supplier_id?: string | null;
   is_preparation?: boolean; made_ahead?: boolean;
+  track_expiry?: boolean; expiry_type?: 'dlc' | 'ddm'; shelf_life_days?: number | null; expiry_warn_days?: number;
+}
+/** A delivery with its expiry date (the dated part of an ingredient's stock). */
+export interface StockLot {
+  id: string; restaurant_id: string; ingredient_id: string; qty_initial: number; qty_remaining: number; expires_on: string;
+  estimated: boolean; received_on: string; lot_code: string | null; supplier: string | null; unit_cost_cents: number | null; source: 'purchase' | 'opening';
 }
 export interface RecipeLine { id: string; menu_item_id: string; variant_id: string | null; ingredient_id: string; qty: number; sort_order: number; dine_in_only?: boolean }
 export interface ProfitDish {

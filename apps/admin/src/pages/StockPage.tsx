@@ -13,6 +13,7 @@ import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { SupplierAccounts } from './SupplierAccounts';
 import { ImportData } from '../components/ImportData';
 import { InvoicePicker } from '../components/Invoices';
+import { ExpiryView } from '../components/ExpiryView';
 import { addInvoices } from '../lib/invoices';
 import { readInvoice, toBase } from '../lib/invoiceAi';
 
@@ -50,7 +51,7 @@ interface FItem {
   status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted' | 'made'; live?: boolean; is_preparation?: boolean;
 }
 interface Forecast { today: string; uses_pos: boolean; order_days: number; sales_days: number | null; items: FItem[] }
-type Tab = 'live' | 'buy' | 'orders' | 'suppliers' | 'gaps' | 'history';
+type Tab = 'live' | 'dates' | 'buy' | 'orders' | 'suppliers' | 'gaps' | 'history';
 /** Line prefilled into a delivery: quantity in purchase units, price paid */
 export interface Prefill { ingredient_id: string; qty: number; total_cents: number | null }
 
@@ -152,7 +153,7 @@ export function StockPage({ r }: { r: Restaurant }) {
     </div>
   );
 
-  const TABS: [Tab, string][] = [['live', t('En direct')], ['buy', t('Stock et achats à faire')], ['orders', t('Commandes fournisseurs')], ['suppliers', t('Fournisseurs')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
+  const TABS: [Tab, string][] = [['live', t('En direct')], ['dates', t('Dates')], ['buy', t('Stock et achats à faire')], ['orders', t('Commandes fournisseurs')], ['suppliers', t('Fournisseurs')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -178,6 +179,8 @@ export function StockPage({ r }: { r: Restaurant }) {
         </div>
 
         {tab === 'live' && <LiveView r={r} ings={stockable} onChanged={load} />}
+
+        {tab === 'dates' && <ExpiryView r={r} ings={stockable} today={today()} onChanged={load} />}
 
         {tab === 'buy' && (fc && fc.items.some(i => i.counted != null || i.live)
           ? <BuyView r={r} fc={fc} onBuy={setBuying} onChanged={load} onOrders={() => setTab('orders')} />
@@ -572,8 +575,20 @@ function CountSheet({ r, count, ings, lines, onBack }: { r: Restaurant; count: C
 }
 
 // ------------------------------------------------------------ a delivery (one or more products)
-interface Row { key: number; id: string; qty: string; unit: 'buy' | 'size'; total: string; label?: string; warn?: string }
+interface Row { key: number; id: string; qty: string; unit: 'buy' | 'size'; total: string; exp?: string; label?: string; warn?: string }
 let rowKey = 0;
+/** Expiry date of one delivered product: empty = the shelf life of the ingredient (marked as estimated). */
+function ExpiryField({ g, value, from, onChange }: { g: Ingredient; value: string; from: string; onChange: (v: string) => void }) {
+  return (
+    <div className="col-span-full flex flex-wrap items-end gap-3">
+      <Field label={g.expiry_type === 'ddm' ? t('À consommer de préférence avant') : t('À consommer jusqu’au')}>
+        <input type="date" aria-label={t('Date de péremption')} className={`${inputCls} w-auto`} value={value} min={from} onChange={e => onChange(e.target.value)} />
+      </Field>
+      <p className="pb-2 text-xs text-muted">{g.shelf_life_days ? t('Vide : {n} jours après la livraison (date estimée).', { n: g.shelf_life_days }) : t('Sans date, cette livraison n’entre pas dans le suivi des dates.')}</p>
+    </div>
+  );
+}
+
 function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; prefill: Prefill[]; countDays: string[]; onClose: () => void; onSaved: () => void }) {
   const a = useAdminCtx();
   const blank = (): Row => ({ key: ++rowKey, id: '', qty: '', unit: 'buy', total: '' });
@@ -632,6 +647,7 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
         restaurant_id: r.id, ingredient_id: x.id, purchased_on: date, qty: baseOf(x),
         total_cents: x.total.trim() ? toCents(x.total) : null, supplier: name || null,
         after_count: countDay && afterCount, ...(sup ? { supplier_id: sup.id } : {}),
+        ...(x.exp && ings.find(i => i.id === x.id)?.track_expiry ? { expires_on: x.exp } : {}),
       }))).select('id'));
       a.toast(filled.length > 1 ? t('{n} achats enregistrés, stock et prix mis à jour', { n: filled.length })
         : filled[0].total.trim() ? t('Achat enregistré, prix mis à jour') : t('Achat enregistré'));
@@ -725,6 +741,7 @@ function DeliveryEditor({ r, ings, prefill, countDays, onClose, onSaved }: { r: 
                 <Field label={n === 0 ? t('Prix payé (DH)') : ''}>
                   <input aria-label={t('Prix payé (DH)')} className={inputCls} inputMode="decimal" value={x.total} onChange={e => set(x.key, { total: e.target.value })} placeholder={t('facultatif')} />
                 </Field>
+                {g?.track_expiry && <ExpiryField g={g} value={x.exp ?? ''} from={date} onChange={v => set(x.key, { exp: v })} />}
               </div>
             );
           })}
@@ -1161,7 +1178,7 @@ function ReceiveModal({ rid, po, ings, supName, onClose, onDone }: { rid: string
   const byId = new Map(ings.map(g => [g.id, g]));
   const [rows, setRows] = useState(() => po.purchase_order_lines.slice().sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0)).map(l => ({
     line_id: l.id!, ingredient_id: l.ingredient_id, ordered: Number(l.units), units: units(Number(l.units)),
-    total: l.unit_price_cents != null ? shown(Math.round(Number(l.units) * l.unit_price_cents) / 100) : '' })));
+    total: l.unit_price_cents != null ? shown(Math.round(Number(l.units) * l.unit_price_cents) / 100) : '', exp: '' })));
   const [date, setDate] = useState(today());
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -1172,7 +1189,8 @@ function ReceiveModal({ rid, po, ings, supName, onClose, onDone }: { rid: string
     setBusy(true);
     try {
       const res = await rpc<{ purchases: number; price_alerts: typeof alerts }>('po_receive', { p_order_id: po.id, p_received_on: date, p_after_count: true,
-        p_lines: rows.map(x => ({ line_id: x.line_id, units: num(x.units), total_cents: x.total.trim() ? toCents(x.total) : null })) });
+        p_lines: rows.map(x => ({ line_id: x.line_id, units: num(x.units), total_cents: x.total.trim() ? toCents(x.total) : null,
+          ...(x.exp && byId.get(x.ingredient_id)?.track_expiry ? { expires_on: x.exp } : {}) })) });
       a.toast(t('Livraison reçue : stock et prix mis à jour'));
       if (files.length) {
         const up = await addInvoices(rid, files, { supplier_id: po.supplier_id, purchase_order_id: po.id, doc_date: date, amount_cents: sum > 0 ? sum : null, note: po.doc_number });
@@ -1210,6 +1228,7 @@ function ReceiveModal({ rid, po, ings, supName, onClose, onDone }: { rid: string
                 <span><span className="block font-semibold">{g?.name}</span><span className="text-xs text-muted">{t('commandé : {q}', { q: `${units(x.ordered)} ${g?.purchase_unit ?? ''}` })}</span></span>
                 <span className="flex items-center gap-1.5"><input aria-label={t('Quantité reçue')} className={`${inputCls} w-20 text-end`} inputMode="decimal" value={x.units} onChange={e => setRows(rs => rs.map((y, j) => (j === k ? { ...y, units: e.target.value } : y)))} /><span className="w-14 truncate text-xs text-muted">{g?.purchase_unit}</span></span>
                 <input aria-label={t('Prix payé (DH)')} className={`${inputCls} w-28 text-end`} inputMode="decimal" placeholder={t('payé (DH)')} value={x.total} onChange={e => setRows(rs => rs.map((y, j) => (j === k ? { ...y, total: e.target.value } : y)))} />
+                {g?.track_expiry && num(x.units) > 0 && <ExpiryField g={g} value={x.exp} from={date} onChange={v => setRows(rs => rs.map((y, j) => (j === k ? { ...y, exp: v } : y)))} />}
               </div>
             );
           })}

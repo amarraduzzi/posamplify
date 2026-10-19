@@ -8,7 +8,7 @@ import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { BaseUnit, Ingredient, Restaurant } from '../lib/types';
 import { BASE_LABEL, CATEGORIES, PURCHASE_UNITS, SIZE_UNIT, unitCost } from '../lib/profit';
-import { Btn, Field, Modal, inputCls } from './ui';
+import { Btn, Field, Modal, Toggle, inputCls } from './ui';
 
 export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, onSaved }: {
   r: Restaurant; ing: Ingredient | null; used?: number; initialName?: string;
@@ -46,6 +46,10 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
     })();
     return () => { live = false; };
   }, [r.id, ing]);
+  const [track, setTrack] = useState(ing?.track_expiry ?? false);
+  const [etype, setEtype] = useState<'dlc' | 'ddm'>(ing?.expiry_type ?? 'dlc');
+  const [shelf, setShelf] = useState(ing?.shelf_life_days != null ? String(ing.shelf_life_days) : '');
+  const [warnDays, setWarnDays] = useState(String(ing?.expiry_warn_days ?? 2));
   const [busy, setBusy] = useState(false);
 
   const qty = fixed ?? (Number(size.replace(',', '.')) || 0) * SIZE_UNIT[base].f;
@@ -59,10 +63,15 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
     if (!(qty > 0)) { a.toast(t('Indiquez la taille de l’unité d’achat.'), 'error'); return; }
     if (wasteBp < 0 || wasteBp > 9000) { a.toast(t('La perte doit être entre 0 et 90 %.'), 'error'); return; }
     if (supplierId === '__new__' && !newSupplier.trim()) { a.toast(t('Indiquez le nom du fournisseur.'), 'error'); return; }
+    const shelfN = shelf.trim() ? Math.round(Number(shelf.replace(',', '.'))) : null;
+    const warnN = Math.round(Number(warnDays.replace(',', '.')));
+    if (track && shelfN != null && !(shelfN >= 1 && shelfN <= 3650)) { a.toast(t('La durée doit être entre 1 et 3650 jours.'), 'error'); return; }
+    if (track && !(warnN >= 0 && warnN <= 60)) { a.toast(t('Le délai d’alerte doit être entre 0 et 60 jours.'), 'error'); return; }
     setBusy(true);
     const row = {
       name: name.trim(), name_ar: nameAr.trim() || null, category, base_unit: base, purchase_unit: unit,
       purchase_qty: qty, purchase_price_cents: priceCents, waste_bp: wasteBp,
+      ...(ing?.is_preparation ? {} : { track_expiry: track, expiry_type: etype, shelf_life_days: track ? shelfN : null, expiry_warn_days: track ? warnN : 2 }),
     } as Record<string, unknown>;
     try {
       let sid: string | null = supplierId && supplierId !== '__new__' ? supplierId : null;
@@ -150,6 +159,28 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
           )}
           {ing?.price_estimated && <p className="mt-2 text-xs font-semibold text-warn">{t('Prix estimé par l’IA : en enregistrant votre vrai prix, il devient confirmé.')}</p>}
         </div>
+        {!ing?.is_preparation && (
+          <div className="rounded-2xl bg-surface-2 p-4">
+            <p className="mb-3 text-sm font-bold">{t('Durée de conservation')}</p>
+            <Toggle checked={track} onChange={setTrack} label={t('Suivre les dates de péremption')} />
+            {track && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <Field label={t('Type de date')}>
+                  <select className={inputCls} value={etype} onChange={e => setEtype(e.target.value as 'dlc' | 'ddm')}>
+                    <option value="dlc">{t('DLC : à consommer jusqu’au')}</option>
+                    <option value="ddm">{t('DDM : à consommer de préférence avant')}</option>
+                  </select>
+                </Field>
+                <Field label={t('Durée de conservation (jours)')} hint={t('Utilisée quand vous n’indiquez pas de date à la livraison. La date est alors marquée « estimée ».')}>
+                  <input className={inputCls} inputMode="numeric" value={shelf} onChange={e => setShelf(e.target.value)} placeholder="5" />
+                </Field>
+                <Field label={t('Prévenir (jours avant)')}>
+                  <input className={inputCls} inputMode="numeric" value={warnDays} onChange={e => setWarnDays(e.target.value)} />
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );
