@@ -33,6 +33,7 @@ import { ChargesPage } from './pages/ChargesPage';
 import { StockPage } from './pages/StockPage';
 import { TeamPage } from './pages/TeamPage';
 import { CustomersPage } from './pages/CustomersPage';
+import { LoyaltyCounterPage } from './pages/LoyaltyCounterPage';
 import { OnlinePage } from './pages/OnlinePage';
 import { BookingPage } from './pages/BookingPage';
 import { PromotionsPage } from './pages/PromotionsPage';
@@ -43,7 +44,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -102,8 +103,11 @@ function Screens() {
   const hasProfit = !!r && products.includes('profit');
   // Amplify Commandes: guest orders on a web page, without the till (included with POS)
   const hasOrders = !!r && products.includes('orders') && !hasPos;
+  // Amplify Fidélité: the loyalty counter without the till (the till has its own)
+  const hasLoyalty = !!r && products.includes('loyalty');
   const siteOnly = isSiteOnly(r);
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
+    { id: 'counter', label: t('Comptoir fidélité'), Icon: Heart, show: hasLoyalty && !hasPos },
     { id: 'inbox', label: t('Commandes'), Icon: BellRing, show: hasOrders },
     { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
@@ -122,9 +126,9 @@ function Screens() {
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos || hasOrders || siteOnly || products.includes('site') },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
-    { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos },
+    { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos || hasLoyalty },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos || hasOrders },
-    { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos },
+    { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos || hasLoyalty },
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
     { id: 'settings', label: t('Restaurant'), Icon: Settings, show: !!r },
@@ -154,7 +158,7 @@ function Screens() {
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo product={hasPos || hasOrders ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
+        <AmplifyLogo product={hasPos || hasOrders || hasLoyalty ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
         {/* the middle part scrolls on low screens, so language and logout stay visible */}
         <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
         <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
@@ -214,6 +218,7 @@ function Screens() {
           {r && current === 'production' && <ProductionPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
           {r && current === 'stock' && <StockPage key={r.id} r={r} />}
           {r && current === 'team' && <TeamPage key={r.id} r={r} />}
+          {r && current === 'counter' && <LoyaltyCounterPage key={r.id} r={r} />}
           {r && current === 'customers' && <CustomersPage key={r.id} r={r} />}
           {r && current === 'online' && <OnlinePage key={r.id} r={r} />}
           {r && current === 'booking' && <BookingPage key={r.id} r={r} />}
