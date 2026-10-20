@@ -26,6 +26,9 @@ export interface InboxOrder {
 const intl = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
 const MINUTES = [10, 15, 20, 30, 45];
 
+/** The restaurant's own color (hex) for the separate screen; Amplify navy when it has none. */
+export const screenAccent = (r: Restaurant) => (/^#[0-9a-f]{6}$/i.test(r.branding?.primary_color ?? '') ? r.branding.primary_color! : '#002E5F');
+
 export function OrdersPage({ r, screen = false }: { r: Restaurant; screen?: boolean }) {
   const a = useAdminCtx();
   const [orders, setOrders] = useState<InboxOrder[] | null>(null);
@@ -122,7 +125,7 @@ export function OrdersPage({ r, screen = false }: { r: Restaurant; screen?: bool
       <OrdersView
         orders={orders} tableLabel={id => (id ? tables[id] ?? null : null)} tz={r.timezone}
         armed={armed} onArm={() => { const ok = unlockSound(); setArmed(ok); if (ok) chime(); }} onMute={() => setArmed(false)}
-        prepDefault={r.online?.prep_minutes ?? 20} busy={busy} name={r.name} screen={screen} summary={summary} waText={wa}
+        prepDefault={r.online?.prep_minutes ?? 20} busy={busy} name={r.name} screen={screen} accent={screenAccent(r)} logoUrl={r.branding?.logo_url} summary={summary} waText={wa}
         pausedUntil={pausedUntil} onPause={pause} onExport={() => setExporting(true)}
         onOpenScreen={() => window.open(`${location.origin}/?scherm=commandes`, 'amplify-commandes', 'popup=yes,width=1366,height=820')}
         onAccept={(o, min) => act(o.id, () => update(o.id, {
@@ -163,12 +166,13 @@ const DONE: Record<InboxOrder['order_type'], string> = { dine_in: 'Marquer servi
 
 /** The screen itself: no data access, so it can be shown with any list of orders. */
 export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepDefault, busy, onAccept, onReady, onDone, onRefuse, now: nowProp,
-  name = '', screen = false, summary, waText, pausedUntil = null, onPause, onExport, onOpenScreen }: {
+  name = '', screen = false, accent = '#002E5F', logoUrl, summary, waText, pausedUntil = null, onPause, onExport, onOpenScreen }: {
   orders: InboxOrder[] | null; tableLabel: (id: string | null) => string | null; tz: string; armed: boolean; onArm: () => void; onMute: () => void;
   prepDefault: number; busy: string | null; now?: number;
   onAccept: (o: InboxOrder, minutes?: number) => void; onReady: (o: InboxOrder) => void; onDone: (o: InboxOrder) => void; onRefuse: (o: InboxOrder) => void;
   /** restaurant name (shown in the separate window) */ name?: string;
   /** the separate full-screen window: three columns, no menu around it */ screen?: boolean;
+  /** restaurant color (hex) and logo, shown on the separate screen */ accent?: string; logoUrl?: string;
   summary?: { count: number; cents: number }; waText?: (o: InboxOrder) => string;
   pausedUntil?: Date | null; onPause?: (minutes: number) => void; onExport?: () => void; onOpenScreen?: () => void;
 }) {
@@ -190,7 +194,12 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-3xl">{screen && name ? name : t('Commandes')}</h1>
+        {screen && name ? (
+          <div className="flex items-center gap-3">
+            {logoUrl && <img src={logoUrl} alt="" className="h-12 max-w-[9rem] rounded-xl bg-white object-contain p-1.5 shadow-card ring-1 ring-line/10" />}
+            <h1 className="text-3xl font-black">{name}</h1>
+          </div>
+        ) : <h1 className="text-3xl">{t('Commandes')}</h1>}
         <span className="flex items-center gap-1.5 text-sm text-muted"><span className="h-2 w-2 rounded-full bg-ok" />{t('En direct')}</span>
         {screen && <span className="tabular text-2xl font-black" dir="ltr">{clock}</span>}
         {summary && <span className="text-sm font-semibold text-muted">{t('Aujourd’hui : {n} commandes · {total}', { n: summary.count, total: mad(summary.cents) })}</span>}
@@ -243,8 +252,8 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
 
       {orders === null && <p className="text-muted">{t('Chargement…')}</p>}
       {orders !== null && !open.length && (
-        <div className="rounded-3xl border border-dashed border-line/20 mb-5 p-10 text-center">
-          <ChefHat className="mx-auto mb-3 h-8 w-8 text-muted" />
+        <div className={`mb-5 rounded-3xl border border-dashed p-10 text-center ${screen ? 'bg-white/70' : 'border-line/20'}`} style={screen ? { borderColor: accent + '66' } : undefined}>
+          <ChefHat className="mx-auto mb-3 h-8 w-8" style={screen ? { color: accent } : undefined} />
           <p className="font-semibold">{t('Aucune commande pour le moment.')}</p>
           <p className="mt-1 text-sm text-muted">{t('Les nouvelles commandes apparaissent ici toutes seules.')}</p>
         </div>
@@ -256,7 +265,7 @@ export function OrdersView({ orders, tableLabel, tz, armed, onArm, onMute, prepD
           {order.map(st => {
             const list = open.filter(o => o.status === st);
             return (
-              <section key={st} aria-label={t(STATUS_LABEL[st])}>
+              <section key={st} aria-label={t(STATUS_LABEL[st])} className="rounded-3xl bg-white/60 p-3 pt-4" style={{ boxShadow: `inset 0 4px 0 ${accent}` }}>
                 <h2 className="mb-3 flex items-center gap-2 text-lg font-black">{t(STATUS_LABEL[st])}<span className={`rounded-full px-2.5 py-0.5 text-sm ${STATUS_STYLE[st]}`}>{list.length}</span></h2>
                 <div className="space-y-4">{list.map(card)}</div>
               </section>

@@ -16,7 +16,7 @@ import { Onboarding } from './pages/Onboarding';
 import { DevicesPage } from './pages/DevicesPage';
 import { BriefingPage } from './pages/BriefingPage';
 import { LoginShowcase } from './components/LoginShowcase';
-import { AmplifyLogo, PatternBackdrop } from './components/Brand';
+import { AmplifyLogo, AmplifyMark, PatternBackdrop } from './components/Brand';
 import { LangSwitch } from './components/LangSwitch';
 import { LangMenu } from './components/LangMenu';
 import { dateLocale, t } from './lib/i18n';
@@ -38,7 +38,7 @@ import { BookingPage } from './pages/BookingPage';
 import { PromotionsPage } from './pages/PromotionsPage';
 import { GroupPage } from './pages/GroupPage';
 import { PlanningPage } from './pages/PlanningPage';
-import { OrdersPage } from './pages/OrdersPage';
+import { OrdersPage, screenAccent } from './pages/OrdersPage';
 import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
@@ -136,7 +136,18 @@ function Screens() {
 
   // the separate full-screen window of Amplify Commandes (opened from the Commandes page): the orders and nothing else
   if (r && hasOrders && new URLSearchParams(location.search).get('scherm') === 'commandes') {
-    return <div className="min-h-full bg-surface p-3 md:p-6"><OrdersPage key={r.id} r={r} screen /></div>;
+    const accent = screenAccent(r);
+    return (
+      <div className="relative flex min-h-full flex-col p-3 md:p-6" style={{ background: `linear-gradient(180deg, ${accent}26 0%, #f3f6fa 45%)` }}>
+        <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: accent }} aria-hidden />
+        <div className="flex-1"><OrdersPage key={r.id} r={r} screen /></div>
+        <footer className="mt-6 flex items-center justify-center gap-2 pb-1 text-xs font-semibold text-muted" dir="ltr">
+          <span>Powered by</span>
+          <AmplifyMark tone="light" className="h-4 w-[1.2rem]" />
+          <span className="font-logo font-extrabold tracking-wide text-[#002E5F]">Amplify Growth Studio</span>
+        </footer>
+      </div>
+    );
   }
 
   return (
