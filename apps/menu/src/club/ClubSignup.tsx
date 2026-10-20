@@ -7,7 +7,7 @@
 // fills the screen, the logo lands, the panel lifts away); a returning guest skips it. After signing
 // up, confetti in the restaurant's colours, with a party-popper bang.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Gift, Loader2, PartyPopper, Phone, ShieldCheck, Sparkles, Tag, User, Volume2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Gift, Loader2, PartyPopper, Phone, ShieldCheck, Sparkles, Tag, User, UserCheck, Volume2 } from 'lucide-react';
 import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
@@ -29,7 +29,7 @@ const S = {
     name: 'Prénom', phone: 'Numéro WhatsApp', go: 'Je m’inscris', joinGo: 'Rejoindre le club', busy: 'Inscription…',
     perks: ['Offres exclusives', 'Nouveautés en avant-première', 'Cadeaux'] as string[],
     consent: (r: string) => `En vous inscrivant, vous acceptez de recevoir les offres de ${r} sur WhatsApp. Vous pouvez arrêter à tout moment.`,
-    hello: (n: string) => `Re-bonjour ${n}`, done: (n: string) => `Bienvenue ${n} !`, welcome: 'Bienvenue', saveTip: 'Astuce : sur votre carte, ajoutez-la à l’écran d’accueil pour voir vos points en un tap.', dupTitle: 'Ce numéro est déjà inscrit', dupTxt: 'Votre inscription n’a pas été enregistrée une deuxième fois : ce numéro est déjà dans notre base et vous êtes déjà membre du club.', dupBack: 'Saisir un autre numéro', dupAsk: 'Pour retrouver votre carte fidélité, demandez le lien au personnel.', card: 'Voir ma carte fidélité',
+    hello: (n: string) => `Re-bonjour ${n}`, done: (n: string) => `Bienvenue ${n} !`, welcome: 'Bienvenue', saveTip: 'Astuce : sur votre carte, ajoutez-la à l’écran d’accueil pour voir vos points en un tap.', dupTitle: 'Ce numéro fait déjà partie du club !', dupTxt: 'Bonne nouvelle : il est déjà inscrit. Une faute de frappe, ou vous inscrivez un proche ? Essayez simplement avec un autre numéro, ça prend 10 secondes.', dupBack: 'Essayer un autre numéro', dupNote: 'Pas de souci : rien n’a été enregistré en double.', dupAsk: 'Pour retrouver votre carte fidélité, demandez le lien au personnel.', card: 'Voir ma carte fidélité',
     show: 'Montrez cet écran au personnel', twice: 'Déjà inscrit à cette dégustation', twiceTxt: 'Ce numéro a déjà été inscrit ici.',
     off: 'Les inscriptions ne sont pas ouvertes pour le moment.', closed: 'Cette dégustation est terminée.', notFound: 'Ce restaurant est introuvable.',
     errors: { customer_required: 'Indiquez votre prénom et un numéro valide.', rate_limited: 'Trop d’inscriptions en même temps. Réessayez dans une minute.',
@@ -43,7 +43,7 @@ const S = {
     name: 'First name', phone: 'WhatsApp number', go: 'Sign me up', joinGo: 'Join the club', busy: 'Signing up…',
     perks: ['Exclusive offers', 'First to know', 'Gifts'] as string[],
     consent: (r: string) => `By signing up, you agree to receive offers from ${r} on WhatsApp. You can stop at any time.`,
-    hello: (n: string) => `Welcome back ${n}`, done: (n: string) => `Welcome ${n}!`, welcome: 'Welcome', saveTip: 'Tip: on your card, add it to your home screen to see your points in one tap.', dupTitle: 'This number is already registered', dupTxt: 'Your sign-up was not saved a second time: we already have this number and you are already a member of the club.', dupBack: 'Enter another number', dupAsk: 'To get your loyalty card, ask the staff for the link.', card: 'See my loyalty card',
+    hello: (n: string) => `Welcome back ${n}`, done: (n: string) => `Welcome ${n}!`, welcome: 'Welcome', saveTip: 'Tip: on your card, add it to your home screen to see your points in one tap.', dupTitle: 'This number is already in the club!', dupTxt: 'Good news: it is already signed up. A typo, or signing up a friend? Just try another number, it takes 10 seconds.', dupBack: 'Try another number', dupNote: 'No worries: nothing was saved twice.', dupAsk: 'To get your loyalty card, ask the staff for the link.', card: 'See my loyalty card',
     show: 'Show this screen to the staff', twice: 'Already signed up for this tasting', twiceTxt: 'This number was already signed up here.',
     off: 'Sign-ups are not open right now.', closed: 'This tasting is over.', notFound: 'This restaurant could not be found.',
     errors: { customer_required: 'Please enter your name and a valid number.', rate_limited: 'Too many sign-ups at once. Try again in a minute.',
@@ -57,7 +57,7 @@ const S = {
     name: 'الاسم', phone: 'رقم واتساب', go: 'سجلني', joinGo: 'انضم إلى النادي', busy: 'جار التسجيل…',
     perks: ['عروض حصرية', 'أول من يعلم بالجديد', 'هدايا'] as string[],
     consent: (r: string) => `بالتسجيل، توافقون على تلقي عروض ${r} على واتساب. يمكنكم التوقف في أي وقت.`,
-    hello: (n: string) => `مرحبا من جديد ${n}`, done: (n: string) => `مرحبا ${n}!`, welcome: 'مرحبا', saveTip: 'نصيحة: من بطاقتكم، أضيفوها إلى الشاشة الرئيسية لرؤية نقاطكم بلمسة واحدة.', dupTitle: 'هذا الرقم مسجل من قبل', dupTxt: 'لم يتم حفظ تسجيلكم مرة ثانية: هذا الرقم موجود لدينا وأنتم عضو في النادي بالفعل.', dupBack: 'أدخلوا رقماً آخر', dupAsk: 'للحصول على بطاقة الوفاء، اطلبوا الرابط من العاملين.', card: 'عرض بطاقة الوفاء الخاصة بي',
+    hello: (n: string) => `مرحبا من جديد ${n}`, done: (n: string) => `مرحبا ${n}!`, welcome: 'مرحبا', saveTip: 'نصيحة: من بطاقتكم، أضيفوها إلى الشاشة الرئيسية لرؤية نقاطكم بلمسة واحدة.', dupTitle: 'هذا الرقم عضو في النادي بالفعل!', dupTxt: 'خبر سار: هذا الرقم مسجل من قبل. خطأ في الكتابة، أم تسجلون شخصاً قريباً؟ جربوا رقماً آخر، لن يستغرق الأمر سوى 10 ثوانٍ.', dupBack: 'جربوا رقماً آخر', dupNote: 'لا تقلقوا: لم يُحفظ شيء مرتين.', dupAsk: 'للحصول على بطاقة الوفاء، اطلبوا الرابط من العاملين.', card: 'عرض بطاقة الوفاء الخاصة بي',
     show: 'أظهروا هذه الشاشة للعاملين', twice: 'مسجل من قبل في هذا التذوق', twiceTxt: 'هذا الرقم سُجل هنا من قبل.',
     off: 'التسجيل غير مفتوح حاليا.', closed: 'انتهى هذا التذوق.', notFound: 'لم يتم العثور على هذا المطعم.',
     errors: { customer_required: 'أدخلوا اسمكم ورقما صحيحا.', rate_limited: 'تسجيلات كثيرة في نفس الوقت. أعيدوا المحاولة بعد دقيقة.',
@@ -174,20 +174,34 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
     const twice = done.again;
     const cardKey = done.card_key ?? load<string>(`card:${slug}`, 3 * 365 * 86400_000);
     if (done.existed && !done.event && !twice) {
+      const rs = (d: number) => ({ '--d': `${d}ms` } as React.CSSProperties);
+      const retry = () => { setDone(null); setName(''); setPhone(''); setErr(''); setKnown(false); setTimeout(() => nameRef.current?.focus(), 0); };
       return (
-        <Screen>
-          <div className="rounded-[2rem] bg-[#F2AD46]/15 p-8 text-center">
-            <AlertTriangle className="mx-auto h-14 w-14 text-[#B7791F]" />
-            <p className="mt-4 font-display text-3xl font-semibold">{t.dupTitle}</p>
-            <p className="mt-3 text-sm leading-relaxed">{t.dupTxt}</p>
-            {info.loyalty && cardKey
-              ? <a href={`${window.location.pathname}?carte=${cardKey}`} className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-brand px-5 py-3 font-semibold text-brand-ink"><Gift className="h-5 w-5" />{t.card}</a>
-              : info.loyalty && <p className="mt-3 text-sm font-semibold">{t.dupAsk}</p>}
+        <main className="club-hero relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-12 text-center text-brand-ink" style={vars}>
+          <Backdrop cover={cover} />
+          <div className="relative w-full max-w-md">
+            {logo
+              ? <div className="club-rise mx-auto w-fit rounded-[1.5rem] bg-white p-1.5 shadow-[0_18px_40px_-14px_rgba(0,0,0,.55)] ring-4 ring-white/25" style={rs(0)}><img src={logo} alt={r} className="h-16 w-16 rounded-[1.1rem] object-cover" /></div>
+              : <p className="club-rise font-display text-2xl font-semibold" style={rs(0)}>{r}</p>}
+
+            <div className="club-rise mt-8 rounded-[2rem] bg-surface p-7 text-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.6)]" style={rs(120)}>
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-full text-brand" style={{ background: 'color-mix(in srgb, var(--brand) 14%, var(--surface-2))' }}><UserCheck className="h-8 w-8" /></span>
+              <h1 className="mt-5 font-display text-[1.9rem] font-semibold leading-tight [text-wrap:balance]">{t.dupTitle}</h1>
+              <p className="mt-3 text-base leading-relaxed text-muted [text-wrap:pretty]">{t.dupTxt}</p>
+
+              <button type="button" onClick={retry}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand px-5 py-4 text-lg font-semibold text-brand-ink shadow-[0_14px_30px_-14px_rgba(0,0,0,.55)] transition-transform active:scale-[.98]">
+                <Phone className="h-5 w-5" />{t.dupBack}<ArrowRight className="h-5 w-5 rtl:rotate-180" />
+              </button>
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />{t.dupNote}</p>
+
+              {info.loyalty && (cardKey
+                ? <a href={`${window.location.pathname}?carte=${cardKey}`} className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-surface-2 px-5 py-3.5 font-semibold"><Gift className="h-5 w-5 text-brand" />{t.card}</a>
+                : <p className="mt-5 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">{t.dupAsk}</p>)}
+            </div>
+            <p className="club-rise mt-8 font-display text-lg opacity-90" style={rs(300)}>{r}</p>
           </div>
-          <button type="button" onClick={() => { setDone(null); setName(''); setPhone(''); setErr(''); setKnown(false); setTimeout(() => nameRef.current?.focus(), 0); }}
-            className="mt-5 w-full rounded-2xl bg-surface-2 px-5 py-3.5 font-semibold">{t.dupBack}</button>
-          <p className="mt-6 text-center font-display text-lg">{r}</p>
-        </Screen>
+        </main>
       );
     }
     if (twice) {
