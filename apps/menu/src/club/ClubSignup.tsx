@@ -14,6 +14,14 @@ import { load, save } from '../lib/storage';
 import { ApiError, customerSignup, signupInfo, type SignupInfo, type SignupResult } from '../lib/api';
 import { playPop, preloadCheer, unlockAudio } from './confettiSound';
 
+// Font size for the welcome name: it shrinks for long names, based on the longest single word, so a name is never cut
+// in the middle of a word (the card is about 22rem wide).
+const nameSize = (n: string) => {
+  const w = Math.max(...n.split(/\s+/).map(x => x.length), 1);
+  const all = n.length;
+  return w > 18 || all > 40 ? 'text-[1.5rem]' : w > 14 || all > 30 ? 'text-[1.9rem]' : w > 10 || all > 20 ? 'text-[2.3rem]' : 'text-[2.8rem]';
+};
+
 const S = {
   fr: {
     join: (r: string) => `Rejoignez le club ${r}`, event: 'Inscrivez-vous pour la dégustation',
@@ -21,7 +29,7 @@ const S = {
     name: 'Prénom', phone: 'Numéro WhatsApp', go: 'Je m’inscris', joinGo: 'Rejoindre le club', busy: 'Inscription…',
     perks: ['Offres exclusives', 'Nouveautés en avant-première', 'Cadeaux'] as string[],
     consent: (r: string) => `En vous inscrivant, vous acceptez de recevoir les offres de ${r} sur WhatsApp. Vous pouvez arrêter à tout moment.`,
-    hello: (n: string) => `Re-bonjour ${n}`, done: (n: string) => `Bienvenue ${n} !`, welcome: 'Bienvenue', already: 'Vous étiez déjà inscrit : c’est noté.', card: 'Voir ma carte fidélité',
+    hello: (n: string) => `Re-bonjour ${n}`, done: (n: string) => `Bienvenue ${n} !`, welcome: 'Bienvenue', saveTip: 'Astuce : sur votre carte, ajoutez-la à l’écran d’accueil pour voir vos points en un tap.', already: 'Vous étiez déjà inscrit : c’est noté.', card: 'Voir ma carte fidélité',
     show: 'Montrez cet écran au personnel', twice: 'Déjà inscrit à cette dégustation', twiceTxt: 'Ce numéro a déjà été inscrit ici.',
     off: 'Les inscriptions ne sont pas ouvertes pour le moment.', closed: 'Cette dégustation est terminée.', notFound: 'Ce restaurant est introuvable.',
     errors: { customer_required: 'Indiquez votre prénom et un numéro valide.', rate_limited: 'Trop d’inscriptions en même temps. Réessayez dans une minute.',
@@ -35,7 +43,7 @@ const S = {
     name: 'First name', phone: 'WhatsApp number', go: 'Sign me up', joinGo: 'Join the club', busy: 'Signing up…',
     perks: ['Exclusive offers', 'First to know', 'Gifts'] as string[],
     consent: (r: string) => `By signing up, you agree to receive offers from ${r} on WhatsApp. You can stop at any time.`,
-    hello: (n: string) => `Welcome back ${n}`, done: (n: string) => `Welcome ${n}!`, welcome: 'Welcome', already: 'You were already a member: all set.', card: 'See my loyalty card',
+    hello: (n: string) => `Welcome back ${n}`, done: (n: string) => `Welcome ${n}!`, welcome: 'Welcome', saveTip: 'Tip: on your card, add it to your home screen to see your points in one tap.', already: 'You were already a member: all set.', card: 'See my loyalty card',
     show: 'Show this screen to the staff', twice: 'Already signed up for this tasting', twiceTxt: 'This number was already signed up here.',
     off: 'Sign-ups are not open right now.', closed: 'This tasting is over.', notFound: 'This restaurant could not be found.',
     errors: { customer_required: 'Please enter your name and a valid number.', rate_limited: 'Too many sign-ups at once. Try again in a minute.',
@@ -49,7 +57,7 @@ const S = {
     name: 'الاسم', phone: 'رقم واتساب', go: 'سجلني', joinGo: 'انضم إلى النادي', busy: 'جار التسجيل…',
     perks: ['عروض حصرية', 'أول من يعلم بالجديد', 'هدايا'] as string[],
     consent: (r: string) => `بالتسجيل، توافقون على تلقي عروض ${r} على واتساب. يمكنكم التوقف في أي وقت.`,
-    hello: (n: string) => `مرحبا من جديد ${n}`, done: (n: string) => `مرحبا ${n}!`, welcome: 'مرحبا', already: 'كنتم مسجلين من قبل: تم الحفظ.', card: 'عرض بطاقة الوفاء الخاصة بي',
+    hello: (n: string) => `مرحبا من جديد ${n}`, done: (n: string) => `مرحبا ${n}!`, welcome: 'مرحبا', saveTip: 'نصيحة: من بطاقتكم، أضيفوها إلى الشاشة الرئيسية لرؤية نقاطكم بلمسة واحدة.', already: 'كنتم مسجلين من قبل: تم الحفظ.', card: 'عرض بطاقة الوفاء الخاصة بي',
     show: 'أظهروا هذه الشاشة للعاملين', twice: 'مسجل من قبل في هذا التذوق', twiceTxt: 'هذا الرقم سُجل هنا من قبل.',
     off: 'التسجيل غير مفتوح حاليا.', closed: 'انتهى هذا التذوق.', notFound: 'لم يتم العثور على هذا المطعم.',
     errors: { customer_required: 'أدخلوا اسمكم ورقما صحيحا.', rate_limited: 'تسجيلات كثيرة في نفس الوقت. أعيدوا المحاولة بعد دقيقة.',
@@ -187,9 +195,10 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
           </span>
           <p className="club-rise mt-7 text-sm font-semibold uppercase tracking-[0.32em] opacity-80" style={{ '--d': '250ms' } as React.CSSProperties}>{t.welcome}</p>
           <span className="club-rise mx-auto mt-3 block h-px w-12 bg-brand-ink/40" aria-hidden="true" style={{ '--d': '320ms' } as React.CSSProperties} />
-          <p className={`club-rise mt-3 break-words font-display font-semibold leading-[1.08] [text-wrap:balance] ${done.name.length > 22 ? 'text-[1.9rem]' : done.name.length > 14 ? 'text-[2.3rem]' : 'text-[2.8rem]'}`} style={{ '--d': '380ms' } as React.CSSProperties}>{done.name}</p>
+          <p className={`club-rise mt-3 break-words font-display font-semibold leading-[1.08] [text-wrap:balance] ${nameSize(done.name)}`} style={{ '--d': '380ms' } as React.CSSProperties}>{done.name}</p>
           {done.existed && !done.event && <p className="club-rise mt-3 text-sm opacity-85" style={{ '--d': '400ms' } as React.CSSProperties}>{t.already}</p>}
           {info.loyalty && cardKey && <a href={`${window.location.pathname}?carte=${cardKey}`} className="club-rise mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-black/20 px-5 py-3 font-semibold backdrop-blur-sm" style={{ '--d': '480ms' } as React.CSSProperties}><Gift className="h-5 w-5" />{t.card}</a>}
+          {info.loyalty && cardKey && <p className="club-rise mx-auto mt-3 max-w-xs text-xs leading-relaxed opacity-80" style={{ '--d': '540ms' } as React.CSSProperties}>{t.saveTip}</p>}
           {done.event && <div className="club-rise mt-8 rounded-[1.6rem] bg-black/15 px-5 py-5 backdrop-blur-sm" style={{ '--d': '450ms' } as React.CSSProperties}>
             <p className="text-sm font-semibold opacity-85">{done.event}</p>
             {done.offer && <p className="mt-1 font-display text-2xl font-semibold">{done.offer}</p>}

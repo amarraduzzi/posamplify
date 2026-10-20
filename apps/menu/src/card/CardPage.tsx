@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Gift, Loader2, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
+import InstallApp from './InstallApp';
 import { customerCard, type CardReward, type CustomerCard } from '../lib/api';
 
 const S = {
@@ -168,6 +169,8 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
                 </ul>}
           </div>
         </>)}
+
+        <InstallApp name={card.restaurant.name} brand={brand} logo={logo} cardKey={cardKey} lang={lang} />
 
         <p className="mt-6 flex items-start justify-center gap-1.5 text-center text-xs text-muted"><ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" /><span>{t.private}</span></p>
         <p className="mt-4 text-center text-[0.7rem] font-medium tracking-wide text-muted">Powered by Amplify</p>
