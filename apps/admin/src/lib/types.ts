@@ -26,7 +26,9 @@ export interface Restaurant {
   site?: { enabled?: boolean; theme?: 'nuit' | 'riad' | 'moderne' | 'atelier' | 'maison' | 'signature'; catering?: boolean; request?: boolean;
     story?: { title?: I18n; text?: I18n; image?: string }[]; chef?: { name?: string; role?: I18n; text?: I18n; photo?: string }; signatures?: { item_id: string; text?: I18n }[]; about?: I18n; gallery?: string[]; cuisine?: string; price_range?: string; instagram?: string; facebook?: string; tiktok?: string; maps_url?: string; domain?: string; video_url?: string; whatsapp?: string; wa_order?: boolean; wa_delivery?: boolean };
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean; expiry_auto_discard?: boolean };
-  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number;
+    /** the message to bring back customers who no longer come (Customers > Fidélité) */
+    comeback?: { days?: number; mode?: 'invite' | 'offer'; offer?: string; bonus_points?: number; message?: string } };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null; takeaway_discount_cents?: number }

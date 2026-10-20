@@ -7,6 +7,7 @@ import { supabase, MENU_URL } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { intlPhone } from '../lib/billing';
+import { COMEBACK_BONUS_MAX, COMEBACK_DAYS, comebackCfg, comebackGivesBonus, comebackMessage, comebackPending, type ComebackCfg } from '../lib/comeback';
 import { useAdminCtx } from '../store';
 import type { I18n, ProfitData, Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
@@ -17,6 +18,8 @@ interface Customer {
   id: string; phone: string; name: string | null; birthday: string | null; note: string | null; marketing_ok: boolean;
   points: number; visits: number; spent_cents: number; first_visit_at: string | null; last_visit_at: string | null; created_at: string;
   credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number; source: 'qr' | 'event' | null; card_key: string;
+  /** when the owner last sent the message to bring him back */
+  comeback_at: string | null;
 }
 type Loyalty = NonNullable<Restaurant['loyalty']>;
 type Filter = 'all' | 'birthday' | 'whatsapp' | 'lost' | 'debt';
@@ -43,6 +46,7 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   useEffect(() => { load(); }, [load]);
 
   const month = new Date().getMonth() + 1;
+  const cb = useMemo(() => comebackCfg(loyalty), [loyalty]);
   const shown = useMemo(() => {
     const f = q.trim().toLowerCase().replace(/\s/g, '');
     return (list ?? []).filter(c =>
@@ -51,8 +55,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
         || (filter === 'birthday' && c.birthday && Number(c.birthday.slice(5, 7)) === month)
         || (filter === 'whatsapp' && c.marketing_ok)
         || (filter === 'debt' && Number(c.balance_cents) !== 0)
-        || (filter === 'lost' && c.last_visit_at && Date.now() - Date.parse(c.last_visit_at) > 30 * 864e5 && c.visits >= 2)));
-  }, [list, q, filter, month, event]);
+        || (filter === 'lost' && c.last_visit_at && Date.now() - Date.parse(c.last_visit_at) > cb.days * 864e5 && c.visits >= 2)));
+  }, [list, q, filter, month, event, cb.days]);
 
   const saveLoyalty = async (l: Loyalty) => {
     try {
@@ -125,6 +129,16 @@ export function CustomersPage({ r }: { r: Restaurant }) {
         {credit && owed > 0 && <span className="ms-auto flex items-center gap-1.5 rounded-full bg-warn/15 px-3 py-1.5 text-sm font-bold text-warn"><NotebookPen className="h-4 w-4" /> {t('Total des ardoises : {m}', { m: mad(owed) })}</span>}
         {(filter === 'whatsapp' || event) && shown.some(c => c.marketing_ok) && <Btn className="ms-auto px-3 py-1.5" onClick={copyNumbers}><Copy className="h-4 w-4" /> {t('Copier les numéros')}</Btn>}
       </div>
+      {filter === 'lost' && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 p-3 text-sm">
+          <MessageCircle className="h-4 w-4 shrink-0 text-brand" />
+          <p className="me-auto min-w-0 flex-1">
+            {t('Clients qui ne sont pas venus depuis {d} jours ou plus. Message : {m}.', { d: cb.days, m: cb.mode === 'offer' ? t('invitation avec offre') : t('invitation seule') })}
+            {shown.some(c => !c.marketing_ok) && <span className="block text-muted">{t('{n} sans accord WhatsApp : pas de message possible.', { n: shown.filter(c => !c.marketing_ok).length })}</span>}
+          </p>
+          {a.canEditProfile && <Btn className="px-3 py-1.5" onClick={() => setSettings(true)}>{t('Modifier le message')}</Btn>}
+        </div>
+      )}
 
       <div className="card overflow-x-auto rounded-3xl">
         <table className="w-full min-w-[720px] text-sm">
@@ -136,6 +150,7 @@ export function CustomersPage({ r }: { r: Restaurant }) {
               {loyalty.enabled && <th className="px-3 py-3 text-end">{t('Points')}</th>}
               {credit && <th className="px-3 py-3 text-end">{t('Ardoise')}</th>}
               <th className="px-3 py-3 text-end">{t('Dernière visite')}</th>
+              {filter === 'lost' && <th className="px-3 py-3 text-end">{t('Message')}</th>}
               <th className="w-10 px-3 py-3" />
             </tr>
           </thead>
@@ -146,7 +161,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                   <p className="flex items-center gap-1.5 font-semibold">{c.name || t('Sans nom')}
                     {c.birthday && Number(c.birthday.slice(5, 7)) === month && <Cake className="h-4 w-4 text-brand" />}
                     {c.marketing_ok && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-bold text-ok">WhatsApp</span>}
-                    {c.source && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">QR</span>}</p>
+                    {c.source && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">QR</span>}
+                    {comebackPending(c) && c.comeback_at && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{t('Contacté le {d}', { d: new Date(c.comeback_at).toLocaleDateString(dateLocale()) })}</span>}</p>
                   <p dir="ltr" className="text-xs text-muted rtl:text-end">{c.phone}</p>
                 </td>
                 <td className="px-3 py-2.5 text-end tabular">{c.visits}</td>
@@ -154,17 +170,41 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                 {loyalty.enabled && <td className="px-3 py-2.5 text-end font-semibold tabular">{c.points}</td>}
                 {credit && <td className={`px-3 py-2.5 text-end tabular ${Number(c.balance_cents) > 0 ? 'font-bold text-warn' : 'text-muted'}`}>{Number(c.balance_cents) !== 0 ? mad(Number(c.balance_cents)) : c.credit_allowed ? '0' : '—'}</td>}
                 <td className="px-3 py-2.5 text-end text-muted">{c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString(dateLocale()) : '—'}</td>
+                {filter === 'lost' && <td className="px-3 py-2.5 text-end" onClick={e => e.stopPropagation()}>
+                  {c.marketing_ok ? <ComebackButton c={c} r={r} cfg={cb} pointsOn={!!loyalty.enabled} onSent={load} /> : <span className="text-xs text-muted">{t('Sans accord WhatsApp')}</span>}
+                </td>}
                 <td className="px-3 py-2.5 text-end"><Pencil className="inline h-4 w-4 text-muted" /></td>
               </tr>
             ))}
-            {list !== null && !shown.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted">{t('Aucun client pour le moment. Ils arrivent avec les commandes qui ont un numéro de téléphone.')}</td></tr>}
+            {list !== null && !shown.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-muted">{t('Aucun client pour le moment. Ils arrivent avec les commandes qui ont un numéro de téléphone.')}</td></tr>}
           </tbody>
         </table>
       </div>
 
       {edit && <CustomerEditor c={edit} points={!!loyalty.enabled} credit={credit} r={r} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
-      {settings && <LoyaltySettings rid={r.id} loyalty={loyalty} onClose={() => setSettings(false)} onSave={l => { setSettings(false); saveLoyalty(l); }} />}
+      {settings && <LoyaltySettings rid={r.id} restaurantName={r.name} loyalty={loyalty} onClose={() => setSettings(false)} onSave={l => { setSettings(false); saveLoyalty(l); }} />}
     </div>
+  );
+}
+
+/** One tap: the WhatsApp message opens, and the database notes the day (and adds the bonus points of an offer, once). */
+function ComebackButton({ c, r, cfg, pointsOn, onSent }: { c: Customer; r: Restaurant; cfg: ComebackCfg; pointsOn: boolean; onSent: () => void }) {
+  const a = useAdminCtx();
+  const bonus = comebackGivesBonus(cfg, pointsOn, c) ? cfg.bonus : 0;
+  const text = comebackMessage(cfg, { first: c.name ? c.name.split(' ')[0] : '', restaurant: r.name, bonus });
+  const again = comebackPending(c);
+  const sent = async () => {
+    try {
+      const res = await rpc<{ bonus: number }>('customer_comeback_sent', { p_customer_id: c.id });
+      a.toast(res.bonus ? t('Message ouvert · {b} points ajoutés à sa carte', { b: res.bonus }) : t('Message ouvert, la date est notée'));
+      onSent();
+    } catch (e) { a.fail(e); }
+  };
+  return (
+    <a href={`https://wa.me/${intlPhone(c.phone)}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener" onClick={sent}
+      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold ${again ? 'bg-surface-2 text-ink hover:bg-surface-3' : 'bg-brand text-brand-ink'}`}>
+      <MessageCircle className="h-3.5 w-3.5" /> {again ? t('Relancer') : t('Envoyer')}{bonus > 0 && <span className="opacity-80">+{bonus}</span>}
+    </a>
   );
 }
 
@@ -273,11 +313,17 @@ const nameOf = (n: I18n | null | undefined) => (n?.fr || n?.en || Object.values(
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 const newId = () => `r${Math.random().toString(36).slice(2, 8)}`;
 
-function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
+function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { rid: string; restaurantName: string; loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
   const [on, setOn] = useState(!!loyalty.enabled);
   const [credit, setCredit] = useState(!!loyalty.credit);
   const [per, setPer] = useState(String(loyalty.per_dh ?? 10));
   const [maxPer, setMaxPer] = useState(String(loyalty.max_per_order ?? 1));
+  const cb0 = comebackCfg(loyalty);
+  const [cbDays, setCbDays] = useState(String(cb0.days));
+  const [cbMode, setCbMode] = useState<ComebackCfg['mode']>(cb0.mode);
+  const [cbOffer, setCbOffer] = useState(cb0.offer);
+  const [cbBonus, setCbBonus] = useState(String(cb0.bonus));
+  const [cbMsg, setCbMsg] = useState(cb0.message);
   const [rewards, setRewards] = useState<LoyaltyReward[]>(() => loyaltyRewards(loyalty).map(x => (x.id === 'legacy' ? { ...x, id: newId() } : x)));
   const [dishes, setDishes] = useState<Dish[]>([]);
   const p = Math.max(1, Number(per) || 10);
@@ -298,6 +344,10 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
   }, [rid]);
 
   const setAt = (i: number, rw: LoyaltyReward) => setRewards(list => list.map((x, j) => (j === i ? rw : x)));
+  // what the settings say right now (days kept inside the limits), for the preview
+  const cbNow: ComebackCfg = { days: Math.min(COMEBACK_DAYS.max, Math.max(COMEBACK_DAYS.min, Math.round(Number(cbDays) || COMEBACK_DAYS.def))), mode: cbMode, offer: cbOffer.trim(),
+    bonus: Math.min(COMEBACK_BONUS_MAX, Math.max(0, Math.round(Number(cbBonus) || 0))), message: cbMsg.trim() };
+  const preview = comebackMessage(cbNow, { first: 'Hind', restaurant: restaurantName, bonus: on && cbMode === 'offer' ? cbNow.bonus : 0 });
   const valid = rewards.length > 0 && rewards.every(rw => rw.points >= 1 && (rw.kind === 'item' ? !!rw.item_id : (rw.cents ?? 0) >= 1));
   const save = () => {
     const list = rewards.map(rw => rw.kind === 'item'
@@ -305,7 +355,8 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
       : { id: rw.id, kind: 'discount' as const, points: rw.points, cents: rw.cents });
     // the first money reward is also kept in the old fields (the sign-up page and old screens still read them)
     const money = list.find(x => x.kind === 'discount');
-    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list, max_per_order: Math.min(10, Math.max(1, Number(maxPer) || 1)),
+    const comeback = { days: cbNow.days, mode: cbMode, offer: cbOffer.trim(), bonus_points: Math.min(COMEBACK_BONUS_MAX, Math.max(0, Math.round(Number(cbBonus) || 0))), message: cbMsg.trim() };
+    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list, max_per_order: Math.min(10, Math.max(1, Number(maxPer) || 1)), comeback,
       reward_points: money?.points ?? loyalty.reward_points ?? 100, reward_cents: money?.cents ?? loyalty.reward_cents ?? 5000 });
   };
 
@@ -342,6 +393,36 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
           )}
           {!valid && <p className="text-sm text-warn">{t('Chaque récompense a besoin d’un produit ou d’un montant.')}</p>}
         </>}
+        <div className="space-y-3 rounded-2xl bg-surface-2 p-4">
+          <p className="font-semibold">{t('Message pour faire revenir les clients')}</p>
+          <p className="text-sm text-muted">{t('Dans Clients, filtre « Ne reviennent plus », un bouton ouvre WhatsApp avec ce message, prêt à envoyer. Seulement pour les clients qui ont donné leur accord.')}</p>
+          <Field label={t('Client perdu après (jours sans visite)')} hint={t('Entre {a} et {b}.', { a: COMEBACK_DAYS.min, b: COMEBACK_DAYS.max })}>
+            <input className={`${inputCls} w-32`} inputMode="numeric" value={cbDays} onChange={e => setCbDays(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+          </Field>
+          <Field label={t('Type de message')} group>
+            <div className="flex flex-wrap gap-2">
+              <Btn tone={cbMode === 'invite' ? 'brand' : 'ghost'} onClick={() => setCbMode('invite')}>{t('Invitation seule')}</Btn>
+              <Btn tone={cbMode === 'offer' ? 'brand' : 'ghost'} onClick={() => setCbMode('offer')}>{t('Invitation avec offre')}</Btn>
+            </div>
+          </Field>
+          {cbMode === 'offer' && <>
+            <Field label={t('Votre offre')} hint={t('À honorer à la caisse, par exemple avec une remise du manager. Facultatif si vous offrez des points.')}>
+              <input className={inputCls} maxLength={120} value={cbOffer} onChange={e => setCbOffer(e.target.value)} placeholder={t('Un café offert à votre prochaine visite')} />
+            </Field>
+            {on
+              ? <Field label={t('Points bonus offerts')} hint={t('Ajoutés à sa carte quand vous envoyez le message, une seule fois tant que le client n’est pas revenu. 0 = aucun.')}>
+                  <input className={`${inputCls} w-32`} inputMode="numeric" value={cbBonus} onChange={e => setCbBonus(e.target.value.replace(/\D/g, '').slice(0, 4))} />
+                </Field>
+              : <p className="text-sm text-muted">{t('Activez les points de fidélité pour pouvoir offrir des points bonus.')}</p>}
+          </>}
+          <Field label={t('Votre propre texte (facultatif)')} hint={t('Laissez vide pour le texte proposé. Vous pouvez utiliser {name}, {restaurant}, {offer} et {points}.')}>
+            <textarea className={inputCls} rows={3} maxLength={500} value={cbMsg} onChange={e => setCbMsg(e.target.value)} />
+          </Field>
+          <div className="rounded-xl bg-surface p-3 text-sm">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-muted">{t('Aperçu')}</p>
+            <p className="whitespace-pre-wrap">{preview}</p>
+          </div>
+        </div>
       </div>
     </Modal>
   );
