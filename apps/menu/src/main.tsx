@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { resolveTenant } from './lib/tenant';
+import { load } from './lib/storage';
 
 // No restaurant in the address (the bare domain): show the Amplify POS website.
 // It is a separate chunk, so guests at a table never download it.
@@ -29,12 +30,23 @@ const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionna
 const MARKETING = ((import.meta.env.VITE_MARKETING_URL as string | undefined) ?? 'https://www.amplifygrowthstudio.com').replace(/\/$/, '');
 const TARGET = { pos: '/amplify-pos/', profit: '/amplify-profit/', features: '/amplify-pos/fonctionnalites/' } as const;
 const redirecting = !!(site && MARKETING);
+// The points card installed on the home screen (Android) opens on the restaurant page: from there a phone that has its card goes
+// straight to it. It only applies inside the installed app (display-mode: standalone), never in a normal browser tab,
+// so the ordering site and the table QR keep working as before.
+const toCard = (() => {
+  try {
+    if (courier || carte || club !== null || site || !slug || /\/t\//.test(location.pathname)) return null;
+    if (!window.matchMedia('(display-mode: standalone)').matches) return null;
+    return load<string>(`card:${slug}`, 3 * 365 * 86400_000);
+  } catch { return null; }
+})();
+if (toCard) location.replace(`${location.pathname}?carte=${encodeURIComponent(toCard)}`);
 if (site && MARKETING) location.replace(`${MARKETING}${TARGET[site]}${location.hash}`);
 // shown inside the website's phone mockup: hide the scrollbars (Windows draws them)
 try { if (window.self !== window.top) document.documentElement.classList.add('embedded'); } catch { /* cross-origin parent */ }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting || toCard ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );

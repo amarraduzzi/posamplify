@@ -82,7 +82,7 @@ export default function InstallApp({ name, brand, logo, cardKey, lang }: { name:
     // Google's server to build the app. The private key is not in it: the app opens on the restaurant page, which
     // sends this phone to its own card.
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    const qs = new URLSearchParams({ n: name, c: brand, p: /^\/[a-z0-9-]{0,60}$/i.test(path) ? path : '/', l: lang });
+    const qs = new URLSearchParams({ n: name, c: brand, p: /^\/[a-z0-9-]{0,60}$/i.test(path) ? path : '/', l: lang, v: '3' });
     if (logo && /^https:\/\//i.test(logo)) qs.set('i', logo);
     link = document.createElement('link'); link.rel = 'manifest'; link.href = `/manifest.webmanifest?${qs.toString()}`; document.head.appendChild(link);
     // iPhone: the icon of the home-screen shortcut (it opens the page as it is now, with the key in the link)
