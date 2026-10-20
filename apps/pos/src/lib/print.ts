@@ -372,6 +372,8 @@ export function fiscalTicket(r: Restaurant, d: FiscalDoc, extra: { label?: strin
   for (const v of d.vat_breakdown) out.push(...rows(`TVA ${(v.vat_bp / 100).toFixed(0)}% sur ${amount(v.ht)}`, amount(v.vat)));
   out.push(...rows('Total HT', amount(d.total_ht_cents)));
   out.push(rule());
+  // nothing to pay: a reward or a discount covered the whole bill
+  if (d.doc_type !== 'credit_note' && Number(d.total_ttc_cents) === 0 && d.payments.length === 0) out.push(...rows('Offert, aucun paiement', amount(0)));
   for (const p of d.payments) {
     out.push(...rows(METHOD[p.method] ?? p.method, amount(p.amount)));
     if (p.tip) out.push(...rows('  Pourboire', amount(p.tip)));

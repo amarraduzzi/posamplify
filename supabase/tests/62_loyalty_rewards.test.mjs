@@ -49,7 +49,7 @@ test('a free dish: the guest must be ordering it, then it costs one unit and the
   await rpc(d, 'cancel_order', [o.id, 'test', A.staff.karim.id, '9999']);
 });
 
-test('not enough points, unknown reward, and a ticket that would be free', async () => {
+test('not enough points, unknown reward, and a reward bigger than the bill', async () => {
   const d = w.users.deviceA;
   const o = await tillOrder(d, rid, [{ item_id: A.items.tajine.id }, { item_id: A.items.jus.id }]);
   await attach(o, 5);
@@ -58,7 +58,7 @@ test('not enough points, unknown reward, and a ticket that would be free', async
   await rpc(d, 'cancel_order', [o.id, 'test', A.staff.karim.id, '9999']);
   const small = await tillOrder(d, rid, [{ item_id: A.items.jus.id }]);
   await attach(small, 50);
-  await assert.rejects(rpc(d, 'pos_redeem_reward', [small.id, 'jus']), /order_too_small/);
+  await assert.rejects(rpc(d, 'pos_redeem_reward', [small.id, 'r30']), /order_too_small/);   // a reward of more than the bill
   await rpc(d, 'cancel_order', [small.id, 'test', A.staff.karim.id, '9999']);
 });
 

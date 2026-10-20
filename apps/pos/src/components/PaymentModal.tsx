@@ -64,7 +64,8 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
     if (!order) return;
     if (mode === 'account' && !pos.requireOnline()) return;
     setBusy(true); setError(null);
-    const payments = mode === 'mixed'
+    // nothing to pay (a reward or a discount covers the bill): no payment, only the ticket
+    const payments = total === 0 ? [] : mode === 'mixed'
       ? [{ method: 'cash', amount_cents: cashC, tip_cents: 0 }, { method: 'card', amount_cents: cardC, tip_cents: tipC }]
       : [{ method: mode, amount_cents: total, tip_cents: tipC }];
     try {
@@ -92,6 +93,19 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   ); }
 
   if (!order) return <Modal title={t('Encaisser')} onClose={onClose}><p className="text-muted">{t('Chargement…')}</p></Modal>;
+
+  if (total === 0) return (
+    <Modal title={`${t('Encaisser')} · ${label}`} onClose={onClose}
+      footer={<div className="flex items-center justify-between gap-3">
+        {error ? <p className="text-sm font-semibold text-danger">{error}</p> : <span className="text-sm text-muted">{t('Ticket fiscal émis à la validation.')}</span>}
+        <Btn tone="ok" className="px-8 py-3.5 text-lg" disabled={busy} onClick={confirm}>{busy ? t('Encaissement…') : t('Clôturer à 0 DH')}</Btn>
+      </div>}>
+      <div className="py-6 text-center">
+        <p className="font-display text-5xl font-semibold text-brand tabular">{mad(0)}</p>
+        <p className="mx-auto mt-3 max-w-sm text-muted">{t('Rien à payer : la récompense ou la remise couvre toute l’addition.')}</p>
+      </div>
+    </Modal>
+  );
 
   const modes: { id: Mode; label: string; Icon: typeof Banknote }[] = [
     { id: 'cash', label: t('Espèces'), Icon: Banknote }, { id: 'card', label: t('Carte'), Icon: CreditCard },

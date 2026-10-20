@@ -69,13 +69,15 @@ test('free units: never more than ordered, and the maximum per bill holds', asyn
   await cancel(o);
 });
 
-test('together the rewards must stay below the bill', async () => {
+test('together the rewards can cover the bill but never more', async () => {
   await config(3);
   const o = await tillOrder(d(), rid, [{ item_id: A.items.pizza.id }, { item_id: A.items.jus.id }]);   // 6000 + 2000
   await attach(o, 100);
   await rpc(d(), 'pos_redeem_reward', [o.id, 'r30']);
-  await rpc(d(), 'pos_redeem_reward', [o.id, 'jus']);                                                // 5000 of 8000
-  await assert.rejects(rpc(d(), 'pos_redeem_reward', [o.id, 'r30']), /order_too_small/);            // would be 8000 = free bill
+  await rpc(d(), 'pos_redeem_reward', [o.id, 'r30']);                                                // 6000 of 8000
+  await assert.rejects(rpc(d(), 'pos_redeem_reward', [o.id, 'r30']), /order_too_small/);            // 9000 would be more than the bill
+  await rpc(d(), 'pos_redeem_reward', [o.id, 'jus']);                                                // 8000 of 8000: free bill
+  assert.equal(Number((await order(o.id)).total_cents), 0);
   await cancel(o);
 });
 
@@ -176,9 +178,13 @@ test('when the bill shrinks below the rewards, the newest rewards go back until 
   await rpc(d(), 'pos_redeem_reward', [o.id, 'r30']);                                                // 5000 of 8000
   assert.equal(await pts(), 70);
   await as(d(), `delete from public.order_lines where order_id = $1 and menu_item_id = $2`, [o.id, A.items.pizza.id]);   // bill is now 2000
+  assert.deepEqual((await active(o.id)).map(r => r.reward_id), ['jus']);          // the money reward does not fit any more; the free dish covers the bill exactly
+  assert.equal(await pts(), 90);
   const x = await order(o.id);
-  assert.equal(Number(x.discount_cents), 0); assert.equal(x.discount_kind, null);
-  assert.equal(await pts(), 100); assert.equal((await active(o.id)).length, 0);
+  assert.equal(Number(x.discount_cents), 2000); assert.equal(Number(x.total_cents), 0);
+  await as(d(), `delete from public.order_lines where order_id = $1`, [o.id]);      // nothing left on the bill: everything goes back
+  const y = await order(o.id);
+  assert.equal(Number(y.discount_cents), 0); assert.equal(y.discount_kind, null); assert.equal(await pts(), 100);
   await cancel(o);
 });
 

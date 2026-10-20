@@ -334,7 +334,7 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
           </div>
           <Field label={t('Récompenses maximum par addition')}>
             <input className={inputCls} inputMode="numeric" value={maxPer} onChange={e => setMaxPer(e.target.value.replace(/\D/g, '').slice(0, 2))} />
-            <p className="mt-1 text-xs text-muted">{t('Entre 1 et 10. Les récompenses ne couvrent jamais toute l’addition.')}</p>
+            <p className="mt-1 text-xs text-muted">{t('Entre 1 et 10. Si les récompenses couvrent toute l’addition, elle est clôturée à 0 DH.')}</p>
           </Field>
           {rewards.length < 8 && (
             <Btn tone="ghost" onClick={() => setRewards(list => [...list, { id: newId(), kind: 'item', points: 50, item_id: dishes[0]?.id }])}>

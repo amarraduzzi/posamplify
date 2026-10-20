@@ -2422,7 +2422,7 @@ export const EN: Record<string, string> = {
   "Ajouter une récompense": "Add a reward",
   "Un produit offert est déduit de l’addition quand le client le commande. Le client peut cumuler plusieurs récompenses sur une même addition, jusqu’au maximum ci-dessous.": "A free item is taken off the bill when the customer orders it. A customer can combine several rewards on one bill, up to the maximum below.",
   "Récompenses maximum par addition": "Maximum rewards per bill",
-  "Entre 1 et 10. Les récompenses ne couvrent jamais toute l’addition.": "Between 1 and 10. Rewards never cover the whole bill.",
+  "Entre 1 et 10. Si les récompenses couvrent toute l’addition, elle est clôturée à 0 DH.": "Between 1 and 10. If rewards cover the whole bill, it is closed at 0 DH.",
   "Chaque récompense a besoin d’un produit ou d’un montant.": "Each reward needs an item or an amount.",
   "Le client dépense {s} pour gagner ce produit. Il vous coûte environ {c}, soit {pc} de ses dépenses.": "The customer spends {s} to earn this item. It costs you about {c}, or {pc} of what they spend.",
   "Attention : ce produit offert coûte plus de 5 % de ce que le client dépense.": "Careful: this free item costs more than 5% of what the customer spends.",

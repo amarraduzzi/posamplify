@@ -168,6 +168,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const sendNow = () => run(async () => { await commit(true); });
   // nothing to pay on this table (empty, or only free items): one tap frees it, no PIN (the server agrees)
   const freeOrder = !!order && Number(order.total_cents) === 0 && !draft.length && order.source !== 'qr';
+  // a reward or an approved discount covers the whole bill: it is closed at 0 DH (a ticket, no payment)
+  const covered = !!order && !draft.length && total === 0 && Number(order.discount_cents) > 0 && order.order_lines.length > 0;
   const freeTable = () => run(async () => {
     if (!order || !pos.requireOnline()) return;
     const res = await db.rpc<{ ok: boolean; error?: string }>('cancel_order', { p_order_id: order.id, p_reason: null, p_manager_staff_id: null, p_pin: null });
@@ -295,7 +297,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
           {fireBtn}
           <Btn tone="brand" disabled={busy || !draft.length} onClick={sendNow} className="py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>
-          <Btn tone="ok" disabled={busy || nothing || total <= 0} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
+          <Btn tone="ok" disabled={busy || nothing || (total <= 0 && !covered)} onClick={payNow} className="py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
           <Btn disabled={busy || !order} onClick={() => order && pos.printBill(order)}><Printer className="h-4 w-4" /> {t('Addition')}</Btn>
           <Btn disabled={busy || !order || !order.order_lines.length || draft.length > 0} onClick={() => setDialog('split')}><Users className="h-4 w-4" /> {t('Partager')}</Btn>
           <Btn disabled={busy || !order} onClick={() => pos.requireOnline() && setDialog('discount')}><Percent className="h-4 w-4" /> {t('Remise')}</Btn>
@@ -958,12 +960,12 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
   const sofar = applied.reduce((n, x) => n + Number(x.cents), 0);
   // rewards can be added while the bill has no manager discount or promo code, and the maximum is not reached
   const open = !!loyalty.enabled && !!known && !(Number(order.discount_cents) > 0 && order.discount_kind !== 'loyalty') && applied.length < max;
-  /** what a reward would take off, and whether the bill can carry it (the rewards together stay below the bill) */
+  /** what a reward would take off, and whether the bill can carry it (the rewards together may cover the bill, never more) */
   const fit = (rw: LoyaltyReward) => {
-    if (rw.kind !== 'item') return { there: true, ok: Number(order.subtotal_cents) > sofar + (rw.cents ?? 0) };
+    if (rw.kind !== 'item') return { there: true, ok: Number(order.subtotal_cents) >= sofar + (rw.cents ?? 0) };
     const lines = order.order_lines.filter(l => l.menu_item_id === rw.item_id);
     const there = lines.reduce((n, l) => n + Number(l.quantity), 0) > applied.filter(x => x.menu_item_id === rw.item_id).length;
-    return { there, ok: !there || Number(order.subtotal_cents) > sofar + Math.min(...lines.map(l => Number(l.unit_price_cents))) };
+    return { there, ok: !there || Number(order.subtotal_cents) >= sofar + Math.min(...lines.map(l => Number(l.unit_price_cents))) };
   };
   const redeem = async (rw: LoyaltyReward) => {
     if (!pos.requireOnline() || !known) return;
