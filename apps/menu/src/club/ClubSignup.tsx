@@ -98,6 +98,9 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const [name, setName] = useState(mine?.name ?? '');
   const [phone, setPhone] = useState(mine?.phone ?? '');
   const [known, setKnown] = useState(!!mine);
+  // a phone that already has its card goes straight to the points page (not for a tasting link, which is for everyone)
+  const [savedKey] = useState(() => (eventKey ? null : load<string>(`card:${slug}`, 3 * 365 * 86400_000)));
+  useEffect(() => { if (savedKey) window.location.replace(`${window.location.pathname}?carte=${encodeURIComponent(savedKey)}`); }, [savedKey]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState<SignupResult | null>(null);
@@ -140,6 +143,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
   const vars = { '--anti': anti, '--base': `${base}ms` } as React.CSSProperties;
 
   const t = S[lang];
+  if (savedKey) return <Screen><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted" /></Screen>;
   if (info === undefined) return <Screen><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted" /></Screen>;
   if (info === null) return <Screen><p className="text-center text-muted">{t.notFound}</p></Screen>;
   const r = info.name;

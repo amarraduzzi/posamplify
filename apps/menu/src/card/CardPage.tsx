@@ -6,6 +6,7 @@ import { Gift, Loader2, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import InstallApp from './InstallApp';
+import { save, drop } from '../lib/storage';
 import { customerCard, type CardReward, type CustomerCard } from '../lib/api';
 
 const S = {
@@ -16,7 +17,7 @@ const S = {
     how: 'Comment ça marche', howTxt: (per: number) => `1 point pour chaque ${per} DH dépensés. Échangez vos points contre une récompense de la liste ci-dessus. Donnez votre numéro à la caisse à chaque visite.`,
     rewards: 'Vos récompenses', free: (n: string) => `${n} offert`, pick: 'Donnez votre numéro à la caisse et choisissez votre récompense.', avail: 'Disponible', need: (n: number) => `Encore ${n} pts`, itemNote: 'Déduit de l’addition quand vous le commandez.',
     visits: (n: number) => `${n} ${n === 1 ? 'visite' : 'visites'}`, last: 'Derniers mouvements', earn: 'Points gagnés', redeem: 'Récompense utilisée', none: 'Pas encore de visite. Vos points arriveront ici dès votre prochaine addition.',
-    off: 'Le programme de points n’est pas actif pour le moment.', offVisits: 'Merci de votre fidélité.', notFound: 'Carte introuvable. Vérifiez le lien reçu, ou demandez-le à la caisse.', err: 'Impossible de charger la carte. Réessayez.',
+    off: 'Le programme de points n’est pas actif pour le moment.', offVisits: 'Merci de votre fidélité.', notMe: 'Ce n’est pas ma carte', join: 'S’inscrire au club', notFound: 'Carte introuvable. Vérifiez le lien reçu, ou demandez-le à la caisse.', err: 'Impossible de charger la carte. Réessayez.',
     private: 'Cette carte est privée : ne partagez pas son lien.',
   },
   en: {
@@ -26,7 +27,7 @@ const S = {
     how: 'How it works', howTxt: (per: number) => `1 point for every ${per} DH you spend. Swap your points for a reward from the list above. Give your number at the till each visit.`,
     rewards: 'Your rewards', free: (n: string) => `Free ${n}`, pick: 'Give your number at the till and choose your reward.', avail: 'Available', need: (n: number) => `${n} pts to go`, itemNote: 'Taken off your bill when you order it.',
     visits: (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'}`, last: 'Latest activity', earn: 'Points earned', redeem: 'Reward used', none: 'No visit yet. Your points will show up here after your next bill.',
-    off: 'The points programme is not active right now.', offVisits: 'Thank you for coming back.', notFound: 'Card not found. Check the link you received, or ask for it at the till.', err: 'Could not load the card. Try again.',
+    off: 'The points programme is not active right now.', offVisits: 'Thank you for coming back.', notMe: 'This is not my card', join: 'Join the club', notFound: 'Card not found. Check the link you received, or ask for it at the till.', err: 'Could not load the card. Try again.',
     private: 'This card is private: do not share its link.',
   },
   ar: {
@@ -36,7 +37,7 @@ const S = {
     how: 'كيف يعمل', howTxt: (per: number) => `نقطة واحدة لكل ${per} درهم تنفقونها. بدّلوا نقاطكم بمكافأة من القائمة أعلاه. أعطوا رقمكم عند الصندوق في كل زيارة.`,
     rewards: 'مكافآتكم', free: (n: string) => `${n} مجانا`, pick: 'أعطوا رقمكم عند الصندوق واختاروا مكافأتكم.', avail: 'متاحة', need: (n: number) => `بقيت ${n} نقطة`, itemNote: 'يُخصم من الفاتورة عندما تطلبونه.',
     visits: (n: number) => `${n} زيارة`, last: 'آخر العمليات', earn: 'نقاط مكتسبة', redeem: 'مكافأة مستعملة', none: 'لا توجد زيارة بعد. ستظهر نقاطكم هنا بعد فاتورتكم القادمة.',
-    off: 'برنامج النقاط غير مفعل حاليا.', offVisits: 'شكرا لوفائكم.', notFound: 'البطاقة غير موجودة. تحققوا من الرابط الذي وصلكم أو اطلبوه عند الصندوق.', err: 'تعذر تحميل البطاقة. أعيدوا المحاولة.',
+    off: 'برنامج النقاط غير مفعل حاليا.', offVisits: 'شكرا لوفائكم.', notMe: 'هذه ليست بطاقتي', join: 'انضموا إلى النادي', notFound: 'البطاقة غير موجودة. تحققوا من الرابط الذي وصلكم أو اطلبوه عند الصندوق.', err: 'تعذر تحميل البطاقة. أعيدوا المحاولة.',
     private: 'هذه البطاقة خاصة: لا تشاركوا رابطها.',
   },
 };
@@ -51,7 +52,8 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
   useEffect(() => {
     customerCard(slug, cardKey).then(x => {
       setCard(x);
-      if (!x) return;
+      if (!x) { drop(`card:${slug}`); return; }   // an old or wrong key is forgotten, so the QR shows the sign-up again
+      save(`card:${slug}`, cardKey);          // this phone now opens straight on the card from the QR
       const langs = (x.restaurant.languages?.length ? x.restaurant.languages : ['fr']).filter((l): l is Lang => l in S);
       const phoneLang = (navigator.language || '').slice(0, 2) as Lang;
       const l = langs.includes(phoneLang) ? phoneLang : langs[0] ?? 'fr';
@@ -62,7 +64,13 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
 
   const t = S[lang];
   if (card === undefined) return <Screen><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted" /></Screen>;
-  if (card === null) return <Screen><p className="text-center text-muted">{failed ? t.err : t.notFound}</p></Screen>;
+  const signupUrl = `${window.location.pathname}?club`;
+  if (card === null) return (
+    <Screen>
+      <p className="text-center text-muted">{failed ? t.err : t.notFound}</p>
+      {!failed && <a href={signupUrl} className="mx-auto mt-5 inline-flex rounded-2xl bg-brand px-5 py-3 font-semibold text-brand-ink">{t.join}</a>}
+    </Screen>
+  );
 
   const branding = (card.restaurant.branding ?? {}) as Branding;
   const brand = branding.primary_color && HEX.test(branding.primary_color) ? branding.primary_color : '#C2410C';
@@ -173,6 +181,9 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
         <InstallApp name={card.restaurant.name} brand={brand} logo={logo} cardKey={cardKey} lang={lang} />
 
         <p className="mt-6 flex items-start justify-center gap-1.5 text-center text-xs text-muted"><ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" /><span>{t.private}</span></p>
+        <p className="mt-3 text-center text-xs">
+          <button type="button" className="text-muted underline" onClick={() => { drop(`card:${slug}`); drop(`club:${slug}`); window.location.replace(signupUrl); }}>{t.notMe}</button>
+        </p>
         <p className="mt-4 text-center text-[0.7rem] font-medium tracking-wide text-muted">Powered by Amplify</p>
       </div>
     </main>
