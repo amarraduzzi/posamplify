@@ -2549,4 +2549,8 @@ export const EN: Record<string, string> = {
   "À donner : {x}": "To give: {x}",
   "Écrivez le nom exact de l’imprimante dans Windows.": "Type the exact name of the printer in Windows.",
   "…": "…",
+  "Quantité réellement obtenue (facultatif)": "Quantity really obtained (optional)",
+  "obtenu": "obtained",
+  "Rendement {p} %": "Yield {p} %",
+  "Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.": "Optional: enter what really came out of the oven. The ingredients of the planned quantity are taken out of the stock, and the yield is tracked.",
 };

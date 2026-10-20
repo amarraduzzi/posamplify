@@ -17,7 +17,7 @@ interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
   made_today: number; catering: number; expired_qty?: number; suggested: number; cost_cents: number | null;
 }
-interface Batch { id: string; ingredient_id: string; qty: number; produced_on: string; cost_cents: number | null; note: string | null; cancelled_at: string | null; created_at: string }
+interface Batch { id: string; ingredient_id: string; qty: number; planned_qty: number | null; produced_on: string; cost_cents: number | null; note: string | null; cancelled_at: string | null; created_at: string }
 
 const addDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const num = (s: string) => Number(s.replace(',', '.')) || 0;
@@ -32,6 +32,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   const [items, setItems] = useState<PlanItem[] | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [qty, setQty] = useState<Record<string, string>>({});
+  // optional: what really came out (when it differs from what was planned): the yield is then followed
+  const [got, setGot] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [trace, setTrace] = useState<string | null>(null);
 
@@ -46,7 +48,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         const s = i.base_unit === 'pc' ? Math.ceil(Number(i.suggested)) : Number(i.suggested);
         return [i.ingredient_id, s > 0 ? show(s / unitOf(i).f) : ''];
       })));
-      setBatches(check(await supabase.from('production_batches').select('id, ingredient_id, qty, produced_on, cost_cents, note, cancelled_at, created_at')
+      setGot({});
+      setBatches(check(await supabase.from('production_batches').select('id, ingredient_id, qty, planned_qty, produced_on, cost_cents, note, cancelled_at, created_at')
         .eq('restaurant_id', r.id).eq('produced_on', base.date).order('created_at', { ascending: false })) as Batch[]);
     } catch (e) { a.fail(e); setItems([]); }
   }, [r.id, day, a]);
@@ -56,10 +59,16 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
     const s = num(qty[i.ingredient_id] ?? '');
     const q = s * unitOf(i).f;
     if (!(q > 0)) { a.toast(t('Indiquez la quantité produite.'), 'error'); return; }
+    // "obtained" filled in: the ingredients of the planned quantity are taken out, the stock gets what came out
+    const gs = (got[i.ingredient_id] ?? '').trim();
+    const out = gs ? num(gs) * unitOf(i).f : null;
+    if (gs && !(out! > 0)) { a.toast(t('Indiquez la quantité produite.'), 'error'); return; }
     setBusy(i.ingredient_id);
     try {
-      const res = await rpc<{ cost_cents: number | null }>('production_record', { p_ingredient_id: i.ingredient_id, p_qty: q, p_note: null, p_catering_id: null });
-      a.toast(t('{q} de {n} en stock', { q: fmtQty(q, i.base_unit), n: i.name }) + (res.cost_cents != null ? ` · ${mad(res.cost_cents)}` : ''));
+      const res = await rpc<{ cost_cents: number | null; yield_bp: number | null }>('production_record',
+        { p_ingredient_id: i.ingredient_id, p_qty: out ?? q, p_note: null, p_catering_id: null, p_planned_qty: out != null ? q : null });
+      a.toast(t('{q} de {n} en stock', { q: fmtQty(out ?? q, i.base_unit), n: i.name }) + (res.cost_cents != null ? ` · ${mad(res.cost_cents)}` : '')
+        + (res.yield_bp != null ? ` · ${t('Rendement {p} %', { p: show(res.yield_bp / 100) })}` : ''));
       await load();
     } catch (e) {
       const m = String((e as Error)?.message ?? e);
@@ -131,6 +140,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                     <input className={`${inputCls} !w-24 text-end`} inputMode="decimal" aria-label={t('Quantité à produire')} value={qty[i.ingredient_id] ?? ''}
                       onChange={e => setQty({ ...qty, [i.ingredient_id]: e.target.value })} placeholder="0" />
                     <span className="w-6 text-sm text-muted">{u.u}</span>
+                    <input className={`${inputCls} !w-20 text-end`} inputMode="decimal" aria-label={t('Quantité réellement obtenue (facultatif)')} title={t('Quantité réellement obtenue (facultatif)')}
+                      value={got[i.ingredient_id] ?? ''} onChange={e => setGot({ ...got, [i.ingredient_id]: e.target.value })} placeholder={t('obtenu')} />
                     <Btn tone="ghost" className="px-2.5 py-2 text-sm" title={t('Une fournée')} onClick={() => setQty({ ...qty, [i.ingredient_id]: show(Number(i.batch_qty) / u.f) })}>{t('1 fournée')}</Btn>
                     <Btn tone="brand" className="px-3 py-2 text-sm" disabled={busy === i.ingredient_id || day === 1} onClick={() => produce(i)}><CookingPot className="h-4 w-4" /> {t('Produire')}</Btn>
                   </div>
@@ -139,6 +150,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
               );
             })}
           </div>
+          {day === 0 && <p className="mt-3 text-xs text-muted">{t('Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.')}</p>}
           {day === 1 && <p className="mt-3 text-sm text-muted">{t('Vous enregistrez la production le jour où elle est faite.')}</p>}
         </Card>
       )}
@@ -153,6 +165,9 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                 <li key={b.id} className={`flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2.5 ${b.cancelled_at ? 'opacity-50' : ''}`}>
                   <span className="w-14 tabular text-muted" dir="ltr">{new Date(b.created_at).toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit', timeZone: r.timezone })}</span>
                   <span className={`flex-1 font-semibold ${b.cancelled_at ? 'line-through' : ''}`}>{i ? `${fmtQty(Number(b.qty), i.base_unit)} ${i.name}` : show(Number(b.qty))}</span>
+                  {b.planned_qty != null && Number(b.planned_qty) > 0 && (
+                    <span className={`tabular text-xs font-semibold ${Number(b.qty) < Number(b.planned_qty) ? 'text-danger' : 'text-ok'}`}>{t('Rendement {p} %', { p: show(Number(b.qty) / Number(b.planned_qty) * 100) })}</span>
+                  )}
                   {b.cost_cents != null && <span className="tabular text-sm text-muted">{mad(b.cost_cents)}</span>}
                   <Btn tone="ghost" className="px-2.5 py-1 text-sm" aria-label={t('Traçabilité')} onClick={() => setTrace(b.id)}><ScanSearch className="h-4 w-4" /> {t('Traçabilité')}</Btn>
                   {b.cancelled_at ? <span className="text-xs font-semibold text-muted">{t('Annulée')}</span>

@@ -2552,4 +2552,8 @@ export const AR: Record<string, string> = {
   "À donner : {x}": "للتسليم: {x}",
   "Écrivez le nom exact de l’imprimante dans Windows.": "اكتبوا اسم الطابعة بالضبط كما يظهر في ويندوز.",
   "…": "…",
+  "Quantité réellement obtenue (facultatif)": "الكمية المحصل عليها فعليًا (اختياري)",
+  "obtenu": "المحصّل",
+  "Rendement {p} %": "المردودية {p} %",
+  "Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.": "اختياري: اكتبوا ما خرج فعلًا من الفرن. تُخصم مكوّنات الكمية المخطَّطة من المخزون، وتُتابَع المردودية.",
 };
