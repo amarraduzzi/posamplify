@@ -16,6 +16,7 @@ interface Cust { id: string; name: string | null; phone: string; points: number;
 interface Entry { id: number; at: string; reason: string; points: number; amount_cents: number | null; reward: string | null; customer: string; staff: string | null; undone: boolean; can_undo: boolean }
 interface Result { ok: boolean; error?: string; customer?: Cust; points_added?: number; label?: string; duplicate?: boolean }
 
+// i18n:values
 const PIN_ERR: Record<string, string> = {
   invalid: 'Code incorrect (ou personne inconnue).',
   locked: 'Trop d’essais : ce code est bloqué quelques minutes.',
@@ -26,6 +27,8 @@ const PIN_ERR: Record<string, string> = {
   too_late: 'On ne peut annuler que le jour même.',
   points_already_spent: 'Le client a déjà dépensé ces points : impossible d’annuler.',
 };
+// i18n:end
+// i18n:values
 const CODES: Record<string, string> = {
   invalid_amount: 'Montant invalide (entre 1 et 10 000 DH).',
   amount_too_small: 'Montant trop petit pour gagner un point.',
@@ -36,6 +39,7 @@ const CODES: Record<string, string> = {
   loyalty_off: 'La fidélité n’est pas activée (Clients > Réglages).',
   loyalty_not_available: 'La fidélité n’est pas disponible pour ce restaurant.',
 };
+// i18n:end
 const explain = (e: unknown) => {
   const msg = (e as { message?: string })?.message ?? '';
   const k = Object.keys(CODES).find(x => msg.includes(x));
