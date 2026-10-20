@@ -2414,4 +2414,7 @@ export const AR: Record<string, string> = {
   "{n} livraison(s) jetée(s)": "تم رمي {n} دفعة",
   "{q} expire avant": "{q} تنتهي صلاحيته قبل ذلك",
   "{q} non tracé (stock sans date)": "{q} غير متتبَّع (مخزون بدون تاريخ)",
+  "Carte fidélité du client": "بطاقة وفاء الزبون",
+  "Un lien privé : le client y voit ses points et sa récompense, sans application. Envoyez-le seulement à lui.": "رابط خاص: يرى الزبون نقاطه ومكافأته دون تطبيق. أرسلوه إليه وحده.",
+  "Bonjour{n}, voici votre carte fidélité {r} : vos points et votre récompense. {u}": "مرحبا{n}، هذه بطاقة الوفاء الخاصة بكم في {r}: نقاطكم ومكافأتكم. {u}",
 };

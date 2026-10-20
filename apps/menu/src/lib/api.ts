@@ -88,7 +88,16 @@ export interface SignupInfo {
   loyalty: { reward_points: number; reward_cents: number; per_dh: number } | null;
   event: { name: string; offer: string | null; active: boolean } | null;
 }
-export interface SignupResult { name: string; existed: boolean; again: boolean; event: string | null; offer: string | null }
+export interface SignupResult { name: string; existed: boolean; again: boolean; event: string | null; offer: string | null; card_key?: string | null }
 export const signupInfo = (slug: string, event: string | null) => call<SignupInfo | null>('signup_info', { p_slug: slug, p_event: event });
 export const customerSignup = (slug: string, name: string, phone: string, consent: boolean, event: string | null) =>
   call<SignupResult>('customer_signup', { p_slug: slug, p_name: name, p_phone: phone, p_consent: consent, p_event: event });
+
+// ---- the customer's points card (?carte=<key>)
+export interface CustomerCard {
+  restaurant: { name: string; branding: Record<string, unknown> | null; languages: string[] };
+  loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number };
+  customer: { name: string | null; points: number; visits: number; last_visit_at: string | null };
+  recent: { points: number; reason: 'earn' | 'redeem'; at: string }[];
+}
+export const customerCard = (slug: string, key: string) => call<CustomerCard | null>('customer_card', { p_slug: slug, p_key: key });

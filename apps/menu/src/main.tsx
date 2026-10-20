@@ -17,6 +17,10 @@ const CourierApp = lazy(() => import('./courier/CourierApp'));
 const clubParam = new URLSearchParams(location.search).get('club');
 const club = clubParam !== null ? (/^[a-z0-9]{6,32}$/i.test(clubParam) ? clubParam : '') : null;
 const ClubSignup = lazy(() => import('./club/ClubSignup'));
+// the customer's points card (?carte=<key>), from the link the restaurant sent or the sign-up page
+const carteParam = new URLSearchParams(location.search).get('carte');
+const carte = carteParam && /^[a-z0-9]{16,40}$/i.test(carteParam) ? carteParam : null;
+const CardPage = lazy(() => import('./card/CardPage'));
 const slug = courier ? 'livreur' : resolveTenant().slug;
 const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
@@ -31,6 +35,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );

@@ -2,9 +2,10 @@
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, MENU_URL } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
+import { intlPhone } from '../lib/billing';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
@@ -14,7 +15,7 @@ import { SignupQrModal, type SignupEvent } from '../components/SignupQr';
 interface Customer {
   id: string; phone: string; name: string | null; birthday: string | null; note: string | null; marketing_ok: boolean;
   points: number; visits: number; spent_cents: number; first_visit_at: string | null; last_visit_at: string | null; created_at: string;
-  credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number; source: 'qr' | 'event' | null;
+  credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number; source: 'qr' | 'event' | null; card_key: string;
 }
 type Loyalty = NonNullable<Restaurant['loyalty']>;
 type Filter = 'all' | 'birthday' | 'whatsapp' | 'lost' | 'debt';
@@ -172,6 +173,8 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
     credit_allowed: c.credit_allowed, limit: fromCents(c.credit_limit_cents ?? 50000) });
   const [statement, setStatement] = useState(false);
   const [adjust, setAdjust] = useState(false);
+  const cardUrl = `${MENU_URL}/${r.slug}?carte=${c.card_key}`;
+  const copyCard = async () => { try { await navigator.clipboard.writeText(cardUrl); a.toast(t('Lien copié')); } catch { a.toast(t('Copie impossible'), 'error'); } };
   const save = async () => {
     try {
       check(await supabase.from('customers').update({ name: f.name.trim() || null, birthday: f.birthday || null, note: f.note.trim() || null, marketing_ok: f.marketing_ok,
@@ -193,6 +196,17 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
           <Field label={t('Anniversaire')}><input type="date" className={inputCls} value={f.birthday} onChange={e => setF({ ...f, birthday: e.target.value })} /></Field>
         </div>
         {points && <Field label={t('Points')} hint={t('Correction manuelle, enregistrée dans le journal.')}><input className={`${inputCls} w-32`} inputMode="numeric" value={f.points} onChange={e => setF({ ...f, points: e.target.value.replace(/\D/g, '') })} /></Field>}
+        {points && c.card_key && (
+          <div className="rounded-2xl bg-surface-2 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Gift className="h-5 w-5 text-brand" />
+              <p className="me-auto font-semibold">{t('Carte fidélité du client')}</p>
+              <Btn onClick={copyCard}><Copy className="h-4 w-4" /> {t('Copier le lien')}</Btn>
+              <a href={`https://wa.me/${intlPhone(c.phone)}?text=${encodeURIComponent(t('Bonjour{n}, voici votre carte fidélité {r} : vos points et votre récompense. {u}', { n: c.name ? ` ${c.name.split(' ')[0]}` : '', r: r.name, u: cardUrl }))}`} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-brand-ink"><MessageCircle className="h-4 w-4" /> {t('Envoyer sur WhatsApp')}</a>
+            </div>
+            <p className="mt-2 text-xs text-muted">{t('Un lien privé : le client y voit ses points et sa récompense, sans application. Envoyez-le seulement à lui.')}</p>
+          </div>
+        )}
         <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Allergie, table préférée…')} /></Field>
         <Toggle checked={f.marketing_ok} onChange={v => setF({ ...f, marketing_ok: v })} label={t('D’accord pour recevoir les offres sur WhatsApp')} />
         {credit && (

@@ -2412,4 +2412,7 @@ export const EN: Record<string, string> = {
   "{n} livraison(s) jetée(s)": "{n} delivery(ies) thrown away",
   "{q} expire avant": "{q} expires before",
   "{q} non tracé (stock sans date)": "{q} not traced (stock without a date)",
+  "Carte fidélité du client": "Customer's loyalty card",
+  "Un lien privé : le client y voit ses points et sa récompense, sans application. Envoyez-le seulement à lui.": "A private link: the customer sees his points and his reward, no app needed. Send it only to him.",
+  "Bonjour{n}, voici votre carte fidélité {r} : vos points et votre récompense. {u}": "Hello{n}, here is your {r} loyalty card: your points and your reward. {u}",
 };

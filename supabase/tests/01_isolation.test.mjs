@@ -86,7 +86,7 @@ test('only the intended functions are callable by guests', async () => {
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
     order by 1`);
-  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'customer_signup', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'issue_guest_voucher', 'place_order', 'reservation_cancel', 'reservation_status', 'signup_info', 'site_request', 'site_track', 'waitlist_join']);
+  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'book_table', 'booking_slots', 'check_promo_code', 'courier_orders', 'courier_update', 'customer_card', 'customer_signup', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'issue_guest_voucher', 'place_order', 'reservation_cancel', 'reservation_status', 'signup_info', 'site_request', 'site_track', 'waitlist_join']);
 });
 
 test('restaurant A users see zero rows of restaurant B, in every tenant table', async () => {
