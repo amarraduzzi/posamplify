@@ -2459,4 +2459,13 @@ export const EN: Record<string, string> = {
   "Nous avons aussi ajouté {b} points sur votre carte.": "We have also added {b} points to your card.",
   "Pour votre retour, nous avons ajouté {b} points sur votre carte.": "For your return, we have added {b} points to your card.",
   "À bientôt !": "See you soon!",
+  "Message d’anniversaire": "Birthday message",
+  "Dans Clients, filtre « Anniversaire ce mois », un bouton ouvre WhatsApp avec ce message. Une fois par an et par client, seulement pour ceux qui ont donné leur accord.": "In Customers, under the “Birthday this month” filter, a button opens WhatsApp with this message. Once a year per customer, only for those who agreed to it.",
+  "Votre cadeau": "Your gift",
+  "Un dessert offert ce mois-ci": "A free dessert this month",
+  "Ajoutés à sa carte quand vous envoyez le message, une seule fois par an. 0 = aucun.": "Added to their card when you send the message, only once a year. 0 = none.",
+  "Message envoyé le {d}": "Message sent on {d}",
+  "Joyeux anniversaire{n} ! Toute l’équipe de {r} vous souhaite une belle journée.": "Happy birthday{n}! The whole {r} team wishes you a lovely day.",
+  "Pour fêter ça : {o}.": "To celebrate: {o}.",
+  "Nous avons ajouté {b} points sur votre carte.": "We have added {b} points to your card.",
 };

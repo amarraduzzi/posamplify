@@ -56,3 +56,31 @@ export function comebackMessage(cfg: ComebackCfg, who: { first: string; restaura
   parts.push(t('À bientôt !'));
   return parts.join(' ');
 }
+
+// ------------------------------------------------------------ the birthday message (same idea, once per year)
+export interface BirthdayCfg { offer: string; bonus: number; message: string }
+
+export function birthdayCfg(l: Restaurant['loyalty'] | null | undefined): BirthdayCfg {
+  const b = l?.birthday ?? {};
+  const bonus = Math.round(Number(b.bonus_points));
+  return { offer: (b.offer ?? '').trim(), bonus: Number.isFinite(bonus) ? Math.min(COMEBACK_BONUS_MAX, Math.max(0, bonus)) : 0, message: (b.message ?? '').trim() };
+}
+
+/** Not sent yet this year (same rule as the database). */
+export const birthdayFresh = (c: { birthday_msg_at: string | null }) => !c.birthday_msg_at || new Date(c.birthday_msg_at).getFullYear() < new Date().getFullYear();
+export const birthdayGivesBonus = (cfg: BirthdayCfg, pointsOn: boolean, c: { birthday_msg_at: string | null }) => pointsOn && cfg.bonus > 0 && birthdayFresh(c);
+
+/** The owner's own text wins; it can use {name}, {restaurant}, {offer} and {points}. */
+export function birthdayMessage(cfg: BirthdayCfg, who: { first: string; restaurant: string; bonus: number }): string {
+  if (cfg.message) {
+    return cfg.message
+      .replace(/\{name\}/g, who.first).replace(/\{restaurant\}/g, who.restaurant)
+      .replace(/\{offer\}/g, cfg.offer).replace(/\{points\}/g, who.bonus ? String(who.bonus) : '')
+      .replace(/[ \t]+([,.])/g, '$1').replace(/ {2,}/g, ' ').trim();
+  }
+  const parts = [t('Joyeux anniversaire{n} ! Toute l’équipe de {r} vous souhaite une belle journée.', { n: who.first ? ` ${who.first}` : '', r: who.restaurant })];
+  if (cfg.offer) parts.push(t('Pour fêter ça : {o}.', { o: cfg.offer }));
+  if (who.bonus) parts.push(t('Nous avons ajouté {b} points sur votre carte.', { b: who.bonus }));
+  parts.push(t('À bientôt !'));
+  return parts.join(' ');
+}

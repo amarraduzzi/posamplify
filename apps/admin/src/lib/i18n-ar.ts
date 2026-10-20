@@ -2462,4 +2462,13 @@ export const AR: Record<string, string> = {
   "Récompenses maximum par addition": "الحد الأقصى للمكافآت في الفاتورة الواحدة",
   "Entre 1 et 10. Si les récompenses couvrent toute l’addition, elle est clôturée à 0 DH.": "بين 1 و 10. إذا غطّت المكافآت الفاتورة كاملة، تُغلق بمبلغ 0 درهم.",
   "Un produit offert est déduit de l’addition quand le client le commande. Le client peut cumuler plusieurs récompenses sur une même addition, jusqu’au maximum ci-dessous.": "يُخصم المنتج المجاني من الفاتورة عندما يطلبه الزبون. يمكن للزبون جمع عدة مكافآت في الفاتورة نفسها، حتى الحد الأقصى أدناه.",
+  "Message d’anniversaire": "رسالة عيد الميلاد",
+  "Dans Clients, filtre « Anniversaire ce mois », un bouton ouvre WhatsApp avec ce message. Une fois par an et par client, seulement pour ceux qui ont donné leur accord.": "في صفحة الزبناء، عند اختيار «عيد ميلاد هذا الشهر»، يفتح زر واتساب بهذه الرسالة. مرة واحدة في السنة لكل زبون، فقط للذين وافقوا على ذلك.",
+  "Votre cadeau": "هديتكم",
+  "Un dessert offert ce mois-ci": "حلوى مجانية هذا الشهر",
+  "Ajoutés à sa carte quand vous envoyez le message, une seule fois par an. 0 = aucun.": "تُضاف إلى بطاقته عند إرسال الرسالة، مرة واحدة فقط في السنة. 0 = لا شيء.",
+  "Message envoyé le {d}": "أُرسلت الرسالة في {d}",
+  "Joyeux anniversaire{n} ! Toute l’équipe de {r} vous souhaite une belle journée.": "عيد ميلاد سعيد{n}! يتمنى لكم فريق {r} يوماً جميلاً.",
+  "Pour fêter ça : {o}.": "للاحتفال بهذه المناسبة: {o}.",
+  "Nous avons ajouté {b} points sur votre carte.": "أضفنا {b} نقطة إلى بطاقتكم.",
 };

@@ -28,7 +28,9 @@ export interface Restaurant {
   profit_settings?: { target_food_cost_bp?: number; days_open_per_month?: number; order_days?: number; auto_sold_out?: boolean; expiry_auto_discard?: boolean };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number;
     /** the message to bring back customers who no longer come (Customers > Fidélité) */
-    comeback?: { days?: number; mode?: 'invite' | 'offer'; offer?: string; bonus_points?: number; message?: string } };
+    comeback?: { days?: number; mode?: 'invite' | 'offer'; offer?: string; bonus_points?: number; message?: string };
+    /** the birthday message: a gift in words, bonus points, the owner's own text */
+    birthday?: { offer?: string; bonus_points?: number; message?: string } };
   pos_settings: { printers?: { receipt?: string; stations?: Record<string, string> }; stations?: { key: string; name: string }[]; idle_lock_minutes?: number; receipt_footer?: string };
 }
 export interface Category { id: string; restaurant_id: string; name: I18n; icon: string | null; station: string; sort_order: number; active: boolean; course?: number | null; takeaway_discount_cents?: number }
