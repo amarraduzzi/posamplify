@@ -337,6 +337,8 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
   const [rewards, setRewards] = useState<LoyaltyReward[]>(() => loyaltyRewards(loyalty).map(x => (x.id === 'legacy' ? { ...x, id: newId() } : x)));
   const [dishes, setDishes] = useState<Dish[]>([]);
   const p = Math.max(1, Number(per) || 10);
+  // the points each saved reward costs today, to warn when the price goes up
+  const was = useMemo(() => new Map((loyalty.rewards ?? []).map(x => [x.id, x.points] as const)), [loyalty.rewards]);
 
   // the dishes to give away, and what each costs to make (from the recipes, when there are some)
   useEffect(() => {
@@ -392,7 +394,7 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
           </div>
           <div className="space-y-3">
             {rewards.map((rw, i) => (
-              <RewardRow key={rw.id} rw={rw} p={p} dishes={dishes} onChange={x => setAt(i, x)}
+              <RewardRow key={rw.id} rw={rw} p={p} was={was.get(rw.id)} dishes={dishes} onChange={x => setAt(i, x)}
                 onRemove={() => setRewards(list => list.filter((_, j) => j !== i))} />
             ))}
           </div>
@@ -461,10 +463,19 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
 }
 
 /** One reward: free dish or money off, with what it costs you compared to what the customer spent to earn it. */
-function RewardRow({ rw, p, dishes, onChange, onRemove }: { rw: LoyaltyReward; p: number; dishes: Dish[]; onChange: (r: LoyaltyReward) => void; onRemove: () => void }) {
+function RewardRow({ rw, p, was, dishes, onChange, onRemove }: { rw: LoyaltyReward; p: number; was?: number; dishes: Dish[]; onChange: (r: LoyaltyReward) => void; onRemove: () => void }) {
   const [val, setVal] = useState(fromCents(rw.cents ?? null));
   const spend = rw.points * p * 100;
   const dish = rw.kind === 'item' ? dishes.find(d => d.id === rw.item_id) : undefined;
+  // "give back X %": the owner types the percentage, the points follow (and follow again when 1 point per X DH or the value changes)
+  const [target, setTarget] = useState('');
+  const worth = rw.kind === 'discount' ? (rw.cents ?? 0) : (dish?.price ?? 0);
+  const tgt = Number(target.replace(',', '.'));
+  const suggested = tgt > 0 && worth > 0 ? Math.max(1, Math.round(worth / (tgt / 100) / (p * 100))) : 0;
+  useEffect(() => {
+    if (suggested && suggested !== rw.points) onChange({ ...rw, points: suggested });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggested]);
   let note: React.ReactNode = null;
   if (rw.kind === 'discount' && (rw.cents ?? 0) > 0) {
     const ratio = (rw.cents ?? 0) / spend;
@@ -479,7 +490,7 @@ function RewardRow({ rw, p, dishes, onChange, onRemove }: { rw: LoyaltyReward; p
   }
   return (
     <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
-      <div className="grid items-end gap-2 sm:grid-cols-[9rem_6rem_1fr_auto]">
+      <div className="grid items-end gap-2 sm:grid-cols-[9rem_6rem_6rem_1fr_auto]">
         <Field label={t('Récompense')}>
           <select className={inputCls} value={rw.kind} onChange={e => onChange(e.target.value === 'item'
             ? { id: rw.id, kind: 'item', points: rw.points, item_id: dishes[0]?.id } : { id: rw.id, kind: 'discount', points: rw.points, cents: toCents(val) || undefined })}>
@@ -487,7 +498,8 @@ function RewardRow({ rw, p, dishes, onChange, onRemove }: { rw: LoyaltyReward; p
             <option value="discount">{t('Remise')}</option>
           </select>
         </Field>
-        <Field label={t('Points')}><input className={inputCls} inputMode="numeric" value={rw.points || ''} onChange={e => onChange({ ...rw, points: Number(e.target.value.replace(/\D/g, '')) || 0 })} /></Field>
+        <Field label={t('Retour visé (%)')}><input className={inputCls} inputMode="decimal" placeholder="5" value={target} onChange={e => setTarget(e.target.value.replace(/[^\d.,]/g, '').slice(0, 5))} /></Field>
+        <Field label={t('Points')}><input className={inputCls} inputMode="numeric" value={rw.points || ''} onChange={e => { setTarget(''); onChange({ ...rw, points: Number(e.target.value.replace(/\D/g, '')) || 0 }); }} /></Field>
         {rw.kind === 'item'
           ? <Field label={t('Produit')}>
               <select className={inputCls} value={rw.item_id ?? ''} onChange={e => onChange({ ...rw, item_id: e.target.value || undefined })}>
@@ -501,6 +513,8 @@ function RewardRow({ rw, p, dishes, onChange, onRemove }: { rw: LoyaltyReward; p
         <button type="button" onClick={onRemove} aria-label={t('Supprimer')} className="grid h-11 w-11 place-items-center rounded-xl text-danger hover:bg-surface"><Trash2 className="h-4 w-4" /></button>
       </div>
       {note && <p className="text-sm">{note}</p>}
+      {target && worth <= 0 && <p className="text-xs text-muted">{t('Choisissez d’abord la valeur ou le produit : les points se calculent ensuite.')}</p>}
+      {was != null && rw.points > was && <p className="text-sm text-warn">{t('Attention : cette récompense coûtait {a} points, elle en coûtera {b}. Les clients qui ont déjà {a} points ne pourront plus l’échanger tout de suite.', { a: was, b: rw.points })}</p>}
     </div>
   );
 }
