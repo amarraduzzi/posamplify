@@ -7,7 +7,7 @@ import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import InstallApp from './InstallApp';
 import { save, drop } from '../lib/storage';
-import { customerCard, type CardReward, type CustomerCard } from '../lib/api';
+import { customerCard, customerWallet, type CardGift, type CardReward, type CustomerCard } from '../lib/api';
 
 const S = {
   fr: {
@@ -15,7 +15,7 @@ const S = {
     toGo: (n: number, dh: number) => `Plus que ${n} ${n === 1 ? 'point' : 'points'} (environ ${dh} DH) pour votre récompense`,
     reward: (m: string) => `${m} offerts`, ready: 'Votre récompense est prête !', readyTxt: (m: string) => `Dites votre numéro à la caisse : ${m} seront déduits de votre addition.`,
     how: 'Comment ça marche', howTxt: (per: number) => `1 point pour chaque ${per} DH dépensés. Échangez vos points contre une récompense de la liste ci-dessus. Donnez votre numéro à la caisse à chaque visite.`,
-    rewards: 'Vos récompenses', free: (n: string) => `${n} offert`, pick: 'Donnez votre numéro à la caisse et choisissez votre récompense.', avail: 'Disponible', need: (n: number) => `Encore ${n} pts`, itemNote: 'Déduit de l’addition quand vous le commandez.',
+    rewards: 'Vos récompenses', gifts: 'Vos cadeaux', giftsTxt: 'Montrez cet écran au personnel pour en profiter.', until: (d: string) => `Jusqu’au ${d}`, free: (n: string) => `${n} offert`, pick: 'Donnez votre numéro à la caisse et choisissez votre récompense.', avail: 'Disponible', need: (n: number) => `Encore ${n} pts`, itemNote: 'Déduit de l’addition quand vous le commandez.',
     visits: (n: number) => `${n} ${n === 1 ? 'visite' : 'visites'}`, last: 'Derniers mouvements', earn: 'Points gagnés', redeem: 'Récompense utilisée', none: 'Pas encore de visite. Vos points arriveront ici dès votre prochaine addition.',
     off: 'Le programme de points n’est pas actif pour le moment.', offVisits: 'Merci de votre fidélité.', notMe: 'Ce n’est pas ma carte', join: 'S’inscrire au club', notFound: 'Carte introuvable. Vérifiez le lien reçu, ou demandez-le à la caisse.', err: 'Impossible de charger la carte. Réessayez.',
     private: 'Cette carte est privée : ne partagez pas son lien.',
@@ -25,7 +25,7 @@ const S = {
     toGo: (n: number, dh: number) => `Only ${n} ${n === 1 ? 'point' : 'points'} to go (about ${dh} DH) for your reward`,
     reward: (m: string) => `${m} off`, ready: 'Your reward is ready!', readyTxt: (m: string) => `Give your number at the till: ${m} will be taken off your bill.`,
     how: 'How it works', howTxt: (per: number) => `1 point for every ${per} DH you spend. Swap your points for a reward from the list above. Give your number at the till each visit.`,
-    rewards: 'Your rewards', free: (n: string) => `Free ${n}`, pick: 'Give your number at the till and choose your reward.', avail: 'Available', need: (n: number) => `${n} pts to go`, itemNote: 'Taken off your bill when you order it.',
+    rewards: 'Your rewards', gifts: 'Your gifts', giftsTxt: 'Show this screen to the staff to enjoy them.', until: (d: string) => `Until ${d}`, free: (n: string) => `Free ${n}`, pick: 'Give your number at the till and choose your reward.', avail: 'Available', need: (n: number) => `${n} pts to go`, itemNote: 'Taken off your bill when you order it.',
     visits: (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'}`, last: 'Latest activity', earn: 'Points earned', redeem: 'Reward used', none: 'No visit yet. Your points will show up here after your next bill.',
     off: 'The points programme is not active right now.', offVisits: 'Thank you for coming back.', notMe: 'This is not my card', join: 'Join the club', notFound: 'Card not found. Check the link you received, or ask for it at the till.', err: 'Could not load the card. Try again.',
     private: 'This card is private: do not share its link.',
@@ -35,7 +35,7 @@ const S = {
     toGo: (n: number, dh: number) => `بقيت ${n} نقطة (حوالي ${dh} درهم) للحصول على مكافأتكم`,
     reward: (m: string) => `${m} هدية`, ready: 'مكافأتكم جاهزة!', readyTxt: (m: string) => `أعطوا رقمكم عند الصندوق: سيتم خصم ${m} من الفاتورة.`,
     how: 'كيف يعمل', howTxt: (per: number) => `نقطة واحدة لكل ${per} درهم تنفقونها. بدّلوا نقاطكم بمكافأة من القائمة أعلاه. أعطوا رقمكم عند الصندوق في كل زيارة.`,
-    rewards: 'مكافآتكم', free: (n: string) => `${n} مجانا`, pick: 'أعطوا رقمكم عند الصندوق واختاروا مكافأتكم.', avail: 'متاحة', need: (n: number) => `بقيت ${n} نقطة`, itemNote: 'يُخصم من الفاتورة عندما تطلبونه.',
+    rewards: 'مكافآتكم', gifts: 'هداياكم', giftsTxt: 'أظهروا هذه الشاشة للعاملين للاستفادة منها.', until: (d: string) => `حتى ${d}`, free: (n: string) => `${n} مجانا`, pick: 'أعطوا رقمكم عند الصندوق واختاروا مكافأتكم.', avail: 'متاحة', need: (n: number) => `بقيت ${n} نقطة`, itemNote: 'يُخصم من الفاتورة عندما تطلبونه.',
     visits: (n: number) => `${n} زيارة`, last: 'آخر العمليات', earn: 'نقاط مكتسبة', redeem: 'مكافأة مستعملة', none: 'لا توجد زيارة بعد. ستظهر نقاطكم هنا بعد فاتورتكم القادمة.',
     off: 'برنامج النقاط غير مفعل حاليا.', offVisits: 'شكرا لوفائكم.', notMe: 'هذه ليست بطاقتي', join: 'انضموا إلى النادي', notFound: 'البطاقة غير موجودة. تحققوا من الرابط الذي وصلكم أو اطلبوه عند الصندوق.', err: 'تعذر تحميل البطاقة. أعيدوا المحاولة.',
     private: 'هذه البطاقة خاصة: لا تشاركوا رابطها.',
@@ -47,6 +47,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export default function CardPage({ slug, cardKey }: { slug: string; cardKey: string }) {
   const [card, setCard] = useState<CustomerCard | null | undefined>(undefined);
   const [failed, setFailed] = useState(false);
+  const [gifts, setGifts] = useState<CardGift[]>([]);
   const [lang, setLang] = useState<Lang>('fr');
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
       const l = langs.includes(phoneLang) ? phoneLang : langs[0] ?? 'fr';
       setLang(l); applyLang(l);
       applyBranding((x.restaurant.branding ?? {}) as Branding, x.restaurant.name);
+      customerWallet(slug, cardKey).then(g => setGifts(Array.isArray(g) ? g : [])).catch(() => { /* no gifts shown, the card is fine */ });
     }).catch(() => { setFailed(true); setCard(null); });
   }, [slug, cardKey]);
 
@@ -136,6 +138,21 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
                 </div>
               : next ? <p className="mt-5 text-sm font-semibold">{t.toGo(left, left * per)}</p> : null}
           </div>
+
+          {gifts.length > 0 && (
+            <div className="mt-4 rounded-[1.4rem] p-5" style={{ background: 'color-mix(in srgb, var(--brand) 14%, var(--surface-2))' }}>
+              <p className="flex items-center gap-2 text-sm font-semibold"><Gift className="h-4 w-4 text-brand" />{t.gifts}</p>
+              <ul className="mt-3 space-y-2">
+                {gifts.map(g => (
+                  <li key={g.id} className="rounded-2xl bg-surface px-4 py-3">
+                    <p className="font-display text-lg font-semibold leading-tight">{g.label}</p>
+                    {g.expires_at && <p className="mt-0.5 text-xs text-muted">{t.until(new Date(g.expires_at).toLocaleDateString(lang === 'ar' ? 'ar-u-nu-latn' : lang, { day: 'numeric', month: 'long' }))}</p>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-sm">{t.giftsTxt}</p>
+            </div>
+          )}
 
           <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
             <p className="text-sm font-semibold">{t.rewards}</p>

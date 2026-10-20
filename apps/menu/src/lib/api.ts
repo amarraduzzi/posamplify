@@ -102,4 +102,7 @@ export interface CustomerCard {
   customer: { name: string | null; points: number; visits: number; last_visit_at: string | null };
   recent: { points: number; reason: 'earn' | 'redeem'; at: string; name?: string | null }[];
 }
+export interface CardGift { id: string; label: string; expires_at: string | null }
+/** The gifts the guest has won and not used yet (separate function: a card still opens if it is not installed). */
+export const customerWallet = (slug: string, key: string) => call<CardGift[]>('customer_card_wallet', { p_slug: slug, p_key: key });
 export const customerCard = (slug: string, key: string) => call<CustomerCard | null>('customer_card', { p_slug: slug, p_key: key });
