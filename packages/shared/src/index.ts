@@ -26,6 +26,14 @@ export interface Branding {
   guest_actions?: GuestAction[];
 }
 
+/** One loyalty reward: a free dish (kind 'item') or money off the bill (kind 'discount'). */
+export interface LoyaltyReward { id: string; kind: 'item' | 'discount'; points: number; item_id?: string; cents?: number; label?: string }
+/** The rewards of a restaurant; without a list, the single reward of before (same rule as app.loyalty_rewards in the database). */
+export function loyaltyRewards(l: { rewards?: LoyaltyReward[]; reward_points?: number; reward_cents?: number } | null | undefined): LoyaltyReward[] {
+  if (l?.rewards?.length) return l.rewards;
+  return [{ id: 'legacy', kind: 'discount', points: Math.max(1, l?.reward_points ?? 100), cents: Math.max(0, l?.reward_cents ?? 5000) }];
+}
+
 /**
  * One thing a guest can get for sharing the "J'étais là" story.
  *  when 'table': a gift handed over by the waiter now (type 'gift', the name is the gift)

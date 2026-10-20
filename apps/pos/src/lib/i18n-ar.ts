@@ -634,4 +634,9 @@ export const AR: Record<string, string> = {
   "Sur iPad, les tickets s’impriment avec l’application gratuite Epson TM Print Assistant :": "على الآيباد، تُطبع التذاكر بتطبيق Epson TM Print Assistant المجاني:",
   "Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.": "استعملوا الصندوق في Safari. بعد كل تذكرة، يعود الآيباد تلقائيا إلى الصندوق.",
   "Après chaque ticket, touchez « ◀ » en haut à gauche de l’écran pour revenir à la caisse.": "بعد كل تذكرة، اضغطوا « ◀ » أعلى يسار الشاشة للعودة إلى الصندوق.",
+  "{n} offert · {p} pts": "{n} مجانا · {p} نقطة",
+  "Produit": "منتج",
+  "Ajoutez d’abord ce produit à la commande": "أضيفوا هذا المنتج إلى الطلب أولا",
+  "Cette récompense n'existe plus (le gérant l'a modifiée). Rechargez la caisse.": "هذه المكافأة لم تعد موجودة (غيّرها المسير). أعيدوا تحميل الصندوق.",
+  "Ajoutez d'abord ce produit à la commande.": "أضيفوا هذا المنتج إلى الطلب أولا.",
 };

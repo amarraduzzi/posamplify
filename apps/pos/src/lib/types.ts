@@ -33,7 +33,7 @@ export interface Restaurant {
   booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number };
   /** customer file and loyalty points: off unless the owner switched them on */
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
-  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[] };
   owner_whatsapp?: string | null;
 }
 

@@ -14,6 +14,8 @@ const M: Record<string, string> = {
   remove_payments_first: "Supprimez d'abord les paiements de cette commande.",
   not_enough_points: "Pas assez de points pour la récompense.",
   order_too_small: "La commande doit dépasser la valeur de la récompense.",
+  reward_not_found: "Cette récompense n'existe plus (le gérant l'a modifiée). Rechargez la caisse.",
+  reward_item_not_in_order: "Ajoutez d'abord ce produit à la commande.",
   customers_off: "Le fichier clients n'est pas activé (espace gérant > Clients).",
   loyalty_off: "Les points de fidélité ne sont pas activés.",
   invalid_phone: "Numéro de téléphone invalide.",

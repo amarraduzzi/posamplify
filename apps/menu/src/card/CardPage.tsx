@@ -5,14 +5,15 @@ import { useEffect, useState } from 'react';
 import { Gift, Loader2, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
-import { customerCard, type CustomerCard } from '../lib/api';
+import { customerCard, type CardReward, type CustomerCard } from '../lib/api';
 
 const S = {
   fr: {
     hello: (n: string | null) => (n ? `Bonjour ${n}` : 'Bonjour'), card: 'Votre carte fidélité', pts: 'points', unit: (n: number) => (n === 1 ? 'point' : 'points'),
     toGo: (n: number, dh: number) => `Plus que ${n} ${n === 1 ? 'point' : 'points'} (environ ${dh} DH) pour votre récompense`,
     reward: (m: string) => `${m} offerts`, ready: 'Votre récompense est prête !', readyTxt: (m: string) => `Dites votre numéro à la caisse : ${m} seront déduits de votre addition.`,
-    how: 'Comment ça marche', howTxt: (per: number, p: number, m: string) => `1 point pour chaque ${per} DH dépensés. À ${p} points, ${m} offerts sur votre addition. Donnez votre numéro à la caisse à chaque visite.`,
+    how: 'Comment ça marche', howTxt: (per: number) => `1 point pour chaque ${per} DH dépensés. Échangez vos points contre une récompense de la liste ci-dessus. Donnez votre numéro à la caisse à chaque visite.`,
+    rewards: 'Vos récompenses', free: (n: string) => `${n} offert`, pick: 'Donnez votre numéro à la caisse et choisissez votre récompense.', avail: 'Disponible', need: (n: number) => `Encore ${n} pts`, itemNote: 'Déduit de l’addition quand vous le commandez.',
     visits: (n: number) => `${n} ${n === 1 ? 'visite' : 'visites'}`, last: 'Derniers mouvements', earn: 'Points gagnés', redeem: 'Récompense utilisée', none: 'Pas encore de visite. Vos points arriveront ici dès votre prochaine addition.',
     off: 'Le programme de points n’est pas actif pour le moment.', offVisits: 'Merci de votre fidélité.', notFound: 'Carte introuvable. Vérifiez le lien reçu, ou demandez-le à la caisse.', err: 'Impossible de charger la carte. Réessayez.',
     private: 'Cette carte est privée : ne partagez pas son lien.',
@@ -21,7 +22,8 @@ const S = {
     hello: (n: string | null) => (n ? `Hello ${n}` : 'Hello'), card: 'Your loyalty card', pts: 'points', unit: (n: number) => (n === 1 ? 'point' : 'points'),
     toGo: (n: number, dh: number) => `Only ${n} ${n === 1 ? 'point' : 'points'} to go (about ${dh} DH) for your reward`,
     reward: (m: string) => `${m} off`, ready: 'Your reward is ready!', readyTxt: (m: string) => `Give your number at the till: ${m} will be taken off your bill.`,
-    how: 'How it works', howTxt: (per: number, p: number, m: string) => `1 point for every ${per} DH you spend. At ${p} points you get ${m} off your bill. Give your number at the till each visit.`,
+    how: 'How it works', howTxt: (per: number) => `1 point for every ${per} DH you spend. Swap your points for a reward from the list above. Give your number at the till each visit.`,
+    rewards: 'Your rewards', free: (n: string) => `Free ${n}`, pick: 'Give your number at the till and choose your reward.', avail: 'Available', need: (n: number) => `${n} pts to go`, itemNote: 'Taken off your bill when you order it.',
     visits: (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'}`, last: 'Latest activity', earn: 'Points earned', redeem: 'Reward used', none: 'No visit yet. Your points will show up here after your next bill.',
     off: 'The points programme is not active right now.', offVisits: 'Thank you for coming back.', notFound: 'Card not found. Check the link you received, or ask for it at the till.', err: 'Could not load the card. Try again.',
     private: 'This card is private: do not share its link.',
@@ -30,7 +32,8 @@ const S = {
     hello: (n: string | null) => (n ? `مرحبا ${n}` : 'مرحبا'), card: 'بطاقة الوفاء الخاصة بكم', pts: 'نقطة', unit: () => 'نقطة',
     toGo: (n: number, dh: number) => `بقيت ${n} نقطة (حوالي ${dh} درهم) للحصول على مكافأتكم`,
     reward: (m: string) => `${m} هدية`, ready: 'مكافأتكم جاهزة!', readyTxt: (m: string) => `أعطوا رقمكم عند الصندوق: سيتم خصم ${m} من الفاتورة.`,
-    how: 'كيف يعمل', howTxt: (per: number, p: number, m: string) => `نقطة واحدة لكل ${per} درهم تنفقونها. عند ${p} نقطة تحصلون على ${m} خصما من الفاتورة. أعطوا رقمكم عند الصندوق في كل زيارة.`,
+    how: 'كيف يعمل', howTxt: (per: number) => `نقطة واحدة لكل ${per} درهم تنفقونها. بدّلوا نقاطكم بمكافأة من القائمة أعلاه. أعطوا رقمكم عند الصندوق في كل زيارة.`,
+    rewards: 'مكافآتكم', free: (n: string) => `${n} مجانا`, pick: 'أعطوا رقمكم عند الصندوق واختاروا مكافأتكم.', avail: 'متاحة', need: (n: number) => `بقيت ${n} نقطة`, itemNote: 'يُخصم من الفاتورة عندما تطلبونه.',
     visits: (n: number) => `${n} زيارة`, last: 'آخر العمليات', earn: 'نقاط مكتسبة', redeem: 'مكافأة مستعملة', none: 'لا توجد زيارة بعد. ستظهر نقاطكم هنا بعد فاتورتكم القادمة.',
     off: 'برنامج النقاط غير مفعل حاليا.', offVisits: 'شكرا لوفائكم.', notFound: 'البطاقة غير موجودة. تحققوا من الرابط الذي وصلكم أو اطلبوه عند الصندوق.', err: 'تعذر تحميل البطاقة. أعيدوا المحاولة.',
     private: 'هذه البطاقة خاصة: لا تشاركوا رابطها.',
@@ -64,11 +67,17 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
   const brand = branding.primary_color && HEX.test(branding.primary_color) ? branding.primary_color : '#C2410C';
   const anti = inkFor(brand) === '#ffffff' ? '#000000' : '#ffffff';
   const { loyalty: L, customer: c } = card;
-  const need = Math.max(1, Number(L.reward_points) || 100);
   const per = Math.max(1, Number(L.per_dh) || 10);
-  const money = `${Math.round(Number(L.reward_cents) / 100)} DH`;
   const points = Number(c.points) || 0;
-  const ready = L.enabled && points >= need;
+  const rewards = (L.rewards?.length ? L.rewards : [{ id: 'legacy', kind: 'discount' as const, points: Math.max(1, Number(L.reward_points) || 100), cents: Number(L.reward_cents), name: null, image_url: null }])
+    .slice().sort((a, b) => a.points - b.points);
+  const rname = (rw: CardReward) => rw.kind === 'item'
+    ? t.free((rw.name?.[lang] || rw.name?.fr || Object.values(rw.name ?? {}).find(Boolean) || '') as string)
+    : t.reward(`${Math.round(Number(rw.cents) / 100)} DH`);
+  const next = rewards.find(rw => rw.points > points);
+  const target = next ?? rewards[rewards.length - 1];
+  const need = target.points;
+  const ready = L.enabled && rewards.some(rw => points >= rw.points);
   const left = Math.max(0, need - points);
   const pct = Math.min(100, Math.round((points / need) * 100));
   const when = (iso: string) => new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA-u-nu-latn' : lang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short' });
@@ -108,20 +117,41 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
               <div className="h-3.5 overflow-hidden rounded-full bg-surface-2">
                 <div className="h-full rounded-full bg-brand transition-[width] duration-700" style={{ width: `${pct}%` }} />
               </div>
-              <div className="mt-2 flex items-center justify-between text-xs font-semibold text-muted tabular"><span>0</span><span className="flex items-center gap-1"><Gift className="h-3.5 w-3.5" />{need} · {t.reward(money)}</span></div>
+              <div className="mt-2 flex items-center justify-between text-xs font-semibold text-muted tabular"><span>0</span><span className="flex items-center gap-1"><Gift className="h-3.5 w-3.5" />{need} · {rname(target)}</span></div>
             </div>
 
             {ready
               ? <div className="mt-5 rounded-2xl p-4" style={{ background: 'color-mix(in srgb, var(--brand) 14%, var(--surface-2))' }}>
                   <p className="flex items-center justify-center gap-2 font-display text-xl font-semibold"><Star className="h-5 w-5 text-brand" />{t.ready}</p>
-                  <p className="mt-1 text-sm">{t.readyTxt(money)}</p>
+                  <p className="mt-1 text-sm">{t.pick}</p>
                 </div>
-              : <p className="mt-5 text-sm font-semibold">{t.toGo(left, left * per)}</p>}
+              : next ? <p className="mt-5 text-sm font-semibold">{t.toGo(left, left * per)}</p> : null}
+          </div>
+
+          <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
+            <p className="text-sm font-semibold">{t.rewards}</p>
+            <ul className="mt-2 divide-y divide-black/5">
+              {rewards.map(rw => {
+                const ok = points >= rw.points;
+                return (
+                  <li key={rw.id} className="flex items-center gap-3 py-3 text-sm">
+                    {rw.image_url
+                      ? <img src={rw.image_url} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                      : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-surface text-brand"><Gift className="h-5 w-5" /></span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{rname(rw)}</span>
+                      <span className="block text-xs text-muted tabular">{rw.points} {t.pts}{rw.kind === 'item' ? ` · ${t.itemNote}` : ''}</span>
+                    </span>
+                    <span className={`shrink-0 text-xs font-bold ${ok ? 'text-ink' : 'text-muted'}`}>{ok ? t.avail : t.need(rw.points - points)}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
             <p className="text-sm font-semibold">{t.how}</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted">{t.howTxt(per, need, money)}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{t.howTxt(per)}</p>
           </div>
 
           <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
@@ -131,7 +161,7 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
               : <ul className="mt-2 divide-y divide-black/5">
                   {card.recent.map((m, i) => (
                     <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                      <span><span className="font-medium">{m.reason === 'redeem' ? t.redeem : t.earn}</span> <span className="text-muted">· {when(m.at)}</span></span>
+                      <span><span className="font-medium">{m.reason === 'redeem' ? `${t.redeem}${m.name ? ` · ${m.name}` : ''}` : t.earn}</span> <span className="text-muted">· {when(m.at)}</span></span>
                       <span className={`font-semibold tabular ${m.points < 0 ? 'text-muted' : 'text-brand'}`} dir="ltr">{m.points > 0 ? '+' : ''}{m.points}</span>
                     </li>
                   ))}

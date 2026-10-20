@@ -1,13 +1,14 @@
 // Customer file and loyalty points. OFF until the owner switches it on: only then
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cake, Copy, Gift, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
+import { loyaltyRewards, type LoyaltyReward } from '@resto/shared';
+import { Cake, Copy, Gift, Trash2, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { intlPhone } from '../lib/billing';
 import { useAdminCtx } from '../store';
-import type { Restaurant } from '../lib/types';
+import type { I18n, ProfitData, Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { ImportData } from '../components/ImportData';
 import { SignupQrModal, type SignupEvent } from '../components/SignupQr';
@@ -162,7 +163,7 @@ export function CustomersPage({ r }: { r: Restaurant }) {
       </div>
 
       {edit && <CustomerEditor c={edit} points={!!loyalty.enabled} credit={credit} r={r} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
-      {settings && <LoyaltySettings loyalty={loyalty} onClose={() => setSettings(false)} onSave={l => { setSettings(false); saveLoyalty(l); }} />}
+      {settings && <LoyaltySettings rid={r.id} loyalty={loyalty} onClose={() => setSettings(false)} onSave={l => { setSettings(false); saveLoyalty(l); }} />}
     </div>
   );
 }
@@ -267,20 +268,51 @@ function NewCustomer({ r, onClose, onSaved }: { r: Restaurant; onClose: () => vo
   );
 }
 
-function LoyaltySettings({ loyalty, onClose, onSave }: { loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
+interface Dish { id: string; name: string; price: number; cost: number | null }
+const nameOf = (n: I18n | null | undefined) => (n?.fr || n?.en || Object.values(n ?? {})[0] || '') as string;
+const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
+const newId = () => `r${Math.random().toString(36).slice(2, 8)}`;
+
+function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
   const [on, setOn] = useState(!!loyalty.enabled);
   const [credit, setCredit] = useState(!!loyalty.credit);
   const [per, setPer] = useState(String(loyalty.per_dh ?? 10));
-  const [pts, setPts] = useState(String(loyalty.reward_points ?? 100));
-  const [val, setVal] = useState(fromCents(loyalty.reward_cents ?? 5000));
-  const p = Math.max(1, Number(per) || 10), n = Math.max(1, Number(pts) || 100), v = toCents(val);
-  // what the reward is worth compared to what the customer spent to get it
-  const ratio = v / (n * p * 100);
+  const [rewards, setRewards] = useState<LoyaltyReward[]>(() => loyaltyRewards(loyalty).map(x => (x.id === 'legacy' ? { ...x, id: newId() } : x)));
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const p = Math.max(1, Number(per) || 10);
+
+  // the dishes to give away, and what each costs to make (from the recipes, when there are some)
+  useEffect(() => {
+    (async () => {
+      try {
+        const items = check(await supabase.from('menu_items').select('id, name, price_cents').eq('restaurant_id', rid).eq('active', true).order('sort_order')) as { id: string; name: I18n; price_cents: number }[];
+        const cost = new Map<string, number>();
+        try {
+          const pr = await rpc<ProfitData>('profit_dishes', { p_restaurant_id: rid, p_days: 30 });
+          for (const d of pr.dishes) if (d.cost_cents != null) cost.set(d.item_id, Math.min(cost.get(d.item_id) ?? Infinity, Number(d.cost_cents)));
+        } catch { /* no recipes yet: the cost stays unknown */ }
+        setDishes(items.map(i => ({ id: i.id, name: nameOf(i.name), price: Number(i.price_cents), cost: cost.get(i.id) ?? null })));
+      } catch { /* the list stays empty */ }
+    })();
+  }, [rid]);
+
+  const setAt = (i: number, rw: LoyaltyReward) => setRewards(list => list.map((x, j) => (j === i ? rw : x)));
+  const valid = rewards.length > 0 && rewards.every(rw => rw.points >= 1 && (rw.kind === 'item' ? !!rw.item_id : (rw.cents ?? 0) >= 1));
+  const save = () => {
+    const list = rewards.map(rw => rw.kind === 'item'
+      ? { id: rw.id, kind: 'item' as const, points: rw.points, item_id: rw.item_id, label: (dishes.find(d => d.id === rw.item_id)?.name ?? rw.label ?? '').slice(0, 80) || undefined }
+      : { id: rw.id, kind: 'discount' as const, points: rw.points, cents: rw.cents });
+    // the first money reward is also kept in the old fields (the sign-up page and old screens still read them)
+    const money = list.find(x => x.kind === 'discount');
+    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list,
+      reward_points: money?.points ?? loyalty.reward_points ?? 100, reward_cents: money?.cents ?? loyalty.reward_cents ?? 5000 });
+  };
+
   return (
     <Modal title={t('Fidélité et ardoise')} onClose={onClose}
       footer={<div className="flex justify-between">
         <Btn tone="ghost" className="text-danger" onClick={() => onSave({ ...loyalty, customers: false, enabled: false, credit: false })}>{t('Désactiver le fichier clients')}</Btn>
-        <Btn tone="brand" onClick={() => onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, reward_points: n, reward_cents: v })}>{t('Enregistrer')}</Btn></div>}>
+        <Btn tone="brand" disabled={on && !valid} onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <div className="space-y-4">
         <div className="rounded-2xl bg-surface-2 p-4">
           <Toggle checked={credit} onChange={setCredit} label={t('Ardoise : certains clients paient plus tard')} />
@@ -288,16 +320,70 @@ function LoyaltySettings({ loyalty, onClose, onSave }: { loyalty: Loyalty; onClo
         </div>
         <Toggle checked={on} onChange={setOn} label={t('Points de fidélité')} />
         {on && <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label={t('1 point tous les (DH)')}><input className={inputCls} inputMode="numeric" value={per} onChange={e => setPer(e.target.value.replace(/\D/g, ''))} /></Field>
-            <Field label={t('Récompense à (points)')}><input className={inputCls} inputMode="numeric" value={pts} onChange={e => setPts(e.target.value.replace(/\D/g, ''))} /></Field>
-            <Field label={t('Valeur offerte (DH)')}><input className={inputCls} inputMode="decimal" value={val} onChange={e => setVal(e.target.value)} /></Field>
+          <Field label={t('1 point tous les (DH)')}><input className={inputCls} inputMode="numeric" value={per} onChange={e => setPer(e.target.value.replace(/\D/g, ''))} /></Field>
+          <div>
+            <p className="text-sm font-semibold">{t('Récompenses')}</p>
+            <p className="mt-0.5 text-sm text-muted">{t('Un produit offert est déduit de l’addition quand le client le commande. Une seule récompense par addition.')}</p>
           </div>
-          <p className="rounded-xl bg-surface-2 p-3 text-sm">{t('Le client dépense {s} pour gagner {m} : {pc} de remise.', { s: mad(n * p * 100), m: mad(v), pc: `${(ratio * 100).toFixed(1).replace('.', ',')} %` })}
-            {ratio > 0.1 && <span className="block text-warn">{t('Attention : plus de 10 % de remise, c’est beaucoup pour un restaurant. Comparez avec votre marge.')}</span>}</p>
+          <div className="space-y-3">
+            {rewards.map((rw, i) => (
+              <RewardRow key={rw.id} rw={rw} p={p} dishes={dishes} onChange={x => setAt(i, x)}
+                onRemove={() => setRewards(list => list.filter((_, j) => j !== i))} />
+            ))}
+          </div>
+          {rewards.length < 8 && (
+            <Btn tone="ghost" onClick={() => setRewards(list => [...list, { id: newId(), kind: 'item', points: 50, item_id: dishes[0]?.id }])}>
+              <Plus className="h-4 w-4" /> {t('Ajouter une récompense')}</Btn>
+          )}
+          {!valid && <p className="text-sm text-warn">{t('Chaque récompense a besoin d’un produit ou d’un montant.')}</p>}
         </>}
       </div>
     </Modal>
+  );
+}
+
+/** One reward: free dish or money off, with what it costs you compared to what the customer spent to earn it. */
+function RewardRow({ rw, p, dishes, onChange, onRemove }: { rw: LoyaltyReward; p: number; dishes: Dish[]; onChange: (r: LoyaltyReward) => void; onRemove: () => void }) {
+  const [val, setVal] = useState(fromCents(rw.cents ?? null));
+  const spend = rw.points * p * 100;
+  const dish = rw.kind === 'item' ? dishes.find(d => d.id === rw.item_id) : undefined;
+  let note: React.ReactNode = null;
+  if (rw.kind === 'discount' && (rw.cents ?? 0) > 0) {
+    const ratio = (rw.cents ?? 0) / spend;
+    note = <>{t('Le client dépense {s} pour gagner {m} : {pc} de remise.', { s: mad(spend), m: mad(rw.cents ?? 0), pc: pct(ratio) })}
+      {ratio > 0.1 && <span className="block text-warn">{t('Attention : plus de 10 % de remise, c’est beaucoup pour un restaurant. Comparez avec votre marge.')}</span>}</>;
+  } else if (dish) {
+    note = dish.cost != null
+      ? <>{t('Le client dépense {s} pour gagner ce produit. Il vous coûte environ {c}, soit {pc} de ses dépenses.', { s: mad(spend), c: mad(dish.cost), pc: pct(dish.cost / spend) })}
+          {dish.cost / spend > 0.05 && <span className="block text-warn">{t('Attention : ce produit offert coûte plus de 5 % de ce que le client dépense.')}</span>}</>
+      : <>{t('Le client dépense {s} pour gagner ce produit (prix {m}, soit {pc}). Ajoutez sa recette dans Profit pour voir ce qu’il vous coûte vraiment.', { s: mad(spend), m: mad(dish.price), pc: pct(dish.price / spend) })}
+          {dish.price / spend > 0.1 && <span className="block text-warn">{t('Attention : plus de 10 % de remise, c’est beaucoup pour un restaurant. Comparez avec votre marge.')}</span>}</>;
+  }
+  return (
+    <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
+      <div className="grid items-end gap-2 sm:grid-cols-[9rem_6rem_1fr_auto]">
+        <Field label={t('Récompense')}>
+          <select className={inputCls} value={rw.kind} onChange={e => onChange(e.target.value === 'item'
+            ? { id: rw.id, kind: 'item', points: rw.points, item_id: dishes[0]?.id } : { id: rw.id, kind: 'discount', points: rw.points, cents: toCents(val) || undefined })}>
+            <option value="item">{t('Produit offert')}</option>
+            <option value="discount">{t('Remise')}</option>
+          </select>
+        </Field>
+        <Field label={t('Points')}><input className={inputCls} inputMode="numeric" value={rw.points || ''} onChange={e => onChange({ ...rw, points: Number(e.target.value.replace(/\D/g, '')) || 0 })} /></Field>
+        {rw.kind === 'item'
+          ? <Field label={t('Produit')}>
+              <select className={inputCls} value={rw.item_id ?? ''} onChange={e => onChange({ ...rw, item_id: e.target.value || undefined })}>
+                <option value="">{t('Choisir…')}</option>
+                {dishes.map(d => <option key={d.id} value={d.id}>{d.name} · {mad(d.price)}</option>)}
+              </select>
+            </Field>
+          : <Field label={t('Valeur offerte (DH)')}>
+              <input className={inputCls} inputMode="decimal" value={val} onChange={e => { setVal(e.target.value); onChange({ ...rw, cents: toCents(e.target.value) || undefined }); }} />
+            </Field>}
+        <button type="button" onClick={onRemove} aria-label={t('Supprimer')} className="grid h-11 w-11 place-items-center rounded-xl text-danger hover:bg-surface"><Trash2 className="h-4 w-4" /></button>
+      </div>
+      {note && <p className="text-sm">{note}</p>}
+    </div>
   );
 }
 

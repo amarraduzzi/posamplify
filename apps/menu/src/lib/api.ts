@@ -94,10 +94,12 @@ export const customerSignup = (slug: string, name: string, phone: string, consen
   call<SignupResult>('customer_signup', { p_slug: slug, p_name: name, p_phone: phone, p_consent: consent, p_event: event });
 
 // ---- the customer's points card (?carte=<key>)
+/** A reward on the card: a free dish (named in every language, maybe with a photo) or money off. */
+export interface CardReward { id: string; kind: 'item' | 'discount'; points: number; cents: number | null; name: Record<string, string | null> | null; image_url: string | null }
 export interface CustomerCard {
   restaurant: { name: string; branding: Record<string, unknown> | null; languages: string[] };
-  loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number };
+  loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number; rewards?: CardReward[] };
   customer: { name: string | null; points: number; visits: number; last_visit_at: string | null };
-  recent: { points: number; reason: 'earn' | 'redeem'; at: string }[];
+  recent: { points: number; reason: 'earn' | 'redeem'; at: string; name?: string | null }[];
 }
 export const customerCard = (slug: string, key: string) => call<CustomerCard | null>('customer_card', { p_slug: slug, p_key: key });

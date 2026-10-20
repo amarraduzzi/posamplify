@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket, FastForward } from 'lucide-react';
-import { promoPrice, tr } from '@resto/shared';
+import { loyaltyRewards, promoPrice, tr, type LoyaltyReward } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
 import { kg, mad, time, uid } from '../lib/format';
@@ -951,15 +951,15 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
 }) {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
-  const need = loyalty.reward_points ?? 100;
+  const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
-  const canRedeem = !!loyalty.enabled && !!known && known.points >= need && !Number(order.discount_cents)
-    && Number(order.subtotal_cents) > (loyalty.reward_cents ?? 5000);
-  const redeem = async () => {
+  // rewards the customer can afford; the till only offers them while there is no discount on the order
+  const open = !!loyalty.enabled && !!known && !Number(order.discount_cents);
+  const redeem = async (rw: LoyaltyReward) => {
     if (!pos.requireOnline() || !known) return;
     setBusy(true);
     try {
-      const res = await db.rpc<{ points: number }>('pos_redeem_points', { p_order_id: order.id });
+      const res = await db.rpc<{ points: number }>('pos_redeem_reward', { p_order_id: order.id, p_reward_id: rw.id });
       await pos.reloadOrders();
       onRedeemed({ ...known, points: res.points });
       pos.toast(t('Récompense utilisée'), 'ok');
@@ -975,7 +975,16 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
       {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
       {order.discount_kind === 'loyalty' && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
       <span className="ms-auto flex gap-2">
-        {canRedeem && <button disabled={busy} onClick={redeem} className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A]"><Gift className="h-3.5 w-3.5" /> {t('Utiliser {p} pts (−{m})', { p: need, m: mad(loyalty.reward_cents ?? 5000) })}</button>}
+        {open && rewards.filter(rw => known!.points >= rw.points && (rw.kind === 'item' || Number(order.subtotal_cents) > (rw.cents ?? 0))).map(rw => {
+          // a free dish needs that dish on the ticket
+          const there = rw.kind !== 'item' || order.order_lines.some(l => l.menu_item_id === rw.item_id);
+          return (
+            <button key={rw.id} disabled={busy || !there} onClick={() => redeem(rw)} title={there ? undefined : t('Ajoutez d’abord ce produit à la commande')}
+              className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A] disabled:opacity-40"><Gift className="h-3.5 w-3.5" />
+              {' '}{rw.kind === 'item' ? t('{n} offert · {p} pts', { n: rw.label || t('Produit'), p: rw.points }) : t('Utiliser {p} pts (−{m})', { p: rw.points, m: mad(rw.cents ?? 0) })}
+            </button>
+          );
+        })}
         <button onClick={onPick} className="rounded-lg bg-surface px-2.5 py-1 text-xs font-bold text-brand">{order.customer_id ? t('Changer') : t('Client')}</button>
       </span>
     </div>

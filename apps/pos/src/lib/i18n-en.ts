@@ -633,4 +633,9 @@ export const EN: Record<string, string> = {
   "Sur iPad, les tickets s’impriment avec l’application gratuite Epson TM Print Assistant :": "On iPad, tickets print with the free Epson TM Print Assistant app:",
   "Utilisez la caisse dans Safari. Après chaque ticket, l’iPad revient tout seul à la caisse.": "Use the till in Safari. After each ticket, the iPad comes back to the till by itself.",
   "Après chaque ticket, touchez « ◀ » en haut à gauche de l’écran pour revenir à la caisse.": "After each ticket, tap « ◀ » at the top left of the screen to go back to the till.",
+  "{n} offert · {p} pts": "{n} free · {p} pts",
+  "Produit": "Item",
+  "Ajoutez d’abord ce produit à la commande": "Add this item to the order first",
+  "Cette récompense n'existe plus (le gérant l'a modifiée). Rechargez la caisse.": "This reward no longer exists (the manager changed it). Reload the till.",
+  "Ajoutez d'abord ce produit à la commande.": "Add this item to the order first.",
 };
