@@ -6,7 +6,7 @@ import * as db from '../lib/data';
 import { kg, mad, time, uid } from '../lib/format';
 import { ticketRef } from '../lib/print';
 import { PIN_ERRORS, errorMessage } from '../lib/errors';
-import type { ChosenMod, DraftLine, Item, Line, ModGroup, Order } from '../lib/types';
+import type { ChosenMod, DraftLine, Item, Line, ModGroup, Order, OrderReward } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import { PaymentModal } from './PaymentModal';
@@ -953,8 +953,18 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
   const [busy, setBusy] = useState(false);
   const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
-  // rewards the customer can afford; the till only offers them while there is no discount on the order
-  const open = !!loyalty.enabled && !!known && !Number(order.discount_cents);
+  const applied = (order.order_rewards ?? []).filter(x => !x.released_at);
+  const max = Math.max(1, loyalty.max_per_order ?? 1);
+  const sofar = applied.reduce((n, x) => n + Number(x.cents), 0);
+  // rewards can be added while the bill has no manager discount or promo code, and the maximum is not reached
+  const open = !!loyalty.enabled && !!known && !(Number(order.discount_cents) > 0 && order.discount_kind !== 'loyalty') && applied.length < max;
+  /** what a reward would take off, and whether the bill can carry it (the rewards together stay below the bill) */
+  const fit = (rw: LoyaltyReward) => {
+    if (rw.kind !== 'item') return { there: true, ok: Number(order.subtotal_cents) > sofar + (rw.cents ?? 0) };
+    const lines = order.order_lines.filter(l => l.menu_item_id === rw.item_id);
+    const there = lines.reduce((n, l) => n + Number(l.quantity), 0) > applied.filter(x => x.menu_item_id === rw.item_id).length;
+    return { there, ok: !there || Number(order.subtotal_cents) > sofar + Math.min(...lines.map(l => Number(l.unit_price_cents))) };
+  };
   const redeem = async (rw: LoyaltyReward) => {
     if (!pos.requireOnline() || !known) return;
     setBusy(true);
@@ -966,6 +976,18 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
     } catch (e) { pos.fail(e); }
     setBusy(false);
   };
+  // a mistake at the till: take one reward off, the points come back
+  const release = async (x: OrderReward) => {
+    if (!pos.requireOnline()) return;
+    setBusy(true);
+    try {
+      const res = await db.rpc<{ points: number | null }>('pos_release_reward', { p_order_reward_id: x.id });
+      await pos.reloadOrders();
+      if (known && res.points != null) onRedeemed({ ...known, points: res.points });
+      pos.toast(t('Récompense retirée'), 'ok');
+    } catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface-2/60 px-4 py-2 text-sm">
       <UserRound className="h-4 w-4 text-brand" />
@@ -973,11 +995,17 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
         ? <span className="font-semibold">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</span>
         : <span className="text-muted">{t('Pas de client')}</span>}
       {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
-      {order.discount_kind === 'loyalty' && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
-      <span className="ms-auto flex gap-2">
-        {open && rewards.filter(rw => known!.points >= rw.points && (rw.kind === 'item' || Number(order.subtotal_cents) > (rw.cents ?? 0))).map(rw => {
-          // a free dish needs that dish on the ticket
-          const there = rw.kind !== 'item' || order.order_lines.some(l => l.menu_item_id === rw.item_id);
+      {applied.map(x => (
+        <span key={x.id} className="inline-flex items-center gap-1 rounded-full bg-ok/15 py-0.5 ps-2 pe-1 text-xs font-bold text-ok">
+          <Gift className="h-3 w-3" />{x.name || (x.kind === 'item' ? t('Produit') : t('Remise fidélité'))} · −{mad(Number(x.cents))}
+          <button disabled={busy} onClick={() => release(x)} aria-label={t('Retirer la récompense')} title={t('Retirer la récompense')} className="rounded-full p-0.5 hover:bg-ok/20 disabled:opacity-40"><X className="h-3 w-3" /></button>
+        </span>
+      ))}
+      {order.discount_kind === 'loyalty' && applied.length === 0 && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
+      <span className="ms-auto flex flex-wrap justify-end gap-2">
+        {open && rewards.filter(rw => known!.points >= rw.points && fit(rw).ok).map(rw => {
+          // a free dish needs a unit of that dish on the ticket that is not free yet
+          const there = fit(rw).there;
           return (
             <button key={rw.id} disabled={busy || !there} onClick={() => redeem(rw)} title={there ? undefined : t('Ajoutez d’abord ce produit à la commande')}
               className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A] disabled:opacity-40"><Gift className="h-3.5 w-3.5" />

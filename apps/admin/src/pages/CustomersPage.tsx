@@ -277,6 +277,7 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
   const [on, setOn] = useState(!!loyalty.enabled);
   const [credit, setCredit] = useState(!!loyalty.credit);
   const [per, setPer] = useState(String(loyalty.per_dh ?? 10));
+  const [maxPer, setMaxPer] = useState(String(loyalty.max_per_order ?? 1));
   const [rewards, setRewards] = useState<LoyaltyReward[]>(() => loyaltyRewards(loyalty).map(x => (x.id === 'legacy' ? { ...x, id: newId() } : x)));
   const [dishes, setDishes] = useState<Dish[]>([]);
   const p = Math.max(1, Number(per) || 10);
@@ -304,7 +305,7 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
       : { id: rw.id, kind: 'discount' as const, points: rw.points, cents: rw.cents });
     // the first money reward is also kept in the old fields (the sign-up page and old screens still read them)
     const money = list.find(x => x.kind === 'discount');
-    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list,
+    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list, max_per_order: Math.min(10, Math.max(1, Number(maxPer) || 1)),
       reward_points: money?.points ?? loyalty.reward_points ?? 100, reward_cents: money?.cents ?? loyalty.reward_cents ?? 5000 });
   };
 
@@ -323,7 +324,7 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
           <Field label={t('1 point tous les (DH)')}><input className={inputCls} inputMode="numeric" value={per} onChange={e => setPer(e.target.value.replace(/\D/g, ''))} /></Field>
           <div>
             <p className="text-sm font-semibold">{t('Récompenses')}</p>
-            <p className="mt-0.5 text-sm text-muted">{t('Un produit offert est déduit de l’addition quand le client le commande. Une seule récompense par addition.')}</p>
+            <p className="mt-0.5 text-sm text-muted">{t('Un produit offert est déduit de l’addition quand le client le commande. Le client peut cumuler plusieurs récompenses sur une même addition, jusqu’au maximum ci-dessous.')}</p>
           </div>
           <div className="space-y-3">
             {rewards.map((rw, i) => (
@@ -331,6 +332,10 @@ function LoyaltySettings({ rid, loyalty, onClose, onSave }: { rid: string; loyal
                 onRemove={() => setRewards(list => list.filter((_, j) => j !== i))} />
             ))}
           </div>
+          <Field label={t('Récompenses maximum par addition')}>
+            <input className={inputCls} inputMode="numeric" value={maxPer} onChange={e => setMaxPer(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+            <p className="mt-1 text-xs text-muted">{t('Entre 1 et 10. Les récompenses ne couvrent jamais toute l’addition.')}</p>
+          </Field>
           {rewards.length < 8 && (
             <Btn tone="ghost" onClick={() => setRewards(list => [...list, { id: newId(), kind: 'item', points: 50, item_id: dishes[0]?.id }])}>
               <Plus className="h-4 w-4" /> {t('Ajouter une récompense')}</Btn>

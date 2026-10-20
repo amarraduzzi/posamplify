@@ -33,7 +33,7 @@ export interface Restaurant {
   booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number };
   /** customer file and loyalty points: off unless the owner switched them on */
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
-  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[] };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number };
   owner_whatsapp?: string | null;
 }
 
@@ -70,6 +70,9 @@ export interface Line {
   print_requested_at?: string | null;
 }
 
+/** One reward used on an open bill (a record of its own; the loyalty discount of the bill is the sum of these) */
+export interface OrderReward { id: string; reward_id: string; kind: 'item' | 'discount'; menu_item_id: string | null; name: string | null; points: number; cents: number; released_at: string | null }
+
 export interface Order {
   id: string; client_id: string; business_date: string; ticket_number: number; source: Source;
   order_type: OrderType; table_id: string | null; status: OrderStatus;
@@ -80,6 +83,8 @@ export interface Order {
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
   customer_id?: string | null; discount_kind?: 'loyalty' | 'promo' | null; promo_id?: string | null;
+  /** rewards used on this bill (only the ones not taken back are loaded) */
+  order_rewards?: OrderReward[];
   /** own online ordering: time asked for, ready time given by the till, guest's location */
   wanted_at?: string | null; eta_at?: string | null; delivery_location?: { lat: number; lng: number } | null;
   /** own delivery: courier, status, the guest's 4-digit code (proof of delivery) */

@@ -46,8 +46,9 @@ export async function loadStatic(rid: string) {
 
 export async function loadOpenOrders(rid: string): Promise<Order[]> {
   const rows = check(await supabase.from('orders')
-    .select('*, order_lines(*)')
+    .select('*, order_lines(*), order_rewards(*)')
     .eq('restaurant_id', rid).is('closed_at', null).neq('status', 'cancelled')
+    .is('order_rewards.released_at', null)
     .order('created_at'));
   return (rows as Order[]).map(o => ({ ...o, order_lines: [...o.order_lines].sort((a, b) => a.created_at.localeCompare(b.created_at)) }));
 }

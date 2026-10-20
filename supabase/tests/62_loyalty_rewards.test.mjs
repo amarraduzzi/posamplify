@@ -45,7 +45,7 @@ test('a free dish: the guest must be ordering it, then it costs one unit and the
   assert.equal(x.discount_kind, 'loyalty'); assert.equal(Number(x.discount_cents), 2000);
   const [l] = await sql(`select * from public.loyalty_ledger where order_id = $1 and reason = 'redeem'`, [o.id]);
   assert.equal(l.points, -10); assert.equal(l.reward_name, 'Jus');
-  await assert.rejects(rpc(d, 'pos_redeem_reward', [o.id, 'r30']), /remove_discount_first/);   // one reward per order
+  await assert.rejects(rpc(d, 'pos_redeem_reward', [o.id, 'r30']), /max_rewards_reached/);   // one reward per order, unless the owner raises the maximum
   await rpc(d, 'cancel_order', [o.id, 'test', A.staff.karim.id, '9999']);
 });
 
