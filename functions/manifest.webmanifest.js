@@ -2,7 +2,7 @@
 // to Google's server to build the installable app, which cannot read a blob: or data: manifest).
 // Nothing is looked up and nothing secret goes in: the page passes the restaurant's name, colour, logo and path in
 // the query, and this only checks them and echoes them back as JSON. The customer's private key is NOT in the
-// manifest: the app opens on the restaurant page, which sends this phone to its own card (the key is on the phone).
+// manifest: the app opens on the club page (?club), which sends this phone to its own card (the key is on the phone).
 const HEX = /^#[0-9a-f]{6}$/i;
 const PATH = /^\/[a-z0-9-]{0,60}$/i;
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' };
@@ -20,7 +20,7 @@ export function buildManifest(url) {
   const base = url.origin + p;
   const manifest = {
     name, short_name: name.length > 12 ? name.split(' ')[0].slice(0, 12) : name, description: name, lang,
-    id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait',
+    id: base, start_url: base + '?club', scope: base, display: 'standalone', orientation: 'portrait',
     background_color: color, theme_color: color,
     icons: icon
       ? [{ src: icon, sizes: '192x192', type, purpose: 'any' }, { src: icon, sizes: '512x512', type, purpose: 'any' }]
