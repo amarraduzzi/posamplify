@@ -1,6 +1,6 @@
-// "Add to home screen" for the customer's points card. The card page makes its own manifest (restaurant name,
-// logo, colour, and a start link WITH the customer's private key), so the home-screen icon opens straight on
-// that customer's points: no login. Android Chrome: one tap (beforeinstallprompt). iPhone: Safari has no
+// "Add to home screen" for the customer's points card. The manifest (restaurant name, logo, colour) comes from
+// /manifest.webmanifest; the app opens on the restaurant page, which sends the phone to its own card (the private
+// key is stored on the phone): no login. Android Chrome: one tap (beforeinstallprompt). iPhone: Safari has no
 // install button, so we explain Share > Add to Home Screen. Instagram/Facebook/WhatsApp browsers cannot install:
 // we say to open the link in Chrome.
 import { useEffect, useRef, useState } from 'react';
@@ -73,29 +73,24 @@ export default function InstallApp({ name, brand, logo, cardKey, lang }: { name:
   const [copied, setCopied] = useState(false);
   const already = useRef(standalone()).current;
 
-  // service worker + this customer's own manifest (start link with the key, scope = the restaurant page)
+  // service worker + the manifest of this restaurant (name, logo, colour)
   useEffect(() => {
     if (already) return;
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { /* no install, the card still works */ });
-    let url: string | null = null; let link: HTMLLinkElement | null = null; let apple: HTMLLinkElement | null = null; let off = false;
-    (async () => {
-      const [i192, i512] = await Promise.all([makeIcon(192, brand, logo, name), makeIcon(512, brand, logo, name)]);
+    let link: HTMLLinkElement | null = null; let apple: HTMLLinkElement | null = null; let off = false;
+    // Android: the manifest must be a real url (served by /manifest.webmanifest), not a blob: Chrome hands the url to
+    // Google's server to build the app. The private key is not in it: the app opens on the restaurant page, which
+    // sends this phone to its own card.
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const qs = new URLSearchParams({ n: name, c: brand, p: /^\/[a-z0-9-]{0,60}$/i.test(path) ? path : '/', l: lang });
+    if (logo && /^https:\/\//i.test(logo)) qs.set('i', logo);
+    link = document.createElement('link'); link.rel = 'manifest'; link.href = `/manifest.webmanifest?${qs.toString()}`; document.head.appendChild(link);
+    // iPhone: the icon of the home-screen shortcut (it opens the page as it is now, with the key in the link)
+    makeIcon(192, brand, logo, name).then(icon => {
       if (off) return;
-      const base = `${location.origin}${location.pathname}`;
-      const manifest = {
-        name, short_name: name, description: name, lang,
-        start_url: `${base}?carte=${encodeURIComponent(cardKey)}`, scope: base, id: `${base}?carte`,
-        display: 'standalone', orientation: 'portrait', background_color: brand, theme_color: brand,
-        icons: [
-          { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: i192, sizes: '192x192', type: 'image/png', purpose: 'maskable' }, { src: i512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      };
-      url = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
-      link = document.createElement('link'); link.rel = 'manifest'; link.href = url; document.head.appendChild(link);
-      apple = document.createElement('link'); apple.rel = 'apple-touch-icon'; apple.href = i192; document.head.appendChild(apple);
-    })().catch(() => { /* the icon could not be made: the card works, only the install is missing */ });
-    return () => { off = true; link?.remove(); apple?.remove(); if (url) URL.revokeObjectURL(url); };
+      apple = document.createElement('link'); apple.rel = 'apple-touch-icon'; apple.href = icon; document.head.appendChild(apple);
+    }).catch(() => { /* the card works, only the iPhone icon is missing */ });
+    return () => { off = true; link?.remove(); apple?.remove(); };
   }, [already, name, brand, logo, cardKey, lang]);
 
   useEffect(() => {
