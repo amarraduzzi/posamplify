@@ -14,6 +14,7 @@ import { fetchSales, salesCsv, salesRows, salesXlsx } from '../lib/salesExport';
 import { BookingInbox } from '../components/BookingInbox';
 import { OrderPrinterModal } from '../components/OrderPrinterModal';
 import { getPrintCfg, markPrinted, orderTicket, sendPrint, wasPrinted } from '../lib/orderPrint';
+import { printOrderInBrowser } from '../lib/printBrowser';
 
 export interface InboxLine { id: string; name: string; quantity: number; note: string | null; created_at: string }
 export interface InboxOrder {
@@ -141,7 +142,8 @@ export function OrdersPage({ r, screen = false }: { r: Restaurant; screen?: bool
         prepDefault={r.online?.prep_minutes ?? 20} busy={busy} name={r.name} screen={screen} accent={screenAccent(r)} logoUrl={r.branding?.logo_url} summary={summary} waText={wa}
         pausedUntil={pausedUntil} onPause={pause} onExport={() => setExporting(true)}
         onOpenScreen={() => window.open(`${location.origin}/?scherm=commandes`, 'amplify-commandes', 'popup=yes,width=1366,height=820')}
-        onPrinter={() => setPrintSetup(true)} printerOn={!!pc.name} onPrint={pc.name ? (o => void printOrder(o, o.eta_at ?? null, true)) : undefined}
+        onPrinter={() => setPrintSetup(true)} printerOn={!!pc.name}
+        onPrint={o => pc.name ? void printOrder(o, o.eta_at ?? null, true) : printOrderInBrowser(r.name, o, o.table_id ? tables[o.table_id] ?? null : null, r.timezone)}
         onAccept={(o, min) => act(o.id, async () => {
           const eta = min ? new Date(Math.max(Date.now() + min * 60_000, o.wanted_at ? Date.parse(o.wanted_at) : 0)).toISOString() : null;
           await update(o.id, { status: 'preparing', ...(eta ? { eta_at: eta } : {}) });
