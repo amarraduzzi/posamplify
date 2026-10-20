@@ -117,7 +117,7 @@ function Screens() {
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
-    { id: 'accounting', label: t('Comptabilité'), Icon: Calculator, show: (hasPos || hasProfit) && a.role !== 'manager' || a.isAdmin },
+    { id: 'accounting', label: t('Comptabilité'), Icon: Calculator, show: (hasPos || hasProfit) && a.role !== 'manager' },
     { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly || (hasOrders && products.includes('site')) },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
     { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos || hasOrders || siteOnly || products.includes('site') },
