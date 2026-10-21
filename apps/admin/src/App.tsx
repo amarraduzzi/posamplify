@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4 } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2 } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -10,6 +10,7 @@ import { MenuPage } from './pages/MenuPage';
 import { StaffPage } from './pages/StaffPage';
 import { AgendaServicesPage } from './pages/AgendaServicesPage';
 import { AgendaTeamPage } from './pages/AgendaTeamPage';
+import { AgendaBookingPage } from './pages/AgendaBookingPage';
 import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -46,7 +47,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -117,6 +118,7 @@ function Screens() {
     { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
     { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
+    { id: 'agbooking', label: t('Réservation en ligne'), Icon: CalendarCheck2, show: hasAgenda },
     { id: 'agservices', label: t('Prestations'), Icon: Scissors, show: hasAgenda },
     { id: 'agteam', label: t('Équipe et horaires'), Icon: Clock4, show: hasAgenda },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r && !agendaOnly },
@@ -234,6 +236,7 @@ function Screens() {
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
           {r && current === 'agservices' && <AgendaServicesPage key={r.id} r={r} />}
           {r && current === 'agteam' && <AgendaTeamPage key={r.id} r={r} />}
+          {r && current === 'agbooking' && <AgendaBookingPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}

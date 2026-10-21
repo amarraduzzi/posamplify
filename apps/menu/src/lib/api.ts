@@ -123,3 +123,30 @@ export interface TableService { enabled: boolean; open?: { kind: ServiceKind; at
 export const tableService = (slug: string, token: string) => call<TableService>('table_service', { p_slug: slug, p_table_token: token });
 export const callService = (slug: string, token: string, kind: ServiceKind) =>
   call<{ ok: boolean; at: string; again: boolean }>('call_service', { p_slug: slug, p_table_token: token, p_kind: kind });
+
+// ---- Amplify Agenda: the salon's booking page (?rdv) and the client's page (?rdv=<token>)
+export type LText = Record<string, string | undefined>;
+export interface AgendaService { id: string; name: LText; description: LText; category: string | null; duration_min: number; price_cents: number; price_from: boolean }
+export interface AgendaStaff { id: string; name: string; color: string | null; services: string[] }
+export interface AgendaInfo {
+  enabled: boolean; name: string; timezone: string; languages: string[]; branding: Record<string, unknown> | null;
+  phone: string | null; address: string | null; city: string | null; note: string | null;
+  days_ahead: number; cancel_hours: number; any_staff: boolean; services: AgendaService[]; staff: AgendaStaff[];
+}
+export interface AgendaBooked { token: string; status: 'requested' | 'confirmed'; starts_at: string; duplicate: boolean; staff?: string }
+export interface AgendaStatus {
+  status: 'requested' | 'confirmed' | 'arrived' | 'done' | 'cancelled' | 'no_show'; starts_at: string; ends_at: string; duration_min: number;
+  service: LText; price_cents: number; price_from: boolean; name: string; staff: string | null; any_staff: boolean;
+  cancelled_by: 'client' | 'salon' | null; can_cancel: boolean;
+  salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[];
+           branding: Record<string, unknown> | null; cancel_hours: number; note: string | null };
+}
+export const agendaInfo = (slug: string) => call<AgendaInfo | null>('agenda_info', { p_slug: slug });
+export const agendaDays = (slug: string, service: string, staff: string | null) =>
+  call<string[]>('agenda_days', { p_slug: slug, p_service: service, p_staff: staff });
+export const agendaSlots = (slug: string, service: string, staff: string | null, day: string) =>
+  call<string[]>('agenda_slots', { p_slug: slug, p_service: service, p_staff: staff, p_day: day });
+export const agendaBook = (slug: string, b: { client_id: string; service_id: string; staff_id: string | null; starts_at: string; name: string; phone: string; note?: string }) =>
+  call<AgendaBooked>('agenda_book', { p_slug: slug, p_booking: b });
+export const agendaStatus = (token: string) => call<AgendaStatus | null>('agenda_status', { p_token: token });
+export const agendaCancel = (token: string) => call<{ ok: boolean }>('agenda_cancel', { p_token: token });

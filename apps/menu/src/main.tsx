@@ -22,6 +22,10 @@ const ClubSignup = lazy(() => import('./club/ClubSignup'));
 const carteParam = new URLSearchParams(location.search).get('carte');
 const carte = carteParam && /^[a-z0-9]{16,40}$/i.test(carteParam) ? carteParam : null;
 const CardPage = lazy(() => import('./card/CardPage'));
+// Amplify Agenda: the salon's booking page (?rdv) and the client's page (?rdv=<token>)
+const rdvParam = new URLSearchParams(location.search).get('rdv');
+const rdv = rdvParam !== null ? (/^[a-z0-9]{8,32}$/i.test(rdvParam) ? rdvParam : '') : null;
+const AgendaApp = lazy(() => import('./agenda/AgendaApp'));
 const slug = courier ? 'livreur' : resolveTenant().slug;
 const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
@@ -35,7 +39,7 @@ const redirecting = !!(site && MARKETING);
 // so the ordering site and the table QR keep working as before.
 const toCard = (() => {
   try {
-    if (courier || carte || club !== null || site || !slug || /\/t\//.test(location.pathname)) return null;
+    if (courier || carte || club !== null || rdv !== null || site || !slug || /\/t\//.test(location.pathname)) return null;
     if (!window.matchMedia('(display-mode: standalone)').matches) return null;
     return load<string>(`card:${slug}`, 3 * 365 * 86400_000);
   } catch { return null; }
@@ -47,6 +51,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting || toCard ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : rdv !== null && slug && !site ? <Suspense fallback={null}><AgendaApp slug={slug} token={rdv || null} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting || toCard ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );
