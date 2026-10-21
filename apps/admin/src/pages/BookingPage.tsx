@@ -10,6 +10,7 @@ import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Toggle, inputCls } from '../components/ui';
 import { BookingList, useBookings } from '../components/BookingInbox';
 import { HoursEditor, cleanHours, type Hours } from '../components/HoursEditor';
+import { OffersCard } from '../components/Offers';
 
 
 export function BookingPage({ r }: { r: Restaurant }) {
@@ -124,6 +125,8 @@ export function BookingPage({ r }: { r: Restaurant }) {
         </fieldset>
         {owner && <div className="mt-5 flex justify-end"><Btn tone="brand" disabled={busy} onClick={save}><Save className="h-4 w-4" /> {t('Enregistrer')}</Btn></div>}
       </Card>
+
+      {maitre && <OffersCard r={r} />}
 
       <Card>
         <h2 className="mb-4 font-display text-xl font-semibold">{t('Les 7 prochains jours')}</h2>

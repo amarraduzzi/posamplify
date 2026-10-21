@@ -41,7 +41,15 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   };
   const phone = useIsPhone();
   const [sheet, setSheet] = useState(false);
-  const [draft, setDraft] = useState<DraftLine[]>([]);
+  // a table opened for a formule booking: the bill starts with the formule (one line per choice), to send
+  const [draft, setDraft] = useState<DraftLine[]>(() => {
+    const of = target.kind === 'table' ? target.guest?.offer : undefined;
+    if (!of || !(of.price_cents > 0)) return [];
+    const ls = Object.entries(of.choices).filter(([, n]) => Number(n) > 0).map(([c, n]) => [`${of.name} · ${c}`, Number(n)] as const);
+    const rest = of.party - ls.reduce((s, [, n]) => s + n, 0);
+    return [...ls, ...(rest > 0 ? [[of.name, rest] as const] : [])].map(([name, q]) => ({
+      key: uid(), item_id: null, variant_id: null, name: name.slice(0, 120), unit_price_cents: of.price_cents, quantity: q, note: '', station: 'kitchen', modifiers: [], course: null }));
+  });
   const [dialog, setDialog] = useState<Dialog>(null);
   const [payId, setPayId] = useState<string | null>(null);
   // paying one part of a split bill: afterwards, back to what is left

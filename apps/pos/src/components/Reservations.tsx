@@ -1,7 +1,7 @@
 // Host stand: today's bookings and the waitlist. Confirm, seat, mark no-shows, call the next
 // guest on WhatsApp, add a phone booking or a walk-in.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound, Sparkles, ShieldCheck } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound, Sparkles, ShieldCheck, UtensilsCrossed, Minus } from 'lucide-react';
 import { usePos } from '../store';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/data';
@@ -12,12 +12,14 @@ import { GuestChips, GuestSheet, useGuests } from './Guest';
 import { BriefingView } from './Briefing';
 import { DepositChip, DepositDialog, depositRule } from './Deposit';
 import { OCCASIONS, hasMaitre, occasionOf } from '../lib/occasion';
+import { choicesText, offerOpenOn, useOffers, type Offer } from '../lib/offers';
 
 export interface Reservation {
   id: string; kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
   source: string; starts_at: string | null; party_size: number; name: string; phone: string | null; note: string | null;
   table_id: string | null; quoted_min: number | null; token: string; created_at: string; called_at: string | null; seated_at: string | null;
   occasion?: string | null; deposit_cents?: number | string | null; deposit_state?: 'due' | 'paid' | 'used' | 'refunded' | 'kept' | null;
+  offer_id?: string | null; offer_choices?: Record<string, number>;
 }
 const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
 const intl = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
@@ -61,6 +63,8 @@ export function ReservationsView() {
   const [sheet, setSheet] = useState<Reservation | null>(null);
   const [briefing, setBriefing] = useState(false);
   const [deposit, setDeposit] = useState<Reservation | null>(null);
+  const offers = useOffers(r);
+  const offerOf = (id?: string | null) => (id ? offers.find(o => o.id === id) : undefined);
   const today = ymd(new Date(), tz);
   const bookings = (list ?? []).filter(x => x.kind === 'booking');
   const waiting = (list ?? []).filter(x => x.kind === 'waitlist' && (x.status === 'requested' || x.status === 'called'));
@@ -122,6 +126,7 @@ export function ReservationsView() {
                   {h && h.no_shows > 0 && <span className="rounded-full bg-danger/15 px-2 py-0.5 text-xs font-bold text-danger">{t('{n} fois pas venu', { n: h.no_shows })}</span>}
                   {occasionOf(x.occasion) && <span className="inline-flex items-center gap-1 rounded-full bg-pink-500/20 px-2 py-0.5 text-xs font-bold text-pink-400">{(() => { const O = occasionOf(x.occasion)!; return <><O.Icon className="h-3 w-3" />{O.label()}</>; })()}</span>}
                   <DepositChip x={x} />
+                  {offerOf(x.offer_id) && <span className="inline-flex items-center gap-1 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-bold text-brand"><UtensilsCrossed className="h-3 w-3" />{offerOf(x.offer_id)!.name}{choicesText(x.offer_choices) ? ` · ${choicesText(x.offer_choices)}` : ''}</span>}
                 </p>
                 <p className="text-sm text-muted"><span dir="ltr">{x.phone ?? ''}</span>{x.note ? ` · ${x.note}` : ''}</p>
                 {guests.on && x.phone && <GuestChips className="mt-1.5" g={guests.byPhone(x.phone)} />}
@@ -178,9 +183,26 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
   const pos = usePos();
   const r = pos.restaurant!;
   const [f, setF] = useState({ name: '', phone: '', party: '2', time: '20:00', note: '', quoted: '15', date: day, occasion: '' });
+  // a formule (ftour, group menu): its time, its deposit per guest, the choices of the guests
+  const offers = useOffers(r);
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [choices, setChoices] = useState<Record<string, number>>({});
+  const [taken, setTaken] = useState<number | null>(null);
+  useEffect(() => {
+    if (!offer) { setTaken(null); return; }
+    const from = new Date(`${f.date}T00:00:00Z`); from.setUTCHours(from.getUTCHours() - 14);
+    supabase.from('reservations').select('party_size,starts_at,status').eq('restaurant_id', r.id).eq('offer_id', offer.id)
+      .gte('starts_at', from.toISOString()).lt('starts_at', new Date(from.getTime() + 52 * 3600_000).toISOString())
+      .then(res => { try { setTaken((check(res) as { party_size: number; starts_at: string; status: string }[])
+        .filter(x => ['requested', 'confirmed', 'seated'].includes(x.status) && ymd(new Date(x.starts_at), r.timezone) === f.date).reduce((s, x) => s + x.party_size, 0)); } catch { setTaken(null); } });
+  }, [offer, f.date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (o: Offer | null) => {
+    setOffer(o); setChoices({});
+    if (o) { setF(s => ({ ...s, time: o.at_time.slice(0, 5), party: String(Math.max(o.min_party, Number(s.party) || 0)) })); setDep(null); }
+  };
   // the deposit the restaurant's rule asks for this party: proposed, the host can change it (empty: none)
   const maitre = hasMaitre(r);
-  const rule = maitre ? depositRule(r.booking, Number(f.party) || 0) : 0;
+  const rule = !maitre ? 0 : offer ? (offer.deposit_cents ? (Number(f.party) || 0) * Number(offer.deposit_cents) : 0) : depositRule(r.booking, Number(f.party) || 0);
   const [dep, setDep] = useState<string | null>(null);
   const depC = dep === null ? rule : toCents(dep);
   const [busy, setBusy] = useState(false);
@@ -201,6 +223,7 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
         // with a deposit to receive, the booking waits for it
         status: kind === 'booking' && !(depC > 0) ? 'confirmed' : 'requested',
         occasion: kind === 'booking' && f.occasion ? f.occasion : null, deposit_cents: kind === 'booking' && depC > 0 ? depC : null,
+        ...(kind === 'booking' && offer ? { offer_id: offer.id, offer_choices: Object.fromEntries(Object.entries(choices).filter(([, n]) => n > 0)) } : {}),
         starts_at: kind === 'booking' ? startsAt : null, party_size: Math.max(1, Math.min(60, Number(f.party) || 2)), name: f.name.trim(),
         phone: phone.length >= 9 ? phone : null, note: f.note.trim() || null, quoted_min: kind === 'waitlist' ? Number(f.quoted) || null : null, staff_id: pos.staff?.id ?? null,
         duration_min: r.booking?.duration_min ?? 90,
@@ -220,6 +243,29 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
           <Field label={t('Date')}><input type="date" className={inputCls} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
           <Field label={t('Heure')}><input type="time" className={inputCls} value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></Field>
           <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Terrasse, chaise bébé…')} /></Field>
+          {maitre && offers.length > 0 && <div className="sm:col-span-2">
+            <p className="mb-1.5 text-sm font-semibold text-muted">{t('Formule')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => pick(null)} className={`rounded-full px-3 py-1.5 text-sm font-bold ${!offer ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>{t('À la carte')}</button>
+              {offers.map(o => (
+                <button key={o.id} type="button" disabled={!offerOpenOn(o, f.date)} onClick={() => pick(o)} title={offerOpenOn(o, f.date) ? undefined : t('Pas proposée ce jour-là')}
+                  className={`rounded-full px-3 py-1.5 text-sm font-bold disabled:opacity-35 ${offer?.id === o.id ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>{o.name} · {mad(Number(o.price_cents))}</button>
+              ))}
+            </div>
+            {offer && <p className="mt-2 text-xs text-muted">{t('À {h}, de {a} à {b} personnes.', { h: offer.at_time.slice(0, 5), a: offer.min_party, b: offer.max_party })}{offer.covers ? ` ${t('{n} places sur {c} déjà prises ce jour-là.', { n: taken ?? '…', c: offer.covers })}` : ''}</p>}
+            {offer && offer.options.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-3">
+                {offer.options.map(op => (
+                  <span key={op} className="inline-flex items-center gap-1.5 rounded-xl bg-surface-2 px-2 py-1 text-sm">
+                    <span className="font-semibold">{op}</span>
+                    <button type="button" className="grid h-7 w-7 place-items-center rounded-lg bg-surface" onClick={() => setChoices(c => ({ ...c, [op]: Math.max(0, (c[op] ?? 0) - 1) }))}><Minus className="h-3.5 w-3.5" /></button>
+                    <span className="w-5 text-center font-bold tabular">{choices[op] ?? 0}</span>
+                    <button type="button" className="grid h-7 w-7 place-items-center rounded-lg bg-surface" onClick={() => setChoices(c => ({ ...c, [op]: (c[op] ?? 0) + 1 }))}><Plus className="h-3.5 w-3.5" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>}
           {maitre && <><div className="sm:col-span-2">
             <p className="mb-1.5 text-sm font-semibold text-muted">{t('Occasion')}</p>
             <div className="flex flex-wrap gap-1.5">

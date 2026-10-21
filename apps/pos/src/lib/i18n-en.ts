@@ -799,4 +799,11 @@ export const EN: Record<string, string> = {
   "À servir": "To serve",
   "À table": "Eating",
   "Briefing du soir": "Evening briefing",
+  "Formule": "Set menu",
+  "Pas proposée ce jour-là": "Not offered that day",
+  "sans choix": "no choice",
+  "{n} places sur {c} déjà prises ce jour-là.": "{n} of {c} seats already taken that day.",
+  "{n} réservations · la liste pour la cuisine": "{n} bookings · the list for the kitchen",
+  "À la carte": "À la carte",
+  "À {h}, de {a} à {b} personnes.": "At {h}, from {a} to {b} guests.",
 };

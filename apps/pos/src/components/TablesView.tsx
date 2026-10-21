@@ -10,6 +10,7 @@ import { useReservations } from './Reservations';
 import { useGuests } from './Guest';
 import { rhythmOf } from '../lib/rhythm';
 import { hasMaitre } from '../lib/occasion';
+import { useOffers } from '../lib/offers';
 import { PHASES, RhythmLine, CourseDots, RhythmSummary } from './Rhythm';
 import { GuestMarks } from './FloorPlan';
 
@@ -26,6 +27,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const ready = new Set(pos.orders.filter(o => o.table_id && o.order_lines.some(l => l.ready_at && !l.served_at)).map(o => o.table_id!));
   const { list: resa } = useReservations(null);
   const maitre = hasMaitre(pos.restaurant);
+  const offers = useOffers(pos.restaurant);
   const bookings = useTableBookings(resa);
   // the booking of a table that is arriving now (or seated, no bill yet): opening the table makes the bill theirs
   const arrivals = new Map<string, NonNullable<typeof resa>[number]>();
@@ -39,7 +41,9 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const guests = useGuests(pos.orders.filter(o => o.table_id).map(o => o.customer_id), [...bookings.values(), ...arrivals.values()].map(x => x.phone));
   const open = (tb: Table) => {
     const a = arrivals.get(tb.id);
-    if (!byTable.get(tb.id)?.length && a) onOpen({ kind: 'table', tableId: tb.id, guest: { name: a.name, phone: a.phone, occasion: a.occasion } });
+    const of = a?.offer_id ? offers.find(o => o.id === a.offer_id) : undefined;
+    if (!byTable.get(tb.id)?.length && a) onOpen({ kind: 'table', tableId: tb.id, guest: { name: a.name, phone: a.phone, occasion: a.occasion,
+      offer: of ? { name: of.name, price_cents: Number(of.price_cents), party: a.party_size, choices: a.offer_choices ?? {} } : undefined } });
     else onOpen({ kind: 'table', tableId: tb.id });
   };
 

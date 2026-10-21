@@ -14,7 +14,9 @@ import type { Category, DraftLine, FloorPlan, FiscalDoc, Item, Line, Order, PosS
 
 export type OrderTarget =
   /** guest: the booking seated at this table, so the new bill is theirs (name, phone) */
-  | { kind: 'table'; tableId: string; guest?: { name: string; phone: string | null; occasion?: string | null } }
+  | { kind: 'table'; tableId: string; guest?: { name: string; phone: string | null; occasion?: string | null;
+      /** the formule booked: the bill starts with it */
+      offer?: { name: string; price_cents: number; party: number; choices: Record<string, number> } } }
   | { kind: 'order'; orderId: string }
   | { kind: 'new'; orderType: 'takeaway' | 'delivery'; source: 'pos' | 'phone' | 'glovo' };
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { PartyPopper, ShieldCheck, AlertTriangle, Cake, Crown, Heart, Printer, UserX, Users, X, Sparkles, Armchair } from 'lucide-react';
+import { UtensilsCrossed, PartyPopper, ShieldCheck, AlertTriangle, Cake, Crown, Heart, Printer, UserX, Users, X, Sparkles, Armchair } from 'lucide-react';
 import { usePos } from '../store';
 import * as db from '../lib/data';
 import * as P from '../lib/print';
@@ -10,6 +10,7 @@ import { isVip, type Guest } from './Guest';
 import { DepositChip } from './Deposit';
 import { occasionOf } from '../lib/occasion';
 import { mad } from '../lib/format';
+import { choicesText } from '../lib/offers';
 
 // Le Briefing: before service, the maître d' tells the team who is coming tonight. One screen
 // (and one printed sheet): the covers per half hour, the allergies, the VIPs, the birthdays,
@@ -20,6 +21,7 @@ interface BBooking {
   party_size: number; name: string; phone: string | null; note: string | null; table: string | null;
   guest: Guest | null; no_shows: number; birthday_in: number | null;
   occasion?: string | null; deposit_cents?: number | string | null; deposit_state?: string | null; deposit_left?: number | string;
+  offer?: { id: string; name: string; kind: string } | null; offer_choices?: Record<string, number>;
 }
 interface Brief { day: string; files: boolean; bookings: BBooking[] }
 
@@ -65,6 +67,16 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
       toConfirm: list.filter(x => x.status === 'requested'),
       occasions: list.filter(x => occasionOf(x.occasion)),
       depositsDue: list.filter(x => x.deposit_state === 'due'),
+      // the kitchen's list: per formule, the covers and the choices of the guests
+      offers: [...list.filter(x => x.offer).reduce((m, x) => {
+        const k = x.offer!.id;
+        const e = m.get(k) ?? { name: x.offer!.name, covers: 0, bookings: 0, choices: {} as Record<string, number> };
+        e.covers += x.party_size; e.bookings += 1;
+        let chosen = 0;
+        Object.entries(x.offer_choices ?? {}).forEach(([c, n]) => { e.choices[c] = (e.choices[c] ?? 0) + Number(n); chosen += Number(n); });
+        if (x.party_size > chosen) e.choices[''] = (e.choices[''] ?? 0) + x.party_size - chosen;
+        return m.set(k, e);
+      }, new Map<string, { name: string; covers: number; bookings: number; choices: Record<string, number> }>()).values()],
     };
   }, [b, tz]);
 
@@ -87,6 +99,10 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
       rule(); line(title, true);
       xs.forEach(x => { line(`${hm(x.starts_at, tz)} ${x.name} (${x.party_size})${x.table ? ' T' + x.table : ''}`); const d = detail(x); if (d) line(`  > ${d}`, true); });
     };
+    v.offers.forEach(o => {
+      rule(); line(`${o.name.toUpperCase()} : ${o.covers} couverts`, true);
+      Object.entries(o.choices).forEach(([c, n]) => line(`  ${c || 'Sans choix'} : ${n}`));
+    });
     block('!! ALLERGIES', v.allergies, x => x.guest!.allergies!);
     block('VIP', v.vip, x => x.guest?.note ?? '');
     block('ANNIVERSAIRES', v.birthdays, x => bday(x.birthday_in!));
@@ -143,7 +159,7 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
                     <div key={s} className="flex items-center gap-3">
                       <span className="w-12 font-semibold tabular text-muted" dir="ltr">{s}</span>
                       <div className="h-7 flex-1 overflow-hidden rounded-lg bg-surface-2">
-                        <div className={`flex h-full items-center rounded-lg px-2 text-xs font-bold ${n === v.peak ? 'gold-fill text-brand-ink' : 'bg-brand/25 text-ink'}`}
+                        <div className={`flex h-full items-center whitespace-nowrap rounded-lg px-2 text-xs font-bold ${n === v.peak ? 'gold-fill text-brand-ink' : 'bg-brand/25 text-ink'}`}
                           style={{ width: `${Math.max(12, (n / v.peak) * 100)}%` }}>{t('{n} couv.', { n })}</div>
                       </div>
                     </div>
@@ -153,6 +169,15 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
               </section>
 
               <section className="space-y-3">
+                {v.offers.map(o => (
+                  <div key={o.name} className="panel rounded-2xl p-4">
+                    <p className="flex items-center gap-2 font-display text-lg font-semibold"><UtensilsCrossed className="h-4 w-4 text-brand" />{o.name}<span className="ms-auto text-base">{t('{n} couv.', { n: o.covers })}</span></p>
+                    <p className="text-xs text-muted">{t('{n} réservations · la liste pour la cuisine', { n: o.bookings })}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(o.choices).map(([c, n]) => <span key={c} className="rounded-xl bg-surface-2 px-3 py-1.5 text-sm"><b className="tabular">{n}</b> {c || t('sans choix')}</span>)}
+                    </div>
+                  </div>
+                ))}
                 <h3 className="font-display text-lg font-semibold">{t('À savoir ce soir')}</h3>
                 {!b.files && <p className="rounded-2xl bg-surface-2 p-4 text-sm text-muted">{t('Activez le fichier clients pour voir ici les allergies, les VIP, les anniversaires et les habitués.')}</p>}
                 <Know tone="danger" icon={<AlertTriangle className="h-4 w-4" />} title={t('Allergies')} xs={v.allergies} when={when} detail={x => x.guest!.allergies!} />
@@ -188,6 +213,7 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
                       {isVip(x.guest) && <Chip cls="bg-[#f5c542] text-[#3a2a00]"><Crown className="h-3 w-3" />VIP</Chip>}
                       {x.birthday_in != null && <Chip cls="bg-pink-500/20 text-pink-400"><Cake className="h-3 w-3" />{t('Anniversaire {d}', { d: bday(x.birthday_in) })}</Chip>}
                       {x.no_shows > 0 && <Chip cls="bg-warn/15 text-warn"><UserX className="h-3 w-3" />{x.no_shows}</Chip>}
+                      {x.offer && <Chip cls="bg-brand/15 text-brand"><UtensilsCrossed className="h-3 w-3" />{x.offer.name}{choicesText(x.offer_choices) ? ` · ${choicesText(x.offer_choices)}` : ''}</Chip>}
                       {occasionOf(x.occasion) && <Chip cls="bg-pink-500/20 text-pink-400"><PartyPopper className="h-3 w-3" />{occasionOf(x.occasion)!.label()}</Chip>}
                       {x.deposit_state && <DepositChip x={{ deposit_cents: x.deposit_cents ?? null, deposit_state: x.deposit_state as 'due' }} />}
                       {b.files && (x.guest?.visits ? <Chip cls="bg-surface-2 text-muted">{t('{n} visites', { n: x.guest.visits })}</Chip> : <Chip cls="bg-qr/15 text-qr">{t('Première visite')}</Chip>)}

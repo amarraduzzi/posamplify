@@ -800,4 +800,11 @@ export const AR: Record<string, string> = {
   "À servir": "للتقديم",
   "À table": "على المائدة",
   "Briefing du soir": "إحاطة المساء",
+  "Formule": "الصيغة",
+  "Pas proposée ce jour-là": "غير متوفرة في ذلك اليوم",
+  "sans choix": "بدون اختيار",
+  "{n} places sur {c} déjà prises ce jour-là.": "{n} من {c} مقعدا محجوزة في ذلك اليوم.",
+  "{n} réservations · la liste pour la cuisine": "{n} حجوزات · القائمة للمطبخ",
+  "À la carte": "حسب القائمة",
+  "À {h}, de {a} à {b} personnes.": "على {h}، من {a} إلى {b} أشخاص.",
 };

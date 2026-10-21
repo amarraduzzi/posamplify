@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo } from './lib/api';
-import { BookingSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
+import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
 import { useCart } from './lib/cart';
 import { LANG_LABEL, strings } from './lib/strings';
@@ -44,6 +44,7 @@ export default function App() {
 
   // reservations and waitlist: ?reserver opens the booking, ?file the queue (QR at the door), ?resa=<token> the guest's page
   const [booking, setBooking] = useState<BookingInfo | null>(null);
+  const [offer, setOffer] = useState<OfferPublic | null>(null);
   const [sheet, setSheet] = useState<null | 'book' | 'wait'>(null);
   const [resa, setResa] = useState<string | null>(() => new URLSearchParams(window.location.search).get('resa'));
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function App() {
     getBookingInfo(tenant.slug).then(b => {
       setBooking(b);
       const q = new URLSearchParams(window.location.search);
-      if (b?.enabled && q.has('reserver')) setSheet('book');
+      if ((b?.enabled || !!b?.offers?.length) && q.has('reserver')) setSheet('book');
       else if (b?.waitlist && q.has('file')) setSheet('wait');
     }).catch(() => {});
   }, [tenant, kiosk]);
@@ -362,9 +363,9 @@ export default function App() {
                 </span>
               )}
             </div>
-            {!kiosk && booking && (booking.enabled || booking.waitlist) && (
+            {!kiosk && booking && (booking.enabled || booking.waitlist || !!booking.offers?.length) && (
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-rise" style={{ ['--i' as string]: 5 }}>
-                {booking.enabled && <button onClick={() => setSheet('book')} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-ink glow-brand press"><CalendarDays className="size-4" />{bookingStrings(lang).book}</button>}
+                {(booking.enabled || !!booking.offers?.length) && <button onClick={() => setSheet('book')} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-ink glow-brand press"><CalendarDays className="size-4" />{bookingStrings(lang).book}</button>}
                 {booking.waitlist && <button onClick={() => setSheet('wait')} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-5 py-2.5 text-sm font-semibold backdrop-blur-md press"><Hourglass className="size-4" />{bookingStrings(lang).waitlist}</button>}
                 {myResa.length > 0 && <button onClick={() => setResa(myResa[0].token)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-semibold text-brand underline underline-offset-4">{bookingStrings(lang).myBooking}</button>}
               </div>
@@ -546,8 +547,10 @@ export default function App() {
       {sheet === 'book' && booking && menu && (
         <BookingSheet slug={slug} lang={lang} tz={menu.restaurant.timezone} maxParty={booking.max_party} daysAhead={booking.days_ahead} note={booking.note}
           depositParty={booking.deposit_party} depositCents={booking.deposit_cents}
+          offers={booking.offers ?? []} carte={booking.enabled} onOffer={o => { setSheet(null); setOffer(o); }}
           onClose={() => setSheet(null)} onBooked={tok => { setSheet(null); setResa(tok); }} />
       )}
+      {offer && menu && <OfferSheet slug={slug} lang={lang} offer={offer} onClose={() => setOffer(null)} onBooked={tok => { setOffer(null); setResa(tok); }} />}
       {sheet === 'wait' && <WaitlistSheet slug={slug} lang={lang} onClose={() => setSheet(null)} onJoined={tok => { setSheet(null); setResa(tok); }} />}
       {resa && <ReservationSheet token={resa} lang={lang} onClose={() => setResa(null)} />}
       {!kiosk && tracked && trackerOpen && (
