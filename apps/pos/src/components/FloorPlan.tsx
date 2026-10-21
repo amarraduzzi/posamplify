@@ -94,7 +94,7 @@ export function PlanView({ zone, tables, plan, state, onOpen }: {
           return (
             <div key={tb.id} className="absolute p-[3px]" style={box(tb.plan_x!, tb.plan_y!, tb.plan_w ?? 4, tb.plan_h ?? 4)}>
               <TableButton tb={tb} s={s} cell={cell} onClick={() => onOpen({ kind: 'table', tableId: tb.id })} />
-              <GuestMarks g={s.guest} small={cell < 14} className="-start-1 -top-1 z-10" />
+              <GuestMarks g={s.guest} small={cell < 14} className="-top-3.5 left-1/2 z-10 -translate-x-1/2" />
             </div>
           );
         })}
