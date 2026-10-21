@@ -2,7 +2,8 @@
 // the settings, and the next appointments until the agenda screen arrives.
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { AlertTriangle, CalendarCheck2, CheckCircle2, Copy, Download, ExternalLink, MessageCircle, Save } from 'lucide-react';
+import { AlertTriangle, BellRing, CalendarCheck2, CheckCircle2, Copy, Download, ExternalLink, MessageCircle, Save } from 'lucide-react';
+import { waLink, ymdIn } from '../lib/whatsapp';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -14,6 +15,7 @@ import { fmtDuration, svcName } from './AgendaServicesPage';
 interface Appt {
   id: string; starts_at: string; duration_min: number; status: string; source: string; name: string; phone: string | null; note: string | null;
   service_name: Record<string, string>; any_staff: boolean; staff_id: string | null;
+  token: string; reminded_at: string | null; client_confirmed_at: string | null;
 }
 const STEPS = [10, 15, 20, 30, 60];
 const LEADS = [0, 30, 60, 120, 240, 720, 1440];
@@ -43,8 +45,8 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
       const [sv, st, ap] = await Promise.all([
         supabase.from('agenda_services').select('id', { count: 'exact', head: true }).eq('restaurant_id', r.id).eq('active', true).eq('online', true),
         supabase.from('staff').select('id, name, agenda, active').eq('restaurant_id', r.id),
-        supabase.from('agenda_appointments').select('id, starts_at, duration_min, status, source, name, phone, note, service_name, any_staff, staff_id')
-          .eq('restaurant_id', r.id).gte('starts_at', new Date(Date.now() - 3600_000).toISOString()).neq('status', 'cancelled').order('starts_at').limit(20),
+        supabase.from('agenda_appointments').select('id, starts_at, duration_min, status, source, name, phone, note, service_name, any_staff, staff_id, token, reminded_at, client_confirmed_at')
+          .eq('restaurant_id', r.id).gte('starts_at', new Date(Date.now() - 3600_000).toISOString()).in('status', ['requested', 'confirmed']).order('starts_at').limit(200),
       ]);
       const people = (check(st) as { id: string; name: string; agenda: boolean; active: boolean }[]);
       setStaff(Object.fromEntries(people.map(p => [p.id, p.name])));
@@ -85,6 +87,8 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
           </div>
         </div>
       )}
+
+      <Reminders r={r} list={list} staff={staff} onSent={load} />
 
       <Card>
         <div className="flex flex-wrap items-center gap-5">
@@ -137,7 +141,7 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
         <h2 className="mb-3 font-display text-xl font-semibold">{t('Prochains rendez-vous')}</h2>
         {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !list.length ? <p className="rounded-2xl bg-surface-2 p-5 text-sm text-muted">{t('Aucun rendez-vous à venir.')}</p> : (
           <ul className="divide-y divide-line/10">
-            {list.map(x => (
+            {list.slice(0, 20).map(x => (
               <li key={x.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                 <p className="w-40 shrink-0 font-semibold capitalize tabular">{when(x.starts_at)}</p>
                 <div className="min-w-[180px] flex-1">
@@ -145,6 +149,7 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
                   <p className="text-sm text-muted">{x.name}{x.phone ? ` · ${x.phone}` : ''}{x.note ? ` · ${x.note}` : ''}</p>
                 </div>
                 <p className="text-sm">{x.staff_id ? staff[x.staff_id] ?? '' : ''}{x.any_staff ? <span className="text-muted"> ({t('peu importe')})</span> : null}</p>
+                {x.client_confirmed_at && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5" />{t('Vient')}</span>}
                 {x.status === 'requested'
                   ? <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-600">{t('À confirmer')}</span>
                   : <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand"><CheckCircle2 className="h-3.5 w-3.5" />{x.source === 'online' ? t('En ligne') : t('Salon')}</span>}
@@ -154,5 +159,51 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
         )}
       </Card>
     </div>
+  );
+}
+
+// "Rappels de demain": one WhatsApp per client, ready to send; the salon sees who got it and who confirmed
+function Reminders({ r, list, staff, onSent }: { r: Restaurant; list: Appt[] | null; staff: Record<string, string>; onSent: () => void }) {
+  const a = useAdminCtx();
+  const tz = r.timezone || 'UTC';
+  const tomorrow = ymdIn(new Date(Date.now() + 86400_000), tz);
+  const rows = (list ?? []).filter(x => ymdIn(new Date(x.starts_at), tz) === tomorrow && x.phone);
+  const time = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+  const day = new Date(`${tomorrow}T12:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
+  const send = async (x: Appt) => {
+    const link = `${MENU_URL}/${r.slug}?rdv=${x.token}`;
+    const text = t('Bonjour {name}, petit rappel de {salon} : votre rendez-vous {service} est demain à {time}. Merci de confirmer ou d’annuler ici : {link}',
+      { name: x.name, salon: r.name, service: svcName({ name: x.service_name }), time: time(x.starts_at), link });
+    window.open(waLink(x.phone!, text), '_blank', 'noopener');
+    try { check(await supabase.from('agenda_appointments').update({ reminded_at: new Date().toISOString() }).eq('id', x.id).select('id')); onSent(); }
+    catch (e) { a.fail(e); }
+  };
+  const left = rows.filter(x => !x.reminded_at).length;
+  return (
+    <Card>
+      <div className="mb-1 flex flex-wrap items-center gap-3">
+        <h2 className="me-auto flex items-center gap-2 font-display text-xl font-semibold"><BellRing className="h-5 w-5 text-brand" />{t('Rappels de demain')}</h2>
+        {rows.length > 0 && <span className="text-sm text-muted">{t('{a} sur {b} envoyés', { a: rows.length - left, b: rows.length })}</span>}
+      </div>
+      <p className="mb-4 text-sm text-muted first-letter:uppercase">{day}</p>
+      {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !rows.length ? <p className="rounded-2xl bg-surface-2 p-5 text-sm text-muted">{t('Aucun rendez-vous demain avec un numéro.')}</p> : (
+        <ul className="divide-y divide-line/10">
+          {rows.map(x => (
+            <li key={x.id} className="flex flex-wrap items-center gap-3 py-3">
+              <p className="w-14 shrink-0 font-semibold tabular">{time(x.starts_at)}</p>
+              <div className="min-w-[160px] flex-1">
+                <p className="font-semibold">{x.name} <span className="text-sm font-normal text-muted">· {svcName({ name: x.service_name })}{x.staff_id && staff[x.staff_id] ? ` · ${staff[x.staff_id]}` : ''}</span></p>
+                <p className="text-sm text-muted">{x.phone}</p>
+              </div>
+              {x.client_confirmed_at
+                ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5" />{t('Confirmé par le client')}</span>
+                : x.reminded_at ? <span className="text-xs font-semibold text-muted">{t('Rappel envoyé')}</span> : null}
+              <Btn tone={x.reminded_at ? undefined : 'brand'} onClick={() => send(x)}><MessageCircle className="h-4 w-4" /> {x.reminded_at ? t('Renvoyer') : t('Envoyer le rappel')}</Btn>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-muted">{t('Chaque bouton ouvre WhatsApp avec le message prêt : appuyez sur envoyer. Le client confirme ou annule avec son lien.')}</p>
+    </Card>
   );
 }

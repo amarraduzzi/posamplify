@@ -137,7 +137,7 @@ export interface AgendaBooked { token: string; status: 'requested' | 'confirmed'
 export interface AgendaStatus {
   status: 'requested' | 'confirmed' | 'arrived' | 'done' | 'cancelled' | 'no_show'; starts_at: string; ends_at: string; duration_min: number;
   service: LText; price_cents: number; price_from: boolean; name: string; staff: string | null; any_staff: boolean;
-  cancelled_by: 'client' | 'salon' | null; can_cancel: boolean;
+  cancelled_by: 'client' | 'salon' | null; can_cancel: boolean; client_confirmed?: boolean; can_confirm?: boolean;
   salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[];
            branding: Record<string, unknown> | null; cancel_hours: number; note: string | null };
 }
@@ -150,6 +150,7 @@ export const agendaBook = (slug: string, b: { client_id: string; service_id: str
   call<AgendaBooked>('agenda_book', { p_slug: slug, p_booking: b });
 export const agendaStatus = (token: string) => call<AgendaStatus | null>('agenda_status', { p_token: token });
 export const agendaCancel = (token: string) => call<{ ok: boolean }>('agenda_cancel', { p_token: token });
+export const agendaConfirm = (token: string) => call<{ ok: boolean }>('agenda_confirm', { p_token: token });
 
 // ---- la Nouba: the live queue of a salon (?nouba, ?nouba=ici at the door, ?nouba=<token> the client's place)
 export interface NoubaInfo {

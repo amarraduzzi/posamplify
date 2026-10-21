@@ -7,7 +7,7 @@ import { ArrowLeft, CalendarCheck2, CalendarPlus, CheckCircle2, ChevronRight, Cl
 import { formatMoney, newId, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
-import { agendaBook, agendaCancel, agendaDays, agendaInfo, agendaSlots, agendaStatus, type AgendaInfo, type AgendaService, type AgendaStaff, type AgendaStatus, type LText } from '../lib/api';
+import { agendaBook, agendaCancel, agendaConfirm, agendaDays, agendaInfo, agendaSlots, agendaStatus, type AgendaInfo, type AgendaService, type AgendaStaff, type AgendaStatus, type LText } from '../lib/api';
 
 const S = {
   fr: {
@@ -21,7 +21,7 @@ const S = {
     cancelled: 'Rendez-vous annulé', cancelledSalon: 'Le salon a annulé ce rendez-vous. Appelez-le pour en fixer un autre.', past: 'À bientôt !', noShow: 'Rendez-vous manqué',
     cancel: 'Annuler le rendez-vous', cancelSure: 'Oui, annuler', keep: 'Garder', cancelUntil: (h: number) => (h > 0 ? `Annulation en ligne jusqu’à ${h} h avant.` : ''),
     tooLate: 'Pour annuler ou changer maintenant, appelez le salon.', calendar: 'Ajouter à mon agenda', write: 'Écrire au salon', again: 'Prendre un autre rendez-vous',
-    saveLink: 'Gardez ce lien : il sert à voir ou annuler votre rendez-vous.',
+    saveLink: 'Gardez ce lien : il sert à voir ou annuler votre rendez-vous.', iCome: 'Je confirme ma venue', thanksCome: 'Merci ! Le salon sait que vous venez.',
     wa: (s: string, d: string) => `Bonjour, j’ai réservé « ${s} » ${d}.`,
     errors: { slot_unavailable: 'Ce créneau vient d’être pris. Choisissez une autre heure.', customer_required: 'Indiquez votre prénom et un numéro valide.',
       rate_limited: 'Vous avez déjà plusieurs rendez-vous à venir. Appelez le salon.', booking_off: 'La réservation en ligne est fermée.',
@@ -39,7 +39,7 @@ const S = {
     cancelled: 'Appointment cancelled', cancelledSalon: 'The salon cancelled this appointment. Call them to book another one.', past: 'See you soon!', noShow: 'Appointment missed',
     cancel: 'Cancel the appointment', cancelSure: 'Yes, cancel', keep: 'Keep it', cancelUntil: (h: number) => (h > 0 ? `Online cancellation up to ${h} h before.` : ''),
     tooLate: 'To cancel or change now, please call the salon.', calendar: 'Add to my calendar', write: 'Message the salon', again: 'Book another appointment',
-    saveLink: 'Keep this link: it lets you see or cancel your appointment.',
+    saveLink: 'Keep this link: it lets you see or cancel your appointment.', iCome: 'I confirm I am coming', thanksCome: 'Thank you! The salon knows you are coming.',
     wa: (s: string, d: string) => `Hello, I booked “${s}” ${d}.`,
     errors: { slot_unavailable: 'This time was just taken. Please pick another.', customer_required: 'Please enter your name and a valid number.',
       rate_limited: 'You already have several upcoming appointments. Please call the salon.', booking_off: 'Online booking is closed.',
@@ -57,7 +57,7 @@ const S = {
     cancelled: 'تم إلغاء الموعد', cancelledSalon: 'ألغى الصالون هذا الموعد. اتصلوا به لتحديد موعد آخر.', past: 'إلى اللقاء!', noShow: 'موعد لم يتم الحضور إليه',
     cancel: 'إلغاء الموعد', cancelSure: 'نعم، إلغاء', keep: 'الاحتفاظ به', cancelUntil: (h: number) => (h > 0 ? `الإلغاء عبر الإنترنت ممكن حتى ${h} ساعات قبل الموعد.` : ''),
     tooLate: 'للإلغاء أو التغيير الآن، اتصلوا بالصالون.', calendar: 'إضافة إلى تقويمي', write: 'مراسلة الصالون', again: 'حجز موعد آخر',
-    saveLink: 'احتفظوا بهذا الرابط: يمكنكم من خلاله رؤية موعدكم أو إلغاؤه.',
+    saveLink: 'احتفظوا بهذا الرابط: يمكنكم من خلاله رؤية موعدكم أو إلغاؤه.', iCome: 'أؤكد حضوري', thanksCome: 'شكرا! الصالون يعلم أنكم قادمون.',
     wa: (s: string, d: string) => `مرحبا، حجزت «${s}» ${d}.`,
     errors: { slot_unavailable: 'تم أخذ هذا الوقت للتو. اختاروا ساعة أخرى.', customer_required: 'أدخلوا اسمكم ورقما صحيحا.',
       rate_limited: 'لديكم عدة مواعيد قادمة. اتصلوا بالصالون.', booking_off: 'الحجز عبر الإنترنت مغلق.',
@@ -441,6 +441,11 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
     try { await agendaCancel(token); await refresh(); setSure(false); } catch (e) { setError(errText(t, e)); }
     setBusy(false);
   };
+  const confirmCome = async () => {
+    setBusy(true); setError(null);
+    try { await agendaConfirm(token); await refresh(); } catch (e) { setError(errText(t, e)); }
+    setBusy(false);
+  };
   const ics = () => {
     const f = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const where = [st.salon.address, st.salon.city].filter(Boolean).join(', ');
@@ -480,7 +485,11 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
 
         {error && <p className="mx-5 mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
         <div className="mt-6 space-y-2 px-5">
-          {upcoming && <button onClick={ics} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand font-semibold text-brand-ink glow-brand press"><CalendarPlus className="size-4" />{t.calendar}</button>}
+          {upcoming && st.client_confirmed && <p className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-600"><CheckCircle2 className="size-4" />{t.thanksCome}</p>}
+          {upcoming && st.can_confirm && !st.client_confirmed && (
+            <button disabled={busy} onClick={confirmCome} className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 text-lg font-semibold text-white press disabled:opacity-40"><CheckCircle2 className="size-5" />{t.iCome}</button>
+          )}
+          {upcoming && <button onClick={ics} className={`flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold press ${st.can_confirm && !st.client_confirmed ? 'bg-surface shadow-[var(--shadow)]' : 'bg-brand text-brand-ink glow-brand'}`}><CalendarPlus className="size-4" />{t.calendar}</button>}
           {wa && upcoming && <a href={wa} target="_blank" rel="noopener" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><MessageCircle className="size-4" />{t.write}</a>}
           {st.salon.phone && <a href={`tel:${st.salon.phone}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><Phone className="size-4" />{t.call}</a>}
           {!upcoming && <button onClick={onAgain} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand font-semibold text-brand-ink press">{t.again}</button>}

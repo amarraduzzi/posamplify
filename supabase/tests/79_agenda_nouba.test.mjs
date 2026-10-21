@@ -10,7 +10,10 @@ const join = (b) => rpc(null, 'nouba_join', [slug, { client_id: uuid(), ...b }])
 before(async () => {
   w = await world(); A = w.A; rid = A.r.id; slug = A.r.slug; d = w.users.deviceA;
   sara = A.staff.sara.id; karim = A.staff.karim.id;
-  await sql(`update public.restaurants set products = '{agenda}', timezone = 'UTC' where id = $1`, [rid]);
+  // a time zone where it is around midday now, so the working day never ends during the test
+  let off = 12 - new Date().getUTCHours(); if (off > 12) off -= 24;
+  const tz = off === 0 ? 'UTC' : `Etc/GMT${off > 0 ? '-' : '+'}${Math.abs(off)}`;
+  await sql(`update public.restaurants set products = '{agenda}', timezone = $2 where id = $1`, [rid, tz]);
   [{ id: cut }] = await sql(`insert into public.agenda_services (restaurant_id, name, duration_min, price_cents) values ($1, '{"fr":"Coupe homme"}', 20, 6000) returning id`, [rid]);
 });
 after(() => pool.end());

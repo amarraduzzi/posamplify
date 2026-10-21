@@ -2,7 +2,8 @@
 // "Suivant" button, the queue with the estimate, a walk-in in two taps, the links and the settings.
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
+import { BellRing, Copy, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
+import { waLink } from '../lib/whatsapp';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -14,6 +15,7 @@ import { svcName, type AgService } from './AgendaServicesPage';
 interface Entry {
   id: string; status: 'waiting' | 'serving'; name: string; phone: string | null; service_id: string | null; staff_id: string | null;
   served_by: string | null; remote: boolean; coming: boolean; created_at: string; started_at: string | null; start: string | null;
+  token: string; notified: boolean;
 }
 interface Board { open: boolean; working: number; queue: Entry[] }
 interface Person { id: string; name: string; agenda_color: string | null; agenda: boolean; active: boolean }
@@ -60,6 +62,14 @@ export function NoubaPage({ r }: { r: Restaurant }) {
       await load();
     } catch (e) { a.fail(e); }
     setBusy(null);
+  };
+  // "Prévenir": WhatsApp to the client whose turn is near, with the link to their place
+  const tell = async (q: Entry) => {
+    const m = mins(q.start);
+    const text = t('Bonjour {name}, c’est bientôt votre tour chez {salon} (environ {n} min). Merci de venir maintenant. Votre place : {link}',
+      { name: q.name, salon: r.name, n: m ?? 0, link: `${MENU_URL}/${r.slug}?nouba=${q.token}` });
+    window.open(waLink(q.phone!, text), '_blank', 'noopener');
+    await act(q.id, () => supabase.rpc('nouba_notified', { p_restaurant_id: r.id, p_entry: q.id }));
   };
   const setStatus = (id: string, status: string) => act(id, () => supabase.rpc('nouba_set', { p_restaurant_id: r.id, p_entry: id, p_status: status }));
 
@@ -134,6 +144,8 @@ export function NoubaPage({ r }: { r: Restaurant }) {
                   </div>
                   <p className="text-sm font-semibold tabular">{m == null ? '–' : m === 0 ? t('maintenant') : `≈ ${m} min`}</p>
                   <div className="flex gap-1">
+                    {q.phone && <Btn className={`px-2.5 ${!q.notified && (mins(q.start) ?? 99) <= 20 ? 'bg-brand text-brand-ink' : ''}`} title={t('Prévenir sur WhatsApp')} onClick={() => tell(q)}>
+                      <BellRing className="h-4 w-4" />{q.notified ? <span className="text-xs">✓</span> : null}</Btn>}
                     {team.length > 1 && team.map(p => (
                       <button key={p.id} title={t('Prendre avec {name}', { name: p.name })} onClick={() => act(q.id, () => supabase.rpc('nouba_next', { p_restaurant_id: r.id, p_staff: p.id, p_entry: q.id }))}
                         className="grid h-9 w-9 place-items-center rounded-full text-xs font-bold text-white" style={{ background: p.agenda_color && HEX.test(p.agenda_color) ? p.agenda_color : '#64748b' }}>{p.name.slice(0, 1)}</button>
