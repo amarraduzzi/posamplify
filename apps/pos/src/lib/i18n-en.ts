@@ -806,4 +806,8 @@ export const EN: Record<string, string> = {
   "{n} réservations · la liste pour la cuisine": "{n} bookings · the list for the kitchen",
   "À la carte": "À la carte",
   "À {h}, de {a} à {b} personnes.": "At {h}, from {a} to {b} guests.",
+  "C’est fait": "Done",
+  "De l’eau": "Water",
+  "L’addition": "The bill",
+  "Un serveur": "A waiter",
 };

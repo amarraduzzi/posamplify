@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
 import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { ServiceBar } from './components/ServiceBar';
 import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
 import { useCart } from './lib/cart';
@@ -363,6 +364,7 @@ export default function App() {
                 </span>
               )}
             </div>
+            {menu.table && tenant.tableToken && !kiosk && <ServiceBar slug={slug} token={tenant.tableToken} lang={lang} />}
             {!kiosk && booking && (booking.enabled || booking.waitlist || !!booking.offers?.length) && (
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-rise" style={{ ['--i' as string]: 5 }}>
                 {(booking.enabled || !!booking.offers?.length) && <button onClick={() => setSheet('book')} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-ink glow-brand press"><CalendarDays className="size-4" />{bookingStrings(lang).book}</button>}

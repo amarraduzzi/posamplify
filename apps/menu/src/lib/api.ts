@@ -116,3 +116,10 @@ export interface CardGift { id: string; label: string; expires_at: string | null
 /** The gifts the guest has won and not used yet (separate function: a card still opens if it is not installed). */
 export const customerWallet = (slug: string, key: string) => call<CardGift[]>('customer_card_wallet', { p_slug: slug, p_key: key });
 export const customerCard = (slug: string, key: string) => call<CustomerCard | null>('customer_card', { p_slug: slug, p_key: key });
+
+// ---- Le service discret: the guest at a table calls a waiter, water or the bill
+export type ServiceKind = 'waiter' | 'water' | 'bill';
+export interface TableService { enabled: boolean; open?: { kind: ServiceKind; at: string }[]; done?: { kind: ServiceKind; at: string }[] }
+export const tableService = (slug: string, token: string) => call<TableService>('table_service', { p_slug: slug, p_table_token: token });
+export const callService = (slug: string, token: string, kind: ServiceKind) =>
+  call<{ ok: boolean; at: string; again: boolean }>('call_service', { p_slug: slug, p_table_token: token, p_kind: kind });

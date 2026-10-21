@@ -807,4 +807,8 @@ export const AR: Record<string, string> = {
   "{n} réservations · la liste pour la cuisine": "{n} حجوزات · القائمة للمطبخ",
   "À la carte": "حسب القائمة",
   "À {h}, de {a} à {b} personnes.": "على {h}، من {a} إلى {b} أشخاص.",
+  "C’est fait": "تم",
+  "De l’eau": "ماء",
+  "L’addition": "الفاتورة",
+  "Un serveur": "نادل",
 };

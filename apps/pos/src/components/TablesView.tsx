@@ -12,7 +12,9 @@ import { rhythmOf } from '../lib/rhythm';
 import { hasMaitre } from '../lib/occasion';
 import { useOffers } from '../lib/offers';
 import { PHASES, RhythmLine, CourseDots, RhythmSummary } from './Rhythm';
-import { GuestMarks } from './FloorPlan';
+import { CALL_RING, CallMarks, GuestMarks } from './FloorPlan';
+import { CALLS, serviceDone, useServiceCalls, type ServiceCall } from '../lib/service';
+import { minutesSince as minsAgo } from '../lib/format';
 
 type View = 'plan' | 'list';
 const VIEW_KEY = 'pos-tables-view';
@@ -28,6 +30,8 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const { list: resa } = useReservations(null);
   const maitre = hasMaitre(pos.restaurant);
   const offers = useOffers(pos.restaurant);
+  const calls = useServiceCalls(pos.restaurant?.id, maitre);
+  const callsOf = (id: string) => calls.filter(c => c.table_id === id).map(c => c.kind);
   const bookings = useTableBookings(resa);
   // the booking of a table that is arriving now (or seated, no bill yet): opening the table makes the bill theirs
   const arrivals = new Map<string, NonNullable<typeof resa>[number]>();
@@ -65,6 +69,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
       qr: os.some(o => o.source === 'qr'), pending: os.some(o => o.source === 'qr' && o.status === 'new'),
       since: os.length ? minutesSince(os[0].created_at) : 0, ready: ready.has(tb.id), booking: bookings.get(tb.id),
       rhythm: maitre && os.length ? rhythmOf(os, pos.orders) : null,
+      calls: callsOf(tb.id),
       guest: os.length ? guests.byId(os.find(o => o.customer_id)?.customer_id) : guests.byPhone((bookings.get(tb.id) ?? arrivals.get(tb.id))?.phone),
     };
   };
@@ -95,6 +100,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
         )}
       </div>
 
+      <CallsBar calls={calls} />
       {maitre && <RhythmSummary list={pos.tables.map(tb => { const os = byTable.get(tb.id) ?? []; return os.length ? rhythmOf(os, pos.orders) : null; }).filter((x): x is NonNullable<typeof x> => !!x)} />}
 
       {view === 'plan' && pos.tables.length > 0 && (hasPlan ? (
@@ -127,10 +133,11 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               return (
                 <button key={tb.id} onClick={() => open(tb)}
                   className={`group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-3xl transition hover:-translate-y-0.5 active:scale-95 ${
-                    s.count ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
+                    s.count ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.calls?.length ? CALL_RING : s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
                   {!s.count && <Star8 filled={false} stroke={0.5} className="absolute h-[70%] w-[70%] text-line/[0.045] transition group-hover:text-brand/20" />}
                   {s.count > 0 && <Star8 className="absolute -bottom-6 -end-6 h-20 w-20 text-white/10" />}
                   <GuestMarks g={s.guest} />
+                  <CallMarks calls={s.calls} className="end-2 top-2 z-10" />
                   {s.qr && <span className="absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-qr shadow-lg"><QrCode className="h-3.5 w-3.5 text-white" /></span>}
                   <span className={`relative font-display text-3xl font-semibold leading-none ${s.count ? '' : 'text-ink/90'}`}>{tb.label}</span>
                   {s.count > 0 ? <>
@@ -153,6 +160,27 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
       </button>
       {!pos.tables.length && <p className="text-muted">{t('Aucune table configurée.')}</p>}
       {editing && <PlanEditor zones={zones} startZone={curZone} onClose={() => setEditing(false)} />}
+    </div>
+  );
+}
+
+/** the calls of the guests, oldest first: one tap when it is done */
+function CallsBar({ calls }: { calls: ServiceCall[] }) {
+  const pos = usePos();
+  if (!calls.length) return null;
+  const byTable = new Map<string, ServiceCall[]>();
+  calls.forEach(c => byTable.set(c.table_id, [...(byTable.get(c.table_id) ?? []), c]));
+  return (
+    <div className="flex flex-wrap gap-2">
+      {[...byTable.entries()].map(([tid, cs]) => (
+        <div key={tid} className="flex items-center gap-2 rounded-2xl bg-violet-500 py-1.5 pe-1.5 ps-3 text-white shadow-lg">
+          <span className="font-display text-lg font-semibold">{t('Table {n}', { n: pos.tableById.get(tid)?.label ?? '?' })}</span>
+          {cs.map(c => { const C = CALLS[c.kind]; return <span key={c.id} className="inline-flex items-center gap-1 text-sm font-bold"><C.Icon className="h-4 w-4" />{C.label()}</span>; })}
+          <span className="text-xs opacity-80">{t('{n} min', { n: minsAgo(cs[0].created_at) })}</span>
+          <button onClick={() => serviceDone(pos.restaurant!.id, { tableId: tid }, pos.staff?.id ?? null).catch(e => pos.fail(e))}
+            className="rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-violet-700">{t('C’est fait')}</button>
+        </div>
+      ))}
     </div>
   );
 }

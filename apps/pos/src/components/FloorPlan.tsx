@@ -12,6 +12,7 @@ import { ManagerApproval } from './StaffGate';
 import type { Reservation } from './Reservations';
 import { isVip, type Guest } from './Guest';
 import type { Rhythm } from '../lib/rhythm';
+import { CALLS, type CallKind } from '../lib/service';
 import { CourseDots, PHASES, RhythmLine } from './Rhythm';
 
 // The floor plan: each zone of the restaurant drawn on a grid of 48 x 32 squares. In service the tables show
@@ -76,7 +77,7 @@ function Paper({ children, grid, innerRef, fit }: { children: ReactNode; grid?: 
   );
 }
 
-export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation; guest?: Guest | null; rhythm?: Rhythm | null }
+export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation; guest?: Guest | null; rhythm?: Rhythm | null; calls?: CallKind[] }
 
 /** In service: the plan of one zone, each table with its state. */
 export function PlanView({ zone, tables, plan, state, onOpen }: {
@@ -97,6 +98,7 @@ export function PlanView({ zone, tables, plan, state, onOpen }: {
             <div key={tb.id} className="absolute p-[3px]" style={box(tb.plan_x!, tb.plan_y!, tb.plan_w ?? 4, tb.plan_h ?? 4)}>
               <TableButton tb={tb} s={s} cell={cell} onClick={() => onOpen({ kind: 'table', tableId: tb.id })} />
               <GuestMarks g={s.guest} small={cell < 14} className="-top-3.5 left-1/2 z-10 -translate-x-1/2" />
+              <CallMarks calls={s.calls} className="-end-2 -top-2 z-20" />
             </div>
           );
         })}
@@ -121,6 +123,17 @@ export function PlanView({ zone, tables, plan, state, onOpen }: {
 
 /** 20:30, in the restaurant's time zone */
 export const hhmm = (iso: string, tz?: string) => new Date(iso).toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+
+/** a guest called from the table QR: the table rings in violet until a waiter answers */
+export const CALL_RING = 'outline outline-4 outline-offset-2 outline-violet-400 blink';
+export function CallMarks({ calls, className = 'end-2 top-2' }: { calls?: CallKind[]; className?: string }) {
+  if (!calls?.length) return null;
+  return (
+    <span className={`pointer-events-none absolute flex gap-0.5 ${className}`}>
+      {[...new Set(calls)].map(k => { const C = CALLS[k]; return <span key={k} title={C.label()} className="grid h-6 w-6 place-items-center rounded-full bg-violet-500 text-white shadow-lg ring-2 ring-bg"><C.Icon className="h-3.5 w-3.5" /></span>; })}
+    </span>
+  );
+}
 
 /** on a table: a crown for a VIP, a red sign when the guest has allergies */
 export function GuestMarks({ g, small, className = 'start-2 top-2' }: { g?: Guest | null; small?: boolean; className?: string }) {
@@ -158,7 +171,7 @@ function TableButton({ tb, s, cell, onClick }: { tb: Table; s: TableState; cell:
   return (
     <button onClick={onClick}
       className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden transition active:scale-95 ${round ? 'rounded-full' : 'rounded-2xl'} ${
-        s.count ? 'gold-fill text-brand-ink shadow-lg' : s.booking ? 'panel border-2 !border-sky-400/70' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
+        s.count ? 'gold-fill text-brand-ink shadow-lg' : s.booking ? 'panel border-2 !border-sky-400/70' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.calls?.length ? CALL_RING : s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
       {s.qr && !tiny && <span className="absolute end-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-qr shadow"><QrCode className="h-3 w-3 text-white" /></span>}
       <span className="font-display font-semibold leading-none" style={{ fontSize: fs }}>{tb.label}</span>
       {tiny ? (s.ready ? <span className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-warn" /> : null) : s.count > 0 ? <>

@@ -18,6 +18,7 @@ import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
 import { GuestChips, GuestSheet, useGuests, type Guest } from './Guest';
 import { hasMaitre, occasionOf } from '../lib/occasion';
+import { CALLS, serviceDone, useServiceCalls } from '../lib/service';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
@@ -250,7 +251,18 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const booked = useGuests([], [target.kind === 'table' && !order ? target.guest?.phone : null]);
   const bookedGuest = target.kind === 'table' && !order && target.guest ? booked.byPhone(target.guest.phone) : null;
 
+  // a guest of this table called (Le service discret): the waiter who opens the table sees it and answers
+  const svc = useServiceCalls(r.id, hasMaitre(r));
+  const tCalls = svc.filter(c => c.table_id === (order?.table_id ?? tableId));
+
   const banners = <>
+    {tCalls.length > 0 && (
+      <div className="flex flex-wrap items-center gap-2 bg-violet-500 px-4 py-2 text-sm font-bold text-white">
+        {tCalls.map(c => { const C = CALLS[c.kind]; return <span key={c.id} className="inline-flex items-center gap-1"><C.Icon className="h-4 w-4" />{C.label()}</span>; })}
+        <button onClick={() => serviceDone(r.id, { tableId: tCalls[0].table_id }, pos.staff?.id ?? null).catch(e => pos.fail(e))}
+          className="ms-auto rounded-lg bg-white px-3 py-1 text-violet-700">{t('C’est fait')}</button>
+      </div>
+    )}
     {target.kind === 'table' && !order && target.guest && (
       <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-sky-500/10 px-4 py-2 text-sm">
         <CalendarClock className="h-4 w-4 text-sky-500" />
