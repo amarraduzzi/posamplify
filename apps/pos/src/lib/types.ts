@@ -38,7 +38,14 @@ export interface Restaurant {
 }
 
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
-export interface Table { id: string; label: string; zone: string | null; sort_order: number; active: boolean }
+export interface Table {
+  id: string; label: string; zone: string | null; sort_order: number; active: boolean;
+  /** place on the floor plan (grid of 48 x 32), null = not on the plan */
+  plan_x?: number | null; plan_y?: number | null; plan_w?: number; plan_h?: number; plan_shape?: 'rect' | 'round'; seats?: number | null;
+}
+/** a fixed thing of the room on the floor plan */
+export interface PlanItem { k: 'bar' | 'door' | 'window' | 'wall' | 'plant' | 'text' | 'kitchen'; x: number; y: number; w: number; h: number; t?: string }
+export interface FloorPlan { zones?: Record<string, PlanItem[]> }
 export interface Category { id: string; name: I18n; icon: string | null; station: string; sort_order: number; course?: number | null; takeaway_discount_cents?: number }
 export interface Variant { id: string; menu_item_id: string; name: I18n; price_cents: number; sort_order: number; glovo_price_cents?: number | null }
 export interface ModOption { id: string; group_id: string; name: I18n; price_cents: number; sort_order: number; glovo_price_cents?: number | null }

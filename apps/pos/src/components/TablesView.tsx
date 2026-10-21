@@ -1,8 +1,16 @@
-import { QrCode, ShoppingBag, Clock, BellRing } from 'lucide-react';
+import { useState } from 'react';
+import { QrCode, ShoppingBag, Clock, BellRing, LayoutGrid, Map as MapIcon, PencilRuler, CalendarClock } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
 import { mad, minutesSince } from '../lib/format';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
+import type { Table } from '../lib/types';
+import { hhmm, PlanEditor, PlanView, placed, useTableBookings, type TableState } from './FloorPlan';
+import { useReservations } from './Reservations';
+
+type View = 'plan' | 'list';
+const VIEW_KEY = 'pos-tables-view';
+const readView = (): View | null => { try { const v = localStorage.getItem(VIEW_KEY); return v === 'plan' || v === 'list' ? v : null; } catch { return null; } };
 
 export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const pos = usePos();
@@ -11,40 +19,95 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const zones = [...new Set(pos.tables.map(x => x.zone ?? ''))];
   // the kitchen screen marked a dish ready and nobody has served it yet: the waiter sees it at a glance
   const ready = new Set(pos.orders.filter(o => o.table_id && o.order_lines.some(l => l.ready_at && !l.served_at)).map(o => o.table_id!));
+  const { list: resa } = useReservations(null);
+  const bookings = useTableBookings(resa);
+
+  const hasPlan = pos.tables.some(placed) || Object.values(pos.floorPlan.zones ?? {}).some(v => v.length);
+  const phone = typeof window !== 'undefined' && window.innerWidth < 640;
+  const [view, setViewS] = useState<View>(() => readView() ?? (hasPlan && !phone ? 'plan' : 'list'));
+  const setView = (v: View) => { setViewS(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* fine */ } };
+  const [zone, setZone] = useState(zones[0] ?? '');
+  const [editing, setEditing] = useState(false);
+  const curZone = zones.includes(zone) ? zone : zones[0] ?? '';
+
+  const state = (tb: Table): TableState => {
+    const os = byTable.get(tb.id) ?? [];
+    return {
+      count: os.length, total: os.reduce((s, o) => s + Number(o.total_cents), 0),
+      qr: os.some(o => o.source === 'qr'), pending: os.some(o => o.source === 'qr' && o.status === 'new'),
+      since: os.length ? minutesSince(os[0].created_at) : 0, ready: ready.has(tb.id), booking: bookings.get(tb.id),
+    };
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-muted">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-xs font-semibold text-muted">
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-line/20 bg-surface" /> {t('Libre')}</span>
         <span className="flex items-center gap-1.5"><i className="gold-fill h-3 w-3 rounded" /> {t('Occupée')}</span>
         <span className="flex items-center gap-1.5"><i className="grid h-4 w-4 place-items-center rounded-full bg-qr"><QrCode className="h-2.5 w-2.5 text-white" /></i> {t('Commande client (QR)')}</span>
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border-2 border-qr" /> {t('À accepter')}</span>
         {ready.size > 0 && <span className="flex items-center gap-1.5"><i className="grid h-4 w-4 place-items-center rounded-full bg-warn"><BellRing className="h-2.5 w-2.5 text-white" /></i> {t('Plat prêt à servir')}</span>}
+        {bookings.size > 0 && <span className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5 text-sky-500" /> {t('Réservée bientôt')}</span>}
+        {pos.tables.length > 0 && (
+          <span className="ms-auto flex items-center gap-2">
+            {view === 'plan' && (
+              <button onClick={() => setEditing(true)} className="hidden items-center gap-1.5 sm:flex rounded-full bg-surface-2 px-3 py-1.5 text-xs font-bold text-muted hover:text-ink">
+                <PencilRuler className="h-3.5 w-3.5" /> {t('Modifier le plan')}
+              </button>
+            )}
+            <span className="flex rounded-full bg-surface-2 p-0.5">
+              {([['plan', t('Plan'), MapIcon], ['list', t('Liste'), LayoutGrid]] as const).map(([id, l, I]) => (
+                <button key={id} onClick={() => setView(id)} aria-pressed={view === id}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${view === id ? 'gold-fill text-brand-ink' : 'text-muted'}`}><I className="h-3.5 w-3.5" />{l}</button>
+              ))}
+            </span>
+          </span>
+        )}
       </div>
-      {zones.map(z => (
+
+      {view === 'plan' && pos.tables.length > 0 && (hasPlan ? (
+        <section className="space-y-3">
+          {zones.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {zones.map(z => (
+                <button key={z} onClick={() => setZone(z)}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold ${curZone === z ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}>{z || t('Salle')}</button>
+              ))}
+            </div>
+          )}
+          <PlanView zone={curZone} tables={pos.tables.filter(x => (x.zone ?? '') === curZone)} plan={pos.floorPlan} state={state} onOpen={onOpen} />
+        </section>
+      ) : (
+        <section className="panel flex flex-col items-center gap-3 rounded-3xl px-6 py-12 text-center">
+          <PencilRuler className="h-8 w-8 text-brand" />
+          <p className="font-display text-2xl font-semibold">{t('Dessinez votre salle')}</p>
+          <p className="max-w-md text-sm text-muted">{t('Placez les tables comme dans le restaurant, avec le bar et l’entrée. Le serveur voit d’un coup d’œil quelles tables sont libres.')}</p>
+          <button onClick={() => setEditing(true)} className="gold-fill mt-2 rounded-2xl px-6 py-3 font-bold text-brand-ink">{t('Dessiner le plan')}</button>
+        </section>
+      ))}
+
+      {view === 'list' && zones.map(z => (
         <section key={z}>
           {z && <h2 className="mb-3 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-muted">{z}<span className="h-px flex-1 bg-line/[0.08]" /></h2>}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3.5">
             {pos.tables.filter(x => (x.zone ?? '') === z).map(tb => {
-              const os = byTable.get(tb.id) ?? [];
-              const total = os.reduce((s, o) => s + Number(o.total_cents), 0);
-              const qr = os.some(o => o.source === 'qr');
-              const pending = os.some(o => o.source === 'qr' && o.status === 'new');
-              const since = os.length ? minutesSince(os[0].created_at) : 0;
+              const s = state(tb);
               return (
                 <button key={tb.id} onClick={() => onOpen({ kind: 'table', tableId: tb.id })}
                   className={`group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-3xl transition hover:-translate-y-0.5 active:scale-95 ${
-                    os.length ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${pending ? 'blink' : ''}`}>
-                  {!os.length && <Star8 filled={false} stroke={0.5} className="absolute h-[70%] w-[70%] text-line/[0.045] transition group-hover:text-brand/20" />}
-                  {os.length > 0 && <Star8 className="absolute -bottom-6 -end-6 h-20 w-20 text-white/10" />}
-                  {qr && <span className="absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-qr shadow-lg"><QrCode className="h-3.5 w-3.5 text-white" /></span>}
-                  <span className={`relative font-display text-3xl font-semibold leading-none ${os.length ? '' : 'text-ink/90'}`}>{tb.label}</span>
-                  {os.length > 0 && <>
-                    <span className="relative mt-1.5 text-sm font-bold tabular">{mad(total)}</span>
-                    {ready.has(tb.id)
+                    s.count ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''}`}>
+                  {!s.count && <Star8 filled={false} stroke={0.5} className="absolute h-[70%] w-[70%] text-line/[0.045] transition group-hover:text-brand/20" />}
+                  {s.count > 0 && <Star8 className="absolute -bottom-6 -end-6 h-20 w-20 text-white/10" />}
+                  {s.qr && <span className="absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-qr shadow-lg"><QrCode className="h-3.5 w-3.5 text-white" /></span>}
+                  <span className={`relative font-display text-3xl font-semibold leading-none ${s.count ? '' : 'text-ink/90'}`}>{tb.label}</span>
+                  {s.count > 0 ? <>
+                    <span className="relative mt-1.5 text-sm font-bold tabular">{mad(s.total)}</span>
+                    {s.ready
                       ? <span className="relative mt-1 flex items-center gap-1 rounded-full bg-warn px-2 py-0.5 text-[11px] font-bold text-white shadow"><BellRing className="h-3 w-3" />{t('Prêt')}</span>
-                      : <span className="relative mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold opacity-70"><Clock className="h-3 w-3" />{t('{n} min', { n: since })}</span>}
-                  </>}
+                      : <span className="relative mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold opacity-70"><Clock className="h-3 w-3" />{t('{n} min', { n: s.since })}</span>}
+                  </> : s.booking?.starts_at ? (
+                    <span className="relative mt-1.5 flex items-center gap-1 text-[11px] font-bold text-sky-500"><CalendarClock className="h-3 w-3" />{hhmm(s.booking.starts_at, pos.restaurant?.timezone)}</span>
+                  ) : null}
                 </button>
               );
             })}
@@ -56,6 +119,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
         <ShoppingBag className="h-5 w-5" /> {t('Nouvelle commande à emporter')}
       </button>
       {!pos.tables.length && <p className="text-muted">{t('Aucune table configurée.')}</p>}
+      {editing && <PlanEditor zones={zones} startZone={curZone} onClose={() => setEditing(false)} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { CashMovement, Category, DayReport, FiscalDoc, Item, Order, Restaurant, Staff, Table, Variant, ModGroup, ModOption } from './types';
+import type { CashMovement, Category, DayReport, FloorPlan, FiscalDoc, Item, Order, Restaurant, Staff, Table, Variant, ModGroup, ModOption } from './types';
 
 /** Raises the database error message (our machine readable codes). */
 export function check<T>(r: { data: T | null; error: { message: string; details?: string | null; code?: string } | null; status?: number }): T {
@@ -21,15 +21,17 @@ export async function myRestaurants(userId: string): Promise<{ restaurant: Resta
 }
 
 export async function loadStatic(rid: string) {
-  const [staff, tables, cats, items, variants, groups, options, links] = await Promise.all([
+  const [staff, tables, cats, items, variants, groups, options, links, rest] = await Promise.all([
     supabase.from('staff').select('id,name,role,active').eq('restaurant_id', rid).eq('active', true).order('name'),
-    supabase.from('dining_tables').select('id,label,zone,sort_order,active').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('label'),
+    // '*': the floor plan columns are read when the database has them, nothing breaks before
+    supabase.from('dining_tables').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('label'),
     supabase.from('categories').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('menu_items').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('item_variants').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('price_cents'),
     supabase.from('modifier_groups').select('id,name,min_select,max_select,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('modifier_options').select('*').eq('restaurant_id', rid).eq('active', true).order('sort_order').order('created_at'),
     supabase.from('item_modifier_groups').select('menu_item_id,group_id,sort_order').eq('restaurant_id', rid).order('sort_order'),
+    supabase.from('restaurants').select('*').eq('id', rid).maybeSingle(),
   ]);
   const opts = check(options) as ModOption[];
   const gs = (check(groups) as Omit<ModGroup, 'options'>[]).map(g => ({ ...g, options: opts.filter(o => o.group_id === g.id) })).filter(g => g.options.length);
@@ -39,6 +41,7 @@ export async function loadStatic(rid: string) {
     staff: check(staff) as Staff[],
     tables: (check(tables) as Table[]).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label, 'fr', { numeric: true })),
     categories: check(cats) as Category[],
+    floorPlan: ((check(rest) as { floor_plan?: FloorPlan } | null)?.floor_plan ?? {}) as FloorPlan,
     items: (check(items) as Omit<Item, 'variants'>[]).map(i => ({ ...i, variants: vs.filter(v => v.menu_item_id === i.id),
       groups: ls.filter(l => l.menu_item_id === i.id).map(l => gs.find(g => g.id === l.group_id)).filter((g): g is ModGroup => !!g) })) as Item[],
   };

@@ -10,7 +10,7 @@ import { readCache, writeCache } from './lib/cache';
 import { applyLang, isLang, t, type Lang } from './lib/i18n';
 import { isPhoneNow } from './lib/phone';
 import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type PayLine, type Queued } from './lib/outbox';
-import type { Category, DraftLine, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
+import type { Category, DraftLine, FloorPlan, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
 export type OrderTarget =
   | { kind: 'table'; tableId: string }
@@ -22,7 +22,7 @@ export interface Toast { id: number; text: string; tone: 'ok' | 'error' | 'info'
 /** Result of a payment: the fiscal ticket (online) or a provisional receipt (offline, ticket follows). */
 export type PayResult = { doc: FiscalDoc } | { provisional: string };
 
-type StaticData = { staff: Staff[]; tables: Table[]; categories: Category[]; items: Item[] };
+type StaticData = { staff: Staff[]; tables: Table[]; categories: Category[]; items: Item[]; floorPlan?: FloorPlan };
 const sleep = (ms: number) => new Promise<void>(r => window.setTimeout(r, ms));
 const now = () => new Date().toISOString();
 
@@ -32,6 +32,7 @@ function usePosState() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
+  const [floorPlan, setFloorPlan] = useState<FloorPlan>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [snapshot, setSnapshot] = useState<Order[]>([]);
@@ -121,7 +122,7 @@ function usePosState() {
     const key = `pos-static:${rid}`;
     try {
       const s = await db.loadStatic(rid);
-      setStaffList(s.staff); setTables(s.tables); setCategories(s.categories); setItems(s.items);
+      setStaffList(s.staff); setTables(s.tables); setCategories(s.categories); setItems(s.items); setFloorPlan(s.floorPlan ?? {});
       writeCache(key, s);
       const rep = await db.dayReport(rid);
       setBusinessDate(rep.business_date); setDayClosed(!!rep.closed);
@@ -131,7 +132,7 @@ function usePosState() {
       if (!isNetworkError(e)) { setLoadError(errorMessage(e)); return; }
       setOnline(false);
       const s = readCache<StaticData>(key);
-      if (s) { setStaffList(s.staff); setTables(s.tables); setCategories(s.categories); setItems(s.items); }
+      if (s) { setStaffList(s.staff); setTables(s.tables); setCategories(s.categories); setItems(s.items); setFloorPlan(s.floorPlan ?? {}); }
       const d = readCache<{ business_date: string; closed: boolean }>(`pos-day:${rid}`);
       if (d) { setBusinessDate(d.business_date); setDayClosed(d.closed); }
       if (!s) setLoadError(t('Pas de connexion internet, et le menu n\'est pas encore enregistré sur ce poste.'));
@@ -516,7 +517,7 @@ function usePosState() {
 
   return {
     lang, setLang, session, memberships, restaurant, chooseRestaurant, logout, loadError, refreshMemberships,
-    staffList, tables, categories, items: liveItems, stockLow, refreshStock, orders, staff, setStaff,
+    staffList, tables, floorPlan, categories, items: liveItems, stockLow, refreshStock, orders, staff, setStaff,
     live, online, lastSync, printerOk, recheckPrinter, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,
