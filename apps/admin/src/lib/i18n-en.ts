@@ -2560,4 +2560,10 @@ export const EN: Record<string, string> = {
   "Plus bas": "Lowest",
   "Aucune production avec quantité obtenue sur cette période. Indiquez « obtenu » en produisant pour suivre le rendement.": "No production with an obtained quantity in this period. Fill in “obtained” when producing to track the yield.",
   "Seules les productions avec « obtenu » comptent. Un surplus compense la perte : les chiffres sont nets.": "Only productions with “obtained” count. A surplus offsets the loss: the figures are net.",
+  "Terminer": "Finish",
+  "prévu": "planned",
+  "Quantité réellement obtenue": "Quantity really obtained",
+  "Production de {n} démarrée : les ingrédients de {q} sont sortis du stock": "{n} production started: the ingredients for {q} are out of the stock",
+  "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la fin.": "The ingredients leave the stock now; the quantity obtained is noted at the end.",
+  "Dans le four : indiquez la quantité obtenue quand c’est sorti. Le stock et le rendement se mettent à jour à ce moment.": "In the oven: enter the quantity obtained when it comes out. The stock and the yield are updated then.",
 };

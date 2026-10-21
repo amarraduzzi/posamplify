@@ -2563,4 +2563,10 @@ export const AR: Record<string, string> = {
   "Plus bas": "الأدنى",
   "Aucune production avec quantité obtenue sur cette période. Indiquez « obtenu » en produisant pour suivre le rendement.": "لا يوجد إنتاج مسجَّل بكمية محصَّلة في هذه الفترة. اكتبوا «المحصّل» عند الإنتاج لمتابعة المردودية.",
   "Seules les productions avec « obtenu » comptent. Un surplus compense la perte : les chiffres sont nets.": "تُحتسب فقط عمليات الإنتاج التي سُجّل فيها «المحصّل». الفائض يعوّض الخسارة: الأرقام صافية.",
+  "Terminer": "إنهاء",
+  "prévu": "المخطَّط",
+  "Quantité réellement obtenue": "الكمية المحصل عليها فعليًا",
+  "Production de {n} démarrée : les ingrédients de {q} sont sortis du stock": "بدأ إنتاج {n}: خرجت مكوّنات {q} من المخزون",
+  "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la fin.": "تخرج المكوّنات من المخزون الآن، وتُسجَّل الكمية المحصَّلة في النهاية.",
+  "Dans le four : indiquez la quantité obtenue quand c’est sorti. Le stock et le rendement se mettent à jour à ce moment.": "في الفرن: اكتبوا الكمية المحصَّلة عند خروجها. يُحدَّث المخزون والمردودية عندها.",
 };

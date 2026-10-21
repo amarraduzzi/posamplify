@@ -27,7 +27,7 @@ export function ProductionYield({ r, today, names }: { r: Restaurant; today: str
     (async () => {
       try {
         const data = check(await supabase.from('production_batches').select('id, ingredient_id, qty, planned_qty, produced_on, cost_cents')
-          .eq('restaurant_id', r.id).is('cancelled_at', null).not('planned_qty', 'is', null)
+          .eq('restaurant_id', r.id).is('cancelled_at', null).eq('status', 'done').not('planned_qty', 'is', null)
           .gte('produced_on', addDays(today, -days)).lte('produced_on', today)) as Row[];
         if (live) setRows(data);
       } catch (e) { a.fail(e); if (live) setRows([]); }
