@@ -89,6 +89,8 @@ export interface Order {
   table_by_guest?: boolean;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
+  /** the allergies of the order's guest, copied by the server: printed on the kitchen bons */
+  guest_alert?: string | null;
   customer_id?: string | null; discount_kind?: 'loyalty' | 'promo' | null; promo_id?: string | null;
   /** rewards used on this bill (only the ones not taken back are loaded) */
   order_rewards?: OrderReward[];

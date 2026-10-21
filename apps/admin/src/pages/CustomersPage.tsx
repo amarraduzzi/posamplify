@@ -2,7 +2,7 @@
 // are phone numbers kept (law 09-08: keep only what is needed, with consent for messages).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { loyaltyRewards, type LoyaltyReward } from '@resto/shared';
-import { Cake, Copy, Gift, Trash2, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
+import { AlertTriangle, Cake, Copy, Gift, Trash2, MessageCircle, NotebookPen, Pencil, Plus, Printer, QrCode, Search, ShieldCheck, Upload, UserPlus, Users, X } from 'lucide-react';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check, fromCents, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -16,6 +16,8 @@ import { SignupQrModal, type SignupEvent } from '../components/SignupQr';
 
 interface Customer {
   id: string; phone: string; name: string | null; birthday: string | null; note: string | null; marketing_ok: boolean;
+  /** the guest profile, also seen and completed at the till */
+  allergies: string | null; tags: string[];
   points: number; visits: number; spent_cents: number; first_visit_at: string | null; last_visit_at: string | null; created_at: string;
   credit_allowed: boolean; credit_limit_cents: number | null; balance_cents: number; source: 'qr' | 'event' | null; card_key: string;
   /** when the owner last sent the message to bring him back */
@@ -165,6 +167,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                     {c.birthday && Number(c.birthday.slice(5, 7)) === month && <Cake className="h-4 w-4 text-brand" />}
                     {c.marketing_ok && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-bold text-ok">WhatsApp</span>}
                     {c.source && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">QR</span>}
+                    {(c.tags ?? []).map(x => <span key={x} className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{x}</span>)}
+                    {c.allergies && <span title={c.allergies} className="inline-flex items-center gap-0.5 rounded-full bg-danger/15 px-2 py-0.5 text-[10px] font-bold text-danger"><AlertTriangle className="h-3 w-3" />{t('Allergie')}</span>}
                     {filter === 'birthday' && c.birthday_msg_at && !birthdayFresh(c) && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{t('Message envoyé le {d}', { d: new Date(c.birthday_msg_at).toLocaleDateString(dateLocale()) })}</span>}
                     {filter === 'lost' && comebackPending(c) && c.comeback_at && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{t('Contacté le {d}', { d: new Date(c.comeback_at).toLocaleDateString(dateLocale()) })}</span>}</p>
                   <p dir="ltr" className="text-xs text-muted rtl:text-end">{c.phone}</p>
@@ -216,7 +220,7 @@ function ComebackButton({ kind, c, r, cb, bd, pointsOn, onSent }: { kind: 'lost'
 
 function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Customer; points: boolean; credit: boolean; r: Restaurant; onClose: () => void; onSaved: () => void }) {
   const a = useAdminCtx();
-  const [f, setF] = useState({ name: c.name ?? '', birthday: c.birthday ?? '', note: c.note ?? '', marketing_ok: c.marketing_ok, points: String(c.points),
+  const [f, setF] = useState({ name: c.name ?? '', birthday: c.birthday ?? '', note: c.note ?? '', allergies: c.allergies ?? '', tags: (c.tags ?? []).join(', '), marketing_ok: c.marketing_ok, points: String(c.points),
     credit_allowed: c.credit_allowed, limit: fromCents(c.credit_limit_cents ?? 50000) });
   const [statement, setStatement] = useState(false);
   const [adjust, setAdjust] = useState(false);
@@ -225,6 +229,7 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
   const save = async () => {
     try {
       check(await supabase.from('customers').update({ name: f.name.trim() || null, birthday: f.birthday || null, note: f.note.trim() || null, marketing_ok: f.marketing_ok,
+        allergies: f.allergies.trim() || null, tags: [...new Set(f.tags.split(',').map(x => x.trim().slice(0, 20)).filter(Boolean))].slice(0, 8),
         points: Math.max(0, Math.round(Number(f.points) || 0)),
         ...(credit ? { credit_allowed: f.credit_allowed, credit_limit_cents: f.credit_allowed ? Math.max(0, toCents(f.limit)) : c.credit_limit_cents } : {}) }).eq('id', c.id).select('id'));
       a.toast(t('Enregistré')); onSaved();
@@ -254,7 +259,9 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
             <p className="mt-2 text-xs text-muted">{t('Un lien privé : le client y voit ses points et sa récompense, sans application. Envoyez-le seulement à lui.')}</p>
           </div>
         )}
-        <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Allergie, table préférée…')} /></Field>
+        <Field label={t('Allergies et intolérances')} hint={t('Imprimé sur chaque bon cuisine de ce client.')}><input className={inputCls} maxLength={200} value={f.allergies} onChange={e => setF({ ...f, allergies: e.target.value })} placeholder={t('Ex. : noix, gluten, fruits de mer')} /></Field>
+        <Field label={t('Préférences')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Ex. : table près de la fenêtre, eau pétillante')} /></Field>
+        <Field label={t('Étiquettes')} hint={t('Séparées par des virgules. Ex. : VIP, Habitué, Végétarien')}><input className={inputCls} value={f.tags} onChange={e => setF({ ...f, tags: e.target.value })} /></Field>
         <Toggle checked={f.marketing_ok} onChange={v => setF({ ...f, marketing_ok: v })} label={t('D’accord pour recevoir les offres sur WhatsApp')} />
         {credit && (
           <div className="rounded-2xl bg-surface-2 p-4">

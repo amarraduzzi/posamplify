@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket, FastForward } from 'lucide-react';
+import { CalendarClock, ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket, FastForward } from 'lucide-react';
 import { loyaltyRewards, promoPrice, tr, type LoyaltyReward } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
@@ -16,6 +16,7 @@ import { useIsPhone } from '../lib/phone';
 import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
+import { GuestChips, GuestSheet, useGuests, type Guest } from './Guest';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
@@ -59,7 +60,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   const showPhotos = localStorage.getItem('pos-photos') !== 'off';
   // new takeaway / delivery / glovo order details
   const [kind, setKind] = useState<'takeaway' | 'delivery' | 'glovo'>(target.kind === 'new' ? (target.source === 'glovo' ? 'glovo' : target.orderType) : 'takeaway');
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '', ref: '' });
+  // a table opened for its booking: the bill is the guest's from the first dish (name and phone go with the order)
+  const [customer, setCustomer] = useState(() => ({ name: target.kind === 'table' ? target.guest?.name ?? '' : '', phone: target.kind === 'table' ? target.guest?.phone ?? '' : '', address: '', ref: '' }));
 
   // ---- which order(s) are we looking at -------------------------------------
   const tableId = target.kind === 'table' ? target.tableId : null;
@@ -227,7 +229,24 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   }, [order, draft, label]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => show(r, { mode: 'idle' }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // the order's guest (allergies, VIP, points), loaded when a bill with a customer is opened
+  useEffect(() => {
+    if (!loyalty.customers || !order?.customer_id || cust?.id === order.customer_id || !pos.online) return;
+    let gone = false;
+    db.rpc<Customer | null>('pos_order_customer', { p_order_id: order.id }).then(c => { if (!gone && c) setCust(c); }).catch(() => {});
+    return () => { gone = true; };
+  }, [order?.id, order?.customer_id, loyalty.customers, pos.online]); // eslint-disable-line react-hooks/exhaustive-deps
+  const booked = useGuests([], [target.kind === 'table' && !order ? target.guest?.phone : null]);
+  const bookedGuest = target.kind === 'table' && !order && target.guest ? booked.byPhone(target.guest.phone) : null;
+
   const banners = <>
+    {target.kind === 'table' && !order && target.guest && (
+      <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-sky-500/10 px-4 py-2 text-sm">
+        <CalendarClock className="h-4 w-4 text-sky-500" />
+        <span className="font-semibold">{t('Réservation : {n}', { n: target.guest.name })}</span>
+        <GuestChips g={bookedGuest} />
+      </div>
+    )}
     {loyalty.customers && order && (
       <CustomerBar order={order} cust={cust} loyalty={loyalty} onPick={() => setDialog('customer')} onRedeemed={c => setCust(c)} />
     )}
@@ -945,7 +964,7 @@ function SplitDialog({ order, lineName, onClose, onPayAll, onPart }: {
   );
 }
 
-interface Customer { id: string; name: string | null; phone: string; points: number; visits: number; credit_allowed?: boolean; credit_limit_cents?: number | null; balance_cents?: number }
+interface Customer extends Partial<Omit<Guest, 'id' | 'name' | 'phone' | 'visits'>> { id: string; name: string | null; phone: string; points: number; visits: number; credit_allowed?: boolean; credit_limit_cents?: number | null; balance_cents?: number }
 
 /** The customer chip on the ticket: who, points, and the reward when there are enough points. */
 function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
@@ -953,6 +972,7 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
 }) {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
   const applied = (order.order_rewards ?? []).filter(x => !x.released_at);
@@ -994,8 +1014,10 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
     <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface-2/60 px-4 py-2 text-sm">
       <UserRound className="h-4 w-4 text-brand" />
       {order.customer_id
-        ? <span className="font-semibold">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</span>
+        ? <button onClick={() => setSheet(true)} className="font-semibold underline decoration-line/30 underline-offset-4 hover:decoration-brand">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</button>
         : <span className="text-muted">{t('Pas de client')}</span>}
+      {known?.tags && <GuestChips g={known as Guest} />}
+      {sheet && order.customer_id && <GuestSheet customerId={order.customer_id} onClose={() => setSheet(false)} onSaved={g => onRedeemed({ ...(known ?? { points: 0 }), ...g } as Customer)} />}
       {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
       {applied.map(x => (
         <span key={x.id} className="inline-flex items-center gap-1 rounded-full bg-ok/15 py-0.5 ps-2 pe-1 text-xs font-bold text-ok">

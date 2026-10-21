@@ -2573,4 +2573,12 @@ export const AR: Record<string, string> = {
   "Lancer la fournée": "إطلاق الدفعة",
   "Lancez la fournée quand elle part au four : les ingrédients sortent du stock. Quand elle sort, notez ce qui est réellement sorti dans « En cours » : le stock et le rendement se mettent à jour.": "أطلقوا الدفعة عند دخولها الفرن: تخرج المكونات من المخزون. عند خروجها، سجلوا ما خرج فعلا في « قيد التنفيذ »: يتحدث المخزون والمردود.",
   "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.": "تخرج المكونات من المخزون الآن؛ وتُسجَّل الكمية المحصلة عند الخروج من الفرن.",
+  "Allergie": "حساسية",
+  "Allergies et intolérances": "الحساسية وعدم التحمل",
+  "Ex. : noix, gluten, fruits de mer": "مثال: مكسرات، غلوتين، مأكولات بحرية",
+  "Ex. : table près de la fenêtre, eau pétillante": "مثال: طاولة قرب النافذة، ماء غازي",
+  "Imprimé sur chaque bon cuisine de ce client.": "تُطبع على كل بون مطبخ لهذا الزبون.",
+  "Préférences": "التفضيلات",
+  "Séparées par des virgules. Ex. : VIP, Habitué, Végétarien": "مفصولة بفواصل. مثال: VIP، زبون دائم، نباتي",
+  "Étiquettes": "الوسوم",
 };

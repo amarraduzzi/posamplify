@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, CalendarClock, Circle, Clock, DoorOpen, Flower2, Minus, Plus, QrCode, RotateCw, Square, Trash2, Type, UtensilsCrossed, Wand2, Wine, X, AppWindow, RectangleHorizontal, Users } from 'lucide-react';
+import { AlertTriangle, Crown, BellRing, CalendarClock, Circle, Clock, DoorOpen, Flower2, Minus, Plus, QrCode, RotateCw, Square, Trash2, Type, UtensilsCrossed, Wand2, Wine, X, AppWindow, RectangleHorizontal, Users } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
 import { mad } from '../lib/format';
 import { t } from '../lib/i18n';
@@ -10,6 +10,7 @@ import type { FloorPlan, PlanItem, Table } from '../lib/types';
 import { Btn, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import type { Reservation } from './Reservations';
+import { isVip, type Guest } from './Guest';
 
 // The floor plan: each zone of the restaurant drawn on a grid of 48 x 32 squares. In service the tables show
 // their state (free, occupied with total and minutes, dish ready, QR order, booking coming); a manager
@@ -73,7 +74,7 @@ function Paper({ children, grid, innerRef, fit }: { children: ReactNode; grid?: 
   );
 }
 
-export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation }
+export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation; guest?: Guest | null }
 
 /** In service: the plan of one zone, each table with its state. */
 export function PlanView({ zone, tables, plan, state, onOpen }: {
@@ -93,6 +94,7 @@ export function PlanView({ zone, tables, plan, state, onOpen }: {
           return (
             <div key={tb.id} className="absolute p-[3px]" style={box(tb.plan_x!, tb.plan_y!, tb.plan_w ?? 4, tb.plan_h ?? 4)}>
               <TableButton tb={tb} s={s} cell={cell} onClick={() => onOpen({ kind: 'table', tableId: tb.id })} />
+              <GuestMarks g={s.guest} small={cell < 14} className="-start-1 -top-1 z-10" />
             </div>
           );
         })}
@@ -117,6 +119,19 @@ export function PlanView({ zone, tables, plan, state, onOpen }: {
 
 /** 20:30, in the restaurant's time zone */
 export const hhmm = (iso: string, tz?: string) => new Date(iso).toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+
+/** on a table: a crown for a VIP, a red sign when the guest has allergies */
+export function GuestMarks({ g, small, className = 'start-2 top-2' }: { g?: Guest | null; small?: boolean; className?: string }) {
+  if (!g || (!isVip(g) && !g.allergies)) return null;
+  // on a phone the plan is small: two coloured dots instead of the icons
+  const dot = small ? 'h-3 w-3' : 'h-5 w-5', ic = small ? 'hidden' : 'h-3 w-3';
+  return (
+    <span className={`pointer-events-none absolute flex gap-0.5 ${className}`}>
+      {isVip(g) && <span className={`grid ${dot} place-items-center rounded-full bg-[#f5c542] text-[#3a2a00] shadow ring-1 ring-bg`} title="VIP"><Crown className={ic} /></span>}
+      {g.allergies && <span className={`grid ${dot} place-items-center rounded-full bg-danger text-white shadow ring-1 ring-bg`} title={g.allergies}><AlertTriangle className={ic} /></span>}
+    </span>
+  );
+}
 
 /** the width of one grid square on screen, in px, following the size of the plan */
 function useCell(ref: React.RefObject<HTMLDivElement | null>) {

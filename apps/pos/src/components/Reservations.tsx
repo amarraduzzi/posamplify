@@ -1,13 +1,14 @@
 // Host stand: today's bookings and the waitlist. Confirm, seat, mark no-shows, call the next
 // guest on WhatsApp, add a phone booking or a walk-in.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound } from 'lucide-react';
 import { usePos } from '../store';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/data';
 import { time } from '../lib/format';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { t } from '../lib/i18n';
+import { GuestChips, GuestSheet, useGuests } from './Guest';
 
 export interface Reservation {
   id: string; kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
@@ -52,6 +53,8 @@ export function ReservationsView() {
   const { list, reload } = useReservations(day);
   const [adding, setAdding] = useState<null | 'booking' | 'waitlist'>(null);
   const [history, setHistory] = useState<Record<string, { no_shows: number; seated: number }>>({});
+  const guests = useGuests([], (list ?? []).map(x => x.phone));
+  const [sheet, setSheet] = useState<Reservation | null>(null);
   const today = ymd(new Date(), tz);
   const bookings = (list ?? []).filter(x => x.kind === 'booking');
   const waiting = (list ?? []).filter(x => x.kind === 'waitlist' && (x.status === 'requested' || x.status === 'called'));
@@ -101,7 +104,7 @@ export function ReservationsView() {
           return (
             <article key={x.id} className={`panel flex flex-wrap items-center gap-3 rounded-2xl p-4 ${x.status === 'requested' ? 'ring-2 ring-warn/50' : ''} ${['cancelled', 'no_show'].includes(x.status) ? 'opacity-60' : ''}`}>
               <span className="w-16 font-display text-2xl font-semibold tabular" dir="ltr">{time(x.starts_at!, tz)}</span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[240px] flex-1">
                 <p className="flex flex-wrap items-center gap-2 font-semibold">{x.name}
                   <span className="flex items-center gap-1 text-sm text-muted"><Users className="h-3.5 w-3.5" />{x.party_size}</span>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS[x.status][1]}`}>{STATUS[x.status][0]}</span>
@@ -110,8 +113,10 @@ export function ReservationsView() {
                   {h && h.no_shows > 0 && <span className="rounded-full bg-danger/15 px-2 py-0.5 text-xs font-bold text-danger">{t('{n} fois pas venu', { n: h.no_shows })}</span>}
                 </p>
                 <p className="text-sm text-muted"><span dir="ltr">{x.phone ?? ''}</span>{x.note ? ` · ${x.note}` : ''}</p>
+                {guests.on && x.phone && <GuestChips className="mt-1.5" g={guests.byPhone(x.phone)} />}
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {guests.on && x.phone && <Btn className="px-3 py-1.5 text-sm" onClick={() => setSheet(x)}><UserRound className="h-4 w-4" /> {t('Fiche')}</Btn>}
                 {x.status === 'requested' && <Btn tone="brand" className="px-3 py-1.5 text-sm" onClick={async () => { await set(x, 'confirmed'); wa(x, confirmMsg(x)); }}><Check className="h-4 w-4" /> {t('Confirmer')}</Btn>}
                 {x.status === 'confirmed' && x.phone && <Btn className="px-3 py-1.5 text-sm" onClick={() => wa(x, confirmMsg(x))}><MessageCircle className="h-4 w-4" /></Btn>}
                 {(x.status === 'requested' || x.status === 'confirmed') && <>
@@ -149,6 +154,7 @@ export function ReservationsView() {
             </article>
           ))}
       </section>
+      {sheet && <GuestSheet phone={sheet.phone} name={sheet.name} onClose={() => setSheet(null)} />}
       {adding && <AddReservation kind={adding} day={day} onClose={() => setAdding(null)} onDone={() => { setAdding(null); reload(); }} />}
     </div>
   );

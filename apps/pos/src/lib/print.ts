@@ -213,6 +213,7 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
     { text: `${dateTime(new Date().toISOString(), tz)}${staff ? '  ' + staff : ''}` },
     rule(),
   ];
+  if (o.guest_alert) out.push({ text: `!! ALLERGIE: ${o.guest_alert}`, bold: true, large: true }, rule());
   let course: number | null | undefined = undefined;
   for (const l of [...lines].sort((a, b) => (a.course ?? 0) - (b.course ?? 0))) {
     if (l.course && l.course !== course) out.push({ text: `-- ${courseTicket(l.course)} --`, bold: true, center: true });

@@ -2570,4 +2570,12 @@ export const EN: Record<string, string> = {
   "Lancer la fournée": "Start the batch",
   "Lancez la fournée quand elle part au four : les ingrédients sortent du stock. Quand elle sort, notez ce qui est réellement sorti dans « En cours » : le stock et le rendement se mettent à jour.": "Start the batch when it goes into the oven: the ingredients leave the stock. When it comes out, note what really came out under « In progress »: the stock and the yield update.",
   "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.": "The ingredients leave the stock now; the quantity obtained is noted when it comes out of the oven.",
+  "Allergie": "Allergy",
+  "Allergies et intolérances": "Allergies and intolerances",
+  "Ex. : noix, gluten, fruits de mer": "E.g. nuts, gluten, seafood",
+  "Ex. : table près de la fenêtre, eau pétillante": "E.g. table by the window, sparkling water",
+  "Imprimé sur chaque bon cuisine de ce client.": "Printed on every kitchen ticket of this guest.",
+  "Préférences": "Preferences",
+  "Séparées par des virgules. Ex. : VIP, Habitué, Végétarien": "Separated by commas. E.g. VIP, Regular, Vegetarian",
+  "Étiquettes": "Tags",
 };

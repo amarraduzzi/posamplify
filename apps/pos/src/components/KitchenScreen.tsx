@@ -116,6 +116,7 @@ export function KitchenScreen({ config, onExit }: { config: KdsConfig; onExit: (
                     </div>
                     <span className={`rounded-xl px-2.5 py-1 font-display text-xl font-semibold tabular ${badge(m)}`}>{t('{n} min', { n: m })}</span>
                   </div>
+                  {o.guest_alert && <p className="mx-4 mt-3 rounded-xl bg-danger px-3 py-2 text-base font-bold text-white">⚠ {t('Allergie')} : {o.guest_alert}</p>}
                   <ul className="flex-1 space-y-2 px-4 py-3">
                     {lines.map(l => (
                       <li key={l.id} className="leading-tight">

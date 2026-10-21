@@ -13,7 +13,8 @@ import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send,
 import type { Category, DraftLine, FloorPlan, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
 export type OrderTarget =
-  | { kind: 'table'; tableId: string }
+  /** guest: the booking seated at this table, so the new bill is theirs (name, phone) */
+  | { kind: 'table'; tableId: string; guest?: { name: string; phone: string | null } }
   | { kind: 'order'; orderId: string }
   | { kind: 'new'; orderType: 'takeaway' | 'delivery'; source: 'pos' | 'phone' | 'glovo' };
 
