@@ -13,7 +13,7 @@ export interface Restaurant {
   qr_shared?: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
-  products?: ('pos' | 'profit' | 'site' | 'orders' | 'loyalty' | 'maitre')[];
+  products?: ('pos' | 'profit' | 'site' | 'orders' | 'loyalty' | 'maitre' | 'agenda')[];
   pos_plan?: 'essentiel' | 'restaurant';
   kiosk_token?: string | null;
   owner_whatsapp?: string | null;

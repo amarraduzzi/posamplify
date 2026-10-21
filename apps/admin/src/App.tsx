@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4 } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -8,6 +8,8 @@ import { useInstall } from './lib/install';
 import { Btn, Field, inputCls } from './components/ui';
 import { MenuPage } from './pages/MenuPage';
 import { StaffPage } from './pages/StaffPage';
+import { AgendaServicesPage } from './pages/AgendaServicesPage';
+import { AgendaTeamPage } from './pages/AgendaTeamPage';
 import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -44,7 +46,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -106,13 +108,18 @@ function Screens() {
   // Amplify Fidélité: the loyalty counter without the till (the till has its own)
   const hasLoyalty = !!r && products.includes('loyalty');
   const siteOnly = isSiteOnly(r);
+  // Amplify Agenda: salons (appointments per staff member); alone, the back office shows only what a salon uses
+  const hasAgenda = !!r && products.includes('agenda');
+  const agendaOnly = hasAgenda && !hasPos && !hasProfit && !hasOrders && !hasLoyalty && !products.includes('site');
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
     { id: 'counter', label: t('Comptoir fidélité'), Icon: Heart, show: hasLoyalty && !hasPos },
     { id: 'inbox', label: t('Commandes'), Icon: BellRing, show: hasOrders },
     { id: 'live', label: t('En direct'), Icon: Activity, show: hasPos },
     { id: 'briefing', label: t('Briefing'), Icon: Sparkles, show: hasPos },
     { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
-    { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r },
+    { id: 'agservices', label: t('Prestations'), Icon: Scissors, show: hasAgenda },
+    { id: 'agteam', label: t('Équipe et horaires'), Icon: Clock4, show: hasAgenda },
+    { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r && !agendaOnly },
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
     { id: 'production', label: t('Production'), Icon: CookingPot, show: hasProfit },
@@ -131,7 +138,7 @@ function Screens() {
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos || hasLoyalty },
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
-    { id: 'settings', label: t('Restaurant'), Icon: Settings, show: !!r },
+    { id: 'settings', label: agendaOnly ? t('Salon') : t('Restaurant'), Icon: Settings, show: !!r },
     { id: 'upgrade', label: t('Abonnement'), Icon: Rocket, show: siteOnly && a.role !== 'manager' },
     { id: 'platform', label: t('Plateforme'), Icon: Shield, show: a.isAdmin },
   ];
@@ -158,11 +165,11 @@ function Screens() {
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
-        <AmplifyLogo product={hasPos || hasOrders || hasLoyalty ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
+        <AmplifyLogo product={agendaOnly ? 'AGENDA' : hasPos || hasOrders || hasLoyalty ? 'POS' : siteOnly ? 'SITE' : 'PROFIT'} className="relative mb-5 mt-1 shrink-0 px-2" />
         {/* the middle part scrolls on low screens, so language and logout stay visible */}
         <div className="scroll-thin relative -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
         <div className="relative mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">{t('Restaurant')}</p>
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">{agendaOnly ? t('Salon') : t('Restaurant')}</p>
           {a.list.length > 1 ? (
             <select className="mb-1 w-full rounded-xl border border-white/10 bg-night-2 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-brand" value={r?.id ?? ''} onChange={e => { const x = a.list!.find(l => l.r.id === e.target.value); if (x) a.choose(x.r); }}>
               {a.list.map(x => <option key={x.r.id} value={x.r.id}>{x.r.name}</option>)}
@@ -225,6 +232,8 @@ function Screens() {
           {r && current === 'promos' && <PromotionsPage key={r.id} r={r} />}
           {r && current === 'charges' && <ChargesPage key={r.id} r={r} />}
           {r && current === 'staff' && <StaffPage key={r.id} r={r} />}
+          {r && current === 'agservices' && <AgendaServicesPage key={r.id} r={r} />}
+          {r && current === 'agteam' && <AgendaTeamPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}

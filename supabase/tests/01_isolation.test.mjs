@@ -37,6 +37,8 @@ before(async () => {
   await as(w.users.ownerB, `insert into public.purchase_order_lines (restaurant_id, order_id, ingredient_id, units) values ($1, $2, $3, 2)`, [w.B.r.id, poB.id, gB.id]);
   const [rsB] = await as(w.users.deviceB, `insert into public.reservations (restaurant_id, kind, starts_at, party_size, name) values ($1, 'booking', now() + interval '1 day', 2, 'Client B') returning id`, [w.B.r.id]);
   await sql(`insert into public.booking_offers (restaurant_id, name) values ($1, 'Formule B')`, [w.B.r.id]);
+  await sql(`insert into public.agenda_services (restaurant_id, name) values ($1, '{"fr":"Coupe B"}')`, [w.B.r.id]);
+  await sql(`insert into public.agenda_time_off (restaurant_id, starts_at, ends_at) values ($1, now(), now() + interval '1 hour')`, [w.B.r.id]);
   await sql(`insert into public.service_calls (restaurant_id, table_id, kind) select restaurant_id, id, 'water' from public.dining_tables where restaurant_id = $1 limit 1`, [w.B.r.id]);
   await sql(`insert into public.reservation_deposits (restaurant_id, reservation_id, kind, amount_cents, method, business_date) values ($1, $2, 'in', 1000, 'cash', current_date)`, [w.B.r.id, rsB.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);

@@ -20,10 +20,10 @@ export function AmplifyMark({ className = '', tone = 'dark' }: { className?: str
 }
 
 /** Logo: the mark plus the wordmark AMPLIFY POS, in the Amplify colors. */
-export function AmplifyLogo({ className = '', size = 'md', tone = 'dark', product = 'POS' }: { className?: string; size?: 'sm' | 'md' | 'lg'; tone?: 'dark' | 'light'; product?: 'POS' | 'PROFIT' | 'SITE' }) {
+export function AmplifyLogo({ className = '', size = 'md', tone = 'dark', product = 'POS' }: { className?: string; size?: 'sm' | 'md' | 'lg'; tone?: 'dark' | 'light'; product?: 'POS' | 'PROFIT' | 'SITE' | 'AGENDA' }) {
   const m = size === 'lg' ? 'h-12 w-[3.65rem]' : size === 'sm' ? 'h-7 w-[2.15rem]' : 'h-9 w-[2.75rem]';
   // PROFIT is longer than POS: a bit smaller so the logo stays on one line in the sidebar
-  const t = product === 'PROFIT'
+  const t = product === 'PROFIT' || product === 'AGENDA'
     ? (size === 'lg' ? 'text-[1.45rem]' : size === 'sm' ? 'text-[0.85rem]' : 'text-[1.02rem]')
     : (size === 'lg' ? 'text-[1.6rem]' : size === 'sm' ? 'text-[0.95rem]' : 'text-[1.2rem]');
   return (

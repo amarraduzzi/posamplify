@@ -49,7 +49,7 @@ export function PlatformPage() {
   };
   // a service included in another one (Site with POS or Profit, Commandes with POS) is ticked and locked
   // Maître: the fine dining package, an option of the till
-  const SERVICES = [['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes'], ['maitre', 'Maître']] as const;
+  const SERVICES = [['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes'], ['maitre', 'Maître'], ['agenda', 'Agenda']] as const;
   const included = (r: Restaurant, k: string) => {
     const pr = r.products ?? [];
     return (k === 'site' && (pr.includes('pos') || pr.includes('profit'))) || (k === 'orders' && pr.includes('pos'));
@@ -65,8 +65,8 @@ export function PlatformPage() {
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
       <ToCollect list={list} onOpen={setBillingOf} />
       <div className="card overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[1140px] table-fixed text-sm">
-          <colgroup><col /><col className="w-[128px]" /><col className="w-[410px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
+        <table className="w-full min-w-[1220px] table-fixed text-sm">
+          <colgroup><col /><col className="w-[128px]" /><col className="w-[490px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
           <thead className="bg-surface-2 text-xs font-semibold text-muted">
             <tr><th className="px-4 py-2.5 text-start">{t('Restaurant')}</th><th className="px-2 text-start">{t('Statut')}</th><th className="px-2 text-start">{t('Services')}</th><th className="pe-2 ps-3 text-start">{t('Caisse')}</th><th className="px-2 text-start">{t('Site web')}</th><th className="pe-3 text-end">{t('Actions')}</th></tr>
           </thead>
