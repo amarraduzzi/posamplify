@@ -9,7 +9,7 @@ import { uid } from './lib/format';
 import { readCache, writeCache } from './lib/cache';
 import { applyLang, isLang, t, type Lang } from './lib/i18n';
 import { isPhoneNow } from './lib/phone';
-import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type Queued } from './lib/outbox';
+import { OfflineError, loadQueue, nextLocalRef, project, prune, saveQueue, send, type NewLine, type Op, type PayLine, type Queued } from './lib/outbox';
 import type { Category, DraftLine, FiscalDoc, Item, Line, Order, PosSettings, Restaurant, Staff, Table } from './lib/types';
 
 export type OrderTarget =
@@ -450,7 +450,7 @@ function usePosState() {
   }, [enqueue]);
 
   /** Pays an order. Online: fiscal ticket right away. Offline: provisional receipt, the fiscal ticket is issued on reconnection. */
-  const pay = useCallback(async (o: Order, payments: { method: string; amount_cents: number; tip_cents: number }[],
+  const pay = useCallback(async (o: Order, payments: PayLine[],
     buyer: { name: string; ice: string } | null, changeCents: number): Promise<PayResult | null> => {
     if (!restaurant) return null;
     const label = labelOf(o);

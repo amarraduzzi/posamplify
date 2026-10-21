@@ -17,6 +17,11 @@ import { readCache, writeCache } from './cache';
 import type { FiscalDoc, Line, Order } from './types';
 import { t } from './i18n';
 
+/** One payment of a bill; a card paid through the terminal carries the terminal's answer. */
+export interface PayLine {
+  method: string; amount_cents: number; tip_cents: number;
+  tpe?: { status: 'approved' | 'manual'; ref?: string; last4?: string; brand?: string; terminal?: string };
+}
 export interface NewOrder {
   id: string; restaurant_id: string; client_id: string; source: string; order_type: string;
   table_id: string | null; staff_id: string | null; customer_name: string | null; customer_phone: string | null;
@@ -33,7 +38,7 @@ export interface NewLine {
   weight_g?: number | null;
 }
 export interface PayRequest {
-  order_id: string; payments: { method: string; amount_cents: number; tip_cents: number }[];
+  order_id: string; payments: PayLine[];
   staff_id: string | null; buyer: { name: string; ice: string } | null; label: string; paid_at: string; total_cents: number;
 }
 

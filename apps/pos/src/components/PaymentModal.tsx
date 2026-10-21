@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { show } from '../lib/display';
-import { Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText, NotebookPen, UserRound } from 'lucide-react';
+import { Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText, NotebookPen, UserRound, XCircle, RotateCcw, Keyboard } from 'lucide-react';
 import { usePos, type PayResult } from '../store';
 import * as db from '../lib/data';
 import { mad, toCents } from '../lib/format';
@@ -9,6 +9,8 @@ import type { Order } from '../lib/types';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { PinPad } from './PinPad';
 import { t } from '../lib/i18n';
+import { TPE_WAIT_MS, TpeError, tpePay, tpeSettings, type TpeFailure } from '../lib/tpe';
+import type { PayLine } from '../lib/outbox';
 
 type Mode = 'cash' | 'card' | 'mixed' | 'transfer' | 'account';
 /** The order's customer with the ardoise, as pos_order_customer returns it. */
@@ -60,19 +62,49 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
     : mode === 'account' ? !!acct?.credit_allowed && total <= room : true;
   const buyerOk = !invoice || (/^\d{15}$/.test(buyer.ice) && buyer.name.trim());
 
-  const confirm = async () => {
+  // the card terminal (TPE) of this till: the amount goes to it, the bill is paid when it says yes
+  const tpeMode = tpeSettings().mode;
+  const viaTpe = tpeMode !== 'off' && total > 0 && (mode === 'card' || mode === 'mixed');
+  const [tpe, setTpe] = useState<{ s: 'wait'; amount: number } | { s: 'fail'; amount: number; kind: TpeFailure } | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => abort.current?.abort(), []);
+
+  const lines = (card?: PayLine['tpe']): PayLine[] => total === 0 ? [] : mode === 'mixed'
+    ? [{ method: 'cash', amount_cents: cashC, tip_cents: 0 }, { method: 'card', amount_cents: cardC, tip_cents: tipC, ...(card ? { tpe: card } : {}) }]
+    : [{ method: mode, amount_cents: total, tip_cents: tipC, ...(card && mode === 'card' ? { tpe: card } : {}) }];
+  const finish = async (card?: PayLine['tpe']) => {
     if (!order) return;
-    if (mode === 'account' && !pos.requireOnline()) return;
     setBusy(true); setError(null);
-    // nothing to pay (a reward or a discount covers the bill): no payment, only the ticket
-    const payments = total === 0 ? [] : mode === 'mixed'
-      ? [{ method: 'cash', amount_cents: cashC, tip_cents: 0 }, { method: 'card', amount_cents: cardC, tip_cents: tipC }]
-      : [{ method: mode, amount_cents: total, tip_cents: tipC }];
     try {
-      const res = await pos.pay(order, payments, invoice ? { name: buyer.name.trim(), ice: buyer.ice } : null, change);
+      const res = await pos.pay(order, lines(card), invoice ? { name: buyer.name.trim(), ice: buyer.ice } : null, change);
       if (res) setDone({ res, change, total });
     } catch (e) { setError(errorMessage(e)); }
     setBusy(false);
+  };
+  const runTpe = async () => {
+    const amount = (mode === 'mixed' ? cardC : total) + tipC;
+    const ac = new AbortController();
+    abort.current = ac;
+    setError(null); setTpe({ s: 'wait', amount });
+    let timedOut = false;
+    const late = window.setTimeout(() => { timedOut = true; ac.abort(); }, TPE_WAIT_MS);
+    try {
+      const a = await tpePay(amount, ac.signal);
+      window.clearTimeout(late);
+      setTpe(null);
+      await finish({ status: 'approved', ref: a.ref, last4: a.last4, brand: a.brand, terminal: a.terminal });
+    } catch (e) {
+      window.clearTimeout(late);
+      const kind: TpeFailure = timedOut ? 'timeout' : e instanceof TpeError ? e.kind : 'unreachable';
+      if (abort.current !== ac) return;
+      setTpe(kind === 'cancelled' ? null : { s: 'fail', amount, kind });
+    }
+  };
+  const confirm = async () => {
+    if (!order) return;
+    if (mode === 'account' && !pos.requireOnline()) return;
+    if (viaTpe) { void runTpe(); return; }
+    await finish();
   };
 
   if (done) { const doc = 'doc' in done.res ? done.res.doc : null; return (
@@ -91,6 +123,40 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
       </div>
     </Modal>
   ); }
+
+  if (tpe) {
+    const cancel = () => { const a = abort.current; abort.current = null; a?.abort(); setTpe(null); };
+    const why: Record<TpeFailure, string> = {
+      declined: t('Paiement refusé par la banque.'),
+      unreachable: t('Le terminal ne répond pas.'),
+      timeout: t('Aucune carte présentée à temps.'),
+      cancelled: '',
+    };
+    return (
+      <Modal title={`${t('Encaisser')} · ${label}`} onClose={tpe.s === 'wait' ? cancel : () => setTpe(null)}
+        footer={tpe.s === 'wait'
+          ? <div className="flex justify-end"><Btn tone="ghost" onClick={cancel}>{t('Annuler')}</Btn></div>
+          : <div className="flex flex-wrap justify-end gap-2">
+              <Btn tone="ghost" disabled={busy} onClick={() => { setTpe(null); setMode('cash'); }}><Banknote className="h-4 w-4" /> {t('Espèces')}</Btn>
+              <Btn tone="ghost" disabled={busy} onClick={() => { setTpe(null); void finish({ status: 'manual' }); }}><Keyboard className="h-4 w-4" /> {t('Saisi sur le TPE : valider')}</Btn>
+              <Btn tone="brand" disabled={busy} onClick={() => void runTpe()}><RotateCcw className="h-4 w-4" /> {t('Réessayer')}</Btn>
+            </div>}>
+        <div className="py-6 text-center">
+          {tpe.s === 'wait'
+            ? <span className="relative mx-auto grid h-24 w-24 place-items-center"><span className="absolute inset-0 animate-ping rounded-full bg-brand/20" /><span className="relative grid h-20 w-20 place-items-center rounded-full bg-brand/15"><CreditCard className="h-10 w-10 text-brand" /></span></span>
+            : <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-danger/15"><XCircle className="h-11 w-11 text-danger" /></span>}
+          <p className={`mt-4 font-display text-5xl font-semibold tabular ${tpe.s === 'wait' ? 'text-brand' : 'text-ink'}`}>{mad(tpe.amount)}</p>
+          {tpe.s === 'wait'
+            ? <p className="mt-3 text-lg font-semibold">{t('Présentez la carte sur le terminal…')}</p>
+            : <>
+                <p className="mt-3 text-lg font-semibold text-danger">{why[tpe.kind]}</p>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-muted">{t('Réessayez, ou tapez le montant directement sur le terminal et validez ici une fois accepté, ou encaissez en espèces.')}</p>
+              </>}
+          {tpeMode === 'test' && <p className="mx-auto mt-4 w-fit rounded-full bg-warn/15 px-3 py-1 text-xs font-bold text-warn">{t('Terminal de test : aucun vrai paiement')}</p>}
+        </div>
+      </Modal>
+    );
+  }
 
   if (!order) return <Modal title={t('Encaisser')} onClose={onClose}><p className="text-muted">{t('Chargement…')}</p></Modal>;
 
@@ -118,7 +184,7 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
       footer={<div className="flex items-center justify-between gap-3">
         {error ? <p className="text-sm font-semibold text-danger">{error}</p> : <span className="text-sm text-muted">{t('Ticket fiscal émis à la validation.')}</span>}
         <Btn tone="ok" className="px-8 py-3.5 text-lg" disabled={busy || !ok || !buyerOk} onClick={confirm}>
-          {busy ? t('Encaissement…') : t('Valider {m}', { m: mad(total + tipC) })}
+          {busy ? t('Encaissement…') : viaTpe ? t('Envoyer {m} au terminal', { m: mad((mode === 'mixed' ? cardC : total) + tipC) }) : t('Valider {m}', { m: mad(total + tipC) })}
         </Btn>
       </div>}>
       <div className="grid gap-5 md:grid-cols-2">
@@ -168,7 +234,7 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
           {mode === 'cash' && <><p className="mb-2 text-center text-sm font-semibold text-muted">{t('Montant reçu')}</p><PinPad masked={false} allowDecimal maxLen={8} value={received} onChange={setReceived} onSubmit={() => ok && buyerOk && confirm()} /></>}
           {mode === 'mixed' && <><p className="mb-2 text-center text-sm font-semibold text-muted">{t('Part en espèces')}</p><PinPad masked={false} allowDecimal maxLen={8} value={cashPart} onChange={setCashPart} onSubmit={() => ok && buyerOk && confirm()} /></>}
           {mode === 'account' && <AccountPanel order={order} acct={acct} total={total} limit={limit} bal={bal} />}
-          {(mode === 'card' || mode === 'transfer') && <p className="py-16 text-center text-muted">{mode === 'card' ? t('Passez la carte sur le terminal, puis validez.') : t('Vérifiez la réception du virement, puis validez.')}</p>}
+          {(mode === 'card' || mode === 'transfer') && <p className="py-16 text-center text-muted">{mode === 'card' ? (viaTpe ? t('Le montant part sur le terminal : le client présente sa carte.') : t('Passez la carte sur le terminal, puis validez.')) : t('Vérifiez la réception du virement, puis validez.')}</p>}
         </div>
       </div>
     </Modal>

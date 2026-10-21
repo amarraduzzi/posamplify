@@ -8,6 +8,7 @@ import { Btn, Modal } from './ui';
 import { t } from '../lib/i18n';
 import { LangSwitch } from './LangSwitch';
 import { autoFullscreen, setAutoFullscreen } from '../lib/fullscreen';
+import { setTpeSettings, tpeSettings, type TpeSettings, type TpeTest } from '../lib/tpe';
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const pos = usePos();
@@ -18,6 +19,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       <h3 className="mb-2 font-bold">{t('Langue')}</h3>
       <LangSwitch className="mb-6 w-fit" />
       <PrinterSetup />
+      <TpeSetup />
       <h3 className="mb-2 mt-6 font-bold">{t('Affichage')}</h3>
       <label className="flex cursor-pointer items-center justify-between rounded-xl bg-surface-2 px-3 py-3">
         <span>{t('Photos des articles')}<span className="block text-xs text-muted">{t('Désactivez sur un PC lent.')}</span></span>
@@ -34,6 +36,40 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
       <Btn tone="danger" onClick={pos.logout}><LogOut className="h-4 w-4" /> {t('Déconnecter ce poste')}</Btn>
     </Modal>
   );
+}
+
+/** The card terminal (TPE) of this till: off, or the test terminal to try the whole flow. */
+function TpeSetup() {
+  const [v, setV] = useState<TpeSettings>(tpeSettings());
+  const save = (n: TpeSettings) => { setV(n); setTpeSettings(n); };
+  const tests: { id: TpeTest; label: string }[] = [
+    { id: 'approved', label: t('Accepté') }, { id: 'declined', label: t('Refusé par la banque') },
+    { id: 'unreachable', label: t('Terminal injoignable') }, { id: 'timeout', label: t('Pas de carte (délai dépassé)') },
+  ];
+  return <>
+    <h3 className="mb-2 mt-6 font-bold">{t('Terminal de paiement (TPE)')}</h3>
+    <div className="space-y-2 rounded-xl bg-surface-2 p-3 text-sm">
+      <div className="flex flex-wrap gap-2">
+        {(['off', 'test'] as const).map(m => (
+          <button key={m} type="button" onClick={() => save({ ...v, mode: m })}
+            className={`rounded-xl px-3.5 py-2 font-semibold transition ${v.mode === m ? 'gold-fill text-brand-ink' : 'bg-surface hover:bg-surface-3'}`}>
+            {m === 'off' ? t('Sans liaison') : t('Terminal de test')}
+          </button>
+        ))}
+      </div>
+      {v.mode === 'off'
+        ? <p className="text-muted">{t('Le montant se tape sur le terminal, puis « Carte » se valide ici, comme aujourd’hui.')}</p>
+        : <>
+            <p className="text-muted">{t('Avec « Carte », le montant part sur le terminal et le ticket s’imprime quand il accepte. Le terminal de test simule la réponse, sans vrai paiement.')}</p>
+            <label className="flex flex-wrap items-center gap-2">{t('Réponse simulée')}
+              <select className="rounded-lg border border-line/15 bg-surface px-2 py-1.5" value={v.test} onChange={e => save({ ...v, test: e.target.value as TpeTest })}>
+                {tests.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
+              </select>
+            </label>
+          </>}
+      <p className="text-xs text-muted">{t('Liaison avec un vrai terminal : demandez à votre banque ou au CMI d’activer la « liaison caisse » (protocole Concert) sur le terminal.')}</p>
+    </div>
+  </>;
 }
 
 /** Customer display: a tablet (QR to scan) or a second monitor on this PC. */
