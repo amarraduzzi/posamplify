@@ -41,7 +41,7 @@ export function OffersCard({ r }: { r: Restaurant }) {
         <h2 className="me-auto font-display text-xl font-semibold">{t('Formules : ftour, groupes, soirées')}</h2>
         {a.canEditProfile && <Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Nouvelle formule')}</Btn>}
       </div>
-      <p className="mb-4 text-sm text-muted">{t('Un menu fixe par personne, à une heure fixe, les jours choisis, avec un nombre de couverts par jour. Vos clients la réservent depuis votre lien ; la cuisine reçoit sa liste dans le briefing du soir.')}</p>
+      <p className="mb-4 text-sm text-muted">{t('Un menu fixe par personne, à une heure fixe, les jours choisis, avec un nombre de couverts par jour. Vos clients la réservent depuis votre lien ; la cuisine reçoit sa liste dans l’avant-service.')}</p>
       {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !list.length ? (
         <p className="rounded-2xl bg-surface-2 p-5 text-sm text-muted">{t('Aucune formule. Pour le Ramadan : créez votre ftour (prix par personne, heure du ftour, couverts par soir).')}</p>
       ) : (

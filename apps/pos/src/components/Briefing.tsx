@@ -121,7 +121,7 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex flex-col bg-bg">
       <header className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface px-5 py-3">
         <div className="me-3">
-          <h2 className="font-display text-2xl font-semibold leading-tight">{t('Briefing du soir')}</h2>
+          <h2 className="font-display text-2xl font-semibold leading-tight">{t('Avant-service')}</h2>
           <p className="text-sm text-muted first-letter:uppercase">{dayLabel}</p>
         </div>
         <span className="flex rounded-full bg-surface-2 p-0.5">

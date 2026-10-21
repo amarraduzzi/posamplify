@@ -106,7 +106,7 @@ export function ReservationsView() {
           <Btn className="px-2.5" aria-label={t('Jour suivant')} onClick={() => shift(1)}><ChevronRight className="h-4 w-4 rtl:rotate-180" /></Btn>
           {day !== today && <button onClick={() => setDay(today)} className="text-sm font-semibold text-brand">{t('Aujourd’hui')}</button>}
           <span className="ms-auto text-sm text-muted">{t('{n} réservations · {c} couverts', { n: active.length, c: covers })}</span>
-          {hasMaitre(r) && <Btn onClick={() => setBriefing(true)}><Sparkles className="h-4 w-4" /> {t('Briefing du soir')}</Btn>}
+          {hasMaitre(r) && <Btn onClick={() => setBriefing(true)}><Sparkles className="h-4 w-4" /> {t('Avant-service')}</Btn>}
           <Btn tone="brand" onClick={() => setAdding('booking')}><Plus className="h-4 w-4" /> {t('Réservation')}</Btn>
         </div>
         {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !bookings.length ? (

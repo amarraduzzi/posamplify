@@ -111,7 +111,7 @@ export function BookingPage({ r }: { r: Restaurant }) {
               <Field label={t('Par personne (MAD)')}><input className={inputCls} inputMode="decimal" value={f.depAmount} onChange={e => setF({ ...f, depAmount: e.target.value })} /></Field>
             </div>}
             <Field label={t('Comment payer l’acompte (envoyé au client)')}><input className={inputCls} maxLength={200} value={f.depNote} onChange={e => setF({ ...f, depNote: e.target.value })} placeholder={t('Virement : RIB 000 000 000, ou sur place')} /></Field>
-          </div> : <p className="rounded-2xl bg-white/5 p-4 text-sm text-muted ring-1 ring-white/10">{t('Acompte pour garantir la table, briefing du soir et fiche client : inclus dans Amplify Maître. Demandez-le à votre conseiller Amplify.')}</p>}
+          </div> : <p className="rounded-2xl bg-white/5 p-4 text-sm text-muted ring-1 ring-white/10">{t('Acompte pour garantir la table, avant-service et fiche client : inclus dans Amplify Maître. Demandez-le à votre conseiller Amplify.')}</p>}
           {hoursHere
             ? <>
                 <HoursEditor hours={hours} setHours={setHours} useHours={useHours} setUseHours={setUseHours} />

@@ -810,4 +810,5 @@ export const EN: Record<string, string> = {
   "De l’eau": "Water",
   "L’addition": "The bill",
   "Un serveur": "A waiter",
+  "Avant-service": "Pre-service",
 };

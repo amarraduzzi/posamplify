@@ -811,4 +811,5 @@ export const AR: Record<string, string> = {
   "De l’eau": "ماء",
   "L’addition": "الفاتورة",
   "Un serveur": "نادل",
+  "Avant-service": "قبل الخدمة",
 };
