@@ -2,8 +2,9 @@
 // "Suivant" button, the queue with the estimate, a walk-in in two taps, the links and the settings.
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { BellRing, Copy, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
+import { BellRing, Copy, Maximize2, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
 import { waLink } from '../lib/whatsapp';
+import { turnText } from '../lib/agendaMessages';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -15,9 +16,9 @@ import { svcName, type AgService } from './AgendaServicesPage';
 interface Entry {
   id: string; status: 'waiting' | 'serving'; name: string; phone: string | null; service_id: string | null; staff_id: string | null;
   served_by: string | null; remote: boolean; coming: boolean; created_at: string; started_at: string | null; start: string | null;
-  token: string; notified: boolean;
+  token: string; notified: boolean; lang: string | null;
 }
-interface Board { open: boolean; working: number; queue: Entry[] }
+interface Board { open: boolean; working: number; staff: string[]; wait_min: number | null; queue: Entry[] }
 interface Person { id: string; name: string; agenda_color: string | null; agenda: boolean; active: boolean }
 const HEX = /^#[0-9a-f]{6}$/i;
 const mins = (iso: string | null) => (iso ? Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 60000)) : null);
@@ -32,6 +33,7 @@ export function NoubaPage({ r }: { r: Restaurant }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [tv, setTv] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -66,8 +68,7 @@ export function NoubaPage({ r }: { r: Restaurant }) {
   // "Prévenir": WhatsApp to the client whose turn is near, with the link to their place
   const tell = async (q: Entry) => {
     const m = mins(q.start);
-    const text = t('Bonjour {name}, c’est bientôt votre tour chez {salon} (environ {n} min). Merci de venir maintenant. Votre place : {link}',
-      { name: q.name, salon: r.name, n: m ?? 0, link: `${MENU_URL}/${r.slug}?nouba=${q.token}` });
+    const text = turnText(q.lang, { name: q.name, salon: r.name, min: m ?? 0, link: `${MENU_URL}/${r.slug}?nouba=${q.token}` });
     window.open(waLink(q.phone!, text), '_blank', 'noopener');
     await act(q.id, () => supabase.rpc('nouba_notified', { p_restaurant_id: r.id, p_entry: q.id }));
   };
@@ -79,6 +80,8 @@ export function NoubaPage({ r }: { r: Restaurant }) {
   const waiting = queue.filter(q => q.status === 'waiting');
   // the people who take clients: working now first (they have a client or the plan uses them)
   const team = people.filter(p => p.active && p.agenda);
+  // only the people working now get a chair and a "Suivant" (plus anyone who still has a client in the chair)
+  const chairs = team.filter(p => (board?.staff ?? []).includes(p.id) || queue.some(q => q.status === 'serving' && q.served_by === p.id));
 
   if (!g.queue) return (
     <div className="space-y-5">
@@ -97,12 +100,13 @@ export function NoubaPage({ r }: { r: Restaurant }) {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="me-auto font-display text-3xl font-semibold">{t('La Nouba')}</h1>
         <Btn tone="brand" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('Client sans rendez-vous')}</Btn>
+        <Btn onClick={() => setTv(true)}><Maximize2 className="h-4 w-4" /> {t('Écran du salon')}</Btn>
         <Btn onClick={() => setSettings(true)}>{t('Liens et réglages')}</Btn>
       </div>
       {board && !board.open && <p className="rounded-2xl bg-amber-500/10 p-4 text-sm">{t('Personne ne travaille en ce moment selon les horaires : la file est fermée pour les clients.')}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {team.map(p => {
+        {chairs.map(p => {
           const chair = queue.find(q => q.status === 'serving' && q.served_by === p.id);
           const color = p.agenda_color && HEX.test(p.agenda_color) ? p.agenda_color : '#64748b';
           return (
@@ -160,6 +164,7 @@ export function NoubaPage({ r }: { r: Restaurant }) {
         )}
       </Card>
 
+      {tv && board && <TvScreen r={r} board={board} people={people} onClose={() => setTv(false)} />}
       {adding && <AddWalkIn r={r} services={services} team={team} onClose={() => setAdding(false)} onDone={() => { setAdding(false); load(); }} />}
       {settings && <NoubaSettings r={r} onClose={() => setSettings(false)} />}
     </div>
@@ -260,5 +265,64 @@ function NoubaSettings({ r, onClose }: { r: Restaurant; onClose: () => void }) {
         </fieldset>
       </div>
     </Modal>
+  );
+}
+
+// The screen in the salon (a TV or a tablet on the wall): who is in which chair, who is next, the wait.
+// First names only. Opens full screen; Esc or a tap on the cross closes it.
+function TvScreen({ r, board, people, onClose }: { r: Restaurant; board: Board; people: Person[]; onClose: () => void }) {
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    const id = window.setInterval(() => setClock(new Date()), 15000);
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => { window.clearInterval(id); window.removeEventListener('keydown', esc); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
+  }, [onClose]);
+  const first = (n: string) => n.trim().split(/\s+/)[0];
+  const serving = board.queue.filter(q => q.status === 'serving');
+  const waiting = board.queue.filter(q => q.status === 'waiting');
+  const color = (id: string | null) => { const p = people.find(x => x.id === id); return p?.agenda_color && HEX.test(p.agenda_color) ? p.agenda_color : '#64748b'; };
+  const w = board.wait_min;
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#071528] p-10 text-white">
+      <button onClick={onClose} className="absolute end-6 top-6 grid h-12 w-12 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20" aria-label={t('Fermer')}><X className="h-6 w-6" /></button>
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <p className="font-display text-5xl font-semibold">{r.name}</p>
+          <p className="mt-2 text-2xl text-white/60">{board.open ? (w == null ? '' : w <= 0 ? t('Pas d’attente') : t('Attente : environ {n} min', { n: w })) : t('Fermé pour le moment')}</p>
+        </div>
+        <p className="font-display text-6xl font-semibold tabular text-white/80">{clock.toLocaleTimeString('fr-FR', { timeZone: r.timezone || 'UTC', hour: '2-digit', minute: '2-digit' })}</p>
+      </div>
+      <div className="mt-10 grid flex-1 gap-10 lg:grid-cols-2">
+        <section>
+          <p className="mb-4 text-xl font-semibold uppercase tracking-[0.2em] text-white/40">{t('En cours')}</p>
+          <ul className="space-y-3">
+            {serving.map(q => (
+              <li key={q.id} className="flex items-center gap-5 rounded-3xl bg-white/[0.06] px-6 py-5">
+                <span className="h-12 w-3 rounded-full" style={{ background: color(q.served_by) }} />
+                <span className="flex-1 font-display text-4xl font-semibold">{first(q.name)}</span>
+                <span className="text-2xl text-white/60">{people.find(p => p.id === q.served_by)?.name ?? ''}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <p className="mb-4 text-xl font-semibold uppercase tracking-[0.2em] text-white/40">{t('Ensuite')}</p>
+          <ol className="space-y-3">
+            {waiting.slice(0, 7).map((q, i) => (
+              <li key={q.id} className={`flex items-center gap-5 rounded-3xl px-6 py-4 ${i === 0 ? 'bg-[#05B962] text-[#03221a]' : 'bg-white/[0.06]'}`}>
+                <span className="w-10 font-display text-3xl font-semibold tabular opacity-70">{i + 1}</span>
+                <span className="flex-1 font-display text-4xl font-semibold">{first(q.name)}</span>
+                {q.staff_id && <span className="text-xl opacity-70">{people.find(p => p.id === q.staff_id)?.name ?? ''}</span>}
+              </li>
+            ))}
+            {waiting.length > 7 && <li className="px-6 text-2xl text-white/50">{t('+ {n} autres', { n: waiting.length - 7 })}</li>}
+            {!waiting.length && <li className="px-6 text-2xl text-white/50">{t('Personne n’attend.')}</li>}
+          </ol>
+        </section>
+      </div>
+      <p className="mt-6 text-center text-lg text-white/40">{t('Prenez votre place en scannant le QR à l’entrée.')}</p>
+    </div>
   );
 }

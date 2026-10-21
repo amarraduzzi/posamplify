@@ -234,7 +234,7 @@ function BookView({ slug, onBooked }: { slug: string; onBooked: (token: string) 
     if (!svc || !slot || busy) return;
     setBusy(true); setError(null);
     try {
-      const res = await agendaBook(slug, { client_id: clientId, service_id: svc.id, staff_id: who, starts_at: slot, name: name.trim(), phone: phone.trim(), note: note.trim() || undefined });
+      const res = await agendaBook(slug, { client_id: clientId, service_id: svc.id, staff_id: who, starts_at: slot, name: name.trim(), phone: phone.trim(), note: note.trim() || undefined, lang });
       save('customer', { ...(mine ?? {}), name: name.trim(), phone: phone.trim() });
       remember(slug, res.token, res.starts_at);
       onBooked(res.token);

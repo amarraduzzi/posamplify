@@ -137,7 +137,7 @@ function Live({ slug, here, onJoined }: { slug: string; here: boolean; onJoined:
   const submit = async () => {
     setBusy(true); setError(null);
     try {
-      const r = await noubaJoin(slug, { client_id: clientId, name: name.trim(), phone: phone.trim(), service_id: svc, staff_id: who, here });
+      const r = await noubaJoin(slug, { client_id: clientId, name: name.trim(), phone: phone.trim(), service_id: svc, staff_id: who, here, lang });
       save('customer', { ...(mine ?? {}), name: name.trim(), phone: phone.trim() }); save(`nouba:${slug}`, r.token);
       onJoined(r.token);
     } catch (e) { setError(errText(t, e)); }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getBookingInfo, getMenu, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
 import { ServiceBar } from './components/ServiceBar';
 import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
@@ -34,6 +34,12 @@ export default function App() {
     try {
       const m = await getMenu(tenant.slug, tenant.tableToken);
       if (!m) { setState('notfound'); return; }
+      // a salon (Amplify Agenda) has no menu: its address opens the live queue, or the booking page
+      if (!m.items?.length && !tenant.tableToken) {
+        const q = await noubaInfo(tenant.slug).catch(() => null);
+        if (q?.enabled) { window.location.replace(`${window.location.pathname}?nouba`); return; }
+        if (q?.booking) { window.location.replace(`${window.location.pathname}?rdv`); return; }
+      }
       setMenu(m);
       setState('ready');
     } catch {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { AlertTriangle, BellRing, CalendarCheck2, CheckCircle2, Copy, Download, ExternalLink, MessageCircle, Save } from 'lucide-react';
 import { waLink, ymdIn } from '../lib/whatsapp';
+import { reminderText } from '../lib/agendaMessages';
 import { supabase, MENU_URL } from '../lib/supabase';
 import { check } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -15,7 +16,7 @@ import { fmtDuration, svcName } from './AgendaServicesPage';
 interface Appt {
   id: string; starts_at: string; duration_min: number; status: string; source: string; name: string; phone: string | null; note: string | null;
   service_name: Record<string, string>; any_staff: boolean; staff_id: string | null;
-  token: string; reminded_at: string | null; client_confirmed_at: string | null;
+  token: string; reminded_at: string | null; client_confirmed_at: string | null; lang: string | null;
 }
 const STEPS = [10, 15, 20, 30, 60];
 const LEADS = [0, 30, 60, 120, 240, 720, 1440];
@@ -45,7 +46,7 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
       const [sv, st, ap] = await Promise.all([
         supabase.from('agenda_services').select('id', { count: 'exact', head: true }).eq('restaurant_id', r.id).eq('active', true).eq('online', true),
         supabase.from('staff').select('id, name, agenda, active').eq('restaurant_id', r.id),
-        supabase.from('agenda_appointments').select('id, starts_at, duration_min, status, source, name, phone, note, service_name, any_staff, staff_id, token, reminded_at, client_confirmed_at')
+        supabase.from('agenda_appointments').select('id, starts_at, duration_min, status, source, name, phone, note, service_name, any_staff, staff_id, token, reminded_at, client_confirmed_at, lang')
           .eq('restaurant_id', r.id).gte('starts_at', new Date(Date.now() - 3600_000).toISOString()).in('status', ['requested', 'confirmed']).order('starts_at').limit(200),
       ]);
       const people = (check(st) as { id: string; name: string; agenda: boolean; active: boolean }[]);
@@ -172,8 +173,7 @@ function Reminders({ r, list, staff, onSent }: { r: Restaurant; list: Appt[] | n
   const day = new Date(`${tomorrow}T12:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
   const send = async (x: Appt) => {
     const link = `${MENU_URL}/${r.slug}?rdv=${x.token}`;
-    const text = t('Bonjour {name}, petit rappel de {salon} : votre rendez-vous {service} est demain à {time}. Merci de confirmer ou d’annuler ici : {link}',
-      { name: x.name, salon: r.name, service: svcName({ name: x.service_name }), time: time(x.starts_at), link });
+    const text = reminderText(x.lang, { name: x.name, salon: r.name, service: svcName({ name: x.service_name }), time: time(x.starts_at), link });
     window.open(waLink(x.phone!, text), '_blank', 'noopener');
     try { check(await supabase.from('agenda_appointments').update({ reminded_at: new Date().toISOString() }).eq('id', x.id).select('id')); onSent(); }
     catch (e) { a.fail(e); }

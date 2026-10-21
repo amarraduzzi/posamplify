@@ -2753,4 +2753,11 @@ export const EN: Record<string, string> = {
   "WhatsApp ou autre": "WhatsApp or other",
   "{n} absence(s) avant": "{n} no-show(s) before",
   "{n} rendez-vous": "{n} appointments",
+  "+ {n} autres": "+ {n} more",
+  "Attente : environ {n} min": "Wait: about {n} min",
+  "Ensuite": "Next",
+  "Fermé pour le moment": "Closed right now",
+  "Pas d’attente": "No wait",
+  "Prenez votre place en scannant le QR à l’entrée.": "Take your place by scanning the QR at the door.",
+  "Écran du salon": "Salon screen",
 };

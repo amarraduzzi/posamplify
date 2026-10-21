@@ -2756,4 +2756,11 @@ export const AR: Record<string, string> = {
   "WhatsApp ou autre": "واتساب أو غيره",
   "{n} absence(s) avant": "{n} غياب سابق",
   "{n} rendez-vous": "{n} مواعيد",
+  "+ {n} autres": "+ {n} آخرين",
+  "Attente : environ {n} min": "الانتظار: حوالي {n} د",
+  "Ensuite": "التالي",
+  "Fermé pour le moment": "مغلق حاليا",
+  "Pas d’attente": "بدون انتظار",
+  "Prenez votre place en scannant le QR à l’entrée.": "خذوا نوبتكم بمسح رمز QR عند المدخل.",
+  "Écran du salon": "شاشة الصالون",
 };

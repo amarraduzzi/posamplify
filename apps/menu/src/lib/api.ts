@@ -146,7 +146,7 @@ export const agendaDays = (slug: string, service: string, staff: string | null) 
   call<string[]>('agenda_days', { p_slug: slug, p_service: service, p_staff: staff });
 export const agendaSlots = (slug: string, service: string, staff: string | null, day: string) =>
   call<string[]>('agenda_slots', { p_slug: slug, p_service: service, p_staff: staff, p_day: day });
-export const agendaBook = (slug: string, b: { client_id: string; service_id: string; staff_id: string | null; starts_at: string; name: string; phone: string; note?: string }) =>
+export const agendaBook = (slug: string, b: { client_id: string; service_id: string; staff_id: string | null; starts_at: string; name: string; phone: string; note?: string; lang?: string }) =>
   call<AgendaBooked>('agenda_book', { p_slug: slug, p_booking: b });
 export const agendaStatus = (token: string) => call<AgendaStatus | null>('agenda_status', { p_token: token });
 export const agendaCancel = (token: string) => call<{ ok: boolean }>('agenda_cancel', { p_token: token });
@@ -167,7 +167,7 @@ export interface NoubaStatus {
 export const noubaInfo = (slug: string) => call<NoubaInfo | null>('nouba_info', { p_slug: slug });
 export const noubaEstimate = (slug: string, service: string | null, staff: string | null) =>
   call<{ open: boolean; wait_min: number | null }>('nouba_estimate', { p_slug: slug, p_service: service, p_staff: staff });
-export const noubaJoin = (slug: string, e: { client_id: string; name: string; phone: string; service_id?: string | null; staff_id?: string | null; here?: boolean }) =>
+export const noubaJoin = (slug: string, e: { client_id: string; name: string; phone: string; service_id?: string | null; staff_id?: string | null; here?: boolean; lang?: string }) =>
   call<{ token: string; duplicate: boolean }>('nouba_join', { p_slug: slug, p_entry: e });
 export const noubaStatus = (token: string) => call<NoubaStatus | null>('nouba_status', { p_token: token });
 export const noubaAnswer = (token: string, answer: 'coming' | 'leave') => call<{ ok: boolean }>('nouba_answer', { p_token: token, p_answer: answer });
