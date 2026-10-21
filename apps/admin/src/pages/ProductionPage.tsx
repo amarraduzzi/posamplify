@@ -1,6 +1,5 @@
 // Production (pâtisserie, bakery, central kitchen): what to make today, from the sales of the same
-// weekday and the confirmed catering orders, minus what is already in stock. "Produire" takes the
-// ingredients out of the stock and puts the preparation in; a mistake can be cancelled. "Démarrer" takes the
+// weekday and the confirmed catering orders, minus what is already in stock. "Lancer la fournée" takes the
 // ingredients out when the batch goes in the oven; "Terminer" notes what came out (the yield is then known).
 import { useCallback, useEffect, useState } from 'react';
 import { CookingPot, ScanSearch, Undo2 } from 'lucide-react';
@@ -34,8 +33,6 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   const [items, setItems] = useState<PlanItem[] | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [qty, setQty] = useState<Record<string, string>>({});
-  // optional: what really came out (when it differs from what was planned): the yield is then followed
-  const [got, setGot] = useState<Record<string, string>>({});
   // what really came out of a running batch, typed per batch
   const [fin, setFin] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,34 +50,12 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         const s = i.base_unit === 'pc' ? Math.ceil(Number(i.suggested)) : Number(i.suggested);
         return [i.ingredient_id, s > 0 ? show(s / unitOf(i).f) : ''];
       })));
-      setGot({});
       setBatches(check(await supabase.from('production_batches').select('id, ingredient_id, qty, planned_qty, produced_on, cost_cents, note, cancelled_at, created_at, status')
         .eq('restaurant_id', r.id).or(`produced_on.eq.${base.date},status.eq.running`).order('created_at', { ascending: false })) as Batch[]);
     } catch (e) { a.fail(e); setItems([]); }
   }, [r.id, day, a]);
   useEffect(() => { load(); }, [load]);
 
-  const produce = async (i: PlanItem) => {
-    const s = num(qty[i.ingredient_id] ?? '');
-    const q = s * unitOf(i).f;
-    if (!(q > 0)) { a.toast(t('Indiquez la quantité produite.'), 'error'); return; }
-    // "obtained" filled in: the ingredients of the planned quantity are taken out, the stock gets what came out
-    const gs = (got[i.ingredient_id] ?? '').trim();
-    const out = gs ? num(gs) * unitOf(i).f : null;
-    if (gs && !(out! > 0)) { a.toast(t('Indiquez la quantité produite.'), 'error'); return; }
-    setBusy(i.ingredient_id);
-    try {
-      const res = await rpc<{ cost_cents: number | null; yield_bp: number | null }>('production_record',
-        { p_ingredient_id: i.ingredient_id, p_qty: out ?? q, p_note: null, p_catering_id: null, p_planned_qty: out != null ? q : null });
-      a.toast(t('{q} de {n} en stock', { q: fmtQty(out ?? q, i.base_unit), n: i.name }) + (res.cost_cents != null ? ` · ${mad(res.cost_cents)}` : '')
-        + (res.yield_bp != null ? ` · ${t('Rendement {p} %', { p: show(res.yield_bp / 100) })}` : ''));
-      await load();
-    } catch (e) {
-      const m = String((e as Error)?.message ?? e);
-      a.toast(m.includes('no_recipe') ? t('Cette préparation n’a pas encore de recette : ajoutez ses ingrédients sur la page Ingrédients.') : m, 'error');
-    }
-    setBusy(null);
-  };
   // step 1: the batch goes in the oven: the ingredients of the planned quantity leave the stock now
   const start = async (i: PlanItem) => {
     const q = num(qty[i.ingredient_id] ?? '') * unitOf(i).f;
@@ -151,7 +126,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
       {tab === 'plan' && batches.some(b => b.status === 'running' && !b.cancelled_at) && (
         <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('En cours')}</h2>
-          <p className="mb-3 text-sm text-muted">{t('Dans le four : indiquez la quantité obtenue quand c’est sorti. Le stock et le rendement se mettent à jour à ce moment.')}</p>
+          <p className="mb-3 text-sm text-muted">{t('Dans le four : à la sortie, comptez ce qui est sorti, notez-le et touchez Terminer. Le stock et le rendement se mettent à jour à ce moment.')}</p>
           <ul className="space-y-2">
             {batches.filter(b => b.status === 'running' && !b.cancelled_at).map(b => {
               const i = byId.get(b.ingredient_id);
@@ -162,7 +137,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                   <span className="min-w-[10rem] flex-1 font-semibold">{i ? i.name : ''}
                     <span className="ms-2 text-xs font-normal text-muted">{t('prévu')} {i ? fmtQty(Number(b.planned_qty), i.base_unit) : show(Number(b.planned_qty))}</span>
                   </span>
-                  <input className={`${inputCls} !w-24 text-end`} inputMode="decimal" aria-label={t('Quantité réellement obtenue')} placeholder={t('obtenu')}
+                  <input className={`${inputCls} !w-24 text-end`} inputMode="decimal" aria-label={t('Quantité réellement obtenue')} placeholder={i ? show(Number(b.planned_qty) / unitOf(i).f) : ''}
                     value={fin[b.id] ?? ''} onChange={e => setFin({ ...fin, [b.id]: e.target.value })} />
                   {u && <span className="w-6 text-sm text-muted">{u.u}</span>}
                   <Btn tone="brand" className="px-3 py-2 text-sm" disabled={busy === b.id} onClick={() => finish(b)}>{t('Terminer')}</Btn>
@@ -211,18 +186,15 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                     <input className={`${inputCls} !w-24 text-end`} inputMode="decimal" aria-label={t('Quantité à produire')} value={qty[i.ingredient_id] ?? ''}
                       onChange={e => setQty({ ...qty, [i.ingredient_id]: e.target.value })} placeholder="0" />
                     <span className="w-6 text-sm text-muted">{u.u}</span>
-                    <input className={`${inputCls} !w-20 text-end`} inputMode="decimal" aria-label={t('Quantité réellement obtenue (facultatif)')} title={t('Quantité réellement obtenue (facultatif)')}
-                      value={got[i.ingredient_id] ?? ''} onChange={e => setGot({ ...got, [i.ingredient_id]: e.target.value })} placeholder={t('obtenu')} />
                     <Btn tone="ghost" className="px-2.5 py-2 text-sm" title={t('Une fournée')} onClick={() => setQty({ ...qty, [i.ingredient_id]: show(Number(i.batch_qty) / u.f) })}>{t('1 fournée')}</Btn>
-                    <Btn tone="ghost" className="px-2.5 py-2 text-sm" title={t('Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la fin.')} disabled={busy === i.ingredient_id || day === 1} onClick={() => start(i)}>{t('Démarrer')}</Btn>
-                    <Btn tone="brand" className="px-3 py-2 text-sm" disabled={busy === i.ingredient_id || day === 1} onClick={() => produce(i)}><CookingPot className="h-4 w-4" /> {t('Produire')}</Btn>
+                    <Btn tone="brand" className="px-3 py-2 text-sm" title={t('Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.')} disabled={busy === i.ingredient_id || day === 1} onClick={() => start(i)}><CookingPot className="h-4 w-4" /> {t('Lancer la fournée')}</Btn>
                   </div>
                   {perUnit != null && typed > 0 && <p className="w-full text-xs text-muted sm:w-auto">{t('Coût')}: {mad(Math.round(perUnit * typed))}</p>}
                 </div>
               );
             })}
           </div>
-          {day === 0 && <p className="mt-3 text-xs text-muted">{t('Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.')}</p>}
+          {day === 0 && <p className="mt-3 text-xs text-muted">{t('Lancez la fournée quand elle part au four : les ingrédients sortent du stock. Quand elle sort, notez ce qui est réellement sorti dans « En cours » : le stock et le rendement se mettent à jour.')}</p>}
           {day === 1 && <p className="mt-3 text-sm text-muted">{t('Vous enregistrez la production le jour où elle est faite.')}</p>}
         </Card>
       ))}

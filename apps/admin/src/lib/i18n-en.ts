@@ -2566,4 +2566,8 @@ export const EN: Record<string, string> = {
   "Production de {n} démarrée : les ingrédients de {q} sont sortis du stock": "{n} production started: the ingredients for {q} are out of the stock",
   "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la fin.": "The ingredients leave the stock now; the quantity obtained is noted at the end.",
   "Dans le four : indiquez la quantité obtenue quand c’est sorti. Le stock et le rendement se mettent à jour à ce moment.": "In the oven: enter the quantity obtained when it comes out. The stock and the yield are updated then.",
+  "Dans le four : à la sortie, comptez ce qui est sorti, notez-le et touchez Terminer. Le stock et le rendement se mettent à jour à ce moment.": "In the oven: when it comes out, count what came out, type it and tap Finish. The stock and the yield update at that moment.",
+  "Lancer la fournée": "Start the batch",
+  "Lancez la fournée quand elle part au four : les ingrédients sortent du stock. Quand elle sort, notez ce qui est réellement sorti dans « En cours » : le stock et le rendement se mettent à jour.": "Start the batch when it goes into the oven: the ingredients leave the stock. When it comes out, note what really came out under « In progress »: the stock and the yield update.",
+  "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.": "The ingredients leave the stock now; the quantity obtained is noted when it comes out of the oven.",
 };

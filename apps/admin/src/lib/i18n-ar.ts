@@ -2569,4 +2569,8 @@ export const AR: Record<string, string> = {
   "Production de {n} démarrée : les ingrédients de {q} sont sortis du stock": "بدأ إنتاج {n}: خرجت مكوّنات {q} من المخزون",
   "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la fin.": "تخرج المكوّنات من المخزون الآن، وتُسجَّل الكمية المحصَّلة في النهاية.",
   "Dans le four : indiquez la quantité obtenue quand c’est sorti. Le stock et le rendement se mettent à jour à ce moment.": "في الفرن: اكتبوا الكمية المحصَّلة عند خروجها. يُحدَّث المخزون والمردودية عندها.",
+  "Dans le four : à la sortie, comptez ce qui est sorti, notez-le et touchez Terminer. Le stock et le rendement se mettent à jour à ce moment.": "في الفرن: عند الإخراج، عُدّوا ما خرج، اكتبوه واضغطوا إنهاء. يتحدث المخزون والمردود في تلك اللحظة.",
+  "Lancer la fournée": "إطلاق الدفعة",
+  "Lancez la fournée quand elle part au four : les ingrédients sortent du stock. Quand elle sort, notez ce qui est réellement sorti dans « En cours » : le stock et le rendement se mettent à jour.": "أطلقوا الدفعة عند دخولها الفرن: تخرج المكونات من المخزون. عند خروجها، سجلوا ما خرج فعلا في « قيد التنفيذ »: يتحدث المخزون والمردود.",
+  "Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.": "تخرج المكونات من المخزون الآن؛ وتُسجَّل الكمية المحصلة عند الخروج من الفرن.",
 };
