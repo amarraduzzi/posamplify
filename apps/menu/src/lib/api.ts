@@ -150,3 +150,23 @@ export const agendaBook = (slug: string, b: { client_id: string; service_id: str
   call<AgendaBooked>('agenda_book', { p_slug: slug, p_booking: b });
 export const agendaStatus = (token: string) => call<AgendaStatus | null>('agenda_status', { p_token: token });
 export const agendaCancel = (token: string) => call<{ ok: boolean }>('agenda_cancel', { p_token: token });
+
+// ---- la Nouba: the live queue of a salon (?nouba, ?nouba=ici at the door, ?nouba=<token> the client's place)
+export interface NoubaInfo {
+  enabled: boolean; open?: boolean; working?: number; waiting?: number; wait_min?: number | null; remote?: boolean; booking: boolean;
+  name: string; timezone: string; languages: string[]; branding: Record<string, unknown> | null; phone: string | null; address: string | null; city: string | null;
+  services?: { id: string; name: LText; duration_min: number; price_cents: number; price_from: boolean }[];
+  staff?: AgendaStaff[];
+}
+export interface NoubaStatus {
+  status: 'waiting' | 'serving' | 'done' | 'left' | 'no_show'; name: string; remote: boolean; coming: boolean; created_at: string;
+  ahead: number | null; wait_min: number | null; soon: boolean; service: LText | null; staff: string | null;
+  salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[]; branding: Record<string, unknown> | null };
+}
+export const noubaInfo = (slug: string) => call<NoubaInfo | null>('nouba_info', { p_slug: slug });
+export const noubaEstimate = (slug: string, service: string | null, staff: string | null) =>
+  call<{ open: boolean; wait_min: number | null }>('nouba_estimate', { p_slug: slug, p_service: service, p_staff: staff });
+export const noubaJoin = (slug: string, e: { client_id: string; name: string; phone: string; service_id?: string | null; staff_id?: string | null; here?: boolean }) =>
+  call<{ token: string; duplicate: boolean }>('nouba_join', { p_slug: slug, p_entry: e });
+export const noubaStatus = (token: string) => call<NoubaStatus | null>('nouba_status', { p_token: token });
+export const noubaAnswer = (token: string, answer: 'coming' | 'leave') => call<{ ok: boolean }>('nouba_answer', { p_token: token, p_answer: answer });
