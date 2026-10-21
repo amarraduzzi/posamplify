@@ -2553,4 +2553,11 @@ export const EN: Record<string, string> = {
   "obtenu": "obtained",
   "Rendement {p} %": "Yield {p} %",
   "Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.": "Optional: enter what really came out of the oven. The ingredients of the planned quantity are taken out of the stock, and the yield is tracked.",
+  "Rendement": "Yield",
+  "Productions": "Productions",
+  "Préparation": "Preparation",
+  "Rendement moyen": "Average yield",
+  "Plus bas": "Lowest",
+  "Aucune production avec quantité obtenue sur cette période. Indiquez « obtenu » en produisant pour suivre le rendement.": "No production with an obtained quantity in this period. Fill in “obtained” when producing to track the yield.",
+  "Seules les productions avec « obtenu » comptent. Un surplus compense la perte : les chiffres sont nets.": "Only productions with “obtained” count. A surplus offsets the loss: the figures are net.",
 };

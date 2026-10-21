@@ -12,6 +12,7 @@ import { RECIPE_UNITS, fmtQty } from '../lib/profit';
 import { Btn, Card, inputCls } from '../components/ui';
 import { DemandForecast } from '../components/DemandForecast';
 import { ProductionTraceModal } from '../components/ProductionTrace';
+import { ProductionYield } from '../components/ProductionYield';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
@@ -36,6 +37,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   const [got, setGot] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [trace, setTrace] = useState<string | null>(null);
+  const [tab, setTab] = useState<'plan' | 'yield'>('plan');
 
   const load = useCallback(async () => {
     try {
@@ -93,17 +95,26 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
           <p className="text-muted">{t('Ce qui va se vendre et ce qu’il faut préparer, d’après vos ventes du même jour de la semaine et vos commandes traiteur.')}</p>
         </div>
         <div className="flex rounded-2xl bg-surface-2 p-1">
+          {(['plan', 'yield'] as const).map(k => (
+            <button key={k} type="button" onClick={() => setTab(k)} className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${tab === k ? 'bg-surface shadow-sm' : 'text-muted hover:text-ink'}`}>
+              {k === 'plan' ? t('Production') : t('Rendement')}
+            </button>
+          ))}
+        </div>
+        {tab === 'plan' && <div className="flex rounded-2xl bg-surface-2 p-1">
           {([0, 1] as const).map(d => (
             <button key={d} type="button" onClick={() => setDay(d)} className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${day === d ? 'bg-surface shadow-sm' : 'text-muted hover:text-ink'}`}>
               {d ? t('Demain') : t('Aujourd’hui')}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
-      {today && <DemandForecast r={r} date={day ? addDays(today, 1) : today} />}
+      {tab === 'yield' && today && <ProductionYield r={r} today={today} names={new Map((items ?? []).map(i => [i.ingredient_id, { name: i.name, base_unit: i.base_unit }]))} />}
 
-      {items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
+      {tab === 'plan' && today && <DemandForecast r={r} date={day ? addDays(today, 1) : today} />}
+
+      {tab === 'plan' && (items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
         <Card>
           <div className="flex flex-wrap items-center gap-4">
             <CookingPot className="h-8 w-8 shrink-0 text-brand" />
@@ -153,9 +164,9 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
           {day === 0 && <p className="mt-3 text-xs text-muted">{t('Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.')}</p>}
           {day === 1 && <p className="mt-3 text-sm text-muted">{t('Vous enregistrez la production le jour où elle est faite.')}</p>}
         </Card>
-      )}
+      ))}
 
-      {batches.length > 0 && (
+      {tab === 'plan' && batches.length > 0 && (
         <Card>
           <h2 className="mb-3 font-display text-xl font-semibold">{t('Produit aujourd’hui')}</h2>
           <ul className="space-y-2">

@@ -2556,4 +2556,11 @@ export const AR: Record<string, string> = {
   "obtenu": "المحصّل",
   "Rendement {p} %": "المردودية {p} %",
   "Facultatif : indiquez ce qui est réellement sorti du four. Les ingrédients de la quantité prévue sont déduits du stock, et le rendement est suivi.": "اختياري: اكتبوا ما خرج فعلًا من الفرن. تُخصم مكوّنات الكمية المخطَّطة من المخزون، وتُتابَع المردودية.",
+  "Rendement": "المردودية",
+  "Productions": "عمليات الإنتاج",
+  "Préparation": "التحضير",
+  "Rendement moyen": "متوسط المردودية",
+  "Plus bas": "الأدنى",
+  "Aucune production avec quantité obtenue sur cette période. Indiquez « obtenu » en produisant pour suivre le rendement.": "لا يوجد إنتاج مسجَّل بكمية محصَّلة في هذه الفترة. اكتبوا «المحصّل» عند الإنتاج لمتابعة المردودية.",
+  "Seules les productions avec « obtenu » comptent. Un surplus compense la perte : les chiffres sont nets.": "تُحتسب فقط عمليات الإنتاج التي سُجّل فيها «المحصّل». الفائض يعوّض الخسارة: الأرقام صافية.",
 };
