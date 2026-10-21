@@ -1,7 +1,7 @@
 // Host stand: today's bookings and the waitlist. Confirm, seat, mark no-shows, call the next
 // guest on WhatsApp, add a phone booking or a walk-in.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound, Sparkles } from 'lucide-react';
 import { usePos } from '../store';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/data';
@@ -9,6 +9,7 @@ import { time } from '../lib/format';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { t } from '../lib/i18n';
 import { GuestChips, GuestSheet, useGuests } from './Guest';
+import { BriefingView } from './Briefing';
 
 export interface Reservation {
   id: string; kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
@@ -55,6 +56,7 @@ export function ReservationsView() {
   const [history, setHistory] = useState<Record<string, { no_shows: number; seated: number }>>({});
   const guests = useGuests([], (list ?? []).map(x => x.phone));
   const [sheet, setSheet] = useState<Reservation | null>(null);
+  const [briefing, setBriefing] = useState(false);
   const today = ymd(new Date(), tz);
   const bookings = (list ?? []).filter(x => x.kind === 'booking');
   const waiting = (list ?? []).filter(x => x.kind === 'waitlist' && (x.status === 'requested' || x.status === 'called'));
@@ -94,6 +96,7 @@ export function ReservationsView() {
           <Btn className="px-2.5" aria-label={t('Jour suivant')} onClick={() => shift(1)}><ChevronRight className="h-4 w-4 rtl:rotate-180" /></Btn>
           {day !== today && <button onClick={() => setDay(today)} className="text-sm font-semibold text-brand">{t('Aujourd’hui')}</button>}
           <span className="ms-auto text-sm text-muted">{t('{n} réservations · {c} couverts', { n: active.length, c: covers })}</span>
+          <Btn onClick={() => setBriefing(true)}><Sparkles className="h-4 w-4" /> {t('Le Briefing')}</Btn>
           <Btn tone="brand" onClick={() => setAdding('booking')}><Plus className="h-4 w-4" /> {t('Réservation')}</Btn>
         </div>
         {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !bookings.length ? (
@@ -154,6 +157,7 @@ export function ReservationsView() {
             </article>
           ))}
       </section>
+      {briefing && <BriefingView onClose={() => setBriefing(false)} />}
       {sheet && <GuestSheet phone={sheet.phone} name={sheet.name} onClose={() => setSheet(null)} />}
       {adding && <AddReservation kind={adding} day={day} onClose={() => setAdding(null)} onDone={() => { setAdding(null); reload(); }} />}
     </div>
