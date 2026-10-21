@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Crown, BellRing, CalendarClock, Circle, Clock, DoorOpen, Flower2, Minus, Plus, QrCode, RotateCw, Square, Trash2, Type, UtensilsCrossed, Wand2, Wine, X, AppWindow, RectangleHorizontal, Users } from 'lucide-react';
+import { AlertTriangle, Crown, CalendarClock, Circle, Clock, DoorOpen, Flower2, Minus, Plus, QrCode, RotateCw, Square, Trash2, Type, UtensilsCrossed, Wand2, Wine, X, AppWindow, RectangleHorizontal, Users } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
 import { mad } from '../lib/format';
 import { t } from '../lib/i18n';
@@ -11,6 +11,8 @@ import { Btn, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import type { Reservation } from './Reservations';
 import { isVip, type Guest } from './Guest';
+import type { Rhythm } from '../lib/rhythm';
+import { CourseDots, PHASES, RhythmLine } from './Rhythm';
 
 // The floor plan: each zone of the restaurant drawn on a grid of 48 x 32 squares. In service the tables show
 // their state (free, occupied with total and minutes, dish ready, QR order, booking coming); a manager
@@ -74,7 +76,7 @@ function Paper({ children, grid, innerRef, fit }: { children: ReactNode; grid?: 
   );
 }
 
-export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation; guest?: Guest | null }
+export interface TableState { total: number; count: number; qr: boolean; pending: boolean; since: number; ready: boolean; booking?: Reservation; guest?: Guest | null; rhythm?: Rhythm | null }
 
 /** In service: the plan of one zone, each table with its state. */
 export function PlanView({ zone, tables, plan, state, onOpen }: {
@@ -156,13 +158,12 @@ function TableButton({ tb, s, cell, onClick }: { tb: Table; s: TableState; cell:
   return (
     <button onClick={onClick}
       className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden transition active:scale-95 ${round ? 'rounded-full' : 'rounded-2xl'} ${
-        s.count ? 'gold-fill text-brand-ink shadow-lg' : s.booking ? 'panel border-2 !border-sky-400/70' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''}`}>
+        s.count ? 'gold-fill text-brand-ink shadow-lg' : s.booking ? 'panel border-2 !border-sky-400/70' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
       {s.qr && !tiny && <span className="absolute end-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-qr shadow"><QrCode className="h-3 w-3 text-white" /></span>}
       <span className="font-display font-semibold leading-none" style={{ fontSize: fs }}>{tb.label}</span>
       {tiny ? (s.ready ? <span className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-warn" /> : null) : s.count > 0 ? <>
         {!small && <span className="mt-1 text-xs font-bold tabular">{mad(s.total)}</span>}
-        {s.ready
-          ? <span className="mt-0.5 flex items-center gap-0.5 rounded-full bg-warn px-1.5 text-[10px] font-bold text-white"><BellRing className="h-2.5 w-2.5" />{t('Prêt')}</span>
+        {s.rhythm ? <><RhythmLine r={s.rhythm} small={side < 120} />{!small && <CourseDots r={s.rhythm} />}</>
           : <span className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold opacity-70"><Clock className="h-2.5 w-2.5" />{t('{n} min', { n: s.since })}</span>}
       </> : s.booking?.starts_at ? (
         <span className="mt-1 flex max-w-full items-center gap-0.5 truncate px-1 text-[10px] font-bold text-sky-500"><CalendarClock className="h-2.5 w-2.5 shrink-0" />{hhmm(s.booking.starts_at, tz)}{!small && ` ${s.booking.name.split(' ')[0]}`}</span>

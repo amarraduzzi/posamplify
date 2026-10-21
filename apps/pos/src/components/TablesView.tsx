@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { QrCode, ShoppingBag, Clock, BellRing, LayoutGrid, Map as MapIcon, PencilRuler, CalendarClock } from 'lucide-react';
 import { usePos, type OrderTarget } from '../store';
 import { mad, minutesSince } from '../lib/format';
@@ -8,6 +8,8 @@ import type { Table } from '../lib/types';
 import { hhmm, PlanEditor, PlanView, placed, useTableBookings, type TableState } from './FloorPlan';
 import { useReservations } from './Reservations';
 import { useGuests } from './Guest';
+import { rhythmOf } from '../lib/rhythm';
+import { PHASES, RhythmLine, CourseDots, RhythmSummary } from './Rhythm';
 import { GuestMarks } from './FloorPlan';
 
 type View = 'plan' | 'list';
@@ -47,12 +49,16 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const [editing, setEditing] = useState(false);
   const curZone = zones.includes(zone) ? zone : zones[0] ?? '';
 
+  // the minutes move on by themselves
+  const [, tick] = useState(0);
+  useEffect(() => { const id = window.setInterval(() => tick(x => x + 1), 30000); return () => window.clearInterval(id); }, []);
   const state = (tb: Table): TableState => {
     const os = byTable.get(tb.id) ?? [];
     return {
       count: os.length, total: os.reduce((s, o) => s + Number(o.total_cents), 0),
       qr: os.some(o => o.source === 'qr'), pending: os.some(o => o.source === 'qr' && o.status === 'new'),
       since: os.length ? minutesSince(os[0].created_at) : 0, ready: ready.has(tb.id), booking: bookings.get(tb.id),
+      rhythm: os.length ? rhythmOf(os, pos.orders) : null,
       guest: os.length ? guests.byId(os.find(o => o.customer_id)?.customer_id) : guests.byPhone((bookings.get(tb.id) ?? arrivals.get(tb.id))?.phone),
     };
   };
@@ -82,6 +88,8 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
           </span>
         )}
       </div>
+
+      <RhythmSummary list={pos.tables.map(tb => { const os = byTable.get(tb.id) ?? []; return os.length ? rhythmOf(os, pos.orders) : null; }).filter((x): x is NonNullable<typeof x> => !!x)} />
 
       {view === 'plan' && pos.tables.length > 0 && (hasPlan ? (
         <section className="space-y-3">
@@ -113,7 +121,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               return (
                 <button key={tb.id} onClick={() => open(tb)}
                   className={`group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-3xl transition hover:-translate-y-0.5 active:scale-95 ${
-                    s.count ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''}`}>
+                    s.count ? 'gold-fill text-brand-ink' : 'panel hover:border-brand/50'} ${s.pending ? 'blink' : ''} ${s.rhythm?.late ? PHASES[s.rhythm.phase].ring : ''}`}>
                   {!s.count && <Star8 filled={false} stroke={0.5} className="absolute h-[70%] w-[70%] text-line/[0.045] transition group-hover:text-brand/20" />}
                   {s.count > 0 && <Star8 className="absolute -bottom-6 -end-6 h-20 w-20 text-white/10" />}
                   <GuestMarks g={s.guest} />
@@ -121,8 +129,8 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
                   <span className={`relative font-display text-3xl font-semibold leading-none ${s.count ? '' : 'text-ink/90'}`}>{tb.label}</span>
                   {s.count > 0 ? <>
                     <span className="relative mt-1.5 text-sm font-bold tabular">{mad(s.total)}</span>
-                    {s.ready
-                      ? <span className="relative mt-1 flex items-center gap-1 rounded-full bg-warn px-2 py-0.5 text-[11px] font-bold text-white shadow"><BellRing className="h-3 w-3" />{t('Prêt')}</span>
+                    {s.rhythm
+                      ? <span className="relative flex flex-col items-center"><RhythmLine r={s.rhythm} /><CourseDots r={s.rhythm} /></span>
                       : <span className="relative mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold opacity-70"><Clock className="h-3 w-3" />{t('{n} min', { n: s.since })}</span>}
                   </> : s.booking?.starts_at ? (
                     <span className="relative mt-1.5 flex items-center gap-1 text-[11px] font-bold text-sky-500"><CalendarClock className="h-3 w-3" />{hhmm(s.booking.starts_at, pos.restaurant?.timezone)}</span>

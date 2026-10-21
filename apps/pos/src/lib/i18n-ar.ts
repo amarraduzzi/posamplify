@@ -790,4 +790,13 @@ export const AR: Record<string, string> = {
   "Valider avec l’acompte": "التأكيد بالعربون",
   "pour garantir votre table chez {r} ({d} à {h}, {p} pers.), un acompte de {m} est demandé. Il sera déduit de votre addition.": "لضمان طاولتكم في {r} ({d} على {h}، {p} أشخاص)، يُطلب عربون {m}. سيُخصم من فاتورتكم.",
   "{m} payés par l’acompte, le reste comme d’habitude.": "{m} مدفوعة بالعربون، والباقي كالعادة.",
+  "Attendent la suite": "ينتظرون الطبق التالي",
+  "En cuisine": "في المطبخ",
+  "La suite ?": "الطبق التالي؟",
+  "{c} ?": "{c}؟",
+  "{c} en cuisine": "{c} في المطبخ",
+  "{c} servi": "{c} مقدَّم",
+  "{n} en retard": "{n} متأخرة",
+  "À servir": "للتقديم",
+  "À table": "على المائدة",
 };

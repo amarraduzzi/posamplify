@@ -789,4 +789,13 @@ export const EN: Record<string, string> = {
   "Valider avec l’acompte": "Confirm with the deposit",
   "pour garantir votre table chez {r} ({d} à {h}, {p} pers.), un acompte de {m} est demandé. Il sera déduit de votre addition.": "to secure your table at {r} ({d} at {h}, {p} guests), a deposit of {m} is asked. It will be deducted from your bill.",
   "{m} payés par l’acompte, le reste comme d’habitude.": "{m} paid by the deposit, the rest as usual.",
+  "Attendent la suite": "Waiting for the next course",
+  "En cuisine": "In the kitchen",
+  "La suite ?": "Next course?",
+  "{c} ?": "{c}?",
+  "{c} en cuisine": "{c} in the kitchen",
+  "{c} servi": "{c} served",
+  "{n} en retard": "{n} late",
+  "À servir": "To serve",
+  "À table": "Eating",
 };
