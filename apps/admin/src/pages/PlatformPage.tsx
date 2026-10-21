@@ -48,7 +48,8 @@ export function PlatformPage() {
     try { await rpc('admin_set_site_plan', { p_restaurant_id: r.id, p_plan: plan }); void a.reload(); } catch (e) { a.fail(e); await load(); }
   };
   // a service included in another one (Site with POS or Profit, Commandes with POS) is ticked and locked
-  const SERVICES = [['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes']] as const;
+  // Maître: the fine dining package, an option of the till
+  const SERVICES = [['pos', 'POS'], ['profit', 'Profit'], ['site', 'Site'], ['orders', 'Commandes'], ['maitre', 'Maître']] as const;
   const included = (r: Restaurant, k: string) => {
     const pr = r.products ?? [];
     return (k === 'site' && (pr.includes('pos') || pr.includes('profit'))) || (k === 'orders' && pr.includes('pos'));
@@ -64,8 +65,8 @@ export function PlatformPage() {
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
       <ToCollect list={list} onOpen={setBillingOf} />
       <div className="card overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[1060px] table-fixed text-sm">
-          <colgroup><col /><col className="w-[128px]" /><col className="w-[328px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
+        <table className="w-full min-w-[1140px] table-fixed text-sm">
+          <colgroup><col /><col className="w-[128px]" /><col className="w-[410px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
           <thead className="bg-surface-2 text-xs font-semibold text-muted">
             <tr><th className="px-4 py-2.5 text-start">{t('Restaurant')}</th><th className="px-2 text-start">{t('Statut')}</th><th className="px-2 text-start">{t('Services')}</th><th className="pe-2 ps-3 text-start">{t('Caisse')}</th><th className="px-2 text-start">{t('Site web')}</th><th className="pe-3 text-end">{t('Actions')}</th></tr>
           </thead>
@@ -89,9 +90,10 @@ export function PlatformPage() {
                     <div className="flex gap-1">
                       {SERVICES.map(([k, label]) => {
                         const inc = included(r, k), on = inc || pr.includes(k);
+                        const needsPos = k === 'maitre' && !pr.includes('pos');
                         return (
-                          <button key={k} type="button" role="checkbox" aria-checked={on} disabled={inc} onClick={() => toggle(r, k)}
-                            title={inc ? (k === 'orders' ? t('Inclus avec POS') : t('Inclus avec POS et Profit')) : undefined}
+                          <button key={k} type="button" role="checkbox" aria-checked={on} disabled={inc || needsPos} onClick={() => toggle(r, k)}
+                            title={inc ? (k === 'orders' ? t('Inclus avec POS') : t('Inclus avec POS et Profit')) : needsPos ? t('Option de la caisse : activez d’abord POS') : k === 'maitre' ? t('Amplify Maître : fiche client, briefing, acomptes, rythme de la soirée') : undefined}
                             className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 text-xs font-bold transition ${inc ? 'cursor-default border-transparent bg-night/10 text-ink' : on ? 'border-night bg-night text-white' : 'border-line/20 text-muted hover:border-line/40 hover:text-ink'}`}>
                             <span className={`grid h-4 w-4 place-items-center rounded ${on ? (inc ? 'bg-night/25 text-ink' : 'bg-white/20') : 'border border-line/30'}`}>{on && <Check className="h-3 w-3" strokeWidth={3} />}</span>
                             {label}

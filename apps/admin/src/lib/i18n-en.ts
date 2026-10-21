@@ -2585,4 +2585,7 @@ export const EN: Record<string, string> = {
   "Par personne (MAD)": "Per guest (MAD)",
   "Virement : RIB 000 000 000, ou sur place": "Transfer: RIB 000 000 000, or on site",
   "À partir de (personnes)": "From (guests)",
+  "Acompte pour garantir la table, briefing du soir et fiche client : inclus dans Amplify Maître. Demandez-le à votre conseiller Amplify.": "Deposit to secure the table, evening briefing and guest profile: included in Amplify Maître. Ask your Amplify advisor.",
+  "Amplify Maître : fiche client, briefing, acomptes, rythme de la soirée": "Amplify Maître: guest profile, briefing, deposits, rhythm of the evening",
+  "Option de la caisse : activez d’abord POS": "An option of the till: turn on POS first",
 };

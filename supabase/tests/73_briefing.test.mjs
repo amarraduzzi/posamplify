@@ -6,6 +6,8 @@ import { pool, sql, as, rpc, world } from './helpers.mjs';
 let w, A, rid, d, day;
 before(async () => {
   w = await world(); A = w.A; rid = A.r.id; d = w.users.deviceA;
+  // Amplify Maître switched on for this restaurant
+  await sql(`update public.restaurants set products = array_append(products, 'maitre') where id = $1`, [rid]);
   [{ day }] = await sql(`select (now() at time zone timezone)::date::text as day from public.restaurants where id = $1`, [rid]);
 });
 after(() => pool.end());

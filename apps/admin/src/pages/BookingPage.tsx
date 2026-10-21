@@ -18,6 +18,7 @@ export function BookingPage({ r }: { r: Restaurant }) {
   const owner = a.canEditProfile;
   // without the till nobody watches a screen all day: bookings are confirmed automatically unless the owner changes it
   const hasPos = (r.products ?? ['pos']).includes('pos');
+  const maitre = hasPos && (r.products ?? []).includes('maitre');
   // restaurants without the till set their opening hours right here (the same hours as online ordering)
   const hoursHere = !hasPos;
   const noHours = !Object.keys(r.opening_hours ?? {}).length;
@@ -101,7 +102,7 @@ export function BookingPage({ r }: { r: Restaurant }) {
             <Field label={t('Groupe max. en ligne')}><input className={inputCls} inputMode="numeric" value={f.max} onChange={e => setF({ ...f, max: e.target.value.replace(/\D/g, '') })} /></Field>
           </div>
           <Field label={t('Message aux clients')}><input className={inputCls} maxLength={200} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Table gardée 15 minutes. Pour plus de 8 personnes, appelez-nous.')} /></Field>
-          <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+          {maitre ? <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
             <Toggle checked={f.dep} onChange={v => setF({ ...f, dep: v })} label={t('Acompte pour garantir la table')} />
             <p className="text-sm text-muted">{t('Contre les tables réservées où personne ne vient. L’acompte se déduit de l’addition le soir même ; en cas d’absence, vous pouvez le conserver.')}</p>
             {f.dep && <div className="grid gap-4 sm:grid-cols-2">
@@ -109,7 +110,7 @@ export function BookingPage({ r }: { r: Restaurant }) {
               <Field label={t('Par personne (MAD)')}><input className={inputCls} inputMode="decimal" value={f.depAmount} onChange={e => setF({ ...f, depAmount: e.target.value })} /></Field>
             </div>}
             <Field label={t('Comment payer l’acompte (envoyé au client)')}><input className={inputCls} maxLength={200} value={f.depNote} onChange={e => setF({ ...f, depNote: e.target.value })} placeholder={t('Virement : RIB 000 000 000, ou sur place')} /></Field>
-          </div>
+          </div> : <p className="rounded-2xl bg-white/5 p-4 text-sm text-muted ring-1 ring-white/10">{t('Acompte pour garantir la table, briefing du soir et fiche client : inclus dans Amplify Maître. Demandez-le à votre conseiller Amplify.')}</p>}
           {hoursHere
             ? <>
                 <HoursEditor hours={hours} setHours={setHours} useHours={useHours} setUseHours={setUseHours} />

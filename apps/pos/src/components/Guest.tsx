@@ -5,6 +5,7 @@ import * as db from '../lib/data';
 import { mad } from '../lib/format';
 import { t } from '../lib/i18n';
 import { Btn, Field, Modal, inputCls } from './ui';
+import { hasMaitre } from '../lib/occasion';
 
 // The guest profile: what the team knows about a regular (allergies, VIP, preferences, what they
 // like), shown where it matters: the bill, the floor plan, the reservations. Only when the restaurant
@@ -51,7 +52,7 @@ function remember(g: Guest) {
 export function useGuests(ids: (string | null | undefined)[], phones: (string | null | undefined)[]) {
   const pos = usePos();
   const r = pos.restaurant;
-  const on = !!r?.loyalty?.customers;
+  const on = !!r?.loyalty?.customers && hasMaitre(r);
   const [, setV] = useState(version);
   useEffect(() => { const f = () => setV(version); listeners.add(f); return () => { listeners.delete(f); }; }, []);
   const idKey = [...new Set(ids.filter((x): x is string => !!x))].sort().join(',');

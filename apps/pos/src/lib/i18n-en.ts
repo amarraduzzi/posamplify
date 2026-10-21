@@ -798,4 +798,5 @@ export const EN: Record<string, string> = {
   "{n} en retard": "{n} late",
   "À servir": "To serve",
   "À table": "Eating",
+  "Briefing du soir": "Evening briefing",
 };

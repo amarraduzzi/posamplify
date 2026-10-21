@@ -17,7 +17,7 @@ import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
 import { GuestChips, GuestSheet, useGuests, type Guest } from './Guest';
-import { occasionOf } from '../lib/occasion';
+import { hasMaitre, occasionOf } from '../lib/occasion';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
@@ -977,6 +977,7 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const maitre = hasMaitre(pos.restaurant);
   const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
   const applied = (order.order_rewards ?? []).filter(x => !x.released_at);
@@ -1018,9 +1019,9 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
     <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface-2/60 px-4 py-2 text-sm">
       <UserRound className="h-4 w-4 text-brand" />
       {order.customer_id
-        ? <button onClick={() => setSheet(true)} className="font-semibold underline decoration-line/30 underline-offset-4 hover:decoration-brand">{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</button>
+        ? <button disabled={!maitre} onClick={() => setSheet(true)} className={`font-semibold ${maitre ? 'underline decoration-line/30 underline-offset-4 hover:decoration-brand' : ''}`}>{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</button>
         : <span className="text-muted">{t('Pas de client')}</span>}
-      {known?.tags && <GuestChips g={known as Guest} />}
+      {maitre && known?.tags && <GuestChips g={known as Guest} />}
       {sheet && order.customer_id && <GuestSheet customerId={order.customer_id} onClose={() => setSheet(false)} onSaved={g => onRedeemed({ ...(known ?? { points: 0 }), ...g } as Customer)} />}
       {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
       {applied.map(x => (

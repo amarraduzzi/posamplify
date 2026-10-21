@@ -11,7 +11,7 @@ import { t } from '../lib/i18n';
 import { GuestChips, GuestSheet, useGuests } from './Guest';
 import { BriefingView } from './Briefing';
 import { DepositChip, DepositDialog, depositRule } from './Deposit';
-import { OCCASIONS, occasionOf } from '../lib/occasion';
+import { OCCASIONS, hasMaitre, occasionOf } from '../lib/occasion';
 
 export interface Reservation {
   id: string; kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
@@ -102,7 +102,7 @@ export function ReservationsView() {
           <Btn className="px-2.5" aria-label={t('Jour suivant')} onClick={() => shift(1)}><ChevronRight className="h-4 w-4 rtl:rotate-180" /></Btn>
           {day !== today && <button onClick={() => setDay(today)} className="text-sm font-semibold text-brand">{t('Aujourd’hui')}</button>}
           <span className="ms-auto text-sm text-muted">{t('{n} réservations · {c} couverts', { n: active.length, c: covers })}</span>
-          <Btn onClick={() => setBriefing(true)}><Sparkles className="h-4 w-4" /> {t('Le Briefing')}</Btn>
+          {hasMaitre(r) && <Btn onClick={() => setBriefing(true)}><Sparkles className="h-4 w-4" /> {t('Briefing du soir')}</Btn>}
           <Btn tone="brand" onClick={() => setAdding('booking')}><Plus className="h-4 w-4" /> {t('Réservation')}</Btn>
         </div>
         {list === null ? <p className="text-muted">{t('Chargement…')}</p> : !bookings.length ? (
@@ -179,7 +179,8 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
   const r = pos.restaurant!;
   const [f, setF] = useState({ name: '', phone: '', party: '2', time: '20:00', note: '', quoted: '15', date: day, occasion: '' });
   // the deposit the restaurant's rule asks for this party: proposed, the host can change it (empty: none)
-  const rule = depositRule(r.booking, Number(f.party) || 0);
+  const maitre = hasMaitre(r);
+  const rule = maitre ? depositRule(r.booking, Number(f.party) || 0) : 0;
   const [dep, setDep] = useState<string | null>(null);
   const depC = dep === null ? rule : toCents(dep);
   const [busy, setBusy] = useState(false);
@@ -219,7 +220,7 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
           <Field label={t('Date')}><input type="date" className={inputCls} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
           <Field label={t('Heure')}><input type="time" className={inputCls} value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></Field>
           <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Terrasse, chaise bébé…')} /></Field>
-          <div className="sm:col-span-2">
+          {maitre && <><div className="sm:col-span-2">
             <p className="mb-1.5 text-sm font-semibold text-muted">{t('Occasion')}</p>
             <div className="flex flex-wrap gap-1.5">
               {OCCASIONS.map(o => (
@@ -232,6 +233,7 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
             <input className={inputCls} inputMode="decimal" value={dep ?? (rule ? String(rule / 100) : '')} placeholder={t('Aucun')} onChange={e => setDep(e.target.value)} />
           </Field>
           {depC > 0 && <p className="self-end pb-3 text-xs text-muted sm:col-span-1">{t('La réservation reste « à confirmer » jusqu’à réception de l’acompte.')}</p>}
+          </>}
         </> : <Field label={t('Attente annoncée (min)')}><input className={inputCls} inputMode="numeric" value={f.quoted} onChange={e => setF({ ...f, quoted: e.target.value.replace(/\D/g, '') })} /></Field>}
       </div>
     </Modal>

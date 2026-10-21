@@ -5,7 +5,11 @@ import assert from 'node:assert/strict';
 import { pool, sql, as, rpc, world, tillOrder } from './helpers.mjs';
 
 let w, A, rid, d;
-before(async () => { w = await world(); A = w.A; rid = A.r.id; d = w.users.deviceA; });
+before(async () => {
+  w = await world(); A = w.A; rid = A.r.id; d = w.users.deviceA;
+  // Amplify Maître switched on for this restaurant
+  await sql(`update public.restaurants set products = array_append(products, 'maitre') where id = $1`, [rid]);
+});
 after(() => pool.end());
 const book = async (party, extra = '') => (await as(d,
   `insert into public.reservations (restaurant_id, kind, status, source, starts_at, party_size, name, phone ${extra ? ', occasion' : ''})
@@ -81,4 +85,22 @@ test('a no-show: the deposit is kept, only after the booking is closed', async (
 test('another restaurant cannot touch it', async () => {
   const b = await book(6);
   await assert.rejects(rpc(w.users.deviceB, 'pos_deposit_receive', [b.id, 100, 'cash', null, null]));
+});
+
+test('without Amplify Maître: no new deposit, no rule online, no briefing, no profile; money already received still works', async () => {
+  const b = await book(8);
+  await rpc(d, 'pos_deposit_receive', [b.id, 10000, 'cash', null, null]);
+  await sql(`update public.restaurants set products = array_remove(products, 'maitre') where id = $1`, [rid]);
+  const nb = await book(8);
+  assert.equal(nb.deposit_cents, null);
+  await assert.rejects(rpc(d, 'pos_deposit_receive', [nb.id, 100, 'cash', null, null]), /maitre_off/);
+  await assert.rejects(rpc(d, 'pos_briefing', [rid, null]), /maitre_off/);
+  assert.deepEqual(await rpc(d, 'pos_guests', [rid, [], ['0612121212']]), []);
+  const info = await rpc(null, 'get_booking_info', [A.r.slug]);
+  assert.equal(info.deposit_party, null);
+  const ok = await rpc(d, 'pos_deposit_close', [b.id, 'refund', 'cash', A.staff.karim.id, '9999']);
+  assert.equal(Number(ok.amount_cents), 10000);
+  // the platform cannot give Maître without the till
+  const [prod] = await sql(`select products from public.restaurants where id = $1`, [rid]);
+  assert.ok(!prod.products.includes('maitre'));
 });

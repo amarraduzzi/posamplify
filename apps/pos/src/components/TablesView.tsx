@@ -9,6 +9,7 @@ import { hhmm, PlanEditor, PlanView, placed, useTableBookings, type TableState }
 import { useReservations } from './Reservations';
 import { useGuests } from './Guest';
 import { rhythmOf } from '../lib/rhythm';
+import { hasMaitre } from '../lib/occasion';
 import { PHASES, RhythmLine, CourseDots, RhythmSummary } from './Rhythm';
 import { GuestMarks } from './FloorPlan';
 
@@ -24,6 +25,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   // the kitchen screen marked a dish ready and nobody has served it yet: the waiter sees it at a glance
   const ready = new Set(pos.orders.filter(o => o.table_id && o.order_lines.some(l => l.ready_at && !l.served_at)).map(o => o.table_id!));
   const { list: resa } = useReservations(null);
+  const maitre = hasMaitre(pos.restaurant);
   const bookings = useTableBookings(resa);
   // the booking of a table that is arriving now (or seated, no bill yet): opening the table makes the bill theirs
   const arrivals = new Map<string, NonNullable<typeof resa>[number]>();
@@ -58,7 +60,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
       count: os.length, total: os.reduce((s, o) => s + Number(o.total_cents), 0),
       qr: os.some(o => o.source === 'qr'), pending: os.some(o => o.source === 'qr' && o.status === 'new'),
       since: os.length ? minutesSince(os[0].created_at) : 0, ready: ready.has(tb.id), booking: bookings.get(tb.id),
-      rhythm: os.length ? rhythmOf(os, pos.orders) : null,
+      rhythm: maitre && os.length ? rhythmOf(os, pos.orders) : null,
       guest: os.length ? guests.byId(os.find(o => o.customer_id)?.customer_id) : guests.byPhone((bookings.get(tb.id) ?? arrivals.get(tb.id))?.phone),
     };
   };
@@ -89,7 +91,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
         )}
       </div>
 
-      <RhythmSummary list={pos.tables.map(tb => { const os = byTable.get(tb.id) ?? []; return os.length ? rhythmOf(os, pos.orders) : null; }).filter((x): x is NonNullable<typeof x> => !!x)} />
+      {maitre && <RhythmSummary list={pos.tables.map(tb => { const os = byTable.get(tb.id) ?? []; return os.length ? rhythmOf(os, pos.orders) : null; }).filter((x): x is NonNullable<typeof x> => !!x)} />}
 
       {view === 'plan' && pos.tables.length > 0 && (hasPlan ? (
         <section className="space-y-3">

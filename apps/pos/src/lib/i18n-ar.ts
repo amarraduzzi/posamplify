@@ -799,4 +799,5 @@ export const AR: Record<string, string> = {
   "{n} en retard": "{n} متأخرة",
   "À servir": "للتقديم",
   "À table": "على المائدة",
+  "Briefing du soir": "إحاطة المساء",
 };

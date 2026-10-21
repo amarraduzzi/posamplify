@@ -12,4 +12,6 @@ export const OCCASIONS: { id: Occasion; label: () => string; Icon: typeof Cake; 
   { id: 'celebration', label: () => t('Fête'), Icon: PartyPopper, kitchen: 'FETE' },
   { id: 'other', label: () => t('Autre occasion'), Icon: Sparkles, kitchen: null },
 ];
+/** Amplify Maître, the fine dining package: guest profile, briefing, deposits and occasions, rhythm of the evening */
+export const hasMaitre = (r: { products?: string[] } | null | undefined) => !!r?.products?.includes('pos') && !!r?.products?.includes('maitre');
 export const occasionOf = (id?: string | null) => OCCASIONS.find(o => o.id === id) ?? null;

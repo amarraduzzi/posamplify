@@ -2588,4 +2588,7 @@ export const AR: Record<string, string> = {
   "Par personne (MAD)": "لكل شخص (درهم)",
   "Virement : RIB 000 000 000, ou sur place": "تحويل: RIB 000 000 000، أو في المطعم",
   "À partir de (personnes)": "ابتداء من (أشخاص)",
+  "Acompte pour garantir la table, briefing du soir et fiche client : inclus dans Amplify Maître. Demandez-le à votre conseiller Amplify.": "عربون ضمان الطاولة وإحاطة المساء وبطاقة الزبون: مشمولة في Amplify Maître. اطلبوها من مستشاركم في Amplify.",
+  "Amplify Maître : fiche client, briefing, acomptes, rythme de la soirée": "Amplify Maître: بطاقة الزبون، الإحاطة، العرابين، إيقاع السهرة",
+  "Option de la caisse : activez d’abord POS": "خيار للصندوق: فعّلوا POS أولا",
 };
