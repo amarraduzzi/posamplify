@@ -2719,4 +2719,5 @@ export const AR: Record<string, string> = {
   "depuis {n} min": "منذ {n} د",
   "maintenant": "الآن",
   "à distance": "عن بعد",
+  "Personne en attente pour {name}.": "لا أحد ينتظر {name}.",
 };

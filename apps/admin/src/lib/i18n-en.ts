@@ -2716,4 +2716,5 @@ export const EN: Record<string, string> = {
   "depuis {n} min": "for {n} min",
   "maintenant": "now",
   "à distance": "from home",
+  "Personne en attente pour {name}.": "Nobody waiting for {name}.",
 };

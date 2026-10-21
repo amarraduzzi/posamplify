@@ -51,7 +51,16 @@ export function NoubaPage({ r }: { r: Restaurant }) {
     try { const { error } = await fn(); if (error) throw error; await load(); } catch (e) { a.fail(e); }
     setBusy(null);
   };
-  const next = (staff: string) => act(staff, () => supabase.rpc('nouba_next', { p_restaurant_id: r.id, p_staff: staff, p_entry: null }));
+  const next = async (staff: string) => {
+    setBusy(staff);
+    try {
+      const { data, error } = await supabase.rpc('nouba_next', { p_restaurant_id: r.id, p_staff: staff, p_entry: null });
+      if (error) throw error;
+      if (!(data as { next: unknown }).next) a.toast(t('Personne en attente pour {name}.', { name: person(staff)?.name ?? '' }));
+      await load();
+    } catch (e) { a.fail(e); }
+    setBusy(null);
+  };
   const setStatus = (id: string, status: string) => act(id, () => supabase.rpc('nouba_set', { p_restaurant_id: r.id, p_entry: id, p_status: status }));
 
   const svc = (id: string | null) => { const s = services.find(x => x.id === id); return s ? svcName(s) : ''; };
