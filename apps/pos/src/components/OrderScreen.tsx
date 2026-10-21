@@ -17,6 +17,7 @@ import { useHappyHours } from '../lib/promo';
 import { show } from '../lib/display';
 import { courseName } from '../lib/stations';
 import { GuestChips, GuestSheet, useGuests, type Guest } from './Guest';
+import { occasionOf } from '../lib/occasion';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
@@ -161,6 +162,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       orderType: order?.order_type ?? (tableId ? 'dine_in' : kind === 'glovo' ? 'delivery' : kind),
       source: order?.source ?? (tableId ? 'pos' : kind === 'glovo' ? 'glovo' : kind === 'delivery' ? 'phone' : 'pos'),
       customer: order ? undefined : customer,
+      // the occasion of the booking goes to the kitchen with the first bon
+      note: !order && target.kind === 'table' ? occasionOf(target.guest?.occasion)?.kitchen ?? null : null,
     }, draft.map(d => ({ ...d, unit_price_cents: dUnit(d) })), { send });
     setDraft([]);
     if (target.kind === 'new') onRetarget({ kind: 'order', orderId: o.id });
@@ -244,6 +247,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-sky-500/10 px-4 py-2 text-sm">
         <CalendarClock className="h-4 w-4 text-sky-500" />
         <span className="font-semibold">{t('Réservation : {n}', { n: target.guest.name })}</span>
+        {occasionOf(target.guest.occasion) && <span className="inline-flex items-center gap-1 rounded-full bg-pink-500/20 px-2 py-0.5 text-xs font-bold text-pink-400">{occasionOf(target.guest.occasion)!.label()}</span>}
         <GuestChips g={bookedGuest} />
       </div>
     )}

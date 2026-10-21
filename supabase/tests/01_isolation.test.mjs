@@ -35,7 +35,8 @@ before(async () => {
   const [suB] = await as(w.users.ownerB, `insert into public.suppliers (restaurant_id, name, phone) values ($1, 'Grossiste B', '212600000000') returning id`, [w.B.r.id]);
   const [poB] = await as(w.users.ownerB, `insert into public.purchase_orders (restaurant_id, supplier_id) values ($1, $2) returning id`, [w.B.r.id, suB.id]);
   await as(w.users.ownerB, `insert into public.purchase_order_lines (restaurant_id, order_id, ingredient_id, units) values ($1, $2, $3, 2)`, [w.B.r.id, poB.id, gB.id]);
-  await as(w.users.deviceB, `insert into public.reservations (restaurant_id, kind, starts_at, party_size, name) values ($1, 'booking', now() + interval '1 day', 2, 'Client B')`, [w.B.r.id]);
+  const [rsB] = await as(w.users.deviceB, `insert into public.reservations (restaurant_id, kind, starts_at, party_size, name) values ($1, 'booking', now() + interval '1 day', 2, 'Client B') returning id`, [w.B.r.id]);
+  await sql(`insert into public.reservation_deposits (restaurant_id, reservation_id, kind, amount_cents, method, business_date) values ($1, $2, 'in', 1000, 'cash', current_date)`, [w.B.r.id, rsB.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);
   await as(w.users.ownerB, `insert into public.staff_schedule (restaurant_id, staff_id, day, start_time, end_time) values ($1, $2, current_date, '09:00', '17:00')`, [w.B.r.id, w.B.staff.sara.id]);
   { const [sb] = await sql(`insert into public.suppliers (restaurant_id, name) values ($1, 'Fournisseur B') returning id`, [w.B.r.id]);

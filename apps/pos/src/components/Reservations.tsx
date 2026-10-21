@@ -1,20 +1,23 @@
 // Host stand: today's bookings and the waitlist. Confirm, seat, mark no-shows, call the next
 // guest on WhatsApp, add a phone booking or a walk-in.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound, Sparkles } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Hourglass, MessageCircle, Phone, Plus, UserX, Users, X, Armchair, UserRound, Sparkles, ShieldCheck } from 'lucide-react';
 import { usePos } from '../store';
 import { supabase } from '../lib/supabase';
 import { check, rpc } from '../lib/data';
-import { time } from '../lib/format';
+import { mad, time, toCents } from '../lib/format';
 import { Btn, Field, Modal, inputCls } from './ui';
 import { t } from '../lib/i18n';
 import { GuestChips, GuestSheet, useGuests } from './Guest';
 import { BriefingView } from './Briefing';
+import { DepositChip, DepositDialog, depositRule } from './Deposit';
+import { OCCASIONS, occasionOf } from '../lib/occasion';
 
 export interface Reservation {
   id: string; kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
   source: string; starts_at: string | null; party_size: number; name: string; phone: string | null; note: string | null;
   table_id: string | null; quoted_min: number | null; token: string; created_at: string; called_at: string | null; seated_at: string | null;
+  occasion?: string | null; deposit_cents?: number | string | null; deposit_state?: 'due' | 'paid' | 'used' | 'refunded' | 'kept' | null;
 }
 const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
 const intl = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '212' + d.slice(1) : d; };
@@ -57,6 +60,7 @@ export function ReservationsView() {
   const guests = useGuests([], (list ?? []).map(x => x.phone));
   const [sheet, setSheet] = useState<Reservation | null>(null);
   const [briefing, setBriefing] = useState(false);
+  const [deposit, setDeposit] = useState<Reservation | null>(null);
   const today = ymd(new Date(), tz);
   const bookings = (list ?? []).filter(x => x.kind === 'booking');
   const waiting = (list ?? []).filter(x => x.kind === 'waitlist' && (x.status === 'requested' || x.status === 'called'));
@@ -80,6 +84,8 @@ export function ReservationsView() {
   const shift = (n: number) => { const d = new Date(`${day}T12:00:00`); d.setDate(d.getDate() + n); setDay(ymd(d, tz)); };
 
   const confirmMsg = (x: Reservation) => `${t('Bonjour {n},', { n: x.name })} ${t('votre table chez {r} est confirmée : {d} à {h}, {p} pers.', { r: r.name, d: fmtDay(day), h: time(x.starts_at!, tz), p: x.party_size })}\n${t('Pour annuler : {l}', { l: link(x) })}`;
+  // the deposit asked: the amount, and how to pay it (the restaurant's own words, e.g. its RIB)
+  const depositMsg = (x: Reservation) => `${t('Bonjour {n},', { n: x.name })} ${t('pour garantir votre table chez {r} ({d} à {h}, {p} pers.), un acompte de {m} est demandé. Il sera déduit de votre addition.', { r: r.name, d: fmtDay(day), h: time(x.starts_at!, tz), p: x.party_size, m: mad(Number(x.deposit_cents ?? 0)) })}${r.booking?.deposit_note ? `\n${r.booking.deposit_note}` : ''}`;
   const callMsg = (x: Reservation) => `${t('Bonjour {n},', { n: x.name })} ${t('votre table chez {r} est prête ! Présentez-vous à l’accueil.', { r: r.name })}`;
 
   const STATUS: Record<Reservation['status'], [string, string]> = {
@@ -114,12 +120,15 @@ export function ReservationsView() {
                   {x.source === 'online' && <span className="rounded-full bg-qr/10 px-2 py-0.5 text-xs font-bold text-qr">{t('En ligne')}</span>}
                   {late && <span className="rounded-full bg-danger/15 px-2 py-0.5 text-xs font-bold text-danger">{t('en retard')}</span>}
                   {h && h.no_shows > 0 && <span className="rounded-full bg-danger/15 px-2 py-0.5 text-xs font-bold text-danger">{t('{n} fois pas venu', { n: h.no_shows })}</span>}
+                  {occasionOf(x.occasion) && <span className="inline-flex items-center gap-1 rounded-full bg-pink-500/20 px-2 py-0.5 text-xs font-bold text-pink-400">{(() => { const O = occasionOf(x.occasion)!; return <><O.Icon className="h-3 w-3" />{O.label()}</>; })()}</span>}
+                  <DepositChip x={x} />
                 </p>
                 <p className="text-sm text-muted"><span dir="ltr">{x.phone ?? ''}</span>{x.note ? ` · ${x.note}` : ''}</p>
                 {guests.on && x.phone && <GuestChips className="mt-1.5" g={guests.byPhone(x.phone)} />}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {guests.on && x.phone && <Btn className="px-3 py-1.5 text-sm" onClick={() => setSheet(x)}><UserRound className="h-4 w-4" /> {t('Fiche')}</Btn>}
+                {x.deposit_state && <Btn className="px-3 py-1.5 text-sm" onClick={() => setDeposit(x)}><ShieldCheck className="h-4 w-4" /> {t('Acompte')}</Btn>}
                 {x.status === 'requested' && <Btn tone="brand" className="px-3 py-1.5 text-sm" onClick={async () => { await set(x, 'confirmed'); wa(x, confirmMsg(x)); }}><Check className="h-4 w-4" /> {t('Confirmer')}</Btn>}
                 {x.status === 'confirmed' && x.phone && <Btn className="px-3 py-1.5 text-sm" onClick={() => wa(x, confirmMsg(x))}><MessageCircle className="h-4 w-4" /></Btn>}
                 {(x.status === 'requested' || x.status === 'confirmed') && <>
@@ -157,6 +166,7 @@ export function ReservationsView() {
             </article>
           ))}
       </section>
+      {deposit && <DepositDialog x={deposit} onClose={() => setDeposit(null)} onDone={() => { setDeposit(null); reload(); }} onAsk={() => wa(deposit, depositMsg(deposit))} />}
       {briefing && <BriefingView onClose={() => setBriefing(false)} />}
       {sheet && <GuestSheet phone={sheet.phone} name={sheet.name} onClose={() => setSheet(null)} />}
       {adding && <AddReservation kind={adding} day={day} onClose={() => setAdding(null)} onDone={() => { setAdding(null); reload(); }} />}
@@ -167,7 +177,11 @@ export function ReservationsView() {
 function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'waitlist'; day: string; onClose: () => void; onDone: () => void }) {
   const pos = usePos();
   const r = pos.restaurant!;
-  const [f, setF] = useState({ name: '', phone: '', party: '2', time: '20:00', note: '', quoted: '15', date: day });
+  const [f, setF] = useState({ name: '', phone: '', party: '2', time: '20:00', note: '', quoted: '15', date: day, occasion: '' });
+  // the deposit the restaurant's rule asks for this party: proposed, the host can change it (empty: none)
+  const rule = depositRule(r.booking, Number(f.party) || 0);
+  const [dep, setDep] = useState<string | null>(null);
+  const depC = dep === null ? rule : toCents(dep);
   const [busy, setBusy] = useState(false);
   const startsAt = useMemo(() => {
     // the typed time is the restaurant's local time
@@ -182,7 +196,10 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
     try {
       const phone = f.phone.replace(/\D/g, '');
       check(await supabase.from('reservations').insert({
-        restaurant_id: r.id, kind, source: kind === 'booking' ? 'phone' : 'walk_in', status: kind === 'booking' ? 'confirmed' : 'requested',
+        restaurant_id: r.id, kind, source: kind === 'booking' ? 'phone' : 'walk_in',
+        // with a deposit to receive, the booking waits for it
+        status: kind === 'booking' && !(depC > 0) ? 'confirmed' : 'requested',
+        occasion: kind === 'booking' && f.occasion ? f.occasion : null, deposit_cents: kind === 'booking' && depC > 0 ? depC : null,
         starts_at: kind === 'booking' ? startsAt : null, party_size: Math.max(1, Math.min(60, Number(f.party) || 2)), name: f.name.trim(),
         phone: phone.length >= 9 ? phone : null, note: f.note.trim() || null, quoted_min: kind === 'waitlist' ? Number(f.quoted) || null : null, staff_id: pos.staff?.id ?? null,
         duration_min: r.booking?.duration_min ?? 90,
@@ -201,7 +218,20 @@ function AddReservation({ kind, day, onClose, onDone }: { kind: 'booking' | 'wai
         {kind === 'booking' ? <>
           <Field label={t('Date')}><input type="date" className={inputCls} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
           <Field label={t('Heure')}><input type="time" className={inputCls} value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></Field>
-          <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Anniversaire, terrasse…')} /></Field>
+          <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Terrasse, chaise bébé…')} /></Field>
+          <div className="sm:col-span-2">
+            <p className="mb-1.5 text-sm font-semibold text-muted">{t('Occasion')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {OCCASIONS.map(o => (
+                <button key={o.id} type="button" onClick={() => setF({ ...f, occasion: f.occasion === o.id ? '' : o.id })}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold ${f.occasion === o.id ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted'}`}><o.Icon className="h-4 w-4" />{o.label()}</button>
+              ))}
+            </div>
+          </div>
+          <Field label={t('Acompte demandé (MAD)')}>
+            <input className={inputCls} inputMode="decimal" value={dep ?? (rule ? String(rule / 100) : '')} placeholder={t('Aucun')} onChange={e => setDep(e.target.value)} />
+          </Field>
+          {depC > 0 && <p className="self-end pb-3 text-xs text-muted sm:col-span-1">{t('La réservation reste « à confirmer » jusqu’à réception de l’acompte.')}</p>}
         </> : <Field label={t('Attente annoncée (min)')}><input className={inputCls} inputMode="numeric" value={f.quoted} onChange={e => setF({ ...f, quoted: e.target.value.replace(/\D/g, '') })} /></Field>}
       </div>
     </Modal>

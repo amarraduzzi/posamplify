@@ -30,7 +30,8 @@ export interface Restaurant {
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
   accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
-  booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number };
+  /** deposit_party / deposit_cents: from N guests, X per guest is asked as a deposit (acompte); deposit_note: how to pay it */
+  booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number; deposit_party?: number; deposit_cents?: number; deposit_note?: string };
   /** customer file and loyalty points: off unless the owner switched them on */
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number };
@@ -124,6 +125,8 @@ export interface DayReport {
   by_staff: { staff_id: string | null; name: string | null; revenue_ttc_cents: number }[];
   closed?: boolean; counted_cash_cents?: number | null; cash_diff_cents?: number | null;
   account_sales_cents?: number; account_received_cents?: number; account_received?: Record<string, number>;
+  /** booking deposits (acomptes) of the day: received (by method), given back, kept after a no-show */
+  advances_received?: Record<string, number>; advances_received_cents?: number; advances_refunded_cents?: number; advances_kept_cents?: number;
 }
 
 export interface CashMovement { id: string; kind: 'float' | 'payout' | 'deposit'; amount_cents: number; reason: string; staff_id: string | null; created_at: string }

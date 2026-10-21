@@ -35,7 +35,7 @@ export function TablesView({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const guests = useGuests(pos.orders.filter(o => o.table_id).map(o => o.customer_id), [...bookings.values(), ...arrivals.values()].map(x => x.phone));
   const open = (tb: Table) => {
     const a = arrivals.get(tb.id);
-    if (!byTable.get(tb.id)?.length && a) onOpen({ kind: 'table', tableId: tb.id, guest: { name: a.name, phone: a.phone } });
+    if (!byTable.get(tb.id)?.length && a) onOpen({ kind: 'table', tableId: tb.id, guest: { name: a.name, phone: a.phone, occasion: a.occasion } });
     else onOpen({ kind: 'table', tableId: tb.id });
   };
 

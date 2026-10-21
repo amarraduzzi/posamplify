@@ -6,7 +6,7 @@ import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import { bookTable, bookingSlots, joinWaitlist, reservationCancel, reservationStatus, type ReservationStatus } from '../lib/api';
 import { load, save } from '../lib/storage';
-import { newId } from '@resto/shared';
+import { formatMoney, newId } from '@resto/shared';
 
 const S = {
   fr: {
@@ -22,6 +22,10 @@ const S = {
       already_waiting: 'Vous êtes déjà dans la file.', closed: 'Le restaurant est fermé pour le moment.', waitlist_off: 'La liste d’attente est fermée.',
       booking_off: 'Les réservations en ligne sont fermées.', too_late: 'Trop tard pour annuler en ligne : appelez le restaurant.', network: 'Pas de connexion. Réessayez.' } as Record<string, string>,
     other: 'Une erreur est survenue. Réessayez.',
+    occasion: 'Une occasion ?', occasions: { birthday: 'Anniversaire', anniversary: 'Anniversaire de mariage', date: 'En amoureux', business: 'Affaires', celebration: 'Fête', other: 'Autre' } as Record<string, string>,
+    depositRule: (m: string, n: number) => `À partir de ${n} personnes, un acompte de ${m} par personne garantit la table. Il est déduit de l’addition.`,
+    depositDue: (m: string) => `Un acompte de ${m} confirme votre table. Le restaurant vous explique comment le régler.`,
+    depositPaid: 'Acompte reçu. Il sera déduit de votre addition.',
   },
   en: {
     book: 'Book a table', waitlist: 'Waitlist', guests: 'Guests', day: 'Day', time: 'Time', noSlot: 'No table left that day. Try another day.',
@@ -36,6 +40,10 @@ const S = {
       already_waiting: 'You are already in the queue.', closed: 'The restaurant is closed right now.', waitlist_off: 'The waitlist is closed.',
       booking_off: 'Online booking is closed.', too_late: 'Too late to cancel online: please call the restaurant.', network: 'No connection. Try again.' } as Record<string, string>,
     other: 'Something went wrong. Try again.',
+    occasion: 'A special occasion?', occasions: { birthday: 'Birthday', anniversary: 'Wedding anniversary', date: 'Date night', business: 'Business', celebration: 'Celebration', other: 'Other' } as Record<string, string>,
+    depositRule: (m: string, n: number) => `From ${n} guests, a deposit of ${m} per guest secures the table. It is deducted from the bill.`,
+    depositDue: (m: string) => `A deposit of ${m} confirms your table. The restaurant will tell you how to pay it.`,
+    depositPaid: 'Deposit received. It will be deducted from your bill.',
   },
   ar: {
     book: 'حجز طاولة', waitlist: 'قائمة الانتظار', guests: 'الأشخاص', day: 'اليوم', time: 'الساعة', noSlot: 'لا توجد أماكن في هذا اليوم. جربوا يوما آخر.',
@@ -50,6 +58,10 @@ const S = {
       already_waiting: 'أنتم في الطابور من قبل.', closed: 'المطعم مغلق حاليا.', waitlist_off: 'قائمة الانتظار مغلقة.',
       booking_off: 'الحجز عبر الإنترنت مغلق.', too_late: 'فات وقت الإلغاء عبر الإنترنت: اتصلوا بالمطعم.', network: 'لا يوجد اتصال. أعيدوا المحاولة.' } as Record<string, string>,
     other: 'حدث خطأ. أعيدوا المحاولة.',
+    occasion: 'مناسبة خاصة؟', occasions: { birthday: 'عيد ميلاد', anniversary: 'ذكرى الزواج', date: 'عشاء رومانسي', business: 'عمل', celebration: 'احتفال', other: 'أخرى' } as Record<string, string>,
+    depositRule: (m: string, n: number) => `ابتداء من ${n} أشخاص، عربون ${m} لكل شخص يضمن الطاولة. يُخصم من الفاتورة.`,
+    depositDue: (m: string) => `عربون ${m} يؤكد طاولتكم. سيشرح لكم المطعم طريقة الدفع.`,
+    depositPaid: 'تم استلام العربون. سيُخصم من فاتورتكم.',
   },
 };
 type T = typeof S.fr;
@@ -63,8 +75,9 @@ interface Saved { slug: string; token: string }
 export const savedReservations = (slug: string) => load<Saved[]>(`resa:${slug}`, 30 * 86400_000) ?? [];
 const remember = (slug: string, token: string) => save(`resa:${slug}`, [{ slug, token }, ...savedReservations(slug).filter(x => x.token !== token)].slice(0, 5));
 
-export function BookingSheet({ slug, lang, tz, maxParty, daysAhead, note, onClose, onBooked }: {
-  slug: string; lang: string; tz: string; maxParty: number; daysAhead: number; note?: string | null; onClose: () => void; onBooked: (token: string) => void;
+export function BookingSheet({ slug, lang, tz, maxParty, daysAhead, note, depositParty, depositCents, onClose, onBooked }: {
+  slug: string; lang: string; tz: string; maxParty: number; daysAhead: number; note?: string | null;
+  depositParty?: number | null; depositCents?: number | null; onClose: () => void; onBooked: (token: string) => void;
 }) {
   const t = bookingStrings(lang);
   const [party, setParty] = useState(2);
@@ -76,6 +89,7 @@ export function BookingSheet({ slug, lang, tz, maxParty, daysAhead, note, onClos
   const [name, setName] = useState(saved?.name ?? '');
   const [phone, setPhone] = useState(saved?.phone ?? '');
   const [msg, setMsg] = useState('');
+  const [occasion, setOccasion] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientId] = useState(() => newId());
@@ -92,7 +106,7 @@ export function BookingSheet({ slug, lang, tz, maxParty, daysAhead, note, onClos
     if (!slot) return;
     setBusy(true); setError(null);
     try {
-      const res = await bookTable(slug, { client_id: clientId, starts_at: slot, party_size: party, name: name.trim(), phone: phone.trim(), note: msg.trim() || undefined });
+      const res = await bookTable(slug, { client_id: clientId, starts_at: slot, party_size: party, name: name.trim(), phone: phone.trim(), note: msg.trim() || undefined, occasion: occasion || undefined });
       save('customer', { ...(saved ?? {}), name: name.trim(), phone: phone.trim() });
       remember(slug, res.token); onBooked(res.token);
     } catch (e) { setError(errText(t, e)); if ((e as Error).message === 'slot_unavailable') bookingSlots(slug, day, party).then(x => setSlots(x ?? [])).catch(() => {}); }
@@ -131,9 +145,19 @@ export function BookingSheet({ slug, lang, tz, maxParty, daysAhead, note, onClos
           <div className="space-y-3">
             <input className="h-12 w-full rounded-2xl border border-line bg-surface-2 px-4 outline-none focus:border-brand" placeholder={t.name} value={name} onChange={e => setName(e.target.value)} maxLength={60} autoComplete="given-name" />
             <input className="h-12 w-full rounded-2xl border border-line bg-surface-2 px-4 outline-none focus:border-brand" placeholder={t.phone} value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" dir="ltr" />
+            <div>
+              <p className="mb-2 text-sm font-semibold">{t.occasion}</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(t.occasions).map(([id, l]) => (
+                  <button key={id} onClick={() => setOccasion(occasion === id ? '' : id)}
+                    className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${occasion === id ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
             <textarea className="h-20 w-full resize-none rounded-2xl border border-line bg-surface-2 px-4 py-3 outline-none focus:border-brand" placeholder={t.note} value={msg} onChange={e => setMsg(e.target.value)} maxLength={300} />
           </div>
         )}
+        {!!depositParty && !!depositCents && <p className="rounded-2xl bg-brand/10 px-4 py-3 text-sm">{t.depositRule(formatMoney(depositCents, 'MAD', lang as 'fr'), depositParty)}</p>}
         {note && <p className="text-xs text-muted">{note}</p>}
       </div>
     </Sheet>
@@ -223,6 +247,8 @@ export function ReservationSheet({ token, lang, onClose }: { token: string; lang
           <p className="text-muted">{st.name} · {t.people(st.party_size)}</p>
           {st.restaurant.note && <p className="mt-2 text-xs text-muted">{st.restaurant.note}</p>}
         </div>
+        {st.deposit_state === 'due' && open && <p className="rounded-2xl bg-brand/10 px-4 py-3 text-sm">{t.depositDue(formatMoney(Number(st.deposit_cents ?? 0), 'MAD', lang as 'fr'))}</p>}
+        {st.deposit_state === 'paid' && <p className="rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{t.depositPaid}</p>}
         {wait && open && <p className="text-xs text-muted">{t.keep}</p>}
         {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
         <div className="flex flex-col gap-2">

@@ -2578,4 +2578,11 @@ export const EN: Record<string, string> = {
   "Préférences": "Preferences",
   "Séparées par des virgules. Ex. : VIP, Habitué, Végétarien": "Separated by commas. E.g. VIP, Regular, Vegetarian",
   "Étiquettes": "Tags",
+  "Acompte": "Deposit",
+  "Acompte pour garantir la table": "Deposit to secure the table",
+  "Comment payer l’acompte (envoyé au client)": "How to pay the deposit (sent to the guest)",
+  "Contre les tables réservées où personne ne vient. L’acompte se déduit de l’addition le soir même ; en cas d’absence, vous pouvez le conserver.": "Against booked tables where nobody comes. The deposit is deducted from the bill on the evening; if the guests do not come, you can keep it.",
+  "Par personne (MAD)": "Per guest (MAD)",
+  "Virement : RIB 000 000 000, ou sur place": "Transfer: RIB 000 000 000, or on site",
+  "À partir de (personnes)": "From (guests)",
 };

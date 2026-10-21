@@ -545,6 +545,7 @@ export default function App() {
       )}
       {sheet === 'book' && booking && menu && (
         <BookingSheet slug={slug} lang={lang} tz={menu.restaurant.timezone} maxParty={booking.max_party} daysAhead={booking.days_ahead} note={booking.note}
+          depositParty={booking.deposit_party} depositCents={booking.deposit_cents}
           onClose={() => setSheet(null)} onBooked={tok => { setSheet(null); setResa(tok); }} />
       )}
       {sheet === 'wait' && <WaitlistSheet slug={slug} lang={lang} onClose={() => setSheet(null)} onJoined={tok => { setSheet(null); setResa(tok); }} />}

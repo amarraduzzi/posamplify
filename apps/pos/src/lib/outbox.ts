@@ -21,11 +21,15 @@ import { t } from './i18n';
 export interface PayLine {
   method: string; amount_cents: number; tip_cents: number;
   tpe?: { status: 'approved' | 'manual'; ref?: string; last4?: string; brand?: string; terminal?: string };
+  /** method 'deposit': the booking whose deposit pays this part */
+  reservation_id?: string;
 }
 export interface NewOrder {
   id: string; restaurant_id: string; client_id: string; source: string; order_type: string;
   table_id: string | null; staff_id: string | null; customer_name: string | null; customer_phone: string | null;
   delivery_address: string | null; external_ref: string | null; created_at: string; local_ref: string;
+  /** a note for the kitchen from the start (the occasion of the booking) */
+  note?: string | null;
 }
 export interface NewLine {
   id: string; restaurant_id: string; order_id: string; menu_item_id: string | null; variant_id: string | null;
@@ -105,7 +109,7 @@ export function project(snapshot: Order[], queue: Queued[]): Order[] {
         // a done create missing from a fresh snapshot means the order was closed or merged elsewhere
         if (q.state === 'done') break;
         const o: Order = {
-          ...op.order, business_date: '', ticket_number: 0, status: 'new', note: null,
+          ...op.order, business_date: '', ticket_number: 0, status: 'new', note: op.order.note ?? null,
           subtotal_cents: 0, discount_cents: 0, total_cents: 0, closed_at: null, order_lines: [],
           source: op.order.source as Order['source'], order_type: op.order.order_type as Order['order_type'],
         };

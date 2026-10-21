@@ -14,7 +14,7 @@ import type { Category, DraftLine, FloorPlan, FiscalDoc, Item, Line, Order, PosS
 
 export type OrderTarget =
   /** guest: the booking seated at this table, so the new bill is theirs (name, phone) */
-  | { kind: 'table'; tableId: string; guest?: { name: string; phone: string | null } }
+  | { kind: 'table'; tableId: string; guest?: { name: string; phone: string | null; occasion?: string | null } }
   | { kind: 'order'; orderId: string }
   | { kind: 'new'; orderType: 'takeaway' | 'delivery'; source: 'pos' | 'phone' | 'glovo' };
 
@@ -370,7 +370,7 @@ function usePosState() {
 
   /** Saves draft lines (creating the order if needed) and sends them to the kitchen. Works offline. */
   const commitDraft = useCallback(async (target: { order: Order | null; tableId: string | null; orderType: string; source: string;
-    customer?: { name?: string; phone?: string; address?: string; ref?: string } }, draft: DraftLine[], opts: { send: boolean }) => {
+    customer?: { name?: string; phone?: string; address?: string; ref?: string }; note?: string | null }, draft: DraftLine[], opts: { send: boolean }) => {
     if (!restaurant) throw new Error('no restaurant');
     const ops: Op[] = [];
     let orderId = target.order?.id;
@@ -381,7 +381,7 @@ function usePosState() {
         table_id: target.tableId, staff_id: staff?.id ?? null,
         customer_name: target.customer?.name || null, customer_phone: target.customer?.phone || null,
         delivery_address: target.customer?.address || null, external_ref: target.customer?.ref || null,
-        created_at: now(), local_ref: nextLocalRef(restaurant.id),
+        created_at: now(), local_ref: nextLocalRef(restaurant.id), ...(target.note ? { note: target.note } : {}),
       } });
     }
     // courses: the lowest course not sent yet goes now, later courses wait for "Envoyer la suite"

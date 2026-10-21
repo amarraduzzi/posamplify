@@ -53,15 +53,16 @@ export const issueVoucher = (orderId: string, actionId: string) =>
   call<VoucherResult>('issue_guest_voucher', { p_order_id: orderId, p_action_id: actionId });
 
 // ---- reservations and waitlist
-export interface BookingInfo { enabled: boolean; waitlist: boolean; max_party: number; days_ahead: number; note: string | null; name: string; timezone: string }
+export interface BookingInfo { enabled: boolean; waitlist: boolean; max_party: number; days_ahead: number; note: string | null; name: string; timezone: string; deposit_party?: number | null; deposit_cents?: number | null }
 export interface ReservationStatus {
   kind: 'booking' | 'waitlist'; status: 'requested' | 'confirmed' | 'called' | 'seated' | 'cancelled' | 'no_show';
   starts_at: string | null; party_size: number; name: string; created_at: string; called_at: string | null; quoted_min: number | null; ahead: number | null;
+  occasion?: string | null; deposit_cents?: number | null; deposit_state?: 'due' | 'paid' | 'used' | 'refunded' | 'kept' | null;
   restaurant: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; note: string | null };
 }
 export const getBookingInfo = (slug: string) => call<BookingInfo | null>('get_booking_info', { p_slug: slug });
 export const bookingSlots = (slug: string, date: string, party: number) => call<string[]>('booking_slots', { p_slug: slug, p_date: date, p_party: party });
-export const bookTable = (slug: string, b: { client_id: string; starts_at: string; party_size: number; name: string; phone: string; note?: string }) =>
+export const bookTable = (slug: string, b: { client_id: string; starts_at: string; party_size: number; name: string; phone: string; note?: string; occasion?: string }) =>
   call<{ token: string; status: string; starts_at: string }>('book_table', { p_slug: slug, p_booking: b });
 export const joinWaitlist = (slug: string, e: { client_id: string; party_size: number; name: string; phone: string }) =>
   call<{ token: string }>('waitlist_join', { p_slug: slug, p_entry: e });

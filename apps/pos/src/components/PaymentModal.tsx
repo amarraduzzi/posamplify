@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { show } from '../lib/display';
-import { Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText, NotebookPen, UserRound, XCircle, RotateCcw, Keyboard } from 'lucide-react';
+import { ShieldCheck, Banknote, CreditCard, Split, Landmark, CheckCircle2, Printer, FileText, NotebookPen, UserRound, XCircle, RotateCcw, Keyboard } from 'lucide-react';
 import { usePos, type PayResult } from '../store';
 import * as db from '../lib/data';
 import { mad, toCents } from '../lib/format';
@@ -24,7 +24,22 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   const snap = useRef<Order | undefined>(live);
   if (live) snap.current = live;
   const order = snap.current;
-  const total = Number(order?.total_cents ?? 0);
+  const billTotal = Number(order?.total_cents ?? 0);
+  // the deposit (acompte) of the booking pays its part first: what is left is paid as usual
+  const [deps, setDeps] = useState<{ reservation_id: string; name: string; left_cents: number | string }[]>([]);
+  const [depOn, setDepOn] = useState<string | null>(null);
+  useEffect(() => {
+    if (!order || !pos.online || billTotal <= 0) return;
+    let gone = false;
+    db.rpc<typeof deps>('pos_order_deposits', { p_order_id: order.id }).then(x => {
+      if (gone) return;
+      setDeps(x); if (x.length) setDepOn(x[0].reservation_id);
+    }).catch(() => { /* no deposit shown: paid as usual */ });
+    return () => { gone = true; };
+  }, [order?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dep = deps.find(x => x.reservation_id === depOn) ?? null;
+  const depC = dep ? Math.min(Number(dep.left_cents), billTotal) : 0;
+  const total = billTotal - depC;
   const [mode, setMode] = useState<Mode>('cash');
   const [received, setReceived] = useState('');
   const [cashPart, setCashPart] = useState('');
@@ -69,9 +84,13 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
 
-  const lines = (card?: PayLine['tpe']): PayLine[] => total === 0 ? [] : mode === 'mixed'
+  const rest = (card?: PayLine['tpe']): PayLine[] => total === 0 ? [] : mode === 'mixed'
     ? [{ method: 'cash', amount_cents: cashC, tip_cents: 0 }, { method: 'card', amount_cents: cardC, tip_cents: tipC, ...(card ? { tpe: card } : {}) }]
     : [{ method: mode, amount_cents: total, tip_cents: tipC, ...(card && mode === 'card' ? { tpe: card } : {}) }];
+  const lines = (card?: PayLine['tpe']): PayLine[] => [
+    ...(dep && depC > 0 ? [{ method: 'deposit', amount_cents: depC, tip_cents: 0, reservation_id: dep.reservation_id }] : []),
+    ...rest(card),
+  ];
   const finish = async (card?: PayLine['tpe']) => {
     if (!order) return;
     setBusy(true); setError(null);
@@ -102,7 +121,7 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
   };
   const confirm = async () => {
     if (!order) return;
-    if (mode === 'account' && !pos.requireOnline()) return;
+    if ((mode === 'account' || depC > 0) && !pos.requireOnline()) return;
     if (viaTpe) { void runTpe(); return; }
     await finish();
   };
@@ -160,15 +179,27 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
 
   if (!order) return <Modal title={t('Encaisser')} onClose={onClose}><p className="text-muted">{t('Chargement…')}</p></Modal>;
 
+  const depBar = deps.length > 0 && (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-ok/30 bg-ok/10 px-4 py-3">
+      <ShieldCheck className="h-5 w-5 text-ok" />
+      <div className="me-auto">
+        {deps.map(x => <p key={x.reservation_id} className="text-sm font-semibold">{t('Acompte de {n} : {m} disponible', { n: x.name, m: mad(Number(x.left_cents)) })}</p>)}
+        {depC > 0 && <p className="text-xs text-muted">{t('{m} payés par l’acompte, le reste comme d’habitude.', { m: mad(depC) })}</p>}
+      </div>
+      <Btn className="px-3 py-1.5 text-sm" onClick={() => setDepOn(depOn ? null : deps[0].reservation_id)}>{depOn ? t('Ne pas déduire') : t('Déduire l’acompte')}</Btn>
+    </div>
+  );
+
   if (total === 0) return (
     <Modal title={`${t('Encaisser')} · ${label}`} onClose={onClose}
       footer={<div className="flex items-center justify-between gap-3">
         {error ? <p className="text-sm font-semibold text-danger">{error}</p> : <span className="text-sm text-muted">{t('Ticket fiscal émis à la validation.')}</span>}
-        <Btn tone="ok" className="px-8 py-3.5 text-lg" disabled={busy} onClick={confirm}>{busy ? t('Encaissement…') : t('Clôturer à 0 DH')}</Btn>
+        <Btn tone="ok" className="px-8 py-3.5 text-lg" disabled={busy} onClick={confirm}>{busy ? t('Encaissement…') : depC > 0 ? t('Valider avec l’acompte') : t('Clôturer à 0 DH')}</Btn>
       </div>}>
+      {depBar}
       <div className="py-6 text-center">
         <p className="font-display text-5xl font-semibold text-brand tabular">{mad(0)}</p>
-        <p className="mx-auto mt-3 max-w-sm text-muted">{t('Rien à payer : la récompense ou la remise couvre toute l’addition.')}</p>
+        <p className="mx-auto mt-3 max-w-sm text-muted">{depC > 0 ? t('L’acompte couvre toute l’addition ({m}).', { m: mad(depC) }) : t('Rien à payer : la récompense ou la remise couvre toute l’addition.')}</p>
       </div>
     </Modal>
   );
@@ -187,12 +218,14 @@ export function PaymentModal({ orderId, label, onClose, onPaid }: { orderId: str
           {busy ? t('Encaissement…') : viaTpe ? t('Envoyer {m} au terminal', { m: mad((mode === 'mixed' ? cardC : total) + tipC) }) : t('Valider {m}', { m: mad(total + tipC) })}
         </Btn>
       </div>}>
+      {depBar}
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-4">
           <div className="relative overflow-hidden rounded-3xl border border-brand/25 bg-bg p-5 text-center">
             <div className="zellige absolute inset-0 opacity-[0.06]" aria-hidden />
             <p className="relative text-xs font-bold uppercase tracking-[0.25em] text-muted">{t('Total à payer')}</p>
             <p className="relative mt-1 font-display text-5xl font-semibold text-brand tabular">{mad(total)}</p>
+            {depC > 0 && <p className="relative text-sm text-muted">{t('Addition {a} − acompte {d}', { a: mad(billTotal), d: mad(depC) })}</p>}
           </div>
           <div className="grid grid-cols-2 gap-2">
             {modes.map(m => (

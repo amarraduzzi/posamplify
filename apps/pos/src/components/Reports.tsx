@@ -67,6 +67,9 @@ export function ReportsView() {
         <K label={t('Avoirs ({n})', { n: rep.credit_notes })} value={mad(rep.credit_notes_cents)} />
         <K label={t('TVA collectée')} value={mad(rep.vat_cents)} />
         {creditOn && <K label={t('Ardoises réglées')} value={mad(rep.account_received_cents ?? 0)} />}
+        {!!rep.advances_received_cents && <K label={t('Acomptes reçus')} value={mad(rep.advances_received_cents)} />}
+        {!!rep.advances_refunded_cents && <K label={t('Acomptes rendus')} value={mad(rep.advances_refunded_cents)} />}
+        {!!rep.advances_kept_cents && <K label={t('Acomptes conservés (pas venus)')} value={mad(rep.advances_kept_cents)} />}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <section className="panel rounded-3xl p-5">
@@ -125,7 +128,7 @@ function zWhatsApp(r: { name: string; owner_whatsapp?: string | null } | null, z
   let n = (r?.owner_whatsapp ?? '').replace(/\D/g, '');
   if (!n) return null;
   if (n.length === 10 && n.startsWith('0')) n = '212' + n.slice(1);
-  const M: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', account: 'Ardoise' };
+  const M: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', account: 'Ardoise', deposit: 'Acompte' };
   const diff = Number(z.cash_diff_cents ?? 0);
   const lines = [
     `*${r!.name} · Rapport Z ${z.business_date}*`,
@@ -136,6 +139,8 @@ function zWhatsApp(r: { name: string; owner_whatsapp?: string | null } | null, z
     z.cancelled_orders ? `Commandes annulées : ${z.cancelled_orders}` : '',
     z.tips_cents ? `Pourboires : ${mad(z.tips_cents)}` : '',
     z.cash_payouts_cents ? `Sorties de caisse : ${mad(z.cash_payouts_cents)}` : '',
+    z.advances_received_cents ? `Acomptes reçus : ${mad(z.advances_received_cents)}` : '',
+    z.advances_kept_cents ? `Acomptes conservés (pas venus) : ${mad(z.advances_kept_cents)}` : '',
     `Espèces attendues : ${mad(z.expected_cash_cents)} · comptées : ${mad(z.counted_cash_cents ?? 0)}`,
     `Écart de caisse : ${diff > 0 ? '+' : ''}${mad(diff)}${Math.abs(diff) > 1000 ? ' ⚠️' : ' ✅'}`,
   ].filter(Boolean);

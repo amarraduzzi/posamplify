@@ -406,6 +406,12 @@ export function reportTicket(r: Restaurant, rep: DayReport, title: string): Tick
     add('Ardoises reglees', amount(rep.account_received_cents));
     for (const [m, c] of Object.entries(rep.account_received ?? {})) add(`  ${METHOD[m] ?? m}`, amount(c));
   }
+  if (rep.advances_received_cents) {
+    add('Acomptes recus', amount(rep.advances_received_cents));
+    for (const [m, c] of Object.entries(rep.advances_received ?? {})) add(`  ${METHOD[m] ?? m}`, amount(c));
+  }
+  if (rep.advances_refunded_cents) add('Acomptes rendus', amount(rep.advances_refunded_cents));
+  if (rep.advances_kept_cents) add('Acomptes conserves (no-show)', amount(rep.advances_kept_cents));
   out.push(rule());
   add('Fond de caisse', amount(rep.cash_float_cents));
   add('Sorties de caisse', amount(rep.cash_payouts_cents));

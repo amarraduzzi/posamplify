@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Cake, Crown, Heart, Printer, UserX, Users, X, Sparkles, Armchair } from 'lucide-react';
+import { PartyPopper, ShieldCheck, AlertTriangle, Cake, Crown, Heart, Printer, UserX, Users, X, Sparkles, Armchair } from 'lucide-react';
 import { usePos } from '../store';
 import * as db from '../lib/data';
 import * as P from '../lib/print';
 import { t } from '../lib/i18n';
 import { Btn } from './ui';
 import { isVip, type Guest } from './Guest';
+import { DepositChip } from './Deposit';
+import { occasionOf } from '../lib/occasion';
+import { mad } from '../lib/format';
 
 // Le Briefing: before service, the maître d' tells the team who is coming tonight. One screen
 // (and one printed sheet): the covers per half hour, the allergies, the VIPs, the birthdays,
@@ -16,6 +19,7 @@ interface BBooking {
   id: string; starts_at: string; status: 'requested' | 'confirmed' | 'seated'; source: string;
   party_size: number; name: string; phone: string | null; note: string | null; table: string | null;
   guest: Guest | null; no_shows: number; birthday_in: number | null;
+  occasion?: string | null; deposit_cents?: number | string | null; deposit_state?: string | null; deposit_left?: number | string;
 }
 interface Brief { day: string; files: boolean; bookings: BBooking[] }
 
@@ -59,6 +63,8 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
       regulars: list.filter(x => (x.guest?.visits ?? 0) >= REGULAR && !isVip(x.guest)),
       firsts: list.filter(x => b?.files && (!x.guest || x.guest.visits === 0)),
       toConfirm: list.filter(x => x.status === 'requested'),
+      occasions: list.filter(x => occasionOf(x.occasion)),
+      depositsDue: list.filter(x => x.deposit_state === 'due'),
     };
   }, [b, tz]);
 
@@ -84,6 +90,8 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
     block('!! ALLERGIES', v.allergies, x => x.guest!.allergies!);
     block('VIP', v.vip, x => x.guest?.note ?? '');
     block('ANNIVERSAIRES', v.birthdays, x => bday(x.birthday_in!));
+    block('OCCASIONS', v.occasions, x => occasionOf(x.occasion)!.kitchen ?? ascii(occasionOf(x.occasion)!.label()));
+    block('ACOMPTE A RECEVOIR', v.depositsDue, x => `${Number(x.deposit_cents ?? 0) / 100} DH`);
     block('DEJA PAS VENUS', v.risk, x => `${x.no_shows} fois`);
     block('HABITUES', v.regulars, x => [`${x.guest!.visits} visites`, x.guest?.note].filter(Boolean).join(', '));
     rule(); line('TOUTES LES RESERVATIONS', true);
@@ -150,9 +158,11 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
                 <Know tone="danger" icon={<AlertTriangle className="h-4 w-4" />} title={t('Allergies')} xs={v.allergies} when={when} detail={x => x.guest!.allergies!} />
                 <Know tone="gold" icon={<Crown className="h-4 w-4" />} title="VIP" xs={v.vip} when={when} detail={x => x.guest?.note ?? ''} />
                 <Know tone="pink" icon={<Cake className="h-4 w-4" />} title={t('Anniversaires')} xs={v.birthdays} when={when} detail={x => t('Anniversaire {d}', { d: bday(x.birthday_in!) })} />
+                <Know tone="pink" icon={<PartyPopper className="h-4 w-4" />} title={t('Occasions')} xs={v.occasions} when={when} detail={x => occasionOf(x.occasion)!.label()} />
+                <Know tone="warn" icon={<ShieldCheck className="h-4 w-4" />} title={t('Acompte à recevoir')} xs={v.depositsDue} when={when} detail={x => mad(Number(x.deposit_cents ?? 0))} />
                 <Know tone="warn" icon={<UserX className="h-4 w-4" />} title={t('Déjà pas venus')} xs={v.risk} when={when} detail={x => t('{n} fois pas venu', { n: x.no_shows })} />
                 <Know tone="plain" icon={<Heart className="h-4 w-4" />} title={t('Habitués')} xs={v.regulars} when={when} detail={x => [t('{n} visites', { n: x.guest!.visits }), x.guest?.note].filter(Boolean).join(' · ')} />
-                {b.files && !v.allergies.length && !v.vip.length && !v.birthdays.length && !v.risk.length && !v.regulars.length && (
+                {b.files && !v.allergies.length && !v.vip.length && !v.birthdays.length && !v.risk.length && !v.regulars.length && !v.occasions.length && !v.depositsDue.length && (
                   <p className="rounded-2xl bg-surface-2 p-4 text-sm text-muted">{t('Rien de particulier ce soir.')}</p>
                 )}
               </section>
@@ -178,6 +188,8 @@ export function BriefingView({ onClose }: { onClose: () => void }) {
                       {isVip(x.guest) && <Chip cls="bg-[#f5c542] text-[#3a2a00]"><Crown className="h-3 w-3" />VIP</Chip>}
                       {x.birthday_in != null && <Chip cls="bg-pink-500/20 text-pink-400"><Cake className="h-3 w-3" />{t('Anniversaire {d}', { d: bday(x.birthday_in) })}</Chip>}
                       {x.no_shows > 0 && <Chip cls="bg-warn/15 text-warn"><UserX className="h-3 w-3" />{x.no_shows}</Chip>}
+                      {occasionOf(x.occasion) && <Chip cls="bg-pink-500/20 text-pink-400"><PartyPopper className="h-3 w-3" />{occasionOf(x.occasion)!.label()}</Chip>}
+                      {x.deposit_state && <DepositChip x={{ deposit_cents: x.deposit_cents ?? null, deposit_state: x.deposit_state as 'due' }} />}
                       {b.files && (x.guest?.visits ? <Chip cls="bg-surface-2 text-muted">{t('{n} visites', { n: x.guest.visits })}</Chip> : <Chip cls="bg-qr/15 text-qr">{t('Première visite')}</Chip>)}
                     </span>
                   </li>

@@ -26,6 +26,9 @@ export function BookingPage({ r }: { r: Restaurant }) {
   const [f, setF] = useState({
     enabled: !!b.enabled, waitlist: !!b.waitlist, auto: b.auto_confirm ?? !hasPos, capacity: String(b.capacity ?? 40), duration: String(b.duration_min ?? 90),
     slot: String(b.slot_minutes ?? 30), lead: String(b.lead_minutes ?? 60), days: String(b.days_ahead ?? 30), max: String(b.max_party ?? 8), note: b.note ?? '',
+    // the deposit (acompte): from N guests, X DH per guest; how to pay it (RIB, on site)
+    dep: Number(b.deposit_party ?? 0) > 0 && Number(b.deposit_cents ?? 0) > 0, depParty: String(b.deposit_party || 6),
+    depAmount: b.deposit_cents ? String(Number(b.deposit_cents) / 100) : '100', depNote: b.deposit_note ?? '',
   });
   const [busy, setBusy] = useState(false);
   const [qrs, setQrs] = useState<{ book: string; wait: string }>({ book: '', wait: '' });
@@ -41,7 +44,9 @@ export function BookingPage({ r }: { r: Restaurant }) {
     const n = (v: string, d: number) => Math.round(Number(v) || d);
     try {
       const booking = { enabled: f.enabled, waitlist: f.waitlist, auto_confirm: f.auto, capacity: n(f.capacity, 40), duration_min: n(f.duration, 90),
-        slot_minutes: n(f.slot, 30), lead_minutes: n(f.lead, 60), days_ahead: n(f.days, 30), max_party: n(f.max, 8), note: f.note.trim() || null };
+        slot_minutes: n(f.slot, 30), lead_minutes: n(f.lead, 60), days_ahead: n(f.days, 30), max_party: n(f.max, 8), note: f.note.trim() || null,
+        ...(f.dep ? { deposit_party: Math.max(1, n(f.depParty, 6)), deposit_cents: Math.max(100, Math.round((Number(f.depAmount.replace(',', '.')) || 0) * 100)) } : {}),
+        deposit_note: f.depNote.trim() || null };
       check(await supabase.from('restaurants').update({ booking, ...(hoursHere ? { opening_hours: cleanHours(hours, useHours) } : {}) }).eq('id', r.id).select('id'));
       a.toast(t('Enregistré')); await a.reload();
     } catch (e) { a.fail(e); }
@@ -96,6 +101,15 @@ export function BookingPage({ r }: { r: Restaurant }) {
             <Field label={t('Groupe max. en ligne')}><input className={inputCls} inputMode="numeric" value={f.max} onChange={e => setF({ ...f, max: e.target.value.replace(/\D/g, '') })} /></Field>
           </div>
           <Field label={t('Message aux clients')}><input className={inputCls} maxLength={200} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Table gardée 15 minutes. Pour plus de 8 personnes, appelez-nous.')} /></Field>
+          <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+            <Toggle checked={f.dep} onChange={v => setF({ ...f, dep: v })} label={t('Acompte pour garantir la table')} />
+            <p className="text-sm text-muted">{t('Contre les tables réservées où personne ne vient. L’acompte se déduit de l’addition le soir même ; en cas d’absence, vous pouvez le conserver.')}</p>
+            {f.dep && <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t('À partir de (personnes)')}><input className={inputCls} inputMode="numeric" value={f.depParty} onChange={e => setF({ ...f, depParty: e.target.value.replace(/\D/g, '') })} /></Field>
+              <Field label={t('Par personne (MAD)')}><input className={inputCls} inputMode="decimal" value={f.depAmount} onChange={e => setF({ ...f, depAmount: e.target.value })} /></Field>
+            </div>}
+            <Field label={t('Comment payer l’acompte (envoyé au client)')}><input className={inputCls} maxLength={200} value={f.depNote} onChange={e => setF({ ...f, depNote: e.target.value })} placeholder={t('Virement : RIB 000 000 000, ou sur place')} /></Field>
+          </div>
           {hoursHere
             ? <>
                 <HoursEditor hours={hours} setHours={setHours} useHours={useHours} setUseHours={setUseHours} />

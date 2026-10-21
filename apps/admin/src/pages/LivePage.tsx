@@ -15,7 +15,7 @@ interface Live {
   on_duty: { name: string; since: string }[]; payments: Record<string, number>; last_sales: { at: string; total: number; staff: string | null }[]; alerts: Alert[];
 }
 // i18n:values
-const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', account: 'Ardoise' };
+const METHOD: Record<string, string> = { cash: 'Espèces', card: 'Carte', transfer: 'Virement', account: 'Ardoise', deposit: 'Acompte' };
 // i18n:end
 const ICON = { discount: Percent, cancel: Ban, removed: Trash2, payout: Banknote, cash_gap: AlertTriangle, stock: Boxes, paused: PauseCircle };
 

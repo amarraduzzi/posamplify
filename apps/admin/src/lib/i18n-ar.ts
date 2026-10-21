@@ -2581,4 +2581,11 @@ export const AR: Record<string, string> = {
   "Préférences": "التفضيلات",
   "Séparées par des virgules. Ex. : VIP, Habitué, Végétarien": "مفصولة بفواصل. مثال: VIP، زبون دائم، نباتي",
   "Étiquettes": "الوسوم",
+  "Acompte": "العربون",
+  "Acompte pour garantir la table": "عربون لضمان الطاولة",
+  "Comment payer l’acompte (envoyé au client)": "طريقة دفع العربون (تُرسل للزبون)",
+  "Contre les tables réservées où personne ne vient. L’acompte se déduit de l’addition le soir même ; en cas d’absence, vous pouvez le conserver.": "ضد الطاولات المحجوزة التي لا يأتي أصحابها. يُخصم العربون من الفاتورة في نفس المساء؛ وفي حالة الغياب يمكنكم الاحتفاظ به.",
+  "Par personne (MAD)": "لكل شخص (درهم)",
+  "Virement : RIB 000 000 000, ou sur place": "تحويل: RIB 000 000 000، أو في المطعم",
+  "À partir de (personnes)": "ابتداء من (أشخاص)",
 };
