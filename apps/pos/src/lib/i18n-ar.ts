@@ -1045,4 +1045,5 @@ export const AR: Record<string, string> = {
   "Lien de paiement": "رابط الخلاص",
   "Virement, CashPlus, lien : {m}": "تحويل، كاش بلوس، رابط: {m}",
   "Votre avis en 10 secondes :": "رأيك ف10 ثواني:",
+  "Aucune cabine ou équipement libre à cette heure.": "ما كاين حتى كابين ولا جهاز خاوي فهاد الساعة.",
 };

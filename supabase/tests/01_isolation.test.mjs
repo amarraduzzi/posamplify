@@ -54,6 +54,7 @@ before(async () => {
   const [bap] = await sql(`insert into public.agenda_appointments (restaurant_id, starts_at, duration_min, name) values ($1, now() + interval '2 days', 30, 'B2') returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_deposits (restaurant_id, appointment_id, amount_cents, due_at) values ($1, $2, 1000, now() + interval '1 day')`, [w.B.r.id, bap.id]);
   await sql(`insert into public.agenda_feedback (restaurant_id, sale_id, rating) values ($1, $2, 5)`, [w.B.r.id, bs.id]);
+  await sql(`insert into public.agenda_resources (restaurant_id, name) values ($1, 'B')`, [w.B.r.id]);
   const [bp] = await sql(`insert into public.agenda_products (restaurant_id, name, kind, price_cents) values ($1, 'B', 'retail', 100) returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_stock_moves (restaurant_id, product_id, kind, qty) values ($1, $2, 'start', 1)`, [w.B.r.id, bp.id]);
   await sql(`insert into public.agenda_stock_counts (restaurant_id) values ($1)`, [w.B.r.id]);

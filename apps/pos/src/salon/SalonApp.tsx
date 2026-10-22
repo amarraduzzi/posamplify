@@ -407,7 +407,7 @@ function NewAppointment({ services, team, onClose, onSaved }: { services: Svc[];
       pos.toast(t('Rendez-vous enregistré'), 'ok'); onSaved();
     } catch (e) {
       const m = String((e as Error).message);
-      const w = m.includes('cannot_do') ? t('Cette personne ne fait pas cette prestation.') : m.includes('overlap') ? t('Ce créneau chevauche un autre rendez-vous ou un congé.') : m.includes('outside_hours') ? t('En dehors des horaires de cette personne.') : null;
+      const w = m.includes('no_resource') ? t('Aucune cabine ou équipement libre à cette heure.') : m.includes('cannot_do') ? t('Cette personne ne fait pas cette prestation.') : m.includes('overlap') ? t('Ce créneau chevauche un autre rendez-vous ou un congé.') : m.includes('outside_hours') ? t('En dehors des horaires de cette personne.') : null;
       if (w && !force) setWarn(w); else pos.fail(e);
     }
     setBusy(false);

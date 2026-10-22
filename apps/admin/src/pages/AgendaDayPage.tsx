@@ -19,8 +19,9 @@ interface Person { id: string; name: string; agenda_color: string | null; agenda
 interface Appt {
   id: string; staff_id: string | null; service_id: string | null; status: string; source: string; starts_at: string; duration_min: number; buffer_min: number;
   name: string; phone: string | null; note: string | null; service_name: Record<string, string>; price_cents: number; price_from: boolean;
-  any_staff: boolean; client_confirmed_at: string | null; reminded_at: string | null; lang?: string | null;
+  any_staff: boolean; client_confirmed_at: string | null; reminded_at: string | null; lang?: string | null; resource_id?: string | null;
 }
+export interface Resource { id: string; name: string; kind: 'cabin' | 'room' | 'equipment'; capacity: number; active: boolean; sort_order: number }
 interface Off { id: string; staff_id: string | null; starts_at: string; ends_at: string; reason: string | null }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -44,8 +45,8 @@ const localMin = (iso: string, tz: string) => { const d = new Date(iso); return 
 const addDays = (day: string, n: number) => new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10) + n)).toISOString().slice(0, 10);
 const weekdayKey = (day: string) => DAYS[(new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7];
 /** the warnings of agenda_save: the salon may still confirm */
-const warnOf = (m: string) => (m.includes('cannot_do') ? 'cannot_do' : m.includes('overlap') ? 'overlap' : m.includes('outside_hours') ? 'outside_hours' : null);
-const warnText = (w: string) => (w === 'cannot_do' ? t('Cette personne ne fait pas cette prestation.') : w === 'overlap' ? t('Ce créneau chevauche un autre rendez-vous ou un congé.') : t('En dehors des horaires de cette personne.'));
+const warnOf = (m: string) => (m.includes('no_resource') ? 'no_resource' : m.includes('cannot_do') ? 'cannot_do' : m.includes('overlap') ? 'overlap' : m.includes('outside_hours') ? 'outside_hours' : null);
+const warnText = (w: string) => (w === 'no_resource' ? t('Aucune cabine ou équipement libre à cette heure.') : w === 'cannot_do' ? t('Cette personne ne fait pas cette prestation.') : w === 'overlap' ? t('Ce créneau chevauche un autre rendez-vous ou un congé.') : t('En dehors des horaires de cette personne.'));
 const STATUS: Record<string, { label: () => string; cls: string }> = {
   requested: { label: () => t('À confirmer'), cls: 'bg-amber-500/20 text-amber-700' },
   confirmed: { label: () => t('Confirmé'), cls: '' },
@@ -68,7 +69,8 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
   const [pay, setPay] = useState<CheckoutFrom | null>(null);
   const [draft, setDraft] = useState<{ staff: string; min: number; appt?: Appt } | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [view, setView] = useState<'day' | 'week'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'cabins'>('day');
+  const [resources, setResources] = useState<Resource[]>([]);
   const [only, setOnly] = useState<string | null>(null);
   const [weekKey, setWeekKey] = useState(0);
   // on a phone: one person at a time
@@ -85,6 +87,7 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
     supabase.from('staff').select('id, name, agenda_color, agenda_hours, agenda_services, agenda_sort').eq('restaurant_id', r.id).eq('active', true).eq('agenda', true)
       .order('agenda_sort').order('name').then(x => setPeople((x.data ?? []) as Person[]));
     supabase.from('agenda_services').select('*').eq('restaurant_id', r.id).eq('active', true).order('sort_order').then(x => setServices((x.data ?? []) as AgService[]));
+    supabase.from('agenda_resources').select('*').eq('restaurant_id', r.id).eq('active', true).order('sort_order').order('name').then(x => setResources((x.data ?? []) as Resource[]));
   }, [r.id]);
   const load = useCallback(async () => {
     const from = instant(day, 0, tz).toISOString(), to = instant(addDays(day, 1), 0, tz).toISOString();
@@ -178,9 +181,9 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
           <CalendarDays className="h-4 w-4 text-brand" /><span className="first-letter:uppercase">{label}</span>
           <input type="date" value={day} onChange={e => e.target.value && setDay(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
         </label>
-        {view === 'day' && <span className="text-sm text-muted">{t('{n} rendez-vous', { n: count })}</span>}
+        {view !== 'week' && <span className="text-sm text-muted">{t('{n} rendez-vous', { n: count })}</span>}
         <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1">
-          {(['day', 'week'] as const).map(v => <button key={v} onClick={() => setView(v)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${view === v ? 'bg-surface shadow-sm' : 'text-muted'}`}>{v === 'day' ? t('Jour') : t('Semaine')}</button>)}
+          {(resources.length ? ['day', 'cabins', 'week'] as const : ['day', 'week'] as const).map(v => <button key={v} onClick={() => setView(v)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${view === v ? 'bg-surface shadow-sm' : 'text-muted'}`}>{v === 'day' ? t('Jour') : v === 'cabins' ? t('Cabines') : t('Semaine')}</button>)}
         </div>
         <Btn tone="brand" className="ms-auto" disabled={!people.length} onClick={() => setDraft({ staff: people[0]?.id ?? '', min: Math.max(start, nowMin != null ? Math.ceil(nowMin / 15) * 15 : 10 * 60) })}>
           <Plus className="h-4 w-4" /> {t('Nouveau rendez-vous')}</Btn>
@@ -196,6 +199,7 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
           })}
         </div>
       )}
+      {view === 'cabins' && <CabinView r={r} resources={resources} services={services} appts={appts ?? []} people={people} start={start} end={end} hours={hours} nowMin={nowMin} onOpen={setOpen} />}
       {view === 'week' && people.length > 0 && <WeekView r={r} day={day} people={people} only={only} reload={weekKey} onDay={d => { setDay(d); setView('day'); }} onOpen={setOpen} />}
       {view === 'day' && (!people.length ? <p className="card rounded-3xl p-8 text-center text-muted">{t('Personne ne prend de rendez-vous. Activez-le dans « Équipe et horaires ».')}</p> : (
         <div className="card overflow-x-auto rounded-3xl">
@@ -251,7 +255,7 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
                               </p>
                               {x.duration_min >= 45 ? <>
                                 <p className="truncate font-semibold">{x.name}</p>
-                                <p className="truncate text-muted">{svcName({ name: x.service_name })}</p>
+                                <p className="truncate text-muted">{svcName({ name: x.service_name })}{x.resource_id ? ` · ${resources.find(y => y.id === x.resource_id)?.name ?? ''}` : ''}</p>
                               </> : <p className="truncate"><b>{x.name}</b> <span className="text-muted">· {svcName({ name: x.service_name })}</span></p>}
                               </>}
                             </div>
@@ -282,13 +286,13 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
         </Modal>
       )}
       {pay && <CheckoutModal r={r} people={people} services={services} from={pay} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); }} />}
-      {open && <ApptSheet r={r} x={open} people={people} paid={paid.has(open.id)} dep={depOf.get(open.id) ?? null} pay={deps.data?.pay ?? null} onDeposit={() => { deps.reload(); }} onPay={() => { setPay({ appointment_id: open.id, name: open.name, phone: open.phone, staff_id: open.staff_id, service_id: open.service_id, price_cents: open.price_cents }); setOpen(null); }} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
-      {draft && <ApptEditor r={r} day={day} tz={tz} draft={draft} people={people} services={services} onClose={() => setDraft(null)} onSaved={() => { setDraft(null); load(); setWeekKey(k => k + 1); }} />}
+      {open && <ApptSheet r={r} x={open} people={people} cabin={resources.find(y => y.id === open.resource_id)?.name} paid={paid.has(open.id)} dep={depOf.get(open.id) ?? null} pay={deps.data?.pay ?? null} onDeposit={() => { deps.reload(); }} onPay={() => { setPay({ appointment_id: open.id, name: open.name, phone: open.phone, staff_id: open.staff_id, service_id: open.service_id, price_cents: open.price_cents }); setOpen(null); }} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
+      {draft && <ApptEditor r={r} day={day} tz={tz} draft={draft} people={people} services={services} resources={resources} onClose={() => setDraft(null)} onSaved={() => { setDraft(null); load(); setWeekKey(k => k + 1); }} />}
     </div>
   );
 }
 
-function ApptSheet({ r, x, people, paid, dep, pay, onDeposit, onPay, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; paid: boolean; dep: Deposit | null; pay: DepositPay | null; onDeposit: () => void; onPay: () => void; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
+function ApptSheet({ r, x, people, cabin, paid, dep, pay, onDeposit, onPay, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; cabin?: string; paid: boolean; dep: Deposit | null; pay: DepositPay | null; onDeposit: () => void; onPay: () => void; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
   const a = useAdminCtx();
   const tz = r.timezone || 'UTC';
   const { c: client } = useClient(r, x.phone);
@@ -307,7 +311,7 @@ function ApptSheet({ r, x, people, paid, dep, pay, onDeposit, onPay, onClose, on
       <div className="space-y-4">
         <div className="rounded-2xl bg-surface-2 p-4 text-sm">
           <p className="font-semibold first-letter:uppercase">{when}</p>
-          <p className="mt-1">{svcName({ name: x.service_name })} · {fmtDuration(x.duration_min)}{p ? ` · ${p.name}` : ''}{x.any_staff ? ` (${t('peu importe')})` : ''}</p>
+          <p className="mt-1">{svcName({ name: x.service_name })} · {fmtDuration(x.duration_min)}{p ? ` · ${p.name}` : ''}{x.any_staff ? ` (${t('peu importe')})` : ''}{cabin ? ` · ${cabin}` : ''}</p>
           {x.phone && <p className="mt-1 flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><a className="underline" href={`tel:${x.phone}`}>{x.phone}</a>
             {noShows ? <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-600">{t('{n} absence(s) avant', { n: noShows })}</span> : null}</p>}
           {client?.allergies && <p className="mt-2 flex items-center gap-1.5 font-semibold text-red-600"><AlertTriangle className="h-4 w-4" />{client.allergies}</p>}
@@ -336,14 +340,15 @@ function ApptSheet({ r, x, people, paid, dep, pay, onDeposit, onPay, onClose, on
   );
 }
 
-function ApptEditor({ r, day, tz, draft, people, services, onClose, onSaved }: {
-  r: Restaurant; day: string; tz: string; draft: { staff: string; min: number; appt?: Appt }; people: Person[]; services: AgService[]; onClose: () => void; onSaved: () => void;
+function ApptEditor({ r, day, tz, draft, people, services, resources, onClose, onSaved }: {
+  r: Restaurant; day: string; tz: string; draft: { staff: string; min: number; appt?: Appt }; people: Person[]; services: AgService[]; resources: Resource[]; onClose: () => void; onSaved: () => void;
 }) {
   const a = useAdminCtx();
   const x = draft.appt;
   const [f, setF] = useState(() => ({
     service: x?.service_id ?? '', staff: draft.staff, day: x ? ymdIn(new Date(x.starts_at), tz) : day, time: hm(draft.min),
     name: x?.name ?? '', phone: x?.phone ?? '', note: x?.note ?? '', source: x?.source ?? 'phone', dur: x ? String(x.duration_min) : '',
+    res: x?.resource_id ?? '',
   }));
   const [warn, setWarn] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -357,6 +362,7 @@ function ApptEditor({ r, day, tz, draft, people, services, onClose, onSaved }: {
         name: f.name.trim(), phone: f.phone.trim(), note: f.note.trim(),
         ...(f.service && f.service !== x?.service_id ? { service_id: f.service } : {}),
         ...(f.dur ? { duration_min: Number(f.dur) } : {}),
+        ...(f.res !== (x?.resource_id ?? '') ? { resource_id: f.res || null } : {}),
       };
       const { error } = await supabase.rpc('agenda_save', { p_restaurant_id: r.id, p_appt: body, p_force: force });
       if (error) {
@@ -386,6 +392,13 @@ function ApptEditor({ r, day, tz, draft, people, services, onClose, onSaved }: {
           <div className="flex flex-wrap gap-1.5">{able.map(p => <button key={p.id} type="button" className={`${chip(f.staff === p.id)} inline-flex items-center gap-2`} onClick={() => { setF({ ...f, staff: p.id }); setWarn(null); }}>
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: colorOf(p) }} />{p.name}</button>)}</div>
         </div>
+        {resources.length > 0 && <div>
+          <p className="mb-2 text-sm font-semibold">{t('Cabine ou équipement')}</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" className={chip(!f.res)} onClick={() => { setF({ ...f, res: '' }); setWarn(null); }}>{t('Automatique')}</button>
+            {resources.filter(y => !svc?.resource_ids?.length || svc.resource_ids.includes(y.id)).map(y => <button key={y.id} type="button" className={chip(f.res === y.id)} onClick={() => { setF({ ...f, res: y.id }); setWarn(null); }}>{y.name}</button>)}
+          </div>
+        </div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label={t('Jour')}><input type="date" className={inputCls} value={f.day} onChange={e => { setF({ ...f, day: e.target.value }); setWarn(null); }} /></Field>
           <Field label={t('Heure')}><input type="time" step={300} className={inputCls} value={f.time} onChange={e => { setF({ ...f, time: e.target.value }); setWarn(null); }} /></Field>
@@ -453,6 +466,63 @@ function WeekView({ r, day, people, only, reload, onDay, onOpen }: {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// The cabins: one column per cabin, room or machine, the appointments in it (who and with whom).
+function CabinView({ r, resources, services, appts, people, start, end, hours, nowMin, onOpen }: {
+  r: Restaurant; resources: Resource[]; services: AgService[]; appts: Appt[]; people: Person[]; start: number; end: number; hours: number[]; nowMin: number | null; onOpen: (x: Appt) => void;
+}) {
+  const tz = r.timezone || 'UTC';
+  const none = appts.filter(x => !x.resource_id && x.status !== 'no_show' && !!services.find(v => v.id === x.service_id)?.resource_ids?.length);
+  return (
+    <div className="space-y-3">
+      <div className="card overflow-x-auto rounded-3xl">
+        <div className="flex min-w-max">
+          <div className="sticky start-0 z-20 w-14 shrink-0 border-e border-line/10 bg-surface">
+            <div className="h-14 border-b border-line/10" />
+            <div className="relative" style={{ height: (end - start) * PX }}>
+              {hours.map(h => <span key={h} className="absolute end-2 -translate-y-1/2 text-xs font-semibold tabular text-muted" style={{ top: (h - start) * PX }}>{h > start ? hm(h) : ''}</span>)}
+            </div>
+          </div>
+          {resources.map(res => {
+            const mine = appts.filter(x => x.resource_id === res.id && x.status !== 'no_show');
+            // side by side when a room takes several clients at once
+            const lanes: Appt[][] = [];
+            for (const x of [...mine].sort((a, b) => a.starts_at.localeCompare(b.starts_at))) {
+              const s0 = localMin(x.starts_at, tz);
+              const lane = lanes.find(l => { const y = l[l.length - 1]; return localMin(y.starts_at, tz) + y.duration_min + y.buffer_min <= s0; });
+              if (lane) lane.push(x); else lanes.push([x]);
+            }
+            const n = Math.max(1, lanes.length);
+            return (
+              <div key={res.id} className="w-56 shrink-0 border-e border-line/10 last:border-e-0">
+                <div className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-line/10 bg-surface px-3">
+                  <span className="truncate font-semibold">{res.name}</span>
+                  {res.capacity > 1 && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{t('{n} places', { n: res.capacity })}</span>}
+                  <span className="ms-auto text-xs text-muted">{mine.length}</span>
+                </div>
+                <div className="relative" style={{ height: (end - start) * PX }}>
+                  {hours.map(h => <div key={h} className="absolute inset-x-0 border-t border-line/[0.07]" style={{ top: (h - start) * PX }} />)}
+                  {lanes.map((lane, li) => lane.map(x => {
+                    const s0 = localMin(x.starts_at, tz); const p = people.find(y => y.id === x.staff_id); const c = colorOf(p);
+                    return (
+                      <button key={x.id} onClick={() => onOpen(x)} className="absolute overflow-hidden rounded-lg border-s-4 bg-surface px-2 py-1 text-start text-xs shadow-sm ring-1 ring-black/5 hover:z-10"
+                        style={{ top: (s0 - start) * PX, height: (x.duration_min + x.buffer_min) * PX - 2, borderColor: c, insetInlineStart: `calc(${(li * 100) / n}% + 4px)`, width: `calc(${100 / n}% - 8px)`, background: `linear-gradient(${c}1f, ${c}1f), rgb(var(--surface))` }}>
+                        <p className="truncate font-semibold tabular">{hm(s0)} {x.name}</p>
+                        <p className="truncate text-muted">{svcName({ name: x.service_name })}{p ? ` · ${p.name}` : ''}</p>
+                      </button>
+                    );
+                  }))}
+                  {nowMin != null && nowMin >= start && nowMin <= end && <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500" style={{ top: (nowMin - start) * PX }} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {none.length > 0 && <p className="text-sm text-amber-700">{t('Sans cabine : {list}', { list: none.map(x => `${hm(localMin(x.starts_at, tz))} ${x.name}`).join(', ') })}</p>}
     </div>
   );
 }

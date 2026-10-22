@@ -1,17 +1,18 @@
 // Amplify Agenda: the prestations of the salon (what a client can book): name in the salon's
 // languages, category, duration, the time to prepare after, the price ("à partir de"), online or not.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock, Globe, Pencil, Plus, Scissors } from 'lucide-react';
+import { Clock, DoorOpen, Globe, Pencil, Plus, Scissors } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check } from '../lib/api';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { t } from '../lib/i18n';
+import type { Resource } from './AgendaDayPage';
 
 export interface AgService {
   id: string; name: Record<string, string>; description: Record<string, string>; category: string | null;
-  duration_min: number; buffer_min: number; price_cents: number; price_from: boolean; deposit_cents?: number; online: boolean; active: boolean; sort_order: number;
+  duration_min: number; buffer_min: number; price_cents: number; price_from: boolean; deposit_cents?: number; resource_ids?: string[]; online: boolean; active: boolean; sort_order: number;
 }
 export const svcName = (s: Pick<AgService, 'name'>) => s.name.fr || s.name.ar || s.name.en || '';
 export const fmtDuration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}`);
@@ -22,6 +23,10 @@ export function AgendaServicesPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
   const [list, setList] = useState<AgService[] | null>(null);
   const [edit, setEdit] = useState<AgService | 'new' | null>(null);
+  const [res, setRes] = useState<Resource[]>([]);
+  const [editRes, setEditRes] = useState<Resource | 'new' | null>(null);
+  const loadRes = useCallback(() => { supabase.from('agenda_resources').select('*').eq('restaurant_id', r.id).order('sort_order').order('name').then(x => setRes((x.data ?? []) as Resource[])); }, [r.id]);
+  useEffect(() => { loadRes(); }, [loadRes]);
   const load = useCallback(async () => {
     try { setList(check(await supabase.from('agenda_services').select('*').eq('restaurant_id', r.id).order('sort_order').order('created_at')) as AgService[]); }
     catch (e) { a.fail(e); setList([]); }
@@ -53,6 +58,7 @@ export function AgendaServicesPage({ r }: { r: Restaurant }) {
                   <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted">
                     <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{fmtDuration(s.duration_min)}{s.buffer_min ? ` + ${s.buffer_min} min` : ''}</span>
                     {!s.online && <span>{t('Pas en ligne')}</span>}
+                    {!!s.resource_ids?.length && <span className="inline-flex items-center gap-1"><DoorOpen className="h-3.5 w-3.5" />{s.resource_ids.map(id => res.find(x => x.id === id)?.name).filter(Boolean).join(' / ')}</span>}
                     {!!s.deposit_cents && <span className="font-semibold text-amber-700">{t('Acompte {m}', { m: mad(s.deposit_cents) })}</span>}
                   </p>
                 </div>
@@ -63,17 +69,35 @@ export function AgendaServicesPage({ r }: { r: Restaurant }) {
           </ul>
         </section>
       ))}
-      {edit && <ServiceEditor r={r} s={edit === 'new' ? null : edit} cats={cats.filter(Boolean)} next={(list?.length ?? 0) + 1} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
+      <section className="mb-6">
+        <div className="mb-2 flex flex-wrap items-center gap-3">
+          <h2 className="me-auto text-xs font-bold uppercase tracking-[0.2em] text-muted">{t('Cabines et équipements')}</h2>
+          <Btn onClick={() => setEditRes('new')}><Plus className="h-4 w-4" /> {t('Ajouter')}</Btn>
+        </div>
+        {!res.length ? <p className="card rounded-3xl p-5 text-sm text-muted">{t('Pour un spa ou un institut : les cabines, le hammam, les machines. Une prestation qui en demande une n’est proposée que si une est libre.')}</p> : (
+          <ul className="card divide-y divide-line/10 overflow-hidden rounded-3xl">
+            {res.map(x => (
+              <li key={x.id} className={`flex items-center gap-3 px-4 py-3 ${x.active ? '' : 'opacity-50'}`}>
+                <DoorOpen className="h-4 w-4 text-brand" />
+                <span className="flex-1 font-semibold">{x.name} <span className="ms-2 text-sm font-normal text-muted">{t(KIND[x.kind])}{x.capacity > 1 ? ` · ${t('{n} places', { n: x.capacity })}` : ''}</span></span>
+                <Btn onClick={() => setEditRes(x)} aria-label={t('Modifier {name}', { name: x.name })}><Pencil className="h-4 w-4" /></Btn>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {editRes && <ResourceEditor r={r} x={editRes === 'new' ? null : editRes} next={res.length + 1} onClose={() => setEditRes(null)} onSaved={() => { setEditRes(null); loadRes(); }} />}
+      {edit && <ServiceEditor r={r} s={edit === 'new' ? null : edit} resources={res.filter(x => x.active)} cats={cats.filter(Boolean)} next={(list?.length ?? 0) + 1} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
     </div>
   );
 }
 
-function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; s: AgService | null; cats: string[]; next: number; onClose: () => void; onSaved: () => void }) {
+function ServiceEditor({ r, s, cats, next, resources, onClose, onSaved }: { r: Restaurant; s: AgService | null; cats: string[]; resources: Resource[]; next: number; onClose: () => void; onSaved: () => void }) {
   const a = useAdminCtx();
   const [f, setF] = useState(() => ({
     fr: s?.name.fr ?? '', ar: s?.name.ar ?? '', en: s?.name.en ?? '', desc: s?.description.fr ?? '', category: s?.category ?? '',
     duration: String(s?.duration_min ?? 30), buffer: String(s?.buffer_min ?? 0), price: s ? String(s.price_cents / 100) : '',
-    deposit: s?.deposit_cents ? String(s.deposit_cents / 100) : '',
+    deposit: s?.deposit_cents ? String(s.deposit_cents / 100) : '', res: s?.resource_ids ?? [] as string[],
     from: s?.price_from ?? false, online: s?.online ?? true, active: s?.active ?? true,
   }));
   const [busy, setBusy] = useState(false);
@@ -86,7 +110,7 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
       const row = {
         restaurant_id: r.id, name, description: f.desc.trim() ? { ...(s?.description ?? {}), fr: f.desc.trim() } : {},
         category: f.category.trim() || null, duration_min: Math.round(Number(f.duration)), buffer_min: Math.max(0, Math.round(Number(f.buffer) || 0)),
-        price_cents: Math.round((Number(f.price.replace(',', '.')) || 0) * 100), price_from: f.from, deposit_cents: dep, online: f.online, active: f.active,
+        price_cents: Math.round((Number(f.price.replace(',', '.')) || 0) * 100), price_from: f.from, deposit_cents: dep, resource_ids: f.res, online: f.online, active: f.active,
         ...(s ? {} : { sort_order: next }),
       };
       if (s) check(await supabase.from('agenda_services').update(row).eq('id', s.id).select('id'));
@@ -120,6 +144,13 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
           <Field label={t('Préparation après (min)')}><input className={inputCls} inputMode="numeric" value={f.buffer} onChange={e => setF({ ...f, buffer: e.target.value.replace(/\D/g, '') })} /></Field>
           <Field label={t('Prix (DH)')}><input className={inputCls} inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></Field>
         </div>
+        {resources.length > 0 && <div>
+          <p className="mb-1 text-sm font-semibold">{t('Demande une cabine ou un équipement')}</p>
+          <p className="mb-2 text-xs text-muted">{t('Une seule parmi celles cochées. Aucune cochée : pas besoin.')}</p>
+          <div className="flex flex-wrap gap-1.5">{resources.map(x => { const on = f.res.includes(x.id); return (
+            <button key={x.id} type="button" onClick={() => setF({ ...f, res: on ? f.res.filter(y => y !== x.id) : [...f.res, x.id] })}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold ${on ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted'}`}>{x.name}</button>); })}</div>
+        </div>}
         <Field label={t('Acompte demandé à la réservation (DH)')} hint={t('Vide : pas d’acompte. Minimum 10 DH. Les règles se règlent dans « Acomptes et no-shows ».')}>
           <input className={`${inputCls} sm:w-48`} inputMode="decimal" value={f.deposit} onChange={e => setF({ ...f, deposit: e.target.value })} placeholder="0" />
         </Field>
@@ -130,6 +161,40 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
           <Toggle checked={f.active} onChange={v => setF({ ...f, active: v })} label={t('Active')} />
         </div>
         {!f.online && <p className="flex items-center gap-2 text-xs text-muted"><Globe className="h-3.5 w-3.5" />{t('Hors ligne : seul le salon peut la placer dans l’agenda (par exemple un soin à valider d’abord).')}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+// i18n:values
+const KIND: Record<string, string> = { cabin: 'Cabine', room: 'Salle', equipment: 'Équipement' };
+// i18n:end
+
+function ResourceEditor({ r, x, next, onClose, onSaved }: { r: Restaurant; x: Resource | null; next: number; onClose: () => void; onSaved: () => void }) {
+  const a = useAdminCtx();
+  const [f, setF] = useState({ name: x?.name ?? '', kind: x?.kind ?? 'cabin', capacity: String(x?.capacity ?? 1), active: x?.active ?? true });
+  const [busy, setBusy] = useState(false);
+  const cap = Number(f.capacity);
+  const ok = !!f.name.trim() && Number.isInteger(cap) && cap >= 1 && cap <= 30;
+  const save = async () => {
+    setBusy(true);
+    try {
+      const row = { name: f.name.trim(), kind: f.kind, capacity: cap, active: f.active };
+      if (x) check(await supabase.from('agenda_resources').update(row).eq('id', x.id).select('id'));
+      else check(await supabase.from('agenda_resources').insert({ ...row, restaurant_id: r.id, sort_order: next }).select('id'));
+      a.toast(t('Enregistré')); onSaved();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={x ? x.name : t('Nouvelle cabine ou équipement')} onClose={onClose}
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !ok} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      <div className="space-y-4">
+        <Field label={t('Nom')}><input className={inputCls} maxLength={40} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={t('Cabine 1, Hammam, Laser…')} /></Field>
+        <div className="flex flex-wrap gap-1.5">{(['cabin', 'room', 'equipment'] as const).map(k => (
+          <button key={k} type="button" onClick={() => setF({ ...f, kind: k })} className={`rounded-xl px-3 py-2 text-sm font-semibold ${f.kind === k ? 'bg-brand text-brand-ink' : 'bg-surface-2 text-muted'}`}>{t(KIND[k])}</button>))}</div>
+        <Field label={t('Clientes en même temps')} hint={t('1 pour une cabine. Plus pour un hammam ou une salle.')}><input className={`${inputCls} w-28`} inputMode="numeric" value={f.capacity} onChange={e => setF({ ...f, capacity: e.target.value.replace(/\D/g, '') })} /></Field>
+        {x && <Toggle checked={f.active} onChange={v => setF({ ...f, active: v })} label={t('Active')} />}
       </div>
     </Modal>
   );
