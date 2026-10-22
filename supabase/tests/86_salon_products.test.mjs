@@ -53,3 +53,20 @@ test('the till sells a product: the stock goes down; a cancelled ticket puts it 
   await as(m, `delete from public.agenda_products where id = $1`, [shampoo]);
   assert.equal((await sql(`select count(*)::int n from public.agenda_products where id = $1`, [shampoo]))[0].n, 1);
 });
+
+test('the inventory: blind count, the leak for products for sale, the consumption for the salon', async () => {
+  // shampoo: 11 in stock, 9 found (2 missing at 65 DH); tube: 10, 7 left (3 used at 45 DH)
+  await assert.rejects(rpc(d, 'agenda_stock_count', [rid, JSON.stringify([{ product_id: shampoo, counted: 9 }]), null]));
+  await assert.rejects(rpc(m, 'agenda_stock_count', [rid, JSON.stringify([{ product_id: shampoo, counted: -1 }]), null]), /invalid_request/);
+  const c = await rpc(m, 'agenda_stock_count', [rid, JSON.stringify([{ product_id: shampoo, counted: 9 }, { product_id: tube, counted: 7 }]), 'Fin de mois']);
+  assert.equal(Number(c.missing_cents), 13000); assert.equal(Number(c.used_cents), 13500); assert.equal(Number(c.extra_cents), 0);
+  assert.equal(await stock(shampoo), 9); assert.equal(await stock(tube), 7);
+  const day = new Date().toISOString().slice(0, 10);
+  const ago = new Date(Date.now() - 86400_000).toISOString().slice(0, 10), next = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+  const rep = await rpc(m, 'agenda_stock_report', [rid, ago, next]);
+  const sh = rep.products.find(x => x.product_id === shampoo);
+  assert.equal(sh.sold, 0); assert.equal(sh.received, 6); assert.equal(sh.count_diff, -2); assert.equal(Number(sh.count_value_cents), -13000);
+  assert.equal(rep.counts.length, 1); assert.equal(rep.counts[0].lines.length, 2);
+  await assert.rejects(rpc(w.users.ownerB, 'agenda_stock_report', [rid, day, day]));
+  assert.equal((await as(w.users.ownerB, `select count(*)::int n from public.agenda_stock_counts where restaurant_id = $1`, [rid]))[0].n, 0);
+});

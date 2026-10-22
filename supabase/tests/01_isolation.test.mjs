@@ -47,6 +47,7 @@ before(async () => {
   await sql(`insert into public.agenda_closings (restaurant_id, business_date, counted_cash_cents, expected_cash_cents, cash_diff_cents) values ($1, current_date, 100, 100, 0)`, [w.B.r.id]);
   const [bp] = await sql(`insert into public.agenda_products (restaurant_id, name, kind, price_cents) values ($1, 'B', 'retail', 100) returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_stock_moves (restaurant_id, product_id, kind, qty) values ($1, $2, 'start', 1)`, [w.B.r.id, bp.id]);
+  await sql(`insert into public.agenda_stock_counts (restaurant_id) values ($1)`, [w.B.r.id]);
   await sql(`insert into public.service_calls (restaurant_id, table_id, kind) select restaurant_id, id, 'water' from public.dining_tables where restaurant_id = $1 limit 1`, [w.B.r.id]);
   await sql(`insert into public.reservation_deposits (restaurant_id, reservation_id, kind, amount_cents, method, business_date) values ($1, $2, 'in', 1000, 'cash', current_date)`, [w.B.r.id, rsB.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);
