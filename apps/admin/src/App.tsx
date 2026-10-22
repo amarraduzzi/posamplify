@@ -13,6 +13,7 @@ import { AgendaTeamPage } from './pages/AgendaTeamPage';
 import { AgendaBookingPage } from './pages/AgendaBookingPage';
 import { NoubaPage } from './pages/NoubaPage';
 import { AgendaDayPage } from './pages/AgendaDayPage';
+import { AgendaClientsPage } from './pages/AgendaClientsPage';
 import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -49,7 +50,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -122,6 +123,7 @@ function Screens() {
     { id: 'group', label: t('Groupe'), Icon: Building2, show: a.list.filter(x => x.role === 'owner').length >= 2 },
     { id: 'agday', label: t('Agenda'), Icon: CalendarDays, show: hasAgenda },
     { id: 'nouba', label: t('La Nouba'), Icon: Footprints, show: hasAgenda },
+    { id: 'agclients', label: t('Clients'), Icon: Users, show: hasAgenda },
     { id: 'agbooking', label: t('Réservation en ligne'), Icon: CalendarCheck2, show: hasAgenda },
     { id: 'agservices', label: t('Prestations'), Icon: Scissors, show: hasAgenda },
     { id: 'agteam', label: t('Équipe et horaires'), Icon: Clock4, show: hasAgenda },
@@ -243,6 +245,7 @@ function Screens() {
           {r && current === 'agbooking' && <AgendaBookingPage key={r.id} r={r} />}
           {r && current === 'nouba' && <NoubaPage key={r.id} r={r} />}
           {r && current === 'agday' && <AgendaDayPage key={r.id} r={r} />}
+          {r && current === 'agclients' && <AgendaClientsPage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}

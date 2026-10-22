@@ -55,11 +55,13 @@ test('a manager discount of 100% closes the same way', async () => {
 });
 
 test('the Z cannot forget an open bill of 0 DH, but an empty open bill does not block it', async () => {
+  // the business day ends at midnight here, so the test works at any hour
+  await sql(`update public.restaurants set day_cutoff_hour = 0 where id = $1`, [rid]);
   const empty = await tillOrder(d(), rid, []);
   const o = await tillOrder(d(), rid, [{ item_id: A.items.jus.id }]);
   await rpc(d(), 'apply_discount', [o.id, Number(o.subtotal_cents), A.staff.karim.id, '9999']);
   assert.equal(Number((await rpc(d(), 'day_report', [rid, null])).open_orders) >= 1, true);
-  const day = new Date().toISOString().slice(0, 10);
+  const day = (await sql(`select current_date::text d`))[0].d;
   await assert.rejects(rpc(d(), 'close_day', [rid, day, A.staff.karim.id, '9999']), /open_orders/);
   await rpc(d(), 'cancel_order', [o.id, 'test', A.staff.karim.id, '9999']);
   await rpc(d(), 'cancel_order', [empty.id, 'test', A.staff.karim.id, '9999']);

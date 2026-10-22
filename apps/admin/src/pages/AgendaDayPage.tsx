@@ -2,7 +2,7 @@
 // days off greyed, the appointments with their time to prepare. Tap an empty time to put a client in
 // (phone, WhatsApp, walk-in), tap an appointment to mark it arrived, done, no-show, to move or cancel it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Check, CheckCircle2, UserRound, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
@@ -11,6 +11,7 @@ import { Btn, Field, Modal, inputCls } from '../components/ui';
 import { DAYS } from '../components/HoursEditor';
 import { fmtDuration, svcName, type AgService } from './AgendaServicesPage';
 import { ymdIn } from '../lib/whatsapp';
+import { ClientCardModal, useClient } from '../components/AgendaClient';
 
 interface Person { id: string; name: string; agenda_color: string | null; agenda_hours: Record<string, [string, string][]>; agenda_services: string[]; agenda_sort: number }
 interface Appt {
@@ -277,13 +278,10 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
 function ApptSheet({ r, x, people, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
   const a = useAdminCtx();
   const tz = r.timezone || 'UTC';
-  const [noShows, setNoShows] = useState<number | null>(null);
+  const { c: client } = useClient(r, x.phone);
+  const noShows = client?.no_shows ?? 0;
+  const [card, setCard] = useState(false);
   const [sure, setSure] = useState(false);
-  useEffect(() => {
-    if (!x.phone) return;
-    supabase.from('agenda_appointments').select('id', { count: 'exact', head: true }).eq('restaurant_id', r.id).eq('phone', x.phone).eq('status', 'no_show')
-      .then(res => setNoShows(res.count ?? 0));
-  }, [r.id, x.phone]);
   const set = async (status: string) => {
     const { error } = await supabase.from('agenda_appointments').update({ status }).eq('id', x.id).select('id');
     if (error) { a.fail(error); return; }
@@ -299,6 +297,8 @@ function ApptSheet({ r, x, people, onClose, onEdit, onChanged }: { r: Restaurant
           <p className="mt-1">{svcName({ name: x.service_name })} · {fmtDuration(x.duration_min)}{p ? ` · ${p.name}` : ''}{x.any_staff ? ` (${t('peu importe')})` : ''}</p>
           {x.phone && <p className="mt-1 flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><a className="underline" href={`tel:${x.phone}`}>{x.phone}</a>
             {noShows ? <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-600">{t('{n} absence(s) avant', { n: noShows })}</span> : null}</p>}
+          {client?.allergies && <p className="mt-2 flex items-center gap-1.5 font-semibold text-red-600"><AlertTriangle className="h-4 w-4" />{client.allergies}</p>}
+          {client?.formulas?.[0] && <p className="mt-2 rounded-xl bg-surface px-3 py-2"><span className="text-xs text-muted">{t('Dernière formule')} · {new Date(client.formulas[0].created_at).toLocaleDateString('fr-FR', { timeZone: tz, day: 'numeric', month: 'short' })}</span><br /><b>{client.formulas[0].formula}</b></p>}
           {x.note && <p className="mt-2 text-muted">{x.note}</p>}
           <p className="mt-2 text-xs text-muted">{x.source === 'online' ? t('Réservé en ligne') : x.source === 'walk_in' ? t('Sans rendez-vous') : x.source === 'phone' ? t('Par téléphone') : t('Ajouté par le salon')}
             {x.client_confirmed_at ? ` · ${t('Confirmé par le client')}` : x.reminded_at ? ` · ${t('Rappel envoyé')}` : ''}</p>
@@ -309,7 +309,9 @@ function ApptSheet({ r, x, people, onClose, onEdit, onChanged }: { r: Restaurant
           <Btn onClick={() => set('done')} disabled={x.status === 'done'}><Check className="h-4 w-4" /> {t('Terminé')}</Btn>
           <Btn onClick={() => set('no_show')} disabled={x.status === 'no_show'}><UserX className="h-4 w-4" /> {t('Pas venu')}</Btn>
           <Btn onClick={onEdit}><Pencil className="h-4 w-4" /> {t('Modifier ou déplacer')}</Btn>
+          {x.phone && <Btn className="col-span-2" onClick={() => setCard(true)}><UserRound className="h-4 w-4" /> {t('Fiche client')}{client ? ` · ${t('{n} visite(s)', { n: client.visits })}` : ''}</Btn>}
         </div>
+        {card && x.phone && <ClientCardModal r={r} phone={x.phone} onClose={() => setCard(false)} />}
         {sure ? (
           <div className="flex gap-2"><Btn className="flex-1" onClick={() => setSure(false)}>{t('Garder')}</Btn><Btn tone="danger" className="flex-1" onClick={() => set('cancelled')}>{t('Oui, annuler')}</Btn></div>
         ) : <button onClick={() => setSure(true)} className="flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold text-danger"><X className="h-4 w-4" />{t('Annuler le rendez-vous')}</button>}

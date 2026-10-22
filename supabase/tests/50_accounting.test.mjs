@@ -7,6 +7,8 @@ import { pool, sql, as, rpc, world, tillOrder } from './helpers.mjs';
 let w, rid, dev, day;
 before(async () => {
   w = await world(); rid = w.A.r.id; dev = w.users.deviceA;
+  // the business day ends at midnight here, so the till's day and the calendar day are the same at any hour
+  await sql(`update public.restaurants set day_cutoff_hour = 0 where id = $1`, [rid]);
   day = (await sql(`select current_date::text d`))[0].d;
   for (const method of ['cash', 'card']) {
     const o = await tillOrder(dev, rid, [{ item_id: w.A.items.tajine.id }]);

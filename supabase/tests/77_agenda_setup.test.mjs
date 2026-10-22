@@ -31,5 +31,5 @@ test('the manager sets the prestations and the hours; the till reads them; anoth
   await as(w.users.managerA, `insert into public.agenda_time_off (restaurant_id, staff_id, starts_at, ends_at, reason) values ($1, null, now() + interval '5 days', now() + interval '6 days', 'Aïd')`, [rid]);
   assert.equal((await as(w.users.deviceA, `select count(*)::int n from public.agenda_time_off where restaurant_id = $1`, [rid]))[0].n, 2);
   assert.equal((await as(w.users.deviceB, `select count(*)::int n from public.agenda_services where restaurant_id = $1`, [rid]))[0].n, 0);
-  await assert.rejects(as(w.users.managerB, `insert into public.agenda_time_off (restaurant_id, staff_id, starts_at, ends_at) values ($1, null, now(), now() + interval '1 hour')`, [rid]));
+  await assert.rejects(as(w.users.ownerB, `insert into public.agenda_time_off (restaurant_id, staff_id, starts_at, ends_at) values ($1, null, now(), now() + interval '1 hour')`, [rid]));
 });
