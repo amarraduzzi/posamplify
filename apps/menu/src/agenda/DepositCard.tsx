@@ -9,7 +9,7 @@ const D = {
   fr: {
     toPay: (m: string) => `Acompte à payer : ${m}`, before: (d: string) => `Avant ${d}. Sans paiement, le créneau est libéré.`,
     why: { service: 'Cette prestation demande un acompte.', no_shows: 'Un acompte est demandé pour confirmer ce rendez-vous.', manual: 'Le salon demande un acompte pour confirmer.' },
-    payLink: 'Payer en ligne', rib: 'Virement', copy: 'Copier', copied: 'Copié', cashplus: 'CashPlus', atSalon: 'Ou au salon.',
+    payLink: 'Payer en ligne', rib: 'Virement', copy: 'Copier', copied: 'Copié', cashplus: 'CashPlus', atSalon: 'Ou sur place.',
     paid: 'J’ai payé', ref: 'Référence du paiement (facultatif)', send: 'Envoyer', reported: 'Merci ! Le salon vérifie et confirme.',
     received: (m: string) => `Acompte reçu : ${m}. Il sera déduit le jour du rendez-vous.`, expired: 'L’acompte n’a pas été payé à temps : le rendez-vous est annulé.',
     credited: (m: string) => `Votre acompte de ${m} est gardé comme avoir pour votre prochaine visite.`, refunded: (m: string) => `Votre acompte de ${m} a été remboursé.`,
@@ -18,7 +18,7 @@ const D = {
   en: {
     toPay: (m: string) => `Deposit to pay: ${m}`, before: (d: string) => `Before ${d}. Without payment, the time is released.`,
     why: { service: 'This service requires a deposit.', no_shows: 'A deposit is required to confirm this appointment.', manual: 'The salon asks a deposit to confirm.' },
-    payLink: 'Pay online', rib: 'Bank transfer', copy: 'Copy', copied: 'Copied', cashplus: 'CashPlus', atSalon: 'Or at the salon.',
+    payLink: 'Pay online', rib: 'Bank transfer', copy: 'Copy', copied: 'Copied', cashplus: 'CashPlus', atSalon: 'Or on site.',
     paid: 'I have paid', ref: 'Payment reference (optional)', send: 'Send', reported: 'Thank you! The salon checks and confirms.',
     received: (m: string) => `Deposit received: ${m}. It will be deducted on the day.`, expired: 'The deposit was not paid in time: the appointment is cancelled.',
     credited: (m: string) => `Your ${m} deposit is kept as a credit for your next visit.`, refunded: (m: string) => `Your ${m} deposit was refunded.`,
@@ -27,7 +27,7 @@ const D = {
   ar: {
     toPay: (m: string) => `العربون اللي خاصكم تخلصو: ${m}`, before: (d: string) => `قبل ${d}. بلا خلاص، كيتحرر الموعد.`,
     why: { service: 'هاد الخدمة كتطلب عربون.', no_shows: 'كيتطلب عربون باش يتأكد هاد الموعد.', manual: 'الصالون كيطلب عربون باش يأكد الموعد.' },
-    payLink: 'الخلاص أونلاين', rib: 'تحويل بنكي', copy: 'نسخ', copied: 'تنسخ', cashplus: 'كاش بلوس', atSalon: 'ولا فالصالون.',
+    payLink: 'الخلاص أونلاين', rib: 'تحويل بنكي', copy: 'نسخ', copied: 'تنسخ', cashplus: 'كاش بلوس', atSalon: 'ولا فالمحل.',
     paid: 'خلصت', ref: 'مرجع الخلاص (اختياري)', send: 'إرسال', reported: 'شكرا! الصالون غادي يتحقق ويأكد.',
     received: (m: string) => `توصلنا بالعربون: ${m}. غادي يتنقص نهار الموعد.`, expired: 'العربون ما تخلصش فالوقت: الموعد تلغى.',
     credited: (m: string) => `العربون ديالكم (${m}) محفوظ ليكم للزيارة الجاية.`, refunded: (m: string) => `ترجع ليكم العربون ديال ${m}.`,

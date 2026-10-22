@@ -49,7 +49,7 @@ export function depositText(r: Restaurant, d: Pick<Deposit, 'amount_cents' | 'du
     pay.link ? `${ar ? 'الدفع أونلاين' : 'Paiement en ligne'} : ${pay.link}` : null,
     pay.rib ? `${ar ? 'تحويل بنكي' : 'Virement'} : ${pay.rib}${pay.rib_name ? ` (${pay.rib_name}${pay.bank ? `, ${pay.bank}` : ''})` : ''}` : null,
     pay.cashplus ? `CashPlus : ${pay.cashplus}` : null,
-    ar ? 'ولا فالصالون.' : 'Ou directement au salon.',
+    ar ? 'ولا فالمحل.' : 'Ou directement sur place.',
   ].filter(Boolean);
   return ar
     ? [`السلام ${d.name}،`, `باش نأكدو موعدك ف ${r.name} (${when})، خاصك تخلص عربون ديال ${mad(d.amount_cents)}${due ? ` قبل ${due}` : ''}.`, '', ...ways, '', `من بعد الخلاص، ضغطي على "خلصت" هنا: ${link}`, 'شكرا!'].join('\n')

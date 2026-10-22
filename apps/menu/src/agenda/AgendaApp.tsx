@@ -512,10 +512,10 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
         {error && <p className="mx-5 mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
         <div className="mt-6 space-y-2 px-5">
           {upcoming && st.client_confirmed && <p className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-600"><CheckCircle2 className="size-4" />{t.thanksCome}</p>}
-          {upcoming && st.can_confirm && !st.client_confirmed && (
+          {upcoming && st.can_confirm && !st.client_confirmed && !waitDep && (
             <button disabled={busy} onClick={confirmCome} className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 text-lg font-semibold text-white press disabled:opacity-40"><CheckCircle2 className="size-5" />{t.iCome}</button>
           )}
-          {upcoming && <button onClick={ics} className={`flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold press ${st.can_confirm && !st.client_confirmed ? 'bg-surface shadow-[var(--shadow)]' : 'bg-brand text-brand-ink glow-brand'}`}><CalendarPlus className="size-4" />{t.calendar}</button>}
+          {upcoming && <button onClick={ics} className={`flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold press ${st.can_confirm && !st.client_confirmed && !waitDep ? 'bg-surface shadow-[var(--shadow)]' : 'bg-brand text-brand-ink glow-brand'}`}><CalendarPlus className="size-4" />{t.calendar}</button>}
           {wa && upcoming && <a href={wa} target="_blank" rel="noopener" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><MessageCircle className="size-4" />{t.write}</a>}
           {st.salon.phone && <a href={`tel:${st.salon.phone}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><Phone className="size-4" />{t.call}</a>}
           {!upcoming && <button onClick={onAgain} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand font-semibold text-brand-ink press">{t.again}</button>}
