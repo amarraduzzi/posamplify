@@ -1,6 +1,7 @@
 // La Nouba for the salon: one card per person working with the client in the chair and one big
 // "Suivant" button, the queue with the estimate, a walk-in in two taps, the links and the settings.
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { BellRing, Copy, Maximize2, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
 import { waLink } from '../lib/whatsapp';
@@ -150,7 +151,7 @@ export function NoubaPage({ r }: { r: Restaurant }) {
                   <div className="flex gap-1">
                     {q.phone && <Btn className={`px-2.5 ${!q.notified && (mins(q.start) ?? 99) <= 20 ? 'bg-brand text-brand-ink' : ''}`} title={t('Prévenir sur WhatsApp')} onClick={() => tell(q)}>
                       <BellRing className="h-4 w-4" />{q.notified ? <span className="text-xs">✓</span> : null}</Btn>}
-                    {team.length > 1 && team.map(p => (
+                    {chairs.length > 1 && chairs.map(p => (
                       <button key={p.id} title={t('Prendre avec {name}', { name: p.name })} onClick={() => act(q.id, () => supabase.rpc('nouba_next', { p_restaurant_id: r.id, p_staff: p.id, p_entry: q.id }))}
                         className="grid h-9 w-9 place-items-center rounded-full text-xs font-bold text-white" style={{ background: p.agenda_color && HEX.test(p.agenda_color) ? p.agenda_color : '#64748b' }}>{p.name.slice(0, 1)}</button>
                     ))}
@@ -284,8 +285,8 @@ function TvScreen({ r, board, people, onClose }: { r: Restaurant; board: Board; 
   const waiting = board.queue.filter(q => q.status === 'waiting');
   const color = (id: string | null) => { const p = people.find(x => x.id === id); return p?.agenda_color && HEX.test(p.agenda_color) ? p.agenda_color : '#64748b'; };
   const w = board.wait_min;
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#071528] p-10 text-white">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex flex-col bg-[#071528] p-10 text-white">
       <button onClick={onClose} className="absolute end-6 top-6 grid h-12 w-12 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20" aria-label={t('Fermer')}><X className="h-6 w-6" /></button>
       <div className="flex items-end justify-between gap-6">
         <div>
@@ -323,6 +324,5 @@ function TvScreen({ r, board, people, onClose }: { r: Restaurant; board: Board; 
         </section>
       </div>
       <p className="mt-6 text-center text-lg text-white/40">{t('Prenez votre place en scannant le QR à l’entrée.')}</p>
-    </div>
-  );
+    </div>, document.body);
 }
