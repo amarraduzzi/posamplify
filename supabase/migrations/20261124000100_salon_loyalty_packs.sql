@@ -12,6 +12,9 @@
 -- total + tip. A cancelled ticket gives everything back.
 -- =============================================================================
 
+-- never wait forever on a busy table: fail after 10 s instead (run again when the till is quiet)
+set lock_timeout = '10s';
+
 create table if not exists public.agenda_packs (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
