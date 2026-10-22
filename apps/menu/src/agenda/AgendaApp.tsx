@@ -8,6 +8,7 @@ import { formatMoney, newId, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
 import { RdvStory } from './StoryShare';
+import { DepositCard, depositNote } from './DepositCard';
 import { agendaBook, agendaCancel, agendaConfirm, agendaDays, agendaInfo, agendaSlots, agendaStatus, type AgendaInfo, type AgendaService, type AgendaStaff, type AgendaStatus, type LText } from '../lib/api';
 
 const S = {
@@ -18,7 +19,7 @@ const S = {
     morning: 'Matin', afternoon: 'Après-midi', evening: 'Soir', noSlot: 'Plus de créneau ce jour-là. Choisissez un autre jour.', noDay: 'Aucun créneau libre pour le moment. Appelez le salon.',
     loading: 'Chargement…', closed: 'La réservation en ligne n’est pas ouverte pour le moment.', notFound: 'Ce salon est introuvable.', call: 'Appeler le salon',
     with: (n: string) => `avec ${n}`, mine: 'Mon rendez-vous', otherCat: 'Prestations',
-    confirmed: 'Rendez-vous confirmé', requested: 'Demande envoyée', requestedTxt: 'Le salon confirme votre rendez-vous rapidement.',
+    confirmed: 'Rendez-vous confirmé', waitDeposit: 'Réservé : en attente de l’acompte', requested: 'Demande envoyée', requestedTxt: 'Le salon confirme votre rendez-vous rapidement.',
     cancelled: 'Rendez-vous annulé', cancelledSalon: 'Le salon a annulé ce rendez-vous. Appelez-le pour en fixer un autre.', past: 'À bientôt !', noShow: 'Rendez-vous manqué',
     cancel: 'Annuler le rendez-vous', cancelSure: 'Oui, annuler', keep: 'Garder', cancelUntil: (h: number) => (h > 0 ? `Annulation en ligne jusqu’à ${h} h avant.` : ''),
     tooLate: 'Pour annuler ou changer maintenant, appelez le salon.', calendar: 'Ajouter à mon agenda', write: 'Écrire au salon', again: 'Prendre un autre rendez-vous',
@@ -36,7 +37,7 @@ const S = {
     morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', noSlot: 'No time left that day. Pick another day.', noDay: 'No free time right now. Please call the salon.',
     loading: 'Loading…', closed: 'Online booking is not open right now.', notFound: 'This salon could not be found.', call: 'Call the salon',
     with: (n: string) => `with ${n}`, mine: 'My appointment', otherCat: 'Services',
-    confirmed: 'Appointment confirmed', requested: 'Request sent', requestedTxt: 'The salon will confirm your appointment shortly.',
+    confirmed: 'Appointment confirmed', waitDeposit: 'Booked: waiting for the deposit', requested: 'Request sent', requestedTxt: 'The salon will confirm your appointment shortly.',
     cancelled: 'Appointment cancelled', cancelledSalon: 'The salon cancelled this appointment. Call them to book another one.', past: 'See you soon!', noShow: 'Appointment missed',
     cancel: 'Cancel the appointment', cancelSure: 'Yes, cancel', keep: 'Keep it', cancelUntil: (h: number) => (h > 0 ? `Online cancellation up to ${h} h before.` : ''),
     tooLate: 'To cancel or change now, please call the salon.', calendar: 'Add to my calendar', write: 'Message the salon', again: 'Book another appointment',
@@ -54,7 +55,7 @@ const S = {
     morning: 'الصباح', afternoon: 'بعد الظهر', evening: 'المساء', noSlot: 'لا توجد مواعيد في هذا اليوم. اختاروا يوما آخر.', noDay: 'لا توجد مواعيد متاحة حاليا. اتصلوا بالصالون.',
     loading: 'جار التحميل…', closed: 'الحجز عبر الإنترنت غير مفتوح حاليا.', notFound: 'لم يتم العثور على هذا الصالون.', call: 'الاتصال بالصالون',
     with: (n: string) => `مع ${n}`, mine: 'موعدي', otherCat: 'الخدمات',
-    confirmed: 'تم تأكيد الموعد', requested: 'تم إرسال الطلب', requestedTxt: 'سيؤكد الصالون موعدكم قريبا.',
+    confirmed: 'تم تأكيد الموعد', waitDeposit: 'محجوز: في انتظار العربون', requested: 'تم إرسال الطلب', requestedTxt: 'سيؤكد الصالون موعدكم قريبا.',
     cancelled: 'تم إلغاء الموعد', cancelledSalon: 'ألغى الصالون هذا الموعد. اتصلوا به لتحديد موعد آخر.', past: 'إلى اللقاء!', noShow: 'موعد لم يتم الحضور إليه',
     cancel: 'إلغاء الموعد', cancelSure: 'نعم، إلغاء', keep: 'الاحتفاظ به', cancelUntil: (h: number) => (h > 0 ? `الإلغاء عبر الإنترنت ممكن حتى ${h} ساعات قبل الموعد.` : ''),
     tooLate: 'للإلغاء أو التغيير الآن، اتصلوا بالصالون.', calendar: 'إضافة إلى تقويمي', write: 'مراسلة الصالون', again: 'حجز موعد آخر',
@@ -384,6 +385,7 @@ function BookView({ slug, onBooked }: { slug: string; onBooked: (token: string) 
             <input className="h-12 w-full rounded-2xl border border-line bg-surface px-4 outline-none focus:border-brand" placeholder={t.name} value={name} onChange={e => setName(e.target.value)} maxLength={60} autoComplete="given-name" />
             <input className="h-12 w-full rounded-2xl border border-line bg-surface px-4 outline-none focus:border-brand" placeholder={t.phone} value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" dir="ltr" />
             <textarea className="h-20 w-full resize-none rounded-2xl border border-line bg-surface px-4 py-3 outline-none focus:border-brand" placeholder={t.note} value={note} onChange={e => setNote(e.target.value)} maxLength={300} />
+            {!!svc.deposit_cents && <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-700">{depositNote(lang, svc.deposit_cents, info.deposit_hours)}</p>}
             {info.cancel_hours > 0 && <p className="text-xs text-muted">{t.cancelUntil(info.cancel_hours)}</p>}
           </div>
         )}
@@ -451,7 +453,9 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
   const day = new Intl.DateTimeFormat(loc(lang), { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(st.starts_at));
   const time = new Intl.DateTimeFormat(loc(lang), { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(new Date(st.starts_at));
   const upcoming = st.status === 'requested' || st.status === 'confirmed';
-  const head = st.status === 'confirmed' ? { Icon: CheckCircle2, tone: 'text-emerald-500', h: t.confirmed, p: '' }
+  const waitDep = upcoming && st.deposit?.status === 'pending';
+  const head = waitDep ? { Icon: Hourglass, tone: 'text-amber-500', h: t.waitDeposit, p: '' }
+    : st.status === 'confirmed' ? { Icon: CheckCircle2, tone: 'text-emerald-500', h: t.confirmed, p: '' }
     : st.status === 'requested' ? { Icon: Hourglass, tone: 'text-brand', h: t.requested, p: t.requestedTxt }
     : st.status === 'cancelled' ? { Icon: XCircle, tone: 'text-muted', h: t.cancelled, p: st.cancelled_by === 'salon' ? t.cancelledSalon : '' }
     : st.status === 'no_show' ? { Icon: XCircle, tone: 'text-muted', h: t.noShow, p: '' }
@@ -502,6 +506,7 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
             <p className="text-muted">{st.name}</p>
           </div>
         </div>
+        {st.deposit && (upcoming || st.deposit.status !== 'pending') && <DepositCard dep={st.deposit} token={token} lang={lang} tz={tz} onDone={refresh} />}
         {st.salon.note && upcoming && <p className="mx-5 mt-3 text-sm text-muted">{st.salon.note}</p>}
 
         {error && <p className="mx-5 mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}

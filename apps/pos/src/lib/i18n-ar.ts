@@ -1040,4 +1040,8 @@ export const AR: Record<string, string> = {
   "Payé par le pack : {name}": "مخلص بالباك: {name}",
   "Payé par pack ou carte cadeau : {m}": "مخلص بالباك ولا ببطاقة هدية: {m}",
   "Carte cadeau inconnue.": "بطاقة هدية غير معروفة.",
+  "Acompte déjà payé : {m}": "العربون مخلص من قبل: {m}",
+  "CashPlus": "كاش بلوس",
+  "Lien de paiement": "رابط الخلاص",
+  "Virement, CashPlus, lien : {m}": "تحويل، كاش بلوس، رابط: {m}",
 };

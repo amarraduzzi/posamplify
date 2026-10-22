@@ -15,6 +15,9 @@ import { PIN_ERRORS } from '../lib/errors';
 import { Star8, initials } from '../components/Brand';
 import { SalonCheckout, tillMessage } from './Checkout';
 import { colorOf, fromUnpaid, instant, loadSalonStatic, loadToday, svcName, ymdIn, type Appt, type Board, type From, type Person, type Product, type Sale, type Svc, type TillDay, type Unpaid } from './data';
+// i18n:values
+const OTHER: Record<string, string> = { transfer: 'Virement', cashplus: 'CashPlus', link: 'Lien de paiement', other: 'Autre' };
+// i18n:end
 
 type Tab = 'desk' | 'till';
 const STATUS: Record<string, [string, string]> = {
@@ -216,7 +219,7 @@ function TillView({ till, people, reload }: { till: TillDay | null; people: Pers
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={t('Chiffre du jour')} value={mad(tot.total_cents)} sub={t('{n} ticket(s)', { n: tot.tickets })} />
         <Stat label={t('Espèces')} value={tot.cash_cents == null ? '•••' : mad(tot.cash_cents)} sub={tot.cash_cents == null ? t('Visible après la clôture') : undefined} />
-        <Stat label={t('Carte')} value={mad(tot.card_cents)} />
+        <Stat label={t('Carte')} value={mad(tot.card_cents)} sub={tot.other_cents ? t('Virement, CashPlus, lien : {m}', { m: mad(tot.other_cents) }) : undefined} />
         <Stat label={t('Pourboires')} value={mad(tot.tip_cents)} />
       </div>
       {till.staff.length > 0 && (
@@ -244,6 +247,8 @@ function TillView({ till, people, reload }: { till: TillDay | null; people: Pers
                   <p className="text-sm text-muted">{(s.lines ?? []).map(l => `${l.quantity > 1 ? `${l.quantity}× ` : ''}${l.name}${l.staff_id ? ` (${name(l.staff_id)})` : ''}`).join(', ')}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs font-semibold">
                     {s.card_cents > 0 && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">{t('Carte')} {mad(s.card_cents)}</span>}
+                    {!!s.other_cents && <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-600">{t(OTHER[s.other_method ?? 'other'] ?? 'Autre')} {mad(s.other_cents)}</span>}
+                    {!!s.prepaid_cents && <span className="rounded-full bg-surface-2 px-2 py-0.5">{t('Payé par pack ou carte cadeau')} {mad(s.prepaid_cents)}</span>}
                     {s.cash_cents != null && s.cash_cents > 0 && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-ok">{t('Espèces')} {mad(s.cash_cents)}</span>}
                     {s.tip_cents > 0 && <span className="rounded-full bg-surface-2 px-2 py-0.5">{t('Pourboire')} {mad(s.tip_cents)}</span>}
                     {s.discount_cents > 0 && s.total_cents > 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-warn">{t('Remise')} {mad(s.discount_cents)}{s.discount_reason ? ` · ${s.discount_reason}` : ''}</span>}

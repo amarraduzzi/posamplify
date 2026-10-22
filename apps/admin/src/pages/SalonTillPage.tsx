@@ -11,16 +11,19 @@ import { Btn, Card, Field, Modal, inputCls } from '../components/ui';
 import { CheckoutModal, mad, tillError, type CheckoutFrom, type TillPerson } from '../components/Checkout';
 import { svcName, type AgService } from './AgendaServicesPage';
 import { ymdIn } from '../lib/whatsapp';
+// i18n:values
+const OTHER: Record<string, string> = { transfer: 'Virement', cashplus: 'CashPlus', link: 'Lien de paiement', other: 'Autre' };
+// i18n:end
 
 interface Sale {
   id: string; number: number; at: string; name: string | null; phone: string | null; staff_id: string | null; total_cents: number; tip_cents: number;
-  discount_cents: number; discount_reason: string | null; free_reason: string | null; cash_cents: number | null; card_cents: number;
+  discount_cents: number; discount_reason: string | null; free_reason: string | null; cash_cents: number | null; card_cents: number; other_cents?: number; other_method?: string | null; prepaid_cents?: number;
   cancelled: boolean; cancel_reason: string | null; lines: { kind: string; name: string; quantity: number; line_cents: number; staff_id: string | null }[];
 }
 export interface Unpaid { kind: 'appointment' | 'queue'; id: string; name: string; phone: string | null; at: string; status: string; staff_id: string | null; service_id: string | null; service: Record<string, string> | null; price_cents: number | null; reason?: string }
 interface Day {
   date: string; today: string; manager: boolean; sales: Sale[]; unpaid: Unpaid[];
-  totals: { tickets: number; total_cents: number; card_cents: number; cash_cents: number | null; tip_cents: number; discount_cents: number; free: number; cancelled: number; cancelled_cents: number };
+  totals: { tickets: number; total_cents: number; card_cents: number; other_cents?: number; cash_cents: number | null; tip_cents: number; discount_cents: number; free: number; cancelled: number; cancelled_cents: number };
   staff: { staff_id: string; total_cents: number; clients: number; tip_cents: number }[];
   closed: null | { at: string; counted_cash_cents: number; expected_cash_cents: number; cash_diff_cents: number; unpaid: Unpaid[]; note: string | null };
 }
@@ -126,7 +129,7 @@ export function SalonTillPage({ r }: { r: Restaurant }) {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label={t('Chiffre du jour')} value={mad(tot.total_cents)} sub={t('{n} ticket(s)', { n: tot.tickets })} />
           <Stat label={t('Espèces')} value={tot.cash_cents == null ? '•••' : mad(tot.cash_cents)} sub={tot.cash_cents == null ? t('Visible après la clôture') : undefined} />
-          <Stat label={t('Carte')} value={mad(tot.card_cents)} />
+          <Stat label={t('Carte')} value={mad(tot.card_cents)} sub={tot.other_cents ? t('Virement, CashPlus, lien : {m}', { m: mad(tot.other_cents) }) : undefined} />
           <Stat label={t('Pourboires')} value={mad(tot.tip_cents)} sub={tot.discount_cents ? t('Remises : {m}', { m: mad(tot.discount_cents) }) : undefined} />
         </div>
       )}
@@ -161,6 +164,8 @@ export function SalonTillPage({ r }: { r: Restaurant }) {
                   <p className="text-sm text-muted">{(s.lines ?? []).map(l => `${l.quantity > 1 ? `${l.quantity}× ` : ''}${l.name}${l.staff_id ? ` (${who(l.staff_id)})` : ''}`).join(', ')}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs font-semibold">
                     {s.card_cents > 0 && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-700">{t('Carte')} {mad(s.card_cents)}</span>}
+                    {!!s.other_cents && <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-600">{t(OTHER[s.other_method ?? 'other'] ?? 'Autre')} {mad(s.other_cents)}</span>}
+                    {!!s.prepaid_cents && <span className="rounded-full bg-surface-2 px-2 py-0.5">{t('Payé par pack ou carte cadeau')} {mad(s.prepaid_cents)}</span>}
                     {s.cash_cents != null && s.cash_cents > 0 && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-700">{t('Espèces')} {mad(s.cash_cents)}</span>}
                     {s.tip_cents > 0 && <span className="rounded-full bg-surface-2 px-2 py-0.5">{t('Pourboire')} {mad(s.tip_cents)}</span>}
                     {s.discount_cents > 0 && s.total_cents > 0 && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-700">{t('Remise')} {mad(s.discount_cents)}{s.discount_reason ? ` · ${s.discount_reason}` : ''}</span>}

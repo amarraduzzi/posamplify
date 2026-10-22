@@ -126,21 +126,28 @@ export const callService = (slug: string, token: string, kind: ServiceKind) =>
 
 // ---- Amplify Agenda: the salon's booking page (?rdv) and the client's page (?rdv=<token>)
 export type LText = Record<string, string | undefined>;
-export interface AgendaService { id: string; name: LText; description: LText; category: string | null; duration_min: number; price_cents: number; price_from: boolean }
+export interface AgendaService { id: string; name: LText; description: LText; category: string | null; duration_min: number; price_cents: number; price_from: boolean; deposit_cents?: number }
 export interface AgendaStaff { id: string; name: string; color: string | null; services: string[] }
 export interface AgendaInfo {
   enabled: boolean; name: string; timezone: string; languages: string[]; branding: Record<string, unknown> | null;
   phone: string | null; address: string | null; city: string | null; note: string | null;
-  days_ahead: number; cancel_hours: number; any_staff: boolean; services: AgendaService[]; staff: AgendaStaff[];
+  days_ahead: number; cancel_hours: number; any_staff: boolean; services: AgendaService[]; staff: AgendaStaff[]; deposit_hours?: number | null;
 }
 export interface AgendaBooked { token: string; status: 'requested' | 'confirmed'; starts_at: string; duplicate: boolean; staff?: string }
 export interface AgendaStatus {
   status: 'requested' | 'confirmed' | 'arrived' | 'done' | 'cancelled' | 'no_show'; starts_at: string; ends_at: string; duration_min: number;
   service: LText; price_cents: number; price_from: boolean; name: string; staff: string | null; any_staff: boolean;
   cancelled_by: 'client' | 'salon' | null; can_cancel: boolean; client_confirmed?: boolean; can_confirm?: boolean;
+  deposit?: AgendaDeposit | null;
   salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[];
            branding: Record<string, unknown> | null; cancel_hours: number; note: string | null; handle?: string | null };
 }
+export interface AgendaDeposit {
+  amount_cents: number; reason: 'service' | 'no_shows' | 'manual'; due_at: string | null; reported: boolean;
+  status: 'pending' | 'paid' | 'expired' | 'cancelled' | 'to_settle' | 'kept' | 'credited' | 'refunded';
+  pay?: { rib?: string; rib_name?: string; bank?: string; cashplus?: string; link?: string; note?: string } | null;
+}
+export const agendaDepositReport = (token: string, ref: string) => call<{ ok: boolean }>('agenda_deposit_report', { p_token: token, p_ref: ref || null });
 export const agendaInfo = (slug: string) => call<AgendaInfo | null>('agenda_info', { p_slug: slug });
 export const agendaDays = (slug: string, service: string, staff: string | null) =>
   call<string[]>('agenda_days', { p_slug: slug, p_service: service, p_staff: staff });

@@ -17,13 +17,13 @@ export interface Board { open: boolean; working: number; staff: string[]; wait_m
 export interface Unpaid { kind: 'appointment' | 'queue'; id: string; name: string; phone: string | null; at: string; status: string; staff_id: string | null; service_id: string | null; service: Record<string, string> | null; price_cents: number | null; reason?: string }
 export interface Sale {
   id: string; number: number; at: string; name: string | null; phone: string | null; staff_id: string | null; cashier_id: string | null; total_cents: number; tip_cents: number;
-  discount_cents: number; discount_reason: string | null; free_reason: string | null; cash_cents: number | null; card_cents: number;
+  discount_cents: number; discount_reason: string | null; free_reason: string | null; cash_cents: number | null; card_cents: number; other_cents?: number; other_method?: string | null; prepaid_cents?: number;
   appointment_id: string | null; queue_id: string | null; cancelled: boolean; cancel_reason: string | null;
   lines: { kind: string; name: string; quantity: number; line_cents: number; staff_id: string | null }[];
 }
 export interface TillDay {
   date: string; today: string; manager: boolean; sales: Sale[]; unpaid: Unpaid[];
-  totals: { tickets: number; total_cents: number; card_cents: number; cash_cents: number | null; tip_cents: number; discount_cents: number; free: number; cancelled: number };
+  totals: { tickets: number; total_cents: number; card_cents: number; other_cents?: number; cash_cents: number | null; tip_cents: number; discount_cents: number; free: number; cancelled: number };
   staff: { staff_id: string; total_cents: number; clients: number; tip_cents: number }[];
   closed: null | { at: string; counted_cash_cents: number; expected_cash_cents: number; cash_diff_cents: number; unpaid: Unpaid[]; note: string | null; staff_id: string | null };
 }

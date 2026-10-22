@@ -69,6 +69,20 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
   const [ginfo, setGinfo] = useState<{ code: string; balance_cents: number; expires_on: string } | null>(null);
   const [gamount, setGamount] = useState('');
   const [gerr, setGerr] = useState<string | null>(null);
+  // the deposit paid before the visit: taken off the bill (it is a credit with its own code)
+  const [depNote, setDepNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!from.appointment_id) return;
+    type Dep = { status: string; code: string | null; balance_cents: number | null; amount_cents: number };
+    const use = (d: Dep | null) => {
+      if (!d || d.status !== 'paid' || !d.code || !d.balance_cents) return;
+      const first = lines.reduce((s, l) => s + (num(l.price) || 0) * l.qty, 0);
+      setGcode(d.code); setGinfo({ code: d.code, balance_cents: d.balance_cents, expires_on: '' });
+      setGamount(dh(Math.min(d.balance_cents, first || d.balance_cents)));
+      setDepNote(t('Acompte déjà payé : {m}', { m: mad(d.balance_cents) }));
+    };
+    rpc<Dep | null>('agenda_appt_deposit', { p_restaurant_id: r.id, p_appointment: from.appointment_id }).then(use).catch(() => undefined);
+  }, [from.appointment_id, r.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // a code from a client's story (Le miroir), checked before paying
   const [vcode, setVcode] = useState('');
   const [vinfo, setVinfo] = useState<{ code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number } | null>(null);
@@ -321,6 +335,7 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
           </div>
           {total === 0 && lines.length > 0 && !vinfo && !useLoyalty && <Field label={t('Pourquoi c’est offert ?')}><input className={inputCls} maxLength={100} value={free} onChange={e => setFree(e.target.value)} placeholder={t('Famille, retouche gratuite…')} /></Field>}
         </div>
+        {depNote && <p className="text-sm font-semibold text-emerald-700">{depNote}</p>}
         {prepaid > 0 && <p className="rounded-xl bg-ok/10 px-3 py-2 font-semibold text-ok">{t('Payé par pack ou carte cadeau : {m}', { m: mad(prepaid) })}</p>}
         {total > 0 && <>
           <div className="grid grid-cols-3 gap-2">

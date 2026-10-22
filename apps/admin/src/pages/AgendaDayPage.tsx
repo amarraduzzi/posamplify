@@ -2,7 +2,7 @@
 // days off greyed, the appointments with their time to prepare. Tap an empty time to put a client in
 // (phone, WhatsApp, walk-in), tap an appointment to mark it arrived, done, no-show, to move or cancel it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Banknote, CalendarDays, Check, CheckCircle2, UserRound, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarDays, Check, CheckCircle2, Coins, UserRound, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
@@ -13,12 +13,13 @@ import { fmtDuration, svcName, type AgService } from './AgendaServicesPage';
 import { ymdIn } from '../lib/whatsapp';
 import { ClientCardModal, useClient } from '../components/AgendaClient';
 import { CheckoutModal, type CheckoutFrom } from '../components/Checkout';
+import { DepositBox, useDeposits, type Deposit, type DepositPay } from '../components/Deposit';
 
 interface Person { id: string; name: string; agenda_color: string | null; agenda_hours: Record<string, [string, string][]>; agenda_services: string[]; agenda_sort: number }
 interface Appt {
   id: string; staff_id: string | null; service_id: string | null; status: string; source: string; starts_at: string; duration_min: number; buffer_min: number;
   name: string; phone: string | null; note: string | null; service_name: Record<string, string>; price_cents: number; price_from: boolean;
-  any_staff: boolean; client_confirmed_at: string | null; reminded_at: string | null;
+  any_staff: boolean; client_confirmed_at: string | null; reminded_at: string | null; lang?: string | null;
 }
 interface Off { id: string; staff_id: string | null; starts_at: string; ends_at: string; reason: string | null }
 
@@ -77,6 +78,8 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
   const [drag, setDrag] = useState<{ id: string; x0: number; y0: number; staff: string; delta: number; moved: boolean } | null>(null);
   const [move, setMove] = useState<{ appt: Appt; staff: string; min: number; warn: string } | null>(null);
   const dragRef = useRef(drag); dragRef.current = drag;
+  const deps = useDeposits(r);
+  const depOf = useMemo(() => new Map((deps.data?.list ?? []).map(d => [d.appointment_id, d] as [string, Deposit])), [deps.data]);
 
   useEffect(() => {
     supabase.from('staff').select('id, name, agenda_color, agenda_hours, agenda_services, agenda_sort').eq('restaurant_id', r.id).eq('active', true).eq('agenda', true)
@@ -90,11 +93,12 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
       supabase.from('agenda_time_off').select('*').eq('restaurant_id', r.id).lt('starts_at', to).gt('ends_at', from),
     ]);
     if (ap.error) a.fail(ap.error);
+    deps.reload();
     setAppts((ap.data ?? []) as Appt[]); setOffs((of.data ?? []) as Off[]);
     // which clients of the day went through the till
     const { data: till } = await supabase.rpc('agenda_day_till', { p_restaurant_id: r.id, p_date: day });
     setPaid(new Set(((till as { sales?: { appointment_id: string | null; cancelled: boolean }[] } | null)?.sales ?? []).filter(s => !s.cancelled && s.appointment_id).map(s => s.appointment_id!)));
-  }, [r.id, day, tz, a]);
+  }, [r.id, day, tz, a]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setAppts(null); load(); const id = window.setInterval(() => { load(); setNow(Date.now()); }, 30000); return () => window.clearInterval(id); }, [load]);
 
   // the hours of each person this day (their own, or the salon's opening hours)
@@ -241,6 +245,8 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
                               <p className="flex items-center gap-1 font-semibold tabular">{hm(s)}
                                 {x.source === 'online' && <Globe className="h-3 w-3 text-muted" />}
                                 {x.client_confirmed_at && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+                                {depOf.get(x.id)?.status === 'pending' && <Coins className="h-3 w-3 text-amber-600" aria-label={t('Acompte à recevoir')} />}
+                                {depOf.get(x.id)?.status === 'paid' && <Coins className="h-3 w-3 text-emerald-600" aria-label={t('Acompte payé')} />}
                                 {st?.cls && <span className={`ms-auto rounded px-1 text-[10px] font-bold ${st.cls}`}>{st.label()}</span>}
                               </p>
                               {x.duration_min >= 45 ? <>
@@ -276,13 +282,13 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
         </Modal>
       )}
       {pay && <CheckoutModal r={r} people={people} services={services} from={pay} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); }} />}
-      {open && <ApptSheet r={r} x={open} people={people} paid={paid.has(open.id)} onPay={() => { setPay({ appointment_id: open.id, name: open.name, phone: open.phone, staff_id: open.staff_id, service_id: open.service_id, price_cents: open.price_cents }); setOpen(null); }} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
+      {open && <ApptSheet r={r} x={open} people={people} paid={paid.has(open.id)} dep={depOf.get(open.id) ?? null} pay={deps.data?.pay ?? null} onDeposit={() => { deps.reload(); }} onPay={() => { setPay({ appointment_id: open.id, name: open.name, phone: open.phone, staff_id: open.staff_id, service_id: open.service_id, price_cents: open.price_cents }); setOpen(null); }} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
       {draft && <ApptEditor r={r} day={day} tz={tz} draft={draft} people={people} services={services} onClose={() => setDraft(null)} onSaved={() => { setDraft(null); load(); setWeekKey(k => k + 1); }} />}
     </div>
   );
 }
 
-function ApptSheet({ r, x, people, paid, onPay, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; paid: boolean; onPay: () => void; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
+function ApptSheet({ r, x, people, paid, dep, pay, onDeposit, onPay, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; paid: boolean; dep: Deposit | null; pay: DepositPay | null; onDeposit: () => void; onPay: () => void; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
   const a = useAdminCtx();
   const tz = r.timezone || 'UTC';
   const { c: client } = useClient(r, x.phone);
@@ -310,6 +316,7 @@ function ApptSheet({ r, x, people, paid, onPay, onClose, onEdit, onChanged }: { 
           <p className="mt-2 text-xs text-muted">{x.source === 'online' ? t('Réservé en ligne') : x.source === 'walk_in' ? t('Sans rendez-vous') : x.source === 'phone' ? t('Par téléphone') : t('Ajouté par le salon')}
             {x.client_confirmed_at ? ` · ${t('Confirmé par le client')}` : x.reminded_at ? ` · ${t('Rappel envoyé')}` : ''}</p>
         </div>
+        <DepositBox r={r} appt={x} dep={dep} pay={pay} onChanged={onDeposit} />
         <div className="grid grid-cols-2 gap-2">
           {x.status === 'requested' && <Btn tone="brand" className="col-span-2" onClick={() => set('confirmed')}><Check className="h-4 w-4" /> {t('Confirmer')}</Btn>}
           {paid ? <p className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{t('Payé')}</p>

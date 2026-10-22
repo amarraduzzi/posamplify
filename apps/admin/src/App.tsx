@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Coins, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -18,6 +18,7 @@ import { SalonTillPage } from './pages/SalonTillPage';
 import { SalonProductsPage } from './pages/SalonProductsPage';
 import { SalonPayPage } from './pages/SalonPayPage';
 import { SalonLoyaltyPage } from './pages/SalonLoyaltyPage';
+import { SalonDepositsPage } from './pages/SalonDepositsPage';
 import { SalonInstagramPage } from './pages/SalonInstagramPage';
 import { SalonSitePage } from './pages/SalonSitePage';
 import { TablesPage } from './pages/TablesPage';
@@ -56,7 +57,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -132,6 +133,7 @@ function Screens() {
     { id: 'nouba', label: t('La Nouba'), Icon: Footprints, show: hasAgenda },
     { id: 'agtill', label: t('Caisse'), Icon: Banknote, show: hasAgenda },
     { id: 'agproducts', label: t('Produits et stock'), Icon: Package, show: hasAgenda },
+    { id: 'agdeposits', label: t('Acomptes et no-shows'), Icon: Coins, show: hasAgenda },
     { id: 'agloyalty', label: t('Fidélité et cadeaux'), Icon: Heart, show: hasAgenda },
     { id: 'agpay', label: t('Commissions et paie'), Icon: Wallet, show: hasAgenda && (a.role === 'owner' || a.isAdmin) },
     { id: 'agclients', label: t('Clients'), Icon: Users, show: hasAgenda },
@@ -262,6 +264,7 @@ function Screens() {
           {r && current === 'agproducts' && <SalonProductsPage key={r.id} r={r} />}
           {r && current === 'agpay' && <SalonPayPage key={r.id} r={r} />}
           {r && current === 'agloyalty' && <SalonLoyaltyPage key={r.id} r={r} />}
+          {r && current === 'agdeposits' && <SalonDepositsPage key={r.id} r={r} onServices={() => setPage('agservices')} />}
           {r && current === 'aginsta' && <SalonInstagramPage key={r.id} r={r} />}
           {r && current === 'agclients' && <AgendaClientsPage key={r.id} r={r} />}
           {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}

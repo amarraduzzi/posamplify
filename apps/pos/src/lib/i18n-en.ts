@@ -1039,4 +1039,8 @@ export const EN: Record<string, string> = {
   "Payé par le pack : {name}": "Paid by the pack: {name}",
   "Payé par pack ou carte cadeau : {m}": "Paid by pack or gift card: {m}",
   "Carte cadeau inconnue.": "Unknown gift card.",
+  "Acompte déjà payé : {m}": "Deposit already paid: {m}",
+  "CashPlus": "CashPlus",
+  "Lien de paiement": "Payment link",
+  "Virement, CashPlus, lien : {m}": "Transfer, CashPlus, link: {m}",
 };

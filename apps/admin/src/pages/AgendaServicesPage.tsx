@@ -11,7 +11,7 @@ import { t } from '../lib/i18n';
 
 export interface AgService {
   id: string; name: Record<string, string>; description: Record<string, string>; category: string | null;
-  duration_min: number; buffer_min: number; price_cents: number; price_from: boolean; online: boolean; active: boolean; sort_order: number;
+  duration_min: number; buffer_min: number; price_cents: number; price_from: boolean; deposit_cents?: number; online: boolean; active: boolean; sort_order: number;
 }
 export const svcName = (s: Pick<AgService, 'name'>) => s.name.fr || s.name.ar || s.name.en || '';
 export const fmtDuration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}`);
@@ -53,6 +53,7 @@ export function AgendaServicesPage({ r }: { r: Restaurant }) {
                   <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted">
                     <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{fmtDuration(s.duration_min)}{s.buffer_min ? ` + ${s.buffer_min} min` : ''}</span>
                     {!s.online && <span>{t('Pas en ligne')}</span>}
+                    {!!s.deposit_cents && <span className="font-semibold text-amber-700">{t('Acompte {m}', { m: mad(s.deposit_cents) })}</span>}
                   </p>
                 </div>
                 <p className="font-semibold tabular">{s.price_from ? `${t('dès')} ` : ''}{mad(s.price_cents)}</p>
@@ -72,10 +73,12 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
   const [f, setF] = useState(() => ({
     fr: s?.name.fr ?? '', ar: s?.name.ar ?? '', en: s?.name.en ?? '', desc: s?.description.fr ?? '', category: s?.category ?? '',
     duration: String(s?.duration_min ?? 30), buffer: String(s?.buffer_min ?? 0), price: s ? String(s.price_cents / 100) : '',
+    deposit: s?.deposit_cents ? String(s.deposit_cents / 100) : '',
     from: s?.price_from ?? false, online: s?.online ?? true, active: s?.active ?? true,
   }));
   const [busy, setBusy] = useState(false);
-  const ok = !!(f.fr.trim() || f.ar.trim()) && Number(f.duration) >= 5;
+  const dep = f.deposit.trim() ? Math.round((Number(f.deposit.replace(',', '.')) || 0) * 100) : 0;
+  const ok = !!(f.fr.trim() || f.ar.trim()) && Number(f.duration) >= 5 && (dep === 0 || dep >= 1000);
   const save = async () => {
     setBusy(true);
     try {
@@ -83,7 +86,7 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
       const row = {
         restaurant_id: r.id, name, description: f.desc.trim() ? { ...(s?.description ?? {}), fr: f.desc.trim() } : {},
         category: f.category.trim() || null, duration_min: Math.round(Number(f.duration)), buffer_min: Math.max(0, Math.round(Number(f.buffer) || 0)),
-        price_cents: Math.round((Number(f.price.replace(',', '.')) || 0) * 100), price_from: f.from, online: f.online, active: f.active,
+        price_cents: Math.round((Number(f.price.replace(',', '.')) || 0) * 100), price_from: f.from, deposit_cents: dep, online: f.online, active: f.active,
         ...(s ? {} : { sort_order: next }),
       };
       if (s) check(await supabase.from('agenda_services').update(row).eq('id', s.id).select('id'));
@@ -117,6 +120,9 @@ function ServiceEditor({ r, s, cats, next, onClose, onSaved }: { r: Restaurant; 
           <Field label={t('Préparation après (min)')}><input className={inputCls} inputMode="numeric" value={f.buffer} onChange={e => setF({ ...f, buffer: e.target.value.replace(/\D/g, '') })} /></Field>
           <Field label={t('Prix (DH)')}><input className={inputCls} inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></Field>
         </div>
+        <Field label={t('Acompte demandé à la réservation (DH)')} hint={t('Vide : pas d’acompte. Minimum 10 DH. Les règles se règlent dans « Acomptes et no-shows ».')}>
+          <input className={`${inputCls} sm:w-48`} inputMode="decimal" value={f.deposit} onChange={e => setF({ ...f, deposit: e.target.value })} placeholder="0" />
+        </Field>
         <Field label={t('Description (facultatif)')}><textarea className={`${inputCls} min-h-[70px]`} maxLength={300} value={f.desc} onChange={e => setF({ ...f, desc: e.target.value })} placeholder={t('Shampooing, coupe, brushing. Cheveux longs : supplément.')} /></Field>
         <div className="flex flex-wrap gap-6">
           <Toggle checked={f.from} onChange={v => setF({ ...f, from: v })} label={t('Prix « à partir de »')} />
