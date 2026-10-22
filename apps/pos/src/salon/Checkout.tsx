@@ -10,9 +10,9 @@ import { mad, toCents } from '../lib/format';
 import { t } from '../lib/i18n';
 import * as P from '../lib/print';
 import { Btn, Field, Modal, inputCls } from '../components/ui';
-import { svcName, waLink, colorOf, type From, type Person, type Svc } from './data';
+import { svcName, waLink, colorOf, type From, type Person, type Product, type Svc } from './data';
 
-interface Line { key: number; kind: 'service' | 'product'; service_id: string | null; name: string; price: string; qty: number; staff_id: string }
+interface Line { key: number; kind: 'service' | 'product' | 'other'; service_id: string | null; product_id?: string | null; name: string; price: string; qty: number; staff_id: string }
 let seq = 0;
 const num = (s: string) => (s.trim() === '' ? 0 : /^\d+([.,]\d{0,2})?$/.test(s.trim()) ? toCents(s) : NaN);
 const dh = (c: number) => String(c / 100);
@@ -22,7 +22,7 @@ const TILL_ERR: Record<string, string> = {
 };
 export const tillMessage = (e: unknown) => { const m = String((e as Error)?.message ?? e); const k = Object.keys(TILL_ERR).find(x => m.includes(x)); return k ? t(TILL_ERR[k]) : null; };
 
-export function SalonCheckout({ from, people, services, onClose, onPaid }: { from: From; people: Person[]; services: Svc[]; onClose: () => void; onPaid: () => void }) {
+export function SalonCheckout({ from, people, services, products, onClose, onPaid }: { from: From; people: Person[]; services: Svc[]; products: Product[]; onClose: () => void; onPaid: () => void }) {
   const pos = usePos();
   const r = pos.restaurant!;
   const first = services.find(s => s.id === from.service_id);
@@ -35,7 +35,12 @@ export function SalonCheckout({ from, people, services, onClose, onPaid }: { fro
   const [disc, setDisc] = useState(''); const [discWhy, setDiscWhy] = useState(''); const [free, setFree] = useState('');
   const [method, setMethod] = useState<'cash' | 'card' | 'both'>('cash');
   const [card, setCard] = useState(''); const [tip, setTip] = useState(''); const [given, setGiven] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'service' | 'product' | null>(null);
+  const addProduct = (pr: Product) => setLines(ls => {
+    const same = ls.find(l => l.product_id === pr.id);
+    if (same) return ls.map(l => (l === same ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
+    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: '' }];
+  });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ number: number } | null>(null);
 
@@ -66,7 +71,7 @@ export function SalonCheckout({ from, people, services, onClose, onPaid }: { fro
     try {
       const res = await rpc<{ number: number }>('agenda_checkout_by', { p_restaurant_id: r.id, p_cashier: pos.staff?.id ?? null, p: {
         appointment_id: from.appointment_id, queue_id: from.queue_id, name: name.trim() || undefined, phone: phone.replace(/\D/g, '') || undefined,
-        lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, name: l.name.trim(), quantity: l.qty, unit_cents: num(l.price), staff_id: l.staff_id || null })),
+        lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, product_id: l.product_id ?? null, name: l.name.trim(), quantity: l.qty, unit_cents: num(l.price), staff_id: l.staff_id || null })),
         discount_cents: discount || 0, discount_reason: discWhy.trim() || undefined, free_reason: total === 0 ? free.trim() : undefined,
         cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
       } });
@@ -113,7 +118,7 @@ export function SalonCheckout({ from, people, services, onClose, onPaid }: { fro
             <div key={l.key} className="rounded-2xl bg-surface-2 p-3">
               <div className="flex items-center gap-2">
                 {l.kind === 'service' ? <Scissors className="h-4 w-4 shrink-0 text-brand" /> : <Package className="h-4 w-4 shrink-0 text-brand" />}
-                <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" maxLength={80} value={l.name} placeholder={t('Nom du produit')} onChange={e => set(l.key, { name: e.target.value })} aria-label={t('Nom')} />
+                <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" maxLength={80} value={l.name} placeholder={t('Nom du produit')} readOnly={!!l.product_id} onChange={e => set(l.key, { name: e.target.value })} aria-label={t('Nom')} />
                 {l.kind !== 'service' && <select className="rounded-lg bg-bg/70 px-2 py-1.5 text-sm" value={l.qty} onChange={e => set(l.key, { qty: Number(e.target.value) })} aria-label={t('Quantité')}>
                   {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} ×</option>)}</select>}
                 <div className="flex w-32 items-center rounded-xl bg-bg/70 px-2 ring-1 ring-line/10">
@@ -132,13 +137,25 @@ export function SalonCheckout({ from, people, services, onClose, onPaid }: { fro
           ))}
           {!lines.length && <p className="rounded-2xl border border-dashed border-line/20 p-4 text-center text-sm text-muted">{t('Ajoutez une prestation ou un produit.')}</p>}
           <div className="flex flex-wrap gap-2">
-            <Btn onClick={() => setAdding(!adding)}><Plus className="h-4 w-4" /> {t('Prestation')}</Btn>
-            <Btn onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'product', service_id: null, name: '', price: '', qty: 1, staff_id: '' }]); setAdding(false); }}><Package className="h-4 w-4" /> {t('Produit ou autre')}</Btn>
+            <Btn onClick={() => setAdding(adding === 'service' ? null : 'service')}><Plus className="h-4 w-4" /> {t('Prestation')}</Btn>
+            <Btn onClick={() => setAdding(adding === 'product' ? null : 'product')}><Package className="h-4 w-4" /> {t('Produit ou autre')}</Btn>
           </div>
-          {adding && (
+          {adding === 'product' && (
+            <div className="flex flex-wrap gap-1.5 rounded-2xl bg-surface-2 p-3">
+              {products.map(pr => (
+                <button key={pr.id} onClick={() => addProduct(pr)} className="rounded-xl bg-bg/70 px-3 py-2.5 text-start text-sm font-semibold">
+                  {pr.name} <span className="text-muted tabular">{mad(pr.price_cents)}</span>
+                  <span className={`block text-xs font-normal ${pr.stock <= 0 ? 'text-danger' : pr.min_stock != null && pr.stock <= pr.min_stock ? 'text-warn' : 'text-muted'}`}>{pr.stock <= 0 ? t('Plus en stock') : t('{n} en stock', { n: pr.stock })}</span>
+                </button>
+              ))}
+              <button onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'other', service_id: null, product_id: null, name: '', price: '', qty: 1, staff_id: '' }]); setAdding(null); }}
+                className="rounded-xl border border-dashed border-line/30 px-3 py-2.5 text-sm font-semibold text-muted">{t('Autre (texte libre)')}</button>
+            </div>
+          )}
+          {adding === 'service' && (
             <div className="flex flex-wrap gap-1.5 rounded-2xl bg-surface-2 p-3">
               {services.map(s => (
-                <button key={s.id} onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'service', service_id: s.id, name: svcName(s.name), price: dh(s.price_cents), qty: 1, staff_id: from.staff_id ?? ls[0]?.staff_id ?? pos.staff?.id ?? '' }]); setAdding(false); }}
+                <button key={s.id} onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'service', service_id: s.id, name: svcName(s.name), price: dh(s.price_cents), qty: 1, staff_id: from.staff_id ?? ls[0]?.staff_id ?? pos.staff?.id ?? '' }]); setAdding(null); }}
                   className="rounded-xl bg-bg/70 px-3 py-2.5 text-sm font-semibold">{svcName(s.name)} <span className="text-muted tabular">{mad(s.price_cents)}</span></button>
               ))}
             </div>

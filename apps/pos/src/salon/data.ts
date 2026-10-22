@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Restaurant } from '../lib/types';
 
 export interface Svc { id: string; name: Record<string, string>; category: string | null; duration_min: number; price_cents: number; price_from: boolean; active: boolean; sort_order: number }
+export interface Product { id: string; name: string; category: string | null; price_cents: number; stock: number; min_stock: number | null }
 export interface Person { id: string; name: string; role: 'staff' | 'manager'; agenda_color: string | null; agenda: boolean; agenda_services: string[] }
 export interface Appt {
   id: string; staff_id: string | null; service_id: string | null; status: string; source: string; starts_at: string; duration_min: number;
@@ -56,12 +57,13 @@ export function instant(day: string, hm: string, tz: string) {
 export const ymdIn = (d: Date, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 
 export async function loadSalonStatic(rid: string) {
-  const [p, s] = await Promise.all([
+  const [p, s, pr] = await Promise.all([
     supabase.from('staff').select('id,name,role,agenda_color,agenda,agenda_services').eq('restaurant_id', rid).eq('active', true).order('agenda_sort').order('name'),
     supabase.from('agenda_services').select('id,name,category,duration_min,price_cents,price_from,active,sort_order').eq('restaurant_id', rid).eq('active', true).order('sort_order'),
+    supabase.from('agenda_products').select('id,name,category,price_cents,stock,min_stock').eq('restaurant_id', rid).eq('kind', 'retail').eq('active', true).order('sort_order').order('name'),
   ]);
   if (p.error) throw p.error; if (s.error) throw s.error;
-  return { people: p.data as Person[], services: s.data as Svc[] };
+  return { people: p.data as Person[], services: s.data as Svc[], products: (pr.error ? [] : pr.data) as Product[] };
 }
 export async function loadToday(rid: string, tz: string) {
   const day = ymdIn(new Date(), tz);

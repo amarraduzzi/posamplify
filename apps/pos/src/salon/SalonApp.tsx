@@ -13,7 +13,7 @@ import { PinPad } from '../components/PinPad';
 import { PIN_ERRORS } from '../lib/errors';
 import { Star8, initials } from '../components/Brand';
 import { SalonCheckout, tillMessage } from './Checkout';
-import { colorOf, fromUnpaid, instant, loadSalonStatic, loadToday, svcName, ymdIn, type Appt, type Board, type From, type Person, type Sale, type Svc, type TillDay, type Unpaid } from './data';
+import { colorOf, fromUnpaid, instant, loadSalonStatic, loadToday, svcName, ymdIn, type Appt, type Board, type From, type Person, type Product, type Sale, type Svc, type TillDay, type Unpaid } from './data';
 
 type Tab = 'desk' | 'till';
 const STATUS: Record<string, [string, string]> = {
@@ -29,6 +29,7 @@ export function SalonApp() {
   const [tab, setTab] = useState<Tab>('desk');
   const [people, setPeople] = useState<Person[]>([]);
   const [services, setServices] = useState<Svc[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [appts, setAppts] = useState<Appt[]>([]);
   const [board, setBoard] = useState<Board | null>(null);
   const [till, setTill] = useState<TillDay | null>(null);
@@ -40,7 +41,7 @@ export function SalonApp() {
   const load = useCallback(async () => {
     try { const x = await loadToday(r.id, tz); setAppts(x.appts); setBoard(x.board); setTill(x.till); } catch (e) { pos.fail(e); }
   }, [r.id, tz]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { loadSalonStatic(r.id).then(x => { setPeople(x.people); setServices(x.services); }).catch(pos.fail); }, [r.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadSalonStatic(r.id).then(x => { setPeople(x.people); setServices(x.services); setProducts(x.products); }).catch(pos.fail); }, [r.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); const i = window.setInterval(() => { load(); setNow(Date.now()); }, 15000); return () => window.clearInterval(i); }, [load]);
 
   const person = (id: string | null) => people.find(p => p.id === id);
@@ -137,7 +138,7 @@ export function SalonApp() {
         ) : <TillView till={till} people={people} reload={load} />}
       </main>
 
-      {pay && <SalonCheckout from={pay} people={people} services={services} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); }} />}
+      {pay && <SalonCheckout from={pay} people={people} services={services} products={products} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); loadSalonStatic(r.id).then(x => setProducts(x.products)).catch(() => {}); }} />}
       {newAppt && <NewAppointment services={services} team={team} onClose={() => setNewAppt(false)} onSaved={() => { setNewAppt(false); load(); }} />}
       {walkIn && <WalkIn services={services} team={team} onClose={() => setWalkIn(false)} onSaved={() => { setWalkIn(false); load(); }} />}
       <Toasts />

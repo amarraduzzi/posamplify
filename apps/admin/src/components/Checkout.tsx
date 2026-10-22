@@ -2,7 +2,7 @@
 // already there with the person who did it; add a prestation, a product or another line, a discount
 // or "offert" (with a reason), then cash, card or both, the tip and the change. The ticket can go to
 // the client on WhatsApp.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Banknote, CheckCircle2, CreditCard, Gift, MessageCircle, Package, Plus, Scissors, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { t } from '../lib/i18n';
@@ -17,7 +17,8 @@ export interface CheckoutFrom {
   appointment_id?: string; queue_id?: string; name?: string; phone?: string | null;
   staff_id?: string | null; service_id?: string | null; price_cents?: number | null;
 }
-interface Line { key: number; kind: 'service' | 'product' | 'other'; service_id: string | null; name: string; price: string; qty: number; staff_id: string }
+interface Line { key: number; kind: 'service' | 'product' | 'other'; service_id: string | null; product_id?: string | null; name: string; price: string; qty: number; staff_id: string }
+interface TillProduct { id: string; name: string; category: string | null; price_cents: number; stock: number; min_stock: number | null }
 
 export const mad = (c: number) => `${(c / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} DH`;
 const cents = (s: string) => { const n = Number(s.replace(',', '.').replace(/\s/g, '')); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN; };
@@ -65,13 +66,24 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
     || Number.isNaN(tipC) || cashC < 0 || (total === 0 && !free.trim());
   const set = (k: number, p: Partial<Line>) => setLines(ls => ls.map(l => (l.key === k ? { ...l, ...p } : l)));
   const byCat = useMemo(() => services.filter(s => s.active !== false), [services]);
+  // the products for sale of the salon (Produits et stock)
+  const [products, setProducts] = useState<TillProduct[]>([]);
+  useEffect(() => {
+    supabase.from('agenda_products').select('id,name,category,price_cents,stock,min_stock').eq('restaurant_id', r.id).eq('kind', 'retail').eq('active', true).order('sort_order').order('name')
+      .then(x => setProducts((x.data ?? []) as TillProduct[]));
+  }, [r.id]);
+  const addProduct = (pr: TillProduct) => setLines(ls => {
+    const same = ls.find(l => l.product_id === pr.id);
+    if (same) return ls.map(l => (l === same ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
+    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: '' }];
+  });
 
   const pay = async () => {
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc('agenda_checkout', { p_restaurant_id: r.id, p: {
         appointment_id: from.appointment_id, queue_id: from.queue_id, name: name.trim() || undefined, phone: phone.replace(/\D/g, '') || undefined,
-        lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, name: l.name.trim(), quantity: l.qty, unit_cents: cents(l.price), staff_id: l.staff_id || null })),
+        lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, product_id: l.product_id ?? null, name: l.name.trim(), quantity: l.qty, unit_cents: cents(l.price), staff_id: l.staff_id || null })),
         discount_cents: discount || 0, discount_reason: discWhy.trim() || undefined, free_reason: total === 0 ? free.trim() : undefined,
         cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
       } });
@@ -117,7 +129,7 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
             <div key={l.key} className="rounded-2xl bg-surface-2 p-3">
               <div className="flex items-center gap-2">
                 {l.kind === 'service' ? <Scissors className="h-4 w-4 shrink-0 text-brand" /> : <Package className="h-4 w-4 shrink-0 text-brand" />}
-                <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" maxLength={80} value={l.name} onChange={e => set(l.key, { name: e.target.value })} aria-label={t('Nom')} />
+                <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" maxLength={80} value={l.name} readOnly={!!l.product_id} placeholder={t('Nom du produit')} onChange={e => set(l.key, { name: e.target.value })} aria-label={t('Nom')} />
                 {l.kind !== 'service' && <select className="rounded-lg bg-surface px-2 py-1 text-sm" value={l.qty} onChange={e => set(l.key, { qty: Number(e.target.value) })} aria-label={t('Quantité')}>
                   {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} ×</option>)}</select>}
                 <div className="flex w-28 items-center rounded-lg bg-surface px-2 ring-1 ring-line/10">
@@ -139,8 +151,21 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
           {!lines.length && <p className="rounded-2xl border border-dashed border-line/20 p-4 text-center text-sm text-muted">{t('Ajoutez une prestation ou un produit.')}</p>}
           <div className="flex flex-wrap gap-2">
             <Btn onClick={() => setAdding(adding === 'service' ? null : 'service')}><Plus className="h-4 w-4" /> {t('Prestation')}</Btn>
-            <Btn onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'product', service_id: null, name: '', price: '', qty: 1, staff_id: '' }]); setAdding(null); }}><Package className="h-4 w-4" /> {t('Produit ou autre')}</Btn>
+            <Btn onClick={() => setAdding(adding === 'product' ? null : 'product')}><Package className="h-4 w-4" /> {t('Produit ou autre')}</Btn>
           </div>
+          {adding === 'product' && (
+            <div className="flex flex-wrap gap-1.5 rounded-2xl bg-surface-2 p-3">
+              {products.map(pr => (
+                <button key={pr.id} onClick={() => addProduct(pr)} className="rounded-xl bg-surface px-3 py-2 text-start text-sm font-semibold shadow-sm">
+                  {pr.name} <span className="text-muted tabular">{mad(pr.price_cents)}</span>
+                  <span className={`block text-xs font-normal ${pr.stock <= 0 ? 'text-red-600' : pr.min_stock != null && pr.stock <= pr.min_stock ? 'text-amber-700' : 'text-muted'}`}>{pr.stock <= 0 ? t('Plus en stock') : t('{n} en stock', { n: pr.stock })}</span>
+                </button>
+              ))}
+              <button onClick={() => { setLines(ls => [...ls, { key: ++seq, kind: 'other', service_id: null, product_id: null, name: '', price: '', qty: 1, staff_id: '' }]); setAdding(null); }}
+                className="rounded-xl border border-dashed border-line/30 px-3 py-2 text-sm font-semibold text-muted">{t('Autre (texte libre)')}</button>
+              {!products.length && <p className="w-full text-xs text-muted">{t('Ajoutez vos produits dans « Produits et stock » pour les vendre ici et suivre le stock.')}</p>}
+            </div>
+          )}
           {adding === 'service' && (
             <div className="flex flex-wrap gap-1.5 rounded-2xl bg-surface-2 p-3">
               {byCat.map(s => (
