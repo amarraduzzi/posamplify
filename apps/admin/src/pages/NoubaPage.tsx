@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
-import { BellRing, Copy, Maximize2, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
+import { Banknote, BellRing, Copy, Maximize2, Download, ExternalLink, Footprints, Home, Plus, Save, SkipForward, UserX, X } from 'lucide-react';
 import { waLink } from '../lib/whatsapp';
 import { turnText } from '../lib/agendaMessages';
 import { supabase, MENU_URL } from '../lib/supabase';
@@ -13,6 +13,8 @@ import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { svcName, type AgService } from './AgendaServicesPage';
+import { CheckoutModal, type CheckoutFrom } from '../components/Checkout';
+import { unpaidFrom, type Unpaid } from './SalonTillPage';
 
 interface Entry {
   id: string; status: 'waiting' | 'serving'; name: string; phone: string | null; service_id: string | null; staff_id: string | null;
@@ -35,12 +37,17 @@ export function NoubaPage({ r }: { r: Restaurant }) {
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
   const [tv, setTv] = useState(false);
+  const [pay, setPay] = useState<CheckoutFrom | null>(null);
+  const [unpaid, setUnpaid] = useState<Unpaid[]>([]);
 
   const load = useCallback(async () => {
     try {
       const { data, error } = await supabase.rpc('nouba_board', { p_restaurant_id: r.id });
       if (error) throw error;
       setBoard(data as Board);
+      // the Nouba clients done today and not paid yet
+      const till = await supabase.rpc('agenda_day_till', { p_restaurant_id: r.id, p_date: null });
+      setUnpaid((((till.data as { unpaid?: Unpaid[] } | null)?.unpaid) ?? []).filter(u => u.kind === 'queue' && u.status === 'done'));
     } catch (e) { a.fail(e); }
   }, [r.id, a]);
   useEffect(() => {
@@ -126,11 +133,26 @@ export function NoubaPage({ r }: { r: Restaurant }) {
                 className="mt-4 flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-bold text-brand-ink transition active:scale-[.98] disabled:opacity-50">
                 <SkipForward className="h-5 w-5" />{t('Suivant')}
               </button>
-              {chair && <button onClick={() => setStatus(chair.id, 'done')} className="mt-2 w-full text-sm font-semibold text-muted">{t('Terminer sans prendre le suivant')}</button>}
+              {chair && <div className="mt-2 flex items-center gap-2">
+                <Btn className="flex-1" onClick={() => setPay({ queue_id: chair.id, name: chair.name, phone: chair.phone, staff_id: p.id, service_id: chair.service_id })}><Banknote className="h-4 w-4" /> {t('Encaisser')}</Btn>
+                <button onClick={() => setStatus(chair.id, 'done')} className="flex-1 text-sm font-semibold text-muted">{t('Terminer sans prendre le suivant')}</button>
+              </div>}
             </Card>
           );
         })}
       </div>
+
+      {unpaid.length > 0 && (
+        <Card className="ring-2 ring-amber-500/40">
+          <h2 className="mb-3 font-display text-xl font-semibold">{t('À encaisser')} <span className="text-muted">({unpaid.length})</span></h2>
+          <ul className="flex flex-wrap gap-2">
+            {unpaid.map(u => (
+              <li key={u.id}><button onClick={() => setPay(unpaidFrom(u))} className="inline-flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold hover:bg-surface-3">
+                <Banknote className="h-4 w-4 text-brand" />{u.name}{person(u.staff_id) ? <span className="text-muted">· {person(u.staff_id)!.name}</span> : null}</button></li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-3 font-display text-xl font-semibold">{t('En attente')} <span className="text-muted">({waiting.length})</span></h2>
@@ -165,6 +187,7 @@ export function NoubaPage({ r }: { r: Restaurant }) {
         )}
       </Card>
 
+      {pay && <CheckoutModal r={r} people={team} services={services} from={pay} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); }} />}
       {tv && board && <TvScreen r={r} board={board} people={people} onClose={() => setTv(false)} />}
       {adding && <AddWalkIn r={r} services={services} team={team} onClose={() => setAdding(false)} onDone={() => { setAdding(false); load(); }} />}
       {settings && <NoubaSettings r={r} onClose={() => setSettings(false)} />}

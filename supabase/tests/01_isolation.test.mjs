@@ -42,6 +42,9 @@ before(async () => {
   await sql(`insert into public.agenda_appointments (restaurant_id, starts_at, duration_min, name) values ($1, now(), 30, 'B')`, [w.B.r.id]);
   await sql(`insert into public.agenda_queue (restaurant_id, name) values ($1, 'B')`, [w.B.r.id]);
   await sql(`insert into public.agenda_formulas (restaurant_id, customer_id, formula) select $1, id, 'B' from public.customers where restaurant_id = $1 limit 1`, [w.B.r.id]);
+  const [bs] = await sql(`insert into public.agenda_sales (restaurant_id, business_date, number, subtotal_cents, total_cents, cash_cents) values ($1, current_date, 1, 100, 100, 100) returning id`, [w.B.r.id]);
+  await sql(`insert into public.agenda_sale_lines (restaurant_id, sale_id, kind, name, unit_cents) values ($1, $2, 'other', 'B', 100)`, [w.B.r.id, bs.id]);
+  await sql(`insert into public.agenda_closings (restaurant_id, business_date, counted_cash_cents, expected_cash_cents, cash_diff_cents) values ($1, current_date, 100, 100, 0)`, [w.B.r.id]);
   await sql(`insert into public.service_calls (restaurant_id, table_id, kind) select restaurant_id, id, 'water' from public.dining_tables where restaurant_id = $1 limit 1`, [w.B.r.id]);
   await sql(`insert into public.reservation_deposits (restaurant_id, reservation_id, kind, amount_cents, method, business_date) values ($1, $2, 'in', 1000, 'cash', current_date)`, [w.B.r.id, rsB.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);

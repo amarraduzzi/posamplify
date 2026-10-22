@@ -2,7 +2,7 @@
 // days off greyed, the appointments with their time to prepare. Tap an empty time to put a client in
 // (phone, WhatsApp, walk-in), tap an appointment to mark it arrived, done, no-show, to move or cancel it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Check, CheckCircle2, UserRound, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarDays, Check, CheckCircle2, UserRound, ChevronLeft, ChevronRight, Globe, Pencil, Phone, Plus, UserX, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
@@ -12,6 +12,7 @@ import { DAYS } from '../components/HoursEditor';
 import { fmtDuration, svcName, type AgService } from './AgendaServicesPage';
 import { ymdIn } from '../lib/whatsapp';
 import { ClientCardModal, useClient } from '../components/AgendaClient';
+import { CheckoutModal, type CheckoutFrom } from '../components/Checkout';
 
 interface Person { id: string; name: string; agenda_color: string | null; agenda_hours: Record<string, [string, string][]>; agenda_services: string[]; agenda_sort: number }
 interface Appt {
@@ -62,6 +63,8 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
   const [appts, setAppts] = useState<Appt[] | null>(null);
   const [offs, setOffs] = useState<Off[]>([]);
   const [open, setOpen] = useState<Appt | null>(null);
+  const [paid, setPaid] = useState<Set<string>>(new Set());
+  const [pay, setPay] = useState<CheckoutFrom | null>(null);
   const [draft, setDraft] = useState<{ staff: string; min: number; appt?: Appt } | null>(null);
   const [now, setNow] = useState(Date.now());
   const [view, setView] = useState<'day' | 'week'>('day');
@@ -88,6 +91,9 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
     ]);
     if (ap.error) a.fail(ap.error);
     setAppts((ap.data ?? []) as Appt[]); setOffs((of.data ?? []) as Off[]);
+    // which clients of the day went through the till
+    const { data: till } = await supabase.rpc('agenda_day_till', { p_restaurant_id: r.id, p_date: day });
+    setPaid(new Set(((till as { sales?: { appointment_id: string | null; cancelled: boolean }[] } | null)?.sales ?? []).filter(s => !s.cancelled && s.appointment_id).map(s => s.appointment_id!)));
   }, [r.id, day, tz, a]);
   useEffect(() => { setAppts(null); load(); const id = window.setInterval(() => { load(); setNow(Date.now()); }, 30000); return () => window.clearInterval(id); }, [load]);
 
@@ -224,7 +230,7 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
                     })}
                     {mine.map(x => {
                       const s = localMin(x.starts_at, tz);
-                      const st = STATUS[x.status];
+                      const st = paid.has(x.id) ? { label: () => t('Payé'), cls: 'bg-emerald-600 text-white' } : STATUS[x.status];
                       return (
                         <button key={x.id} onClick={e => e.stopPropagation()} onPointerDown={e => startDrag(e, x)} onKeyDown={e => { if (e.key === 'Enter') setOpen(x); }}
                           className={`absolute inset-x-1 touch-none select-none overflow-hidden rounded-lg bg-surface text-start text-xs shadow-sm ring-1 ring-black/5 transition hover:z-10 hover:shadow-md ${x.status === 'no_show' ? 'opacity-50' : ''} ${drag?.id === x.id && drag.moved ? 'opacity-30' : 'cursor-grab'}`}
@@ -269,13 +275,14 @@ export function AgendaDayPage({ r }: { r: Restaurant }) {
           <p className="mt-2 text-sm text-muted">{move.appt.name} · {hm(move.min)} · {people.find(p => p.id === move.staff)?.name}</p>
         </Modal>
       )}
-      {open && <ApptSheet r={r} x={open} people={people} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
+      {pay && <CheckoutModal r={r} people={people} services={services} from={pay} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); }} />}
+      {open && <ApptSheet r={r} x={open} people={people} paid={paid.has(open.id)} onPay={() => { setPay({ appointment_id: open.id, name: open.name, phone: open.phone, staff_id: open.staff_id, service_id: open.service_id, price_cents: open.price_cents }); setOpen(null); }} onClose={() => setOpen(null)} onEdit={() => { setDraft({ staff: open.staff_id ?? people[0]?.id ?? '', min: localMin(open.starts_at, tz), appt: open }); setOpen(null); }} onChanged={() => { setOpen(null); load(); setWeekKey(k => k + 1); }} />}
       {draft && <ApptEditor r={r} day={day} tz={tz} draft={draft} people={people} services={services} onClose={() => setDraft(null)} onSaved={() => { setDraft(null); load(); setWeekKey(k => k + 1); }} />}
     </div>
   );
 }
 
-function ApptSheet({ r, x, people, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
+function ApptSheet({ r, x, people, paid, onPay, onClose, onEdit, onChanged }: { r: Restaurant; x: Appt; people: Person[]; paid: boolean; onPay: () => void; onClose: () => void; onEdit: () => void; onChanged: () => void }) {
   const a = useAdminCtx();
   const tz = r.timezone || 'UTC';
   const { c: client } = useClient(r, x.phone);
@@ -305,6 +312,8 @@ function ApptSheet({ r, x, people, onClose, onEdit, onChanged }: { r: Restaurant
         </div>
         <div className="grid grid-cols-2 gap-2">
           {x.status === 'requested' && <Btn tone="brand" className="col-span-2" onClick={() => set('confirmed')}><Check className="h-4 w-4" /> {t('Confirmer')}</Btn>}
+          {paid ? <p className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{t('Payé')}</p>
+            : x.status !== 'no_show' && x.status !== 'requested' && <Btn tone="brand" className="col-span-2" onClick={onPay}><Banknote className="h-4 w-4" /> {t('Encaisser')}</Btn>}
           <Btn onClick={() => set('arrived')} disabled={x.status === 'arrived'}><CheckCircle2 className="h-4 w-4" /> {t('Arrivé')}</Btn>
           <Btn onClick={() => set('done')} disabled={x.status === 'done'}><Check className="h-4 w-4" /> {t('Terminé')}</Btn>
           <Btn onClick={() => set('no_show')} disabled={x.status === 'no_show'}><UserX className="h-4 w-4" /> {t('Pas venu')}</Btn>
