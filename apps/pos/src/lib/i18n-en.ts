@@ -1043,4 +1043,5 @@ export const EN: Record<string, string> = {
   "CashPlus": "CashPlus",
   "Lien de paiement": "Payment link",
   "Virement, CashPlus, lien : {m}": "Transfer, CashPlus, link: {m}",
+  "Votre avis en 10 secondes :": "Your review in 10 seconds:",
 };

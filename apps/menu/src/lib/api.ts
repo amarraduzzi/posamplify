@@ -186,6 +186,13 @@ export interface SalonMirror {
   salon: { name: string; slug: string; languages: string[]; timezone: string; currency: string; branding: Record<string, unknown> | null; handle: string | null };
   share: boolean; actions: SalonAction[]; at: string; number: number; services: string[]; staff: string[]; voucher: MirrorVoucher | null;
 }
+export interface SalonFeedbackInfo {
+  salon: { name: string; slug: string; languages: string[]; branding: Record<string, unknown> | null; handle?: string | null };
+  review_url: string | null; at: string; name: string | null; services: string[]; staff: string[]; done: { rating: number; comment: string | null } | null;
+}
+export const salonFeedbackInfo = (token: string) => call<SalonFeedbackInfo | null>('salon_feedback_info', { p_token: token });
+export const salonFeedback = (token: string, rating: number, comment: string) => call<{ ok: boolean; review_url: string | null }>('salon_feedback', { p_token: token, p_rating: rating, p_comment: comment || null });
+export const salonFeedbackGoogle = (token: string) => call<{ ok: boolean }>('salon_feedback_google', { p_token: token });
 export const salonMirror = (token: string) => call<SalonMirror | null>('salon_mirror', { p_token: token });
 export const salonVoucher = (token: string, action: string) => call<{ status: 'ok' | 'none' | 'full'; code?: string }>('salon_voucher', { p_token: token, p_action_id: action });
 

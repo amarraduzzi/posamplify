@@ -34,6 +34,10 @@ const NoubaApp = lazy(() => import('./agenda/NoubaApp'));
 const miroirParam = new URLSearchParams(location.search).get('miroir');
 const miroir = miroirParam && /^[a-z0-9]{8,32}$/i.test(miroirParam) ? miroirParam : null;
 const MirrorApp = lazy(() => import('./agenda/MirrorApp'));
+// the review after the visit (?avis=<ticket token>)
+const avisParam = new URLSearchParams(location.search).get('avis');
+const avis = avisParam && /^[a-z0-9]{8,32}$/i.test(avisParam) ? avisParam : null;
+const AvisApp = lazy(() => import('./agenda/AvisApp'));
 const slug = courier ? 'livreur' : resolveTenant().slug;
 const site = !slug ? 'pos' : slug === 'profit' ? 'profit' : slug === 'fonctionnalites' ? 'features' : null;
 // When the product pages live on the company site (VITE_MARKETING_URL, e.g. https://amplifygrowthstudio.com),
@@ -47,7 +51,7 @@ const redirecting = !!(site && MARKETING);
 // so the ordering site and the table QR keep working as before.
 const toCard = (() => {
   try {
-    if (courier || carte || club !== null || rdv !== null || nouba !== null || miroir || site || !slug || /\/t\//.test(location.pathname)) return null;
+    if (courier || carte || club !== null || rdv !== null || nouba !== null || miroir || avis || site || !slug || /\/t\//.test(location.pathname)) return null;
     if (!window.matchMedia('(display-mode: standalone)').matches) return null;
     return load<string>(`card:${slug}`, 3 * 365 * 86400_000);
   } catch { return null; }
@@ -59,6 +63,6 @@ try { if (window.self !== window.top) document.documentElement.classList.add('em
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : miroir && !site ? <Suspense fallback={null}><MirrorApp token={miroir} /></Suspense> : nouba !== null && slug && !site ? <Suspense fallback={null}><NoubaApp slug={slug} param={nouba} /></Suspense> : rdv !== null && slug && !site ? <Suspense fallback={null}><AgendaApp slug={slug} token={rdv || null} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting || toCard ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
+    {courier ? <Suspense fallback={null}><CourierApp token={courier} /></Suspense> : miroir && !site ? <Suspense fallback={null}><MirrorApp token={miroir} /></Suspense> : avis && !site ? <Suspense fallback={null}><AvisApp token={avis} /></Suspense> : nouba !== null && slug && !site ? <Suspense fallback={null}><NoubaApp slug={slug} param={nouba} /></Suspense> : rdv !== null && slug && !site ? <Suspense fallback={null}><AgendaApp slug={slug} token={rdv || null} /></Suspense> : carte && slug && !site ? <Suspense fallback={null}><CardPage slug={slug} cardKey={carte} /></Suspense> : club !== null && slug && !site ? <Suspense fallback={null}><ClubSignup slug={slug} eventKey={club || null} /></Suspense> : redirecting || toCard ? null : site ? <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#020F20' }} />}>{site === 'profit' ? <ProfitLanding /> : site === 'features' ? <FeaturesLanding /> : <Landing />}</Suspense> : <App />}
   </StrictMode>,
 );

@@ -27,7 +27,7 @@ interface Wallet {
 }
 interface PackOffer { id: string; name: string; service_id: string; sessions: number; price_cents: number }
 type Made = { kind: 'pack' | 'giftcard'; code?: string; name?: string; amount_cents?: number; due_cents?: number; sessions?: number };
-type Done = { number: number; share_token?: string; stamps?: number | null; every?: number | null; made?: Made[] };
+type Done = { id?: string; number: number; share_token?: string; stamps?: number | null; every?: number | null; made?: Made[] };
 let seq = 0;
 const num = (s: string) => (s.trim() === '' ? 0 : /^\d+([.,]\d{0,2})?$/.test(s.trim()) ? toCents(s) : NaN);
 const dh = (c: number) => String(c / 100);
@@ -173,7 +173,8 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
     ...(discount || vdisc || lred ? [`${t('Remise')} : -${mad((discount || 0) + vdisc + lred)}`] : []), `${t('Total')} : ${mad(total)}`,
     ...(prepaid ? [`${t('Payé par pack ou carte cadeau')} : ${mad(prepaid)}`] : []), ...(done?.made ?? []).map(madeText),
     ...(done?.every ? [`${t('Fidélité')} : ${done.stamps ?? 0}/${done.every}`] : []), '', t('Merci et à bientôt !'),
-    ...(done?.share_token ? ['', t('Votre photo dans le miroir du salon :'), `${MENU_URL}/${r.slug}?miroir=${done.share_token}`] : [])].join('\n');
+    ...(done?.share_token ? ['', t('Votre photo dans le miroir du salon :'), `${MENU_URL}/${r.slug}?miroir=${done.share_token}`] : []),
+    ...(done?.share_token && lines.some(l => l.kind === 'service') ? ['', t('Votre avis en 10 secondes :'), `${MENU_URL}/${r.slug}?avis=${done.share_token}`] : [])].join('\n');
 
   const [mirrorQr, setMirrorQr] = useState<string | null>(null);
   useEffect(() => {
@@ -195,7 +196,7 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
         {change != null && change > 0 && <p className="rounded-2xl bg-warn/15 py-3 text-xl font-bold text-warn">{t('Monnaie à rendre : {m}', { m: mad(change) })}</p>}
         <div className="grid gap-2 sm:grid-cols-2">
           <Btn onClick={() => printIt(done.number, false, done.share_token, done)}><Printer className="h-4 w-4" /> {pos.printerOk ? t('Réimprimer') : t('Imprimer le ticket')}</Btn>
-          {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2.5 font-semibold text-white"><MessageCircle className="h-5 w-5" />WhatsApp</a>}
+          {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" onClick={() => { if (done.id && lines.some(l => l.kind === 'service')) rpc('agenda_review_asked', { p_restaurant_id: r.id, p_sale: done.id }).catch(() => undefined); }} className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2.5 font-semibold text-white"><MessageCircle className="h-5 w-5" />WhatsApp</a>}
         </div>
         {mirrorQr && <div className="rounded-2xl bg-white p-3 text-[#0b1220]">
           <img src={mirrorQr} alt="" className="mx-auto h-36 w-36" />

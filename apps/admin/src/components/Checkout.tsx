@@ -74,7 +74,7 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
   const [given, setGiven] = useState('');
   const [adding, setAdding] = useState<'service' | 'product' | 'pack' | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ number: number; total_cents: number; share_token?: string; stamps?: number | null; every?: number | null;
+  const [done, setDone] = useState<{ id?: string; number: number; total_cents: number; share_token?: string; stamps?: number | null; every?: number | null;
     made?: { kind: 'pack' | 'giftcard'; code?: string; name?: string; amount_cents?: number; due_cents?: number; sessions?: number }[] } | null>(null);
   // the client's stamps and packs (from her number), the reward, a gift card that pays
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -190,6 +190,7 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
     ...(done?.every ? [`${t('Fidélité')} : ${done.stamps ?? 0}/${done.every}`] : []),
     '', t('Merci et à bientôt !'),
     ...(done?.share_token ? ['', t('Votre photo dans le miroir du salon :'), `${MENU_URL}/${r.slug}?miroir=${done.share_token}`] : []),
+    ...(done?.share_token && lines.some(l => l.kind === 'service') ? ['', t('Votre avis en 10 secondes :'), `${MENU_URL}/${r.slug}?avis=${done.share_token}`] : []),
   ].join('\n');
 
   const lineLabel = (l: Line) => (l.kind === 'giftcard' ? `${t('Carte cadeau')}${l.name.trim() ? ` · ${l.name.trim()}` : ''}` : l.name);
@@ -212,7 +213,7 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
         {(done.made ?? []).filter(x => x.kind === 'pack' && x.due_cents).map(x => <p key={x.name} className="text-sm font-semibold text-amber-700">{t('{name} : reste à payer {m}', { name: x.name ?? '', m: mad(x.due_cents ?? 0) })}</p>)}
         {done.every ? <p className="text-sm font-semibold">{t('Fidélité : {a}/{b}', { a: done.stamps ?? 0, b: done.every })}</p> : null}
         <p className="text-muted">{t('Ticket n° {n}', { n: done.number })}{tipC ? ` · ${t('pourboire {m}', { m: mad(tipC) })}` : ''}{change != null && change > 0 ? ` · ${t('Monnaie à rendre : {m}', { m: mad(change) })}` : ''}</p>
-        {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-semibold text-white"><MessageCircle className="h-5 w-5" />{t('Envoyer le ticket sur WhatsApp')}</a>}
+        {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" onClick={() => { if (done.id && lines.some(l => l.kind === 'service')) supabase.rpc('agenda_review_asked', { p_restaurant_id: r.id, p_sale: done.id }).then(() => undefined); }} className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-semibold text-white"><MessageCircle className="h-5 w-5" />{t('Envoyer le ticket sur WhatsApp')}</a>}
         {mirrorQr && <div className="rounded-2xl bg-surface-2 p-3">
           <img src={mirrorQr} alt="" className="mx-auto h-36 w-36 rounded-xl" />
           <p className="mt-2 text-sm font-semibold">{t('Le miroir : la cliente scanne et poste sa photo')}</p>

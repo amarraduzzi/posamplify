@@ -53,6 +53,7 @@ before(async () => {
   await sql(`insert into public.agenda_prepaid_moves (restaurant_id, sale_id, kind, client_pack_id, giftcard_id) values ($1, $2, 'pack_use', $3, $4)`, [w.B.r.id, bs.id, bcp.id, bgc.id]);
   const [bap] = await sql(`insert into public.agenda_appointments (restaurant_id, starts_at, duration_min, name) values ($1, now() + interval '2 days', 30, 'B2') returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_deposits (restaurant_id, appointment_id, amount_cents, due_at) values ($1, $2, 1000, now() + interval '1 day')`, [w.B.r.id, bap.id]);
+  await sql(`insert into public.agenda_feedback (restaurant_id, sale_id, rating) values ($1, $2, 5)`, [w.B.r.id, bs.id]);
   const [bp] = await sql(`insert into public.agenda_products (restaurant_id, name, kind, price_cents) values ($1, 'B', 'retail', 100) returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_stock_moves (restaurant_id, product_id, kind, qty) values ($1, $2, 'start', 1)`, [w.B.r.id, bp.id]);
   await sql(`insert into public.agenda_stock_counts (restaurant_id) values ($1)`, [w.B.r.id]);
@@ -114,7 +115,7 @@ test('only the intended functions are callable by guests', async () => {
     select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
     order by 1`);
-  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'agenda_book', 'agenda_cancel', 'agenda_confirm', 'agenda_days', 'agenda_deposit_report', 'agenda_info', 'agenda_slots', 'agenda_status', 'book_offer', 'book_table', 'booking_slots', 'call_service', 'check_promo_code', 'courier_orders', 'courier_update', 'customer_card', 'customer_card_wallet', 'customer_signup', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'issue_guest_voucher', 'nouba_answer', 'nouba_estimate', 'nouba_info', 'nouba_join', 'nouba_status', 'offer_days', 'place_order', 'reservation_cancel', 'reservation_status', 'salon_mirror', 'salon_voucher', 'salon_wait', 'signup_info', 'site_request', 'site_track', 'table_service', 'waitlist_join']);
+  assert.deepEqual(rows.map(r => r.proname), ['accounting_export_by_key', 'accounting_set_accounts_by_key', 'agenda_book', 'agenda_cancel', 'agenda_confirm', 'agenda_days', 'agenda_deposit_report', 'agenda_info', 'agenda_slots', 'agenda_status', 'book_offer', 'book_table', 'booking_slots', 'call_service', 'check_promo_code', 'courier_orders', 'courier_update', 'customer_card', 'customer_card_wallet', 'customer_signup', 'get_booking_info', 'get_menu', 'get_order_status', 'get_site', 'issue_guest_voucher', 'nouba_answer', 'nouba_estimate', 'nouba_info', 'nouba_join', 'nouba_status', 'offer_days', 'place_order', 'reservation_cancel', 'reservation_status', 'salon_feedback', 'salon_feedback_google', 'salon_feedback_info', 'salon_mirror', 'salon_voucher', 'salon_wait', 'signup_info', 'site_request', 'site_track', 'table_service', 'waitlist_join']);
 });
 
 test('restaurant A users see zero rows of restaurant B, in every tenant table', async () => {
