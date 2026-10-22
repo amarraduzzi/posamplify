@@ -48,6 +48,10 @@ before(async () => {
   const [bp] = await sql(`insert into public.agenda_products (restaurant_id, name, kind, price_cents) values ($1, 'B', 'retail', 100) returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_stock_moves (restaurant_id, product_id, kind, qty) values ($1, $2, 'start', 1)`, [w.B.r.id, bp.id]);
   await sql(`insert into public.agenda_stock_counts (restaurant_id) values ($1)`, [w.B.r.id]);
+  const [bst] = await sql(`select id from public.staff where restaurant_id = $1 limit 1`, [w.B.r.id]);
+  await sql(`insert into public.agenda_pay_plans (restaurant_id, staff_id) values ($1, $2)`, [w.B.r.id, bst.id]);
+  await sql(`insert into public.agenda_pay_items (restaurant_id, staff_id, month, kind, amount_cents) values ($1, $2, date_trunc('month', now())::date, 'bonus', 1)`, [w.B.r.id, bst.id]);
+  await sql(`insert into public.agenda_payouts (restaurant_id, staff_id, month, figures, net_cents) values ($1, $2, date_trunc('month', now())::date, '{}', 0)`, [w.B.r.id, bst.id]);
   await sql(`insert into public.service_calls (restaurant_id, table_id, kind) select restaurant_id, id, 'water' from public.dining_tables where restaurant_id = $1 limit 1`, [w.B.r.id]);
   await sql(`insert into public.reservation_deposits (restaurant_id, reservation_id, kind, amount_cents, method, business_date) values ($1, $2, 'in', 1000, 'cash', current_date)`, [w.B.r.id, rsB.id]);
   await as(w.users.ownerB, `insert into public.promotions (restaurant_id, kind, name, value) values ($1, 'happy_hour', 'HH B', 1000)`, [w.B.r.id]);

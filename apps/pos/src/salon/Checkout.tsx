@@ -39,7 +39,7 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
   const addProduct = (pr: Product) => setLines(ls => {
     const same = ls.find(l => l.product_id === pr.id);
     if (same) return ls.map(l => (l === same ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
-    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: '' }];
+    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: from.staff_id ?? ls.find(l => l.kind === 'service')?.staff_id ?? pos.staff?.id ?? '' }];
   });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ number: number } | null>(null);
@@ -60,7 +60,7 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
     try {
       await P.print(P.receiptPrinter(pos.settings), `Ticket ${n}`, P.salonTicket(r, {
         number: n, at: new Date().toISOString(), client: name.trim() || null, cashier: pos.staff?.name,
-        lines: lines.map(l => ({ quantity: l.qty, name: l.name.trim(), line_cents: (num(l.price) || 0) * l.qty, staff: l.staff_id ? who(l.staff_id) : undefined })),
+        lines: lines.map(l => ({ quantity: l.qty, name: l.name.trim(), line_cents: (num(l.price) || 0) * l.qty, staff: l.kind === 'service' && l.staff_id ? who(l.staff_id) : undefined })),
         discount_cents: discount || 0, total_cents: total, cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
         change_cents: change != null && change > 0 ? change : 0, free_reason: total === 0 ? free.trim() : null,
       }), { drawer });
@@ -127,9 +127,10 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
                 </div>
                 <button className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:text-danger" onClick={() => setLines(ls => ls.filter(x => x.key !== l.key))} aria-label={t('Supprimer')}><Trash2 className="h-4 w-4" /></button>
               </div>
-              {l.kind === 'service' && team.length > 0 && (
+              {l.kind !== 'other' && team.length > 0 && (
                 <div className="scroll-thin mt-2 flex gap-1.5 overflow-x-auto">
-                  {team.map(p => <button key={p.id} onClick={() => set(l.key, { staff_id: p.id })} className={chip(l.staff_id === p.id)}>
+                  {l.kind === 'product' && <span className="shrink-0 self-center text-xs text-muted">{t('Vendu par')}</span>}
+                  {team.map(p => <button key={p.id} onClick={() => set(l.key, { staff_id: l.kind === 'product' && l.staff_id === p.id ? '' : p.id })} className={chip(l.staff_id === p.id)}>
                     <span className="me-1.5 inline-block h-2 w-2 rounded-full" style={{ background: colorOf(p) }} />{p.name}</button>)}
                 </div>
               )}

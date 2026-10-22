@@ -75,7 +75,7 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
   const addProduct = (pr: TillProduct) => setLines(ls => {
     const same = ls.find(l => l.product_id === pr.id);
     if (same) return ls.map(l => (l === same ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
-    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: '' }];
+    return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: from.staff_id ?? ls.find(l => l.kind === 'service')?.staff_id ?? '' }];
   });
 
   const pay = async () => {
@@ -138,10 +138,11 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
                 </div>
                 <button className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:text-danger" onClick={() => setLines(ls => ls.filter(x => x.key !== l.key))} aria-label={t('Supprimer')}><Trash2 className="h-4 w-4" /></button>
               </div>
-              {l.kind === 'service' && people.length > 0 && (
+              {l.kind !== 'other' && people.length > 0 && (
                 <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
+                  {l.kind === 'product' && <span className="shrink-0 self-center text-xs text-muted">{t('Vendu par')}</span>}
                   {people.map(p => (
-                    <button key={p.id} onClick={() => set(l.key, { staff_id: p.id })}
+                    <button key={p.id} onClick={() => set(l.key, { staff_id: l.kind === 'product' && l.staff_id === p.id ? '' : p.id })}
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${l.staff_id === p.id ? 'bg-brand text-brand-ink' : 'bg-surface text-muted'}`}>{p.name}</button>
                   ))}
                 </div>

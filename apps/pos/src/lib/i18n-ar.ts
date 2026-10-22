@@ -943,4 +943,5 @@ export const AR: Record<string, string> = {
   "{n} manquant(s)": "{n} ناقص",
   "À vendre": "للبيع",
   "{n} en stock": "{n} في المخزون",
+  "Vendu par": "باعه",
 };

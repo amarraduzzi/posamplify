@@ -942,4 +942,5 @@ export const EN: Record<string, string> = {
   "{n} manquant(s)": "{n} missing",
   "À vendre": "For sale",
   "{n} en stock": "{n} in stock",
+  "Vendu par": "Sold by",
 };
