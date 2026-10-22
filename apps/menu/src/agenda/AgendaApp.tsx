@@ -184,6 +184,16 @@ function BookView({ slug, onBooked }: { slug: string; onBooked: (token: string) 
     else { setWho(null); go(1); }
   };
 
+  // from the salon's website: ?rdv&s=<prestation> opens that prestation directly
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!info || opened.current) return;
+    opened.current = true;
+    const sid = new URLSearchParams(window.location.search).get('s');
+    const svc0 = sid ? info.services.find(x => x.id === sid) : null;
+    if (svc0) chooseService(svc0);
+  }, [info]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // the days with a free time, then the first of them
   useEffect(() => {
     if (step !== 2 || !svc) return;

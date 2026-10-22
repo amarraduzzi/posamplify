@@ -2,6 +2,7 @@
 // * <this project>/<slug>[/menu]           -> the website of that restaurant (preview / no own domain)
 // * a restaurant's own domain (added here) -> its website: /, /menu, /sitemap.xml, /robots.txt
 import { renderPaused, renderSite, renderSitemap, type SiteData } from '../render';
+import { renderSalon, salonSitemap, type SalonData } from '../salon';
 
 interface Env { VITE_SUPABASE_URL: string; VITE_SUPABASE_ANON_KEY: string; VITE_MENU_URL?: string }
 type Ctx = { request: Request; env: Env; waitUntil: (p: Promise<unknown>) => void };
@@ -10,7 +11,7 @@ const OWN = /(^|\.)amplifygrowthstudio\.com$|\.pages\.dev$|^localhost$|^127\.0\.
 const text = (s: string, status = 200) => new Response(s, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
-async function getSite(env: Env, slug: string | null, host: string | null): Promise<SiteData | null> {
+async function getSite(env: Env, slug: string | null, host: string | null): Promise<SiteData | SalonData | null> {
   const key = env.VITE_SUPABASE_ANON_KEY;
   const res = await fetch(`${env.VITE_SUPABASE_URL}/rest/v1/rpc/get_site`, {
     method: 'POST',
@@ -18,7 +19,7 @@ async function getSite(env: Env, slug: string | null, host: string | null): Prom
     body: JSON.stringify({ p_slug: slug, p_host: host }),
   });
   if (!res.ok) throw new Error(`get_site ${res.status}`);
-  return (await res.json()) as SiteData | null;
+  return (await res.json()) as SiteData | SalonData | null;
 }
 
 async function track(env: Env, slug: string | null, host: string | null, kind: string) {
@@ -68,6 +69,16 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
     if (!m) return text('Site introuvable.', 404);
     slug = m[1]; base = `/${slug}`; rest = m[2] ?? '/';
   }
+  // the live wait of a salon, read by its page every minute (never cached)
+  if (rest === '/attente') {
+    const key = ctx.env.VITE_SUPABASE_ANON_KEY;
+    const res = await fetch(`${ctx.env.VITE_SUPABASE_URL}/rest/v1/rpc/salon_wait`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: key, ...(key.startsWith('eyJ') ? { authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({ p_slug: slug, p_host: own ? null : url.hostname }),
+    }).catch(() => null);
+    return json(res && res.ok ? await res.json() : { enabled: false });
+  }
   const page = rest === '/' || rest === '' ? 'home' : rest === '/menu' || rest === '/menu/' ? 'menu'
     : rest === '/sitemap.xml' ? 'sitemap' : rest === '/robots.txt' ? 'robots' : null;
   if (!page) return Response.redirect(`${url.origin}${base || '/'}`, 302);
@@ -76,18 +87,22 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
   const hit = cache ? await cache.match(ctx.request) : undefined;
   if (hit) return hit;
 
-  let data: SiteData | null;
+  let data: SiteData | SalonData | null;
   try { data = await getSite(ctx.env, slug, own ? null : url.hostname); }
   catch { return new Response('Service momentanément indisponible.', { status: 503, headers: { 'retry-after': '30' } }); }
   if (!data) return text('Site introuvable.', 404);
-  if (data.paused) return new Response(renderPaused(data), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '86400', 'x-robots-tag': 'noindex', 'cache-control': 'public, max-age=300' } });
+  // a salon has one page: its prestations are on it (no /menu)
+  if ('kind' in data && data.kind === 'salon' && page === 'menu') return Response.redirect(`${url.origin}${base || '/'}`, 302);
+  if ('paused' in data && data.paused) return new Response(renderPaused(data as SiteData), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '86400', 'x-robots-tag': 'noindex', 'cache-control': 'public, max-age=300' } });
 
-  const origin = own ? url.origin : `https://${data.domain ?? url.hostname}`;
+  const origin = own ? url.origin : `https://${(data as SiteData).domain ?? url.hostname}`;
   const c = { base, origin, lang: url.searchParams.get('lang') ?? '', menuUrl: (ctx.env.VITE_MENU_URL || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '') };
   let body: string, type = 'text/html; charset=utf-8';
-  if (page === 'sitemap') { body = renderSitemap(data, c); type = 'application/xml; charset=utf-8'; }
+  const salon = 'kind' in data && data.kind === 'salon' ? data as unknown as SalonData : null;
+  const site = data as unknown as SiteData;
+  if (page === 'sitemap') { body = salon ? salonSitemap(salon, c) : renderSitemap(site, c); type = 'application/xml; charset=utf-8'; }
   else if (page === 'robots') { body = `User-agent: *\n${data.noindex ? 'Disallow: /' : 'Allow: /'}\nSitemap: ${origin}${base}/sitemap.xml\n`; type = 'text/plain; charset=utf-8'; }
-  else body = renderSite(data, c, page);
+  else body = salon ? renderSalon(salon, c) : renderSite(site, c, page as 'home' | 'menu');
   const res = new Response(body, { headers: { 'content-type': type, 'cache-control': 'public, max-age=300', 'x-robots-tag': data.noindex ? 'noindex' : 'all', 'x-content-type-options': 'nosniff' } });
   if (cache) ctx.waitUntil(cache.put(ctx.request, res.clone()));
   return res;

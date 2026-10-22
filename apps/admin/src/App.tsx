@@ -14,6 +14,7 @@ import { AgendaBookingPage } from './pages/AgendaBookingPage';
 import { NoubaPage } from './pages/NoubaPage';
 import { AgendaDayPage } from './pages/AgendaDayPage';
 import { AgendaClientsPage } from './pages/AgendaClientsPage';
+import { SalonSitePage } from './pages/SalonSitePage';
 import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -50,7 +51,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -114,7 +115,8 @@ function Screens() {
   const siteOnly = isSiteOnly(r);
   // Amplify Agenda: salons (appointments per staff member); alone, the back office shows only what a salon uses
   const hasAgenda = !!r && products.includes('agenda');
-  const agendaOnly = hasAgenda && !hasPos && !hasProfit && !hasOrders && !hasLoyalty && !products.includes('site');
+  // a salon: Agenda without the till, margins or orders (it may add its website, the module "Site du salon")
+  const agendaOnly = hasAgenda && !hasPos && !hasProfit && !hasOrders && !hasLoyalty;
   const nav: { id: Page; label: string; Icon: typeof UtensilsCrossed; show: boolean }[] = [
     { id: 'counter', label: t('Comptoir fidélité'), Icon: Heart, show: hasLoyalty && !hasPos },
     { id: 'inbox', label: t('Commandes'), Icon: BellRing, show: hasOrders },
@@ -127,6 +129,7 @@ function Screens() {
     { id: 'agbooking', label: t('Réservation en ligne'), Icon: CalendarCheck2, show: hasAgenda },
     { id: 'agservices', label: t('Prestations'), Icon: Scissors, show: hasAgenda },
     { id: 'agteam', label: t('Équipe et horaires'), Icon: Clock4, show: hasAgenda },
+    { id: 'agsite', label: t('Site du salon'), Icon: LayoutTemplate, show: agendaOnly && products.includes('site') },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r && !agendaOnly },
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
@@ -137,9 +140,9 @@ function Screens() {
     { id: 'planning', label: t('Planning'), Icon: CalendarClock, show: hasPos || hasProfit },
     { id: 'charges', label: t('Charges'), Icon: Wallet, show: hasProfit },
     { id: 'accounting', label: t('Comptabilité'), Icon: Calculator, show: (hasPos || hasProfit) && a.role !== 'manager' },
-    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: hasPos || siteOnly || (hasOrders && products.includes('site')) },
+    { id: 'site', label: t('Site web'), Icon: LayoutTemplate, show: !agendaOnly && (hasPos || siteOnly || (hasOrders && products.includes('site'))) },
     { id: 'online', label: t('Commande en ligne'), Icon: Globe, show: hasPos || hasOrders },
-    { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: hasPos || hasOrders || siteOnly || products.includes('site') },
+    { id: 'booking', label: t('Réservations'), Icon: CalendarDays, show: !agendaOnly && (hasPos || hasOrders || siteOnly || products.includes('site')) },
     { id: 'promos', label: t('Promotions'), Icon: BadgePercent, show: hasPos },
     { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos || hasLoyalty },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos || hasOrders },
@@ -246,6 +249,7 @@ function Screens() {
           {r && current === 'nouba' && <NoubaPage key={r.id} r={r} />}
           {r && current === 'agday' && <AgendaDayPage key={r.id} r={r} />}
           {r && current === 'agclients' && <AgendaClientsPage key={r.id} r={r} />}
+          {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}

@@ -2,7 +2,7 @@
 // order, booking). Counted per day without cookies. For a restaurant with the website only, once
 // WhatsApp orders come in: what Amplify POS would change.
 import { useEffect, useState } from 'react';
-import { Eye, MapPin, MessageCircle, Phone, ShoppingBag, CalendarDays, TrendingUp } from 'lucide-react';
+import { Eye, Footprints, MapPin, MessageCircle, Phone, ShoppingBag, CalendarDays, TrendingUp } from 'lucide-react';
 import { rpc } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { isSiteOnly, type Restaurant } from '../lib/types';
@@ -27,7 +27,14 @@ export function SiteStats({ r }: { r: Restaurant }) {
   const delta = before ? Math.round(((visits - before) / before) * 100) : null;
   const max = Math.max(1, ...(s?.daily ?? []).map(d => n(d.views)));
   const siteOnly = isSiteOnly(r);
-  const tiles = [
+  // a salon (Amplify Agenda with its website): appointments and places in the Nouba, no orders or menu
+  const salon = (r.products ?? []).includes('agenda') && !['pos', 'profit', 'orders'].some(p => (r.products ?? []).includes(p as never));
+  const tiles = salon ? [
+    { k: 'call', label: t('Appels'), Icon: Phone },
+    { k: 'directions', label: t('Itinéraires'), Icon: MapPin },
+    { k: 'book', label: t('Rendez-vous'), Icon: CalendarDays },
+    { k: 'queue', label: t('Places prises'), Icon: Footprints },
+  ] : [
     { k: 'call', label: t('Appels'), Icon: Phone },
     { k: 'directions', label: t('Itinéraires'), Icon: MapPin },
     ...(siteOnly || tot('wa_order') ? [{ k: 'wa_order', label: t('Commandes WhatsApp'), Icon: MessageCircle }] : []),
