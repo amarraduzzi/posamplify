@@ -17,6 +17,7 @@ import { AgendaClientsPage } from './pages/AgendaClientsPage';
 import { SalonTillPage } from './pages/SalonTillPage';
 import { SalonProductsPage } from './pages/SalonProductsPage';
 import { SalonPayPage } from './pages/SalonPayPage';
+import { SalonLoyaltyPage } from './pages/SalonLoyaltyPage';
 import { SalonInstagramPage } from './pages/SalonInstagramPage';
 import { SalonSitePage } from './pages/SalonSitePage';
 import { TablesPage } from './pages/TablesPage';
@@ -55,7 +56,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -131,6 +132,7 @@ function Screens() {
     { id: 'nouba', label: t('La Nouba'), Icon: Footprints, show: hasAgenda },
     { id: 'agtill', label: t('Caisse'), Icon: Banknote, show: hasAgenda },
     { id: 'agproducts', label: t('Produits et stock'), Icon: Package, show: hasAgenda },
+    { id: 'agloyalty', label: t('Fidélité et cadeaux'), Icon: Heart, show: hasAgenda },
     { id: 'agpay', label: t('Commissions et paie'), Icon: Wallet, show: hasAgenda && (a.role === 'owner' || a.isAdmin) },
     { id: 'agclients', label: t('Clients'), Icon: Users, show: hasAgenda },
     { id: 'agbooking', label: t('Réservation en ligne'), Icon: CalendarCheck2, show: hasAgenda },
@@ -259,6 +261,7 @@ function Screens() {
           {r && current === 'agtill' && <SalonTillPage key={r.id} r={r} />}
           {r && current === 'agproducts' && <SalonProductsPage key={r.id} r={r} />}
           {r && current === 'agpay' && <SalonPayPage key={r.id} r={r} />}
+          {r && current === 'agloyalty' && <SalonLoyaltyPage key={r.id} r={r} />}
           {r && current === 'aginsta' && <SalonInstagramPage key={r.id} r={r} />}
           {r && current === 'agclients' && <AgendaClientsPage key={r.id} r={r} />}
           {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}

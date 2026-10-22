@@ -46,6 +46,11 @@ before(async () => {
   await sql(`insert into public.agenda_sale_lines (restaurant_id, sale_id, kind, name, unit_cents) values ($1, $2, 'other', 'B', 100)`, [w.B.r.id, bs.id]);
   await sql(`insert into public.agenda_closings (restaurant_id, business_date, counted_cash_cents, expected_cash_cents, cash_diff_cents) values ($1, current_date, 100, 100, 0)`, [w.B.r.id]);
   await sql(`insert into public.agenda_vouchers (restaurant_id, code, sale_id, action_id, name, kind, starts_on, ends_on) values ($1, 'BB-TEST1', $2, 'x', 'B', 'gift', current_date, current_date)`, [w.B.r.id, bs.id]);
+  const [bsv] = await sql(`insert into public.agenda_services (restaurant_id, name, duration_min) values ($1, '{"fr":"B"}', 30) returning id`, [w.B.r.id]);
+  const [bpk] = await sql(`insert into public.agenda_packs (restaurant_id, name, service_id, sessions, price_cents) values ($1, 'B', $2, 2, 1000) returning id`, [w.B.r.id, bsv.id]);
+  const [bcp] = await sql(`insert into public.agenda_client_packs (restaurant_id, pack_id, phone, name, sessions_total, sessions_left, price_cents, expires_on, sale_id) values ($1, $2, '0600000000', 'B', 2, 2, 1000, current_date, $3) returning id`, [w.B.r.id, bpk.id, bs.id]);
+  const [bgc] = await sql(`insert into public.agenda_giftcards (restaurant_id, code, initial_cents, balance_cents, expires_on, sale_id) values ($1, 'KDO-BBBBBB', 1000, 1000, current_date, $2) returning id`, [w.B.r.id, bs.id]);
+  await sql(`insert into public.agenda_prepaid_moves (restaurant_id, sale_id, kind, client_pack_id, giftcard_id) values ($1, $2, 'pack_use', $3, $4)`, [w.B.r.id, bs.id, bcp.id, bgc.id]);
   const [bp] = await sql(`insert into public.agenda_products (restaurant_id, name, kind, price_cents) values ($1, 'B', 'retail', 100) returning id`, [w.B.r.id]);
   await sql(`insert into public.agenda_stock_moves (restaurant_id, product_id, kind, qty) values ($1, $2, 'start', 1)`, [w.B.r.id, bp.id]);
   await sql(`insert into public.agenda_stock_counts (restaurant_id) values ($1)`, [w.B.r.id]);

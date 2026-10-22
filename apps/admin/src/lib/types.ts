@@ -6,7 +6,7 @@ export interface Restaurant {
   timezone: string; currency: string; languages: string[]; day_cutoff_hour: number; glovo_markup_bp?: number;
   branding: { primary_color?: string; theme?: 'dark' | 'light'; logo_url?: string; cover_url?: string; tagline?: I18n; font_display?: string; review_url?: string; review_on_receipt?: boolean; guest_share?: boolean; instagram?: string; guest_reward_on?: boolean; guest_reward?: string; guest_actions?: import('@resto/shared').GuestAction[] };
   opening_hours: Record<string, [string, string][]>;
-  agenda?: { enabled?: boolean; auto_confirm?: boolean; step?: number; lead_minutes?: number; days_ahead?: number; cancel_hours?: number; any_staff?: boolean; note?: string | null; queue?: boolean; queue_remote?: boolean; queue_remote_max?: number; queue_default_min?: number };
+  agenda?: { enabled?: boolean; auto_confirm?: boolean; step?: number; lead_minutes?: number; days_ahead?: number; cancel_hours?: number; any_staff?: boolean; note?: string | null; queue?: boolean; queue_remote?: boolean; queue_remote_max?: number; queue_default_min?: number; loyalty?: Loyalty };
   booking?: { enabled?: boolean; waitlist?: boolean; auto_confirm?: boolean; capacity?: number; duration_min?: number; slot_minutes?: number; lead_minutes?: number; days_ahead?: number; max_party?: number; note?: string | null; deposit_party?: number; deposit_cents?: number; deposit_note?: string | null };
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
@@ -104,3 +104,4 @@ export const premiumOnTrial = (r?: Pick<Restaurant, 'site_plan' | 'status' | 'tr
 
 /** The restaurant has only Amplify Site (website and menu, no till, no Profit). */
 export const isSiteOnly = (r?: { products?: string[] } | null) => !!r && (r.products ?? []).length === 1 && r.products![0] === 'site';
+export interface Loyalty { enabled: boolean; every: number; type: 'percent' | 'amount'; value: number; name: string }

@@ -60,7 +60,7 @@ export function AgendaBookingPage({ r }: { r: Restaurant }) {
   const save = async () => {
     setBusy(true);
     try {
-      const agenda = { enabled: f.enabled, auto_confirm: f.auto, step: Number(f.step), lead_minutes: Number(f.lead), days_ahead: Number(f.days),
+      const agenda = { ...(r.agenda ?? {}), enabled: f.enabled, auto_confirm: f.auto, step: Number(f.step), lead_minutes: Number(f.lead), days_ahead: Number(f.days),
         cancel_hours: Number(f.cancel), any_staff: f.any, note: f.note.trim() || null };
       check(await supabase.from('restaurants').update({ agenda }).eq('id', r.id).select('id'));
       a.toast(t('Enregistré')); await a.reload();
