@@ -2,7 +2,8 @@
 // Comptoir: today's appointments, the Nouba chairs and queue, the clients still to be paid.
 // Caisse: the tickets, what each person brought in, the closing with the blind cash count.
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Banknote, CalendarPlus, CheckCircle2, Footprints, Gift, Lock, Plus, Receipt, Scissors, SkipForward, UserCheck, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarPlus, CheckCircle2, Footprints, Gift, Lock, Plus, Receipt, Scissors, SkipForward, TrendingUp, UserCheck, UserX, Wallet, XCircle } from 'lucide-react';
+import { MyNumbers } from './MyNumbers';
 import { usePos } from '../store';
 import { rpc } from '../lib/data';
 import { supabase } from '../lib/supabase';
@@ -36,6 +37,7 @@ export function SalonApp() {
   const [pay, setPay] = useState<From | null>(null);
   const [newAppt, setNewAppt] = useState(false);
   const [walkIn, setWalkIn] = useState(false);
+  const [mine, setMine] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const load = useCallback(async () => {
@@ -78,6 +80,7 @@ export function SalonApp() {
             {queueOn && <Btn tone="ghost" onClick={() => setWalkIn(true)}><Footprints className="h-4 w-4" /><span className="hidden lg:inline">{t('Sans rendez-vous')}</span></Btn>}
             <Btn tone="brand" onClick={() => setPay({})}><Plus className="h-4 w-4" /> {t('Ticket')}</Btn>
           </>}
+          <Btn tone="ghost" onClick={() => setMine(true)} title={t('Mes chiffres')}><TrendingUp className="h-4 w-4" /><span className="hidden lg:inline">{t('Mes chiffres')}</span></Btn>
           <button onClick={() => pos.setLang(nextLang(pos.lang))} aria-label={LANGS.find(x => x.id === nextLang(pos.lang))!.label} className="grid h-10 min-w-10 place-items-center rounded-xl bg-surface-2 px-2 text-sm font-bold text-muted">{LANGS.find(x => x.id === nextLang(pos.lang))!.short}</button>
           <button aria-label={t('Verrouiller')} onClick={() => pos.setStaff(null)} className="flex items-center gap-1.5 rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm font-bold"><Lock className="h-4 w-4" /><span className="hidden xl:inline">{t('Verrouiller')}</span></button>
         </div>
@@ -140,6 +143,7 @@ export function SalonApp() {
 
       {pay && <SalonCheckout from={pay} people={people} services={services} products={products} onClose={() => setPay(null)} onPaid={() => { setPay(null); load(); loadSalonStatic(r.id).then(x => setProducts(x.products)).catch(() => {}); }} />}
       {newAppt && <NewAppointment services={services} team={team} onClose={() => setNewAppt(false)} onSaved={() => { setNewAppt(false); load(); }} />}
+      {mine && <MyNumbers onClose={() => setMine(false)} />}
       {walkIn && <WalkIn services={services} team={team} onClose={() => setWalkIn(false)} onSaved={() => { setWalkIn(false); load(); }} />}
       <Toasts />
     </div>

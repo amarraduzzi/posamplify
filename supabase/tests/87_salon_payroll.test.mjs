@@ -82,3 +82,13 @@ test('advances and bonuses; the month marked paid keeps its figures', async () =
   assert.equal(Number((await pay(karim)).commission_cents), 15000);   // (500 - 200) x 50 %
   assert.equal((await as(m, `select count(*)::int n from public.agenda_pay_plans where restaurant_id = $1`, [rid]))[0].n, 0);
 });
+
+test('"Mes chiffres" on the till: with the own PIN, never the salary or the advances', async () => {
+  assert.equal((await rpc(d, 'agenda_my_month', [rid, karim, '0000', null])).error, 'invalid');
+  const x = await rpc(d, 'agenda_my_month', [rid, karim, '9999', null]);
+  assert.equal(x.ok, true); assert.equal(Number(x.services_cents), 50000); assert.equal(Number(x.commission_cents), 15000);
+  assert.equal(x.days.length, 1); assert.equal(Number(x.days[0].cents), 50000);
+  assert.equal(x.net_cents, undefined); assert.equal(x.advance_cents, undefined); assert.equal(x.base_cents, undefined);
+  await assert.rejects(rpc(d, 'agenda_my_month', [rid, karim, '9999', '2099-01-01']), /invalid_date/);
+  await assert.rejects(rpc(w.users.deviceB, 'agenda_my_month', [rid, karim, '9999', null]));
+});
