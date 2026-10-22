@@ -7,6 +7,14 @@ import { newId, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
 import { noubaAnswer, noubaInfo, noubaJoin, noubaStatus, type LText, type NoubaInfo, type NoubaStatus } from '../lib/api';
+import { NoubaStory } from './StoryShare';
+
+// the story of the place in the queue, in the client's language
+const STORY = {
+  fr: { line: (s: string) => `Je suis dans la file chez ${s}`, cta: 'Qui vient ? Prenez votre place en ligne' },
+  ar: { line: (s: string) => `أنا فالنوبة عند ${s}`, cta: 'شكون جاي؟ خود بلاصتك أونلاين' },
+  en: { line: (s: string) => `I’m in the queue at ${s}`, cta: 'Who’s coming? Take your place online' },
+};
 
 const S = {
   fr: {
@@ -267,6 +275,11 @@ function Place({ slug, token, onAgain }: { slug: string; token: string; onAgain:
           </section>
         )}
         {waiting && <p className="mx-5 mt-4 text-center text-xs text-muted">{t.keepOpen} {t.estimate}</p>}
+        {waiting && !st.soon && (
+          <NoubaStory lang={lang} link={`${window.location.origin}/${slug}?nouba`} logoUrl={((st.salon.branding ?? {}) as Branding).logo_url}
+            input={{ salon: st.salon.name, handle: st.salon.handle ?? undefined, primary: ((st.salon.branding ?? {}) as Branding).primary_color ?? '#8E3B4F',
+              place: t.number((st.ahead ?? 0) + 1), line: STORY[lang].line(st.salon.name), wait: st.wait_min != null ? `≈ ${range(st.wait_min, t)}` : undefined, cta: STORY[lang].cta }} />
+        )}
         <div className="mx-5 mt-6 flex flex-col gap-2">
           {st.salon.phone && <a href={`tel:${st.salon.phone}`} className="flex h-12 items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><Phone className="size-4" />{t.call}</a>}
           {waiting && (sure ? (

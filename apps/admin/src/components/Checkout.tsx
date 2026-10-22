@@ -3,8 +3,9 @@
 // or "offert" (with a reason), then cash, card or both, the tip and the change. The ticket can go to
 // the client on WhatsApp.
 import { useEffect, useMemo, useState } from 'react';
+import QRCode from 'qrcode';
 import { Banknote, CheckCircle2, CreditCard, Gift, MessageCircle, Package, Plus, Scissors, Trash2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, MENU_URL } from '../lib/supabase';
 import { t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
@@ -30,6 +31,10 @@ const ERR: Record<string, () => string> = {
   already_paid: () => t('Ce client est déjà encaissé.'),
   payment_mismatch: () => t('Le paiement ne correspond pas au total.'),
   free_reason_required: () => t('Indiquez pourquoi c’est offert.'),
+  voucher_used: () => t('Ce code a déjà servi.'),
+  voucher_not_today: () => t('Ce code n’est pas valable aujourd’hui.'),
+  voucher_unknown: () => t('Code inconnu.'),
+  voucher_min: () => t('Le minimum du code n’est pas atteint.'),
 };
 export const tillError = (e: unknown) => { const m = String((e as Error)?.message ?? e); const k = Object.keys(ERR).find(x => m.includes(x)); return k ? new Error(ERR[k]()) : e; };
 
@@ -52,18 +57,31 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
   const [given, setGiven] = useState('');
   const [adding, setAdding] = useState<'service' | 'product' | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ number: number; total_cents: number } | null>(null);
+  const [done, setDone] = useState<{ number: number; total_cents: number; share_token?: string } | null>(null);
+  // a code from a client's story (Le miroir), checked before paying
+  const [vcode, setVcode] = useState('');
+  const [vinfo, setVinfo] = useState<{ code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number } | null>(null);
+  const [verr, setVerr] = useState<string | null>(null);
 
   const sub = lines.reduce((s, l) => s + (cents(l.price) || 0) * l.qty, 0);
   const discount = disc ? cents(disc) : 0;
-  const total = Math.max(0, sub - (discount || 0));
+  const vOk = !!vinfo && sub >= vinfo.min_cents;
+  const vdisc = vOk ? (vinfo!.kind === 'percent' ? Math.round(sub * vinfo!.value / 10000) : vinfo!.kind === 'amount' ? Math.min(vinfo!.value, sub) : 0) : 0;
+  const total = Math.max(0, sub - (discount || 0) - vdisc);
   const tipC = tip ? cents(tip) : 0;
   const due = total + (tipC || 0);
   const cardC = method === 'card' ? due : method === 'both' ? (cents(card) || 0) : 0;
   const cashC = due - cardC;
   const change = given && cashC > 0 ? cents(given) - cashC : null;
   const bad = !lines.length || lines.some(l => !l.name.trim() || Number.isNaN(cents(l.price))) || Number.isNaN(discount) || discount > sub
-    || Number.isNaN(tipC) || cashC < 0 || (total === 0 && !free.trim());
+    || Number.isNaN(tipC) || cashC < 0 || (total === 0 && !free.trim() && !vinfo) || (!!vcode.trim() && !vOk);
+  const checkCode = async () => {
+    setVerr(null); setVinfo(null);
+    const { data, error } = await supabase.rpc('agenda_voucher_check', { p_restaurant_id: r.id, p_code: vcode.trim() });
+    if (error) { a.fail(error); return; }
+    const x = data as { ok: boolean; error?: string; code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number };
+    if (x.ok) setVinfo(x); else setVerr(x.error === 'voucher_used' ? t('Ce code a déjà servi.') : x.error === 'voucher_not_today' ? t('Ce code n’est pas valable aujourd’hui.') : t('Code inconnu.'));
+  };
   const set = (k: number, p: Partial<Line>) => setLines(ls => ls.map(l => (l.key === k ? { ...l, ...p } : l)));
   const byCat = useMemo(() => services.filter(s => s.active !== false), [services]);
   // the products for sale of the salon (Produits et stock)
@@ -85,19 +103,27 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
         appointment_id: from.appointment_id, queue_id: from.queue_id, name: name.trim() || undefined, phone: phone.replace(/\D/g, '') || undefined,
         lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, product_id: l.product_id ?? null, name: l.name.trim(), quantity: l.qty, unit_cents: cents(l.price), staff_id: l.staff_id || null })),
         discount_cents: discount || 0, discount_reason: discWhy.trim() || undefined, free_reason: total === 0 ? free.trim() : undefined,
-        cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
+        cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0, voucher_code: vOk ? vinfo!.code : undefined,
       } });
       if (error) throw error;
-      setDone(data as { number: number; total_cents: number });
+      setDone(data as { number: number; total_cents: number; share_token?: string });
     } catch (e) { a.fail(tillError(e)); }
     setBusy(false);
   };
   const ticketText = () => [
     `${r.name}`, t('Ticket n° {n}', { n: done?.number ?? '' }), '',
     ...lines.map(l => `${l.qty > 1 ? `${l.qty} × ` : ''}${l.name} : ${mad((cents(l.price) || 0) * l.qty)}`),
-    ...(discount ? [`${t('Remise')} : -${mad(discount)}`] : []),
+    ...(discount || vdisc ? [`${t('Remise')} : -${mad((discount || 0) + vdisc)}`] : []),
     `${t('Total')} : ${mad(total)}`, '', t('Merci et à bientôt !'),
+    ...(done?.share_token ? ['', t('Votre photo dans le miroir du salon :'), `${MENU_URL}/${r.slug}?miroir=${done.share_token}`] : []),
   ].join('\n');
+
+  // the mirror's QR on the screen: the client scans it at the reception
+  const [mirrorQr, setMirrorQr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!done?.share_token) return;
+    QRCode.toDataURL(`${MENU_URL}/${r.slug}?miroir=${done.share_token}`, { margin: 1, width: 360 }).then(setMirrorQr).catch(() => setMirrorQr(null));
+  }, [done?.share_token, r.slug]);
 
   if (done) return (
     <Modal title={t('Encaissé')} onClose={onPaid}>
@@ -106,6 +132,10 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
         <p className="font-display text-3xl font-semibold tabular">{mad(total)}</p>
         <p className="text-muted">{t('Ticket n° {n}', { n: done.number })}{tipC ? ` · ${t('pourboire {m}', { m: mad(tipC) })}` : ''}{change != null && change > 0 ? ` · ${t('Monnaie à rendre : {m}', { m: mad(change) })}` : ''}</p>
         {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-semibold text-white"><MessageCircle className="h-5 w-5" />{t('Envoyer le ticket sur WhatsApp')}</a>}
+        {mirrorQr && <div className="rounded-2xl bg-surface-2 p-3">
+          <img src={mirrorQr} alt="" className="mx-auto h-36 w-36 rounded-xl" />
+          <p className="mt-2 text-sm font-semibold">{t('Le miroir : la cliente scanne et poste sa photo')}</p>
+        </div>}
         <Btn className="w-full" onClick={onPaid}>{t('Fermer')}</Btn>
       </div>
     </Modal>
@@ -180,7 +210,13 @@ export function CheckoutModal({ r, people, services, from, onClose, onPaid }: {
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('Remise (DH)')}><input className={inputCls} inputMode="decimal" value={disc} onChange={e => setDisc(e.target.value)} placeholder="0" /></Field>
           {discount > 0 && total > 0 && <Field label={t('Raison de la remise')}><input className={inputCls} maxLength={100} value={discWhy} onChange={e => setDiscWhy(e.target.value)} placeholder={t('Fidélité, geste commercial…')} /></Field>}
-          {total === 0 && lines.length > 0 && <Field label={t('Pourquoi c’est offert ?')}><input className={inputCls} maxLength={100} value={free} onChange={e => setFree(e.target.value)} placeholder={t('Famille, retouche gratuite…')} /></Field>}
+          <Field label={t('Code d’une story (facultatif)')} hint={vinfo ? (vOk ? t('{name} · appliqué : -{m}', { name: vinfo.name, m: mad(vdisc) }) : t('Minimum {m} de prestations', { m: mad(vinfo.min_cents) })) : verr ?? undefined}>
+            <div className="flex gap-2">
+              <input className={`${inputCls} uppercase`} dir="ltr" maxLength={20} value={vcode} onChange={e => { setVcode(e.target.value.toUpperCase()); setVinfo(null); setVerr(null); }} placeholder="SA-XXXXXX" />
+              <Btn onClick={checkCode} disabled={!vcode.trim()}>{t('Vérifier')}</Btn>
+            </div>
+          </Field>
+          {total === 0 && lines.length > 0 && !vinfo && <Field label={t('Pourquoi c’est offert ?')}><input className={inputCls} maxLength={100} value={free} onChange={e => setFree(e.target.value)} placeholder={t('Famille, retouche gratuite…')} /></Field>}
         </div>
 
         {total > 0 && <>

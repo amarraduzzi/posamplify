@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarCheck2, CalendarPlus, CheckCircle2, ChevronRight, Cl
 import { formatMoney, newId, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import { load, save } from '../lib/storage';
+import { RdvStory } from './StoryShare';
 import { agendaBook, agendaCancel, agendaConfirm, agendaDays, agendaInfo, agendaSlots, agendaStatus, type AgendaInfo, type AgendaService, type AgendaStaff, type AgendaStatus, type LText } from '../lib/api';
 
 const S = {
@@ -85,6 +86,13 @@ const HEX = /^#[0-9a-f]{6}$/i;
 interface Saved { token: string; at: string }
 const savedOf = (slug: string) => (load<Saved[]>(`rdv:${slug}`, 120 * 86400_000) ?? []).filter(x => new Date(x.at).getTime() > Date.now() - 3 * 3600_000);
 const remember = (slug: string, token: string, at: string) => save(`rdv:${slug}`, [{ token, at }, ...savedOf(slug).filter(x => x.token !== token)].slice(0, 5));
+
+// the story "J'ai rendez-vous", in the client's language
+const STORY = {
+  fr: { title: 'J’ai rendez-vous', count: (d: number) => (d <= 0 ? 'Aujourd’hui' : d === 1 ? 'Demain' : `Dans ${d} jours`), cta: 'Réservez aussi : lien en story' },
+  ar: { title: 'عندي موعد', count: (d: number) => (d <= 0 ? 'اليوم' : d === 1 ? 'غدا' : `من بعد ${d} أيام`), cta: 'احجزو حتى نتوما: الرابط فالستوري' },
+  en: { title: 'I have an appointment', count: (d: number) => (d <= 0 ? 'Today' : d === 1 ? 'Tomorrow' : `In ${d} days`), cta: 'Book too: link in story' },
+};
 
 function pickLang(langs: string[] | null | undefined, asked?: string | null): Lang {
   const ok = (langs?.length ? langs : ['fr']).filter((x): x is Lang => x in S);
@@ -179,6 +187,9 @@ function BookView({ slug, onBooked }: { slug: string; onBooked: (token: string) 
   const chooseService = (s: AgendaService) => {
     setSvc(s); setSlot(null);
     const people = able(s);
+    // a personal link (?rdv&p=<person>, shared by that person): straight to their times
+    const pref = new URLSearchParams(window.location.search).get('p');
+    if (pref && people.some(x => x.id === pref)) { setWho(pref); go(2); return; }
     // one person only, or "peu importe" switched off with one person: no need to ask
     if (people.length === 1) { setWho(people[0].id); go(2); }
     else { setWho(null); go(1); }
@@ -504,6 +515,14 @@ function StatusView({ slug, token, onAgain }: { slug: string; token: string; onA
           {st.salon.phone && <a href={`tel:${st.salon.phone}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface font-semibold shadow-[var(--shadow)] press"><Phone className="size-4" />{t.call}</a>}
           {!upcoming && <button onClick={onAgain} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand font-semibold text-brand-ink press">{t.again}</button>}
         </div>
+
+        {upcoming && (() => {
+          const days = Math.round((new Date(new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(st.starts_at))).getTime() - new Date(new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())).getTime()) / 86400000);
+          const b = (st.salon.branding ?? {}) as Branding;
+          return <RdvStory lang={lang} link={`${window.location.origin}/${slug}?rdv`} logoUrl={b.logo_url}
+            input={{ salon: st.salon.name, handle: st.salon.handle ?? undefined, primary: b.primary_color ?? '#8E3B4F', title: STORY[lang].title, service: svcName,
+              day, time, countdown: STORY[lang].count(days), staff: st.staff ? t.with(st.staff) : undefined, cta: STORY[lang].cta }} />;
+        })()}
 
         {upcoming && (
           <div className="mx-5 mt-8 border-t border-line pt-5 text-center">

@@ -140,7 +140,8 @@ export function SettingsPage({ r }: { r: Restaurant }) {
             )}
           </div>
         </Card>
-        <Card>
+        {/* a salon has its own page for this (Instagram) */}
+        {!(r.products?.includes('agenda') && !r.products.some(x => x === 'pos' || x === 'profit' || x === 'orders')) && <Card>
           <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-semibold"><Camera className="h-5 w-5 text-brand" /> {t('Stories Instagram des clients')}</h2>
           <p className="mb-4 text-sm text-muted">{t('Après sa commande, le client reçoit une story prête à poster : son plat, un tampon « J’étais là » et une phrase drôle, avec votre logo. Vos clients font votre publicité.')}</p>
           <div className="space-y-4">
@@ -158,7 +159,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
               </>
             )}
           </div>
-        </Card>
+        </Card>}
         {!siteOnly && <Card>
           <h2 className="mb-4 font-display text-xl font-semibold">{t('Commandes en ligne')}</h2>
           <div className="flex flex-wrap gap-6">

@@ -139,7 +139,7 @@ export interface AgendaStatus {
   service: LText; price_cents: number; price_from: boolean; name: string; staff: string | null; any_staff: boolean;
   cancelled_by: 'client' | 'salon' | null; can_cancel: boolean; client_confirmed?: boolean; can_confirm?: boolean;
   salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[];
-           branding: Record<string, unknown> | null; cancel_hours: number; note: string | null };
+           branding: Record<string, unknown> | null; cancel_hours: number; note: string | null; handle?: string | null };
 }
 export const agendaInfo = (slug: string) => call<AgendaInfo | null>('agenda_info', { p_slug: slug });
 export const agendaDays = (slug: string, service: string, staff: string | null) =>
@@ -162,7 +162,7 @@ export interface NoubaInfo {
 export interface NoubaStatus {
   status: 'waiting' | 'serving' | 'done' | 'left' | 'no_show'; name: string; remote: boolean; coming: boolean; created_at: string;
   ahead: number | null; wait_min: number | null; soon: boolean; service: LText | null; staff: string | null;
-  salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[]; branding: Record<string, unknown> | null };
+  salon: { name: string; slug: string; phone: string | null; address: string | null; city: string | null; timezone: string; languages: string[]; branding: Record<string, unknown> | null; handle?: string | null };
 }
 export const noubaInfo = (slug: string) => call<NoubaInfo | null>('nouba_info', { p_slug: slug });
 export const noubaEstimate = (slug: string, service: string | null, staff: string | null) =>
@@ -171,3 +171,14 @@ export const noubaJoin = (slug: string, e: { client_id: string; name: string; ph
   call<{ token: string; duplicate: boolean }>('nouba_join', { p_slug: slug, p_entry: e });
 export const noubaStatus = (token: string) => call<NoubaStatus | null>('nouba_status', { p_token: token });
 export const noubaAnswer = (token: string, answer: 'coming' | 'leave') => call<{ ok: boolean }>('nouba_answer', { p_token: token, p_answer: answer });
+
+// ---- the salon's clients on Instagram: the mirror frame of a paid ticket (?miroir=<token>) and its code
+export interface SalonAction { id: string; on: boolean; name: string; when: 'table' | 'next'; type: 'gift' | 'percent' | 'amount'; value?: number; min?: number; valid_days?: number }
+export interface MirrorVoucher { code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number; starts_on: string; ends_on: string; days: number[]; used: boolean }
+export interface SalonMirror {
+  salon: { name: string; slug: string; languages: string[]; timezone: string; currency: string; branding: Record<string, unknown> | null; handle: string | null };
+  share: boolean; actions: SalonAction[]; at: string; number: number; services: string[]; staff: string[]; voucher: MirrorVoucher | null;
+}
+export const salonMirror = (token: string) => call<SalonMirror | null>('salon_mirror', { p_token: token });
+export const salonVoucher = (token: string, action: string) => call<{ status: 'ok' | 'none' | 'full'; code?: string }>('salon_voucher', { p_token: token, p_action_id: action });
+

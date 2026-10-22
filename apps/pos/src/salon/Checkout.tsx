@@ -2,10 +2,13 @@
 // a product, a discount or "offert" (with a reason); cash, card or both, the tip, the change. The
 // ticket keeps who took the money (the person unlocked on the till), prints with the drawer, or goes
 // to the client on WhatsApp.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { Banknote, CheckCircle2, CreditCard, Gift, MessageCircle, Package, Plus, Printer, Scissors, Trash2 } from 'lucide-react';
 import { usePos } from '../store';
 import { rpc } from '../lib/data';
+
+const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
 import { mad, toCents } from '../lib/format';
 import { t } from '../lib/i18n';
 import * as P from '../lib/print';
@@ -19,6 +22,7 @@ const dh = (c: number) => String(c / 100);
 const TILL_ERR: Record<string, string> = {
   day_closed: 'La caisse de ce jour est clôturée.', already_paid: 'Ce client est déjà encaissé.',
   payment_mismatch: 'Le paiement ne correspond pas au total.', free_reason_required: 'Indiquez pourquoi c’est offert.',
+  voucher_used: 'Ce code a déjà servi.', voucher_not_today: 'Ce code n’est pas valable aujourd’hui.', voucher_unknown: 'Code inconnu.', voucher_min: 'Le minimum du code n’est pas atteint.',
 };
 export const tillMessage = (e: unknown) => { const m = String((e as Error)?.message ?? e); const k = Object.keys(TILL_ERR).find(x => m.includes(x)); return k ? t(TILL_ERR[k]) : null; };
 
@@ -42,47 +46,68 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
     return [...ls, { key: ++seq, kind: 'product', service_id: null, product_id: pr.id, name: pr.name, price: dh(pr.price_cents), qty: 1, staff_id: from.staff_id ?? ls.find(l => l.kind === 'service')?.staff_id ?? pos.staff?.id ?? '' }];
   });
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ number: number } | null>(null);
+  const [done, setDone] = useState<{ number: number; share_token?: string } | null>(null);
+  // a code from a client's story (Le miroir), checked before paying
+  const [vcode, setVcode] = useState('');
+  const [vinfo, setVinfo] = useState<{ code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number } | null>(null);
+  const [verr, setVerr] = useState<string | null>(null);
 
   const sub = lines.reduce((s, l) => s + (num(l.price) || 0) * l.qty, 0);
   const discount = num(disc); const tipC = num(tip);
-  const total = Math.max(0, sub - (discount || 0));
+  const vOk = !!vinfo && sub >= vinfo.min_cents;
+  const vdisc = vOk ? (vinfo!.kind === 'percent' ? Math.round(sub * vinfo!.value / 10000) : vinfo!.kind === 'amount' ? Math.min(vinfo!.value, sub) : 0) : 0;
+  const total = Math.max(0, sub - (discount || 0) - vdisc);
   const due = total + (tipC || 0);
   const cardC = method === 'card' ? due : method === 'both' ? (num(card) || 0) : 0;
   const cashC = due - cardC;
   const change = given && cashC > 0 ? num(given) - cashC : null;
   const bad = !lines.length || lines.some(l => !l.name.trim() || Number.isNaN(num(l.price))) || Number.isNaN(discount) || discount > sub
-    || Number.isNaN(tipC) || cashC < 0 || (total === 0 && !free.trim());
+    || Number.isNaN(tipC) || cashC < 0 || (total === 0 && !free.trim() && !vinfo) || (!!vcode.trim() && !vOk);
+  const checkCode = async () => {
+    setVerr(null); setVinfo(null);
+    try {
+      const x = await rpc<{ ok: boolean; error?: string; code: string; name: string; kind: 'percent' | 'amount' | 'gift'; value: number; min_cents: number }>('agenda_voucher_check', { p_restaurant_id: r.id, p_code: vcode.trim() });
+      if (x.ok) setVinfo(x); else setVerr(t(TILL_ERR[x.error ?? 'voucher_unknown'] ?? 'Code inconnu.'));
+    } catch (e) { pos.fail(e); }
+  };
   const set = (k: number, p: Partial<Line>) => setLines(ls => ls.map(l => (l.key === k ? { ...l, ...p } : l)));
   const who = (id: string) => people.find(p => p.id === id)?.name;
 
-  const printIt = async (n: number, drawer: boolean) => {
+  const printIt = async (n: number, drawer: boolean, share?: string) => {
     try {
       await P.print(P.receiptPrinter(pos.settings), `Ticket ${n}`, P.salonTicket(r, {
         number: n, at: new Date().toISOString(), client: name.trim() || null, cashier: pos.staff?.name,
         lines: lines.map(l => ({ quantity: l.qty, name: l.name.trim(), line_cents: (num(l.price) || 0) * l.qty, staff: l.kind === 'service' && l.staff_id ? who(l.staff_id) : undefined })),
-        discount_cents: discount || 0, total_cents: total, cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
+        discount_cents: (discount || 0) + vdisc, total_cents: total, cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
         change_cents: change != null && change > 0 ? change : 0, free_reason: total === 0 ? free.trim() : null,
+        mirror_url: share ? `${MENU_URL}/${r.slug}?miroir=${share}` : undefined,
       }), { drawer });
     } catch (e) { pos.fail(e); }
   };
   const pay = async () => {
     setBusy(true);
     try {
-      const res = await rpc<{ number: number }>('agenda_checkout_by', { p_restaurant_id: r.id, p_cashier: pos.staff?.id ?? null, p: {
+      const res = await rpc<{ number: number; share_token?: string }>('agenda_checkout_by', { p_restaurant_id: r.id, p_cashier: pos.staff?.id ?? null, p: {
         appointment_id: from.appointment_id, queue_id: from.queue_id, name: name.trim() || undefined, phone: phone.replace(/\D/g, '') || undefined,
         lines: lines.map(l => ({ kind: l.kind, service_id: l.service_id, product_id: l.product_id ?? null, name: l.name.trim(), quantity: l.qty, unit_cents: num(l.price), staff_id: l.staff_id || null })),
         discount_cents: discount || 0, discount_reason: discWhy.trim() || undefined, free_reason: total === 0 ? free.trim() : undefined,
-        cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0,
+        cash_cents: cashC, card_cents: cardC, tip_cents: tipC || 0, voucher_code: vOk ? vinfo!.code : undefined,
       } });
       setDone(res);
-      if (pos.printerOk) await printIt(res.number, cashC > 0);
+      if (pos.printerOk) await printIt(res.number, cashC > 0, res.share_token);
     } catch (e) { const m = tillMessage(e); if (m) pos.toast(m, 'error'); else pos.fail(e); }
     setBusy(false);
   };
   const ticketText = () => [r.name, t('Ticket n° {n}', { n: done?.number ?? '' }), '',
     ...lines.map(l => `${l.qty > 1 ? `${l.qty} × ` : ''}${l.name} : ${mad((num(l.price) || 0) * l.qty)}`),
-    ...(discount ? [`${t('Remise')} : -${mad(discount)}`] : []), `${t('Total')} : ${mad(total)}`, '', t('Merci et à bientôt !')].join('\n');
+    ...(discount || vdisc ? [`${t('Remise')} : -${mad((discount || 0) + vdisc)}`] : []), `${t('Total')} : ${mad(total)}`, '', t('Merci et à bientôt !'),
+    ...(done?.share_token ? ['', t('Votre photo dans le miroir du salon :'), `${MENU_URL}/${r.slug}?miroir=${done.share_token}`] : [])].join('\n');
+
+  const [mirrorQr, setMirrorQr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!done?.share_token) return;
+    QRCode.toDataURL(`${MENU_URL}/${r.slug}?miroir=${done.share_token}`, { margin: 1, width: 360 }).then(setMirrorQr).catch(() => setMirrorQr(null));
+  }, [done?.share_token, r.slug]);
 
   if (done) return (
     <Modal title={t('Encaissé')} onClose={onPaid}>
@@ -92,9 +117,13 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
         <p className="text-muted">{t('Ticket n° {n}', { n: done.number })}{tipC ? ` · ${t('pourboire {m}', { m: mad(tipC) })}` : ''}</p>
         {change != null && change > 0 && <p className="rounded-2xl bg-warn/15 py-3 text-xl font-bold text-warn">{t('Monnaie à rendre : {m}', { m: mad(change) })}</p>}
         <div className="grid gap-2 sm:grid-cols-2">
-          <Btn onClick={() => printIt(done.number, false)}><Printer className="h-4 w-4" /> {pos.printerOk ? t('Réimprimer') : t('Imprimer le ticket')}</Btn>
+          <Btn onClick={() => printIt(done.number, false, done.share_token)}><Printer className="h-4 w-4" /> {pos.printerOk ? t('Réimprimer') : t('Imprimer le ticket')}</Btn>
           {phone.replace(/\D/g, '').length >= 9 && <a href={waLink(phone, ticketText())} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-2.5 font-semibold text-white"><MessageCircle className="h-5 w-5" />WhatsApp</a>}
         </div>
+        {mirrorQr && <div className="rounded-2xl bg-white p-3 text-[#0b1220]">
+          <img src={mirrorQr} alt="" className="mx-auto h-36 w-36" />
+          <p className="mt-2 text-sm font-semibold">{t('Le miroir : la cliente scanne et poste sa photo')}</p>
+        </div>}
         <Btn tone="ok" className="w-full py-3.5 text-lg" onClick={onPaid}>{t('Terminé')}</Btn>
       </div>
     </Modal>
@@ -165,7 +194,17 @@ export function SalonCheckout({ from, people, services, products, onClose, onPai
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('Remise (DH)')}><input className={inputCls} inputMode="decimal" value={disc} onChange={e => setDisc(e.target.value)} placeholder="0" /></Field>
           {discount > 0 && total > 0 && <Field label={t('Raison de la remise')}><input className={inputCls} maxLength={100} value={discWhy} onChange={e => setDiscWhy(e.target.value)} placeholder={t('Fidélité, geste commercial…')} /></Field>}
-          {total === 0 && lines.length > 0 && <Field label={t('Pourquoi c’est offert ?')}><input className={inputCls} maxLength={100} value={free} onChange={e => setFree(e.target.value)} placeholder={t('Famille, retouche gratuite…')} /></Field>}
+          <div className="sm:col-span-2">
+            <Field label={t('Code d’une story (facultatif)')}>
+              <div className="flex gap-2">
+                <input className={`${inputCls} uppercase`} dir="ltr" maxLength={20} value={vcode} onChange={e => { setVcode(e.target.value.toUpperCase()); setVinfo(null); setVerr(null); }} placeholder="SA-XXXXXX" />
+                <Btn onClick={checkCode} disabled={!vcode.trim()}>{t('Vérifier')}</Btn>
+              </div>
+            </Field>
+            {vinfo && <p className={`mt-1 text-sm font-semibold ${vOk ? 'text-ok' : 'text-warn'}`}>{vOk ? t('{name} · appliqué : -{m}', { name: vinfo.name, m: mad(vdisc) }) : t('Minimum {m} de prestations', { m: mad(vinfo.min_cents) })}</p>}
+            {verr && <p className="mt-1 text-sm font-semibold text-danger">{verr}</p>}
+          </div>
+          {total === 0 && lines.length > 0 && !vinfo && <Field label={t('Pourquoi c’est offert ?')}><input className={inputCls} maxLength={100} value={free} onChange={e => setFree(e.target.value)} placeholder={t('Famille, retouche gratuite…')} /></Field>}
         </div>
         {total > 0 && <>
           <div className="grid grid-cols-3 gap-2">

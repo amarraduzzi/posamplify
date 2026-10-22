@@ -438,7 +438,7 @@ export const orderLabel = (o: Pick<Order, 'order_type' | 'customer_name' | 'sour
 
 /** The salon's receipt (Amplify Agenda): the prestations with who did them, the products, the payment. Not a fiscal document. */
 export function salonTicket(r: Restaurant, x: { number: number; at: string; client?: string | null; cashier?: string; lines: { quantity: number; name: string; line_cents: number; staff?: string }[];
-  discount_cents: number; total_cents: number; cash_cents: number; card_cents: number; tip_cents: number; change_cents: number; free_reason?: string | null }): TicketLine[] {
+  discount_cents: number; total_cents: number; cash_cents: number; card_cents: number; tip_cents: number; change_cents: number; free_reason?: string | null; mirror_url?: string }): TicketLine[] {
   const out = header(r);
   out.push(rule(), { text: `Ticket ${x.number}`, bold: true, center: true }, { text: dateTime(x.at, r.timezone), center: true });
   if (x.client) out.push({ text: `Client : ${x.client}` });
@@ -458,6 +458,7 @@ export function salonTicket(r: Restaurant, x: { number: number; at: string; clie
   if (x.tip_cents) out.push(...rows('  dont pourboire', amount(x.tip_cents)));
   if (x.change_cents > 0) out.push(...rows('Rendu', amount(x.change_cents)));
   out.push(rule(), { text: r.pos_settings?.receipt_footer || 'Merci et a bientot !', center: true });
+  if (x.mirror_url) out.push(rule(), { text: 'Votre photo dans le miroir :', bold: true, center: true }, { text: 'scannez et postez en story', center: true }, { text: '', qr: x.mirror_url });
   out.push(...reviewBlock(r));
   return out;
 }

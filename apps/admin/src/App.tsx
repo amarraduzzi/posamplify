@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -17,6 +17,7 @@ import { AgendaClientsPage } from './pages/AgendaClientsPage';
 import { SalonTillPage } from './pages/SalonTillPage';
 import { SalonProductsPage } from './pages/SalonProductsPage';
 import { SalonPayPage } from './pages/SalonPayPage';
+import { SalonInstagramPage } from './pages/SalonInstagramPage';
 import { SalonSitePage } from './pages/SalonSitePage';
 import { TablesPage } from './pages/TablesPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -54,7 +55,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -136,6 +137,7 @@ function Screens() {
     { id: 'agservices', label: t('Prestations'), Icon: Scissors, show: hasAgenda },
     { id: 'agteam', label: t('Équipe et horaires'), Icon: Clock4, show: hasAgenda },
     { id: 'agsite', label: t('Site du salon'), Icon: LayoutTemplate, show: agendaOnly && products.includes('site') },
+    { id: 'aginsta', label: t('Instagram'), Icon: Camera, show: agendaOnly },
     { id: 'menu', label: t('Menu'), Icon: UtensilsCrossed, show: !!r && !agendaOnly },
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
@@ -257,6 +259,7 @@ function Screens() {
           {r && current === 'agtill' && <SalonTillPage key={r.id} r={r} />}
           {r && current === 'agproducts' && <SalonProductsPage key={r.id} r={r} />}
           {r && current === 'agpay' && <SalonPayPage key={r.id} r={r} />}
+          {r && current === 'aginsta' && <SalonInstagramPage key={r.id} r={r} />}
           {r && current === 'agclients' && <AgendaClientsPage key={r.id} r={r} />}
           {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}

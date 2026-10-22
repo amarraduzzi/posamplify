@@ -15,8 +15,20 @@ const PRESETS: { label: string; make: () => GuestAction }[] = [
   { label: 'Cadeau tout de suite', make: () => ({ id: newId(), on: true, name: 'Un café offert', when: 'table', type: 'gift' }) },
 ];
 
+/** The same, for a hair salon: a gift at the reception, a code for the next visit. */
+const SALON_PRESETS: { label: string; make: () => GuestAction }[] = [
+  { label: '-10 % prochaine visite', make: () => ({ id: newId(), on: true, name: '-10 % sur votre prochaine visite', when: 'next', type: 'percent', value: 10, min: 0, valid_days: 45, delay: 'next_day', max_per_week: 20 }) },
+  { label: 'Soin offert prochaine visite', make: () => ({ id: newId(), on: true, name: 'Un soin offert à votre prochaine visite', when: 'next', type: 'gift', valid_days: 45, delay: 'next_day', max_per_week: 10 }) },
+  { label: 'Cadeau tout de suite', make: () => ({ id: newId(), on: true, name: 'Un échantillon offert', when: 'table', type: 'gift' }) },
+];
+
 /** What the guest will read, so the owner sees the result of the settings. */
-function summary(a: GuestAction, cur: string): string {
+function summary(a: GuestAction, cur: string, salon?: boolean): string {
+  if (salon) {
+    if (a.when === 'table') return t('La cliente montre sa story à l’accueil, qui lui remet : {x}.', { x: a.name || '…' });
+    const what = a.type === 'gift' ? (a.name || '…') : a.type === 'percent' ? `${a.value ?? 0} %` : `${a.value ?? 0} ${cur}`;
+    return t('La cliente reçoit un code personnel pour sa prochaine visite : {v}, {from}, pendant {d} jours. À taper à la caisse.', { v: what, from: a.delay === 'now' ? t('dès maintenant') : t('dès demain'), d: a.valid_days ?? 30 });
+  }
   if (a.when === 'table') return t('Le client montre sa story au serveur, qui lui remet : {x}.', { x: a.name || '…' });
   const v = a.type === 'percent' ? `${a.value ?? 0} %` : `${a.value ?? 0} ${cur}`;
   const from = a.delay === 'now' ? t('dès maintenant') : t('dès demain');
@@ -26,13 +38,13 @@ function summary(a: GuestAction, cur: string): string {
 
 interface Stats { issued: number; used: number; given_cents: number; revenue_cents: number }
 
-export function GuestActions({ restaurantId, actions, onChange, currency }: {
-  restaurantId: string; actions: GuestAction[]; onChange: (a: GuestAction[]) => void; currency: string;
+export function GuestActions({ restaurantId, actions, onChange, currency, salon }: {
+  restaurantId: string; actions: GuestAction[]; onChange: (a: GuestAction[]) => void; currency: string; salon?: boolean;
 }) {
   const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => {
-    supabase.rpc('guest_voucher_stats', { p_restaurant_id: restaurantId, p_days: 30 }).then(({ data, error }) => { if (!error && data) setStats(data as Stats); });
-  }, [restaurantId]);
+    supabase.rpc(salon ? 'agenda_voucher_stats' : 'guest_voucher_stats', { p_restaurant_id: restaurantId, p_days: 30 }).then(({ data, error }) => { if (!error && data) setStats(data as Stats); });
+  }, [restaurantId, salon]);
 
   const patch = (id: string, p: Partial<GuestAction>) => onChange(actions.map(a => (a.id === id ? { ...a, ...p } : a)));
   const money = (c: number) => `${Math.round(c / 100)} ${currency}`;
@@ -61,7 +73,7 @@ export function GuestActions({ restaurantId, actions, onChange, currency }: {
 
             <Field group label={t('Quand')}>
               <div className="flex gap-2">
-                {([['table', t('Tout de suite, à table')], ['next', t('Code pour la prochaine visite')]] as const).map(([w, label]) => (
+                {([['table', salon ? t('Tout de suite, à l’accueil') : t('Tout de suite, à table')], ['next', t('Code pour la prochaine visite')]] as const).map(([w, label]) => (
                   <button key={w} type="button" onClick={() => patch(a.id, w === 'table' ? { when: 'table', type: 'gift' } : { when: 'next', type: a.type === 'gift' ? 'percent' : a.type, value: a.value ?? 10, valid_days: a.valid_days ?? 30, delay: a.delay ?? 'next_day' })}
                     className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold ${a.when === w ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{label}</button>
                 ))}
@@ -73,15 +85,16 @@ export function GuestActions({ restaurantId, actions, onChange, currency }: {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Field group label={t('Type')}>
                     <div className="flex gap-2">
-                      {([['percent', '%'], ['amount', cur]] as const).map(([k, l]) => (
+                      {([['percent', '%'], ['amount', cur], ...(salon ? [['gift', t('Cadeau')]] as const : [])] as const).map(([k, l]) => (
                         <button key={k} type="button" onClick={() => patch(a.id, { type: k })} className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold ${a.type === k ? 'bg-brand text-brand-ink' : 'bg-surface-2'}`}>{l}</button>
                       ))}
                     </div>
                   </Field>
+                  {a.type === 'gift' ? <Field label={t('Le cadeau')}><input className={inputCls} maxLength={60} value={a.name} onChange={e => patch(a.id, { name: e.target.value })} /></Field> :
                   <Field label={a.type === 'percent' ? t('Pourcentage') : t('Montant ({c})', { c: cur })}>
                     <input dir="ltr" type="number" min={1} max={a.type === 'percent' ? 100 : undefined} className={inputCls} value={a.value ?? ''} onChange={e => patch(a.id, { value: Number(e.target.value) || undefined })} />
-                  </Field>
-                  <Field label={t('Commande minimum ({c})', { c: cur })} hint={t('0 = aucun minimum')}>
+                  </Field>}
+                  <Field label={salon ? t('Minimum de prestations ({c})', { c: cur }) : t('Commande minimum ({c})', { c: cur })} hint={t('0 = aucun minimum')}>
                     <input dir="ltr" type="number" min={0} className={inputCls} value={a.min ?? 0} onChange={e => patch(a.id, { min: Math.max(0, Number(e.target.value) || 0) })} />
                   </Field>
                 </div>
@@ -108,14 +121,14 @@ export function GuestActions({ restaurantId, actions, onChange, currency }: {
                     })}
                   </div>
                 </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
+                {!salon && <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={t('De (heure)')} hint={t('Vide = toute la journée')}><input dir="ltr" type="time" className={inputCls} value={a.from ?? ''} onChange={e => patch(a.id, { from: e.target.value || undefined })} /></Field>
                   <Field label={t('À (heure)')}><input dir="ltr" type="time" className={inputCls} value={a.to ?? ''} onChange={e => patch(a.id, { to: e.target.value || undefined })} /></Field>
-                </div>
-                <Toggle checked={!!a.in_store_only} onChange={v => patch(a.id, { in_store_only: v })} label={t('Seulement au restaurant (pas en commande en ligne)')} />
+                </div>}
+                {!salon && <Toggle checked={!!a.in_store_only} onChange={v => patch(a.id, { in_store_only: v })} label={t('Seulement au restaurant (pas en commande en ligne)')} />}
               </>
             )}
-            <p className="rounded-xl bg-brand/10 p-3 text-sm">{summary(a, cur)}</p>
+            <p className="rounded-xl bg-brand/10 p-3 text-sm">{summary(a, cur, salon)}</p>
           </div>
         );
       })}
@@ -123,7 +136,7 @@ export function GuestActions({ restaurantId, actions, onChange, currency }: {
       <div>
         <p className="mb-2 text-sm font-semibold">{t('Ajouter une action')}</p>
         <div className="flex flex-wrap gap-2">
-          {PRESETS.map(p => <Btn key={p.label} onClick={() => onChange([...actions, p.make()])}><Plus className="h-4 w-4" /> {t(p.label)}</Btn>)}
+          {(salon ? SALON_PRESETS : PRESETS).map(p => <Btn key={p.label} onClick={() => onChange([...actions, p.make()])}><Plus className="h-4 w-4" /> {t(p.label)}</Btn>)}
         </div>
       </div>
 
@@ -131,7 +144,7 @@ export function GuestActions({ restaurantId, actions, onChange, currency }: {
         <div className="grid grid-cols-2 gap-3 rounded-2xl bg-surface-2 p-4 text-center sm:grid-cols-4">
           <div><p className="font-display text-2xl font-semibold">{stats.issued}</p><p className="text-xs text-muted">{t('codes émis (30 jours)')}</p></div>
           <div><p className="font-display text-2xl font-semibold">{stats.used}</p><p className="text-xs text-muted">{t('codes utilisés')}</p></div>
-          <div><p className="font-display text-2xl font-semibold">{money(stats.revenue_cents)}</p><p className="text-xs text-muted">{t('ventes de ces commandes')}</p></div>
+          <div><p className="font-display text-2xl font-semibold">{money(stats.revenue_cents)}</p><p className="text-xs text-muted">{salon ? t('chiffre de ces visites') : t('ventes de ces commandes')}</p></div>
           <div><p className="font-display text-2xl font-semibold">{money(stats.given_cents)}</p><p className="text-xs text-muted">{t('remises accordées')}</p></div>
         </div>
       )}
