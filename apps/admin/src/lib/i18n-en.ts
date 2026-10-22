@@ -2760,4 +2760,11 @@ export const EN: Record<string, string> = {
   "Pas d’attente": "No wait",
   "Prenez votre place en scannant le QR à l’entrée.": "Take your place by scanning the QR at the door.",
   "Écran du salon": "Salon screen",
+  "Astuce : faites glisser un rendez-vous pour le déplacer, vers une autre heure ou une autre personne.": "Tip: drag an appointment to move it to another time or person.",
+  "Déplacer le rendez-vous ?": "Move the appointment?",
+  "Déplacer quand même": "Move anyway",
+  "Rendez-vous déplacé": "Appointment moved",
+  "Semaine du {d}": "Week of {d}",
+  "Tout le monde": "Everyone",
+  "Cette personne ne fait pas cette prestation.": "This person does not do this service.",
 };

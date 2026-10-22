@@ -34,3 +34,11 @@ test('an online booking keeps the language', async () => {
   const [x] = await sql(`select lang from public.agenda_appointments where token = $1`, [b.token]);
   assert.equal(x.lang, 'en');
 });
+
+test('the salon is warned when the person does not do the prestation', async () => {
+  const [{ id: nails }] = await sql(`insert into public.agenda_services (restaurant_id, name, duration_min) values ($1, '{"fr":"Ongles"}', 30) returning id`, [rid]);
+  await sql(`update public.staff set agenda_services = $2 where id = $1`, [sara, [cut]]);
+  const t0 = new Date(Date.now() + 2 * 86400_000).toISOString();
+  await assert.rejects(rpc(w.users.deviceA, 'agenda_save', [rid, { service_id: nails, staff_id: sara, starts_at: t0, name: 'X' }, false]), /cannot_do/);
+  await rpc(w.users.deviceA, 'agenda_save', [rid, { service_id: nails, staff_id: sara, starts_at: t0, name: 'X' }, true]);
+});

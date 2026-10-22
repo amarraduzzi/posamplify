@@ -2763,4 +2763,11 @@ export const AR: Record<string, string> = {
   "Pas d’attente": "بدون انتظار",
   "Prenez votre place en scannant le QR à l’entrée.": "خذوا نوبتكم بمسح رمز QR عند المدخل.",
   "Écran du salon": "شاشة الصالون",
+  "Astuce : faites glisser un rendez-vous pour le déplacer, vers une autre heure ou une autre personne.": "نصيحة: اسحبوا موعدا لنقله إلى ساعة أخرى أو شخص آخر.",
+  "Déplacer le rendez-vous ?": "نقل الموعد؟",
+  "Déplacer quand même": "النقل على أي حال",
+  "Rendez-vous déplacé": "تم نقل الموعد",
+  "Semaine du {d}": "أسبوع {d}",
+  "Tout le monde": "الجميع",
+  "Cette personne ne fait pas cette prestation.": "هذا الشخص لا يقوم بهذه الخدمة.",
 };
