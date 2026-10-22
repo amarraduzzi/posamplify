@@ -2884,4 +2884,7 @@ export const AR: Record<string, string> = {
   "Clients non payés à la clôture": "زبائن لم يدفعوا عند الإغلاق",
   "Passés ce jour-là sans être encaissés, avec la raison donnée.": "جاؤوا في ذلك اليوم دون أن يدفعوا، مع السبب المذكور.",
   "pourboire {m}": "بقشيش {m}",
+  "Code caisse (4 à 6 chiffres)": "رمز الصندوق (من 4 إلى 6 أرقام)",
+  "Nouveau code caisse (facultatif)": "رمز صندوق جديد (اختياري)",
+  "Pour ouvrir la caisse à son nom. Un manager peut aussi annuler un ticket.": "لفتح الصندوق باسمه. يمكن للمسير أيضًا إلغاء تذكرة.",
 };

@@ -16,6 +16,8 @@ import { useIsPhone } from './lib/phone';
 import { ReservationsView, useReservations } from './components/Reservations';
 import { KitchenScreen, KdsSetup, kdsConfig, setKdsConfig, type KdsConfig } from './components/KitchenScreen';
 import * as P from './lib/print';
+import { SalonApp } from './salon/SalonApp';
+import { isSalon } from './salon/data';
 
 type Tab = 'tables' | 'live' | 'resa' | 'history' | 'reports';
 
@@ -64,10 +66,14 @@ export default function App() {
     </Center>
   );
   if (kds) return <KitchenScreen config={kds} onExit={() => { setKdsConfig(null); setKds(null); }} />;
+  const salon = isSalon(pos.restaurant);
   if (!pos.staff) return <>
-    <StaffGate onKitchen={() => setKdsSetup(true)} />
+    <StaffGate onKitchen={salon ? undefined : () => setKdsSetup(true)} />
     {kdsSetup && <KdsSetup onClose={() => setKdsSetup(false)} onStart={c => { setKdsConfig(c); setKds(c); setKdsSetup(false); }} />}
   </>;
+
+  // a hair salon: its own till (appointments, the Nouba, the tickets and the closing)
+  if (salon) return <SalonApp />;
 
   const r = pos.restaurant;
   const occupied = new Set(pos.orders.filter(o => o.table_id).map(o => o.table_id)).size;

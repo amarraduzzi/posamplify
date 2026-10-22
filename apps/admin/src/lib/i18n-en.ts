@@ -2881,4 +2881,7 @@ export const EN: Record<string, string> = {
   "Clients non payés à la clôture": "Unpaid clients at closing",
   "Passés ce jour-là sans être encaissés, avec la raison donnée.": "Came that day without paying, with the reason given.",
   "pourboire {m}": "tip {m}",
+  "Code caisse (4 à 6 chiffres)": "Till code (4 to 6 digits)",
+  "Nouveau code caisse (facultatif)": "New till code (optional)",
+  "Pour ouvrir la caisse à son nom. Un manager peut aussi annuler un ticket.": "To open the till in their name. A manager can also cancel a ticket.",
 };

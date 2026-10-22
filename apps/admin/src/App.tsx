@@ -149,7 +149,7 @@ function Screens() {
     { id: 'customers', label: t('Clients'), Icon: Heart, show: hasPos || hasLoyalty },
     { id: 'tables', label: t('Tables & QR codes'), Icon: QrCode, show: hasPos || hasOrders },
     { id: 'staff', label: t('Personnel'), Icon: Users, show: hasPos || hasLoyalty },
-    { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos },
+    { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos || hasAgenda },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
     { id: 'settings', label: agendaOnly ? t('Salon') : t('Restaurant'), Icon: Settings, show: !!r },
     { id: 'upgrade', label: t('Abonnement'), Icon: Rocket, show: siteOnly && a.role !== 'manager' },

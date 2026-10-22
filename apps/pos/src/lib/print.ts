@@ -435,3 +435,30 @@ export const orderLabel = (o: Pick<Order, 'order_type' | 'customer_name' | 'sour
     : o.source === 'catering' ? `${tr('Traiteur')}${o.customer_name ? ' - ' + o.customer_name : ''}`
     : o.external_ref === 'borne' ? `${tr('Borne')} · ${tr(TYPE[o.order_type] ?? o.order_type)}${o.customer_name ? ' - ' + o.customer_name : ''}`
     : `${tr(TYPE[o.order_type] ?? o.order_type)}${o.customer_name ? ' - ' + o.customer_name : ''}`;
+
+/** The salon's receipt (Amplify Agenda): the prestations with who did them, the products, the payment. Not a fiscal document. */
+export function salonTicket(r: Restaurant, x: { number: number; at: string; client?: string | null; cashier?: string; lines: { quantity: number; name: string; line_cents: number; staff?: string }[];
+  discount_cents: number; total_cents: number; cash_cents: number; card_cents: number; tip_cents: number; change_cents: number; free_reason?: string | null }): TicketLine[] {
+  const out = header(r);
+  out.push(rule(), { text: `Ticket ${x.number}`, bold: true, center: true }, { text: dateTime(x.at, r.timezone), center: true });
+  if (x.client) out.push({ text: `Client : ${x.client}` });
+  if (x.cashier) out.push({ text: `Encaisse par : ${x.cashier}` });
+  out.push(rule());
+  for (const l of x.lines) {
+    out.push(...rows(`${l.quantity > 1 ? l.quantity + ' ' : ''}${l.name}`, amount(l.line_cents)));
+    if (l.staff) out.push({ text: `  avec ${l.staff}` });
+  }
+  out.push(rule());
+  if (x.discount_cents > 0) out.push(...rows('Remise', '-' + amount(x.discount_cents)));
+  out.push(...rows('TOTAL', `${amount(x.total_cents)} MAD`, { bold: true, large: true }));
+  if (x.free_reason) out.push({ text: `Offert : ${x.free_reason}` });
+  out.push(rule());
+  if (x.cash_cents) out.push(...rows('Especes', amount(x.cash_cents)));
+  if (x.card_cents) out.push(...rows('Carte', amount(x.card_cents)));
+  if (x.tip_cents) out.push(...rows('  dont pourboire', amount(x.tip_cents)));
+  if (x.change_cents > 0) out.push(...rows('Rendu', amount(x.change_cents)));
+  out.push(rule(), { text: r.pos_settings?.receipt_footer || 'Merci et a bientot !', center: true });
+  out.push(...reviewBlock(r));
+  return out;
+}
+

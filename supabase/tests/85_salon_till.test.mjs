@@ -97,3 +97,24 @@ test('another salon sees nothing', async () => {
   await assert.rejects(rpc(w.users.ownerB, 'agenda_day_till', [rid, null]));
   await assert.rejects(rpc(null, 'agenda_checkout', [rid, { lines: [{ unit_cents: 1 }], cash_cents: 1 }]));
 });
+
+test('on the till: the ticket keeps who took the money; a manager PIN cancels', async () => {
+  await sql(`delete from public.agenda_closings where restaurant_id = $1`, [rid]);
+  const s = await rpc(d, 'agenda_checkout_by', [rid, { name: 'Walk-in', lines: [{ service_id: cut, unit_cents: 8000, staff_id: sara }], card_cents: 8000 }, sara]);
+  const [row] = await sql(`select cashier_id from public.agenda_sales where id = $1`, [s.id]);
+  assert.equal(row.cashier_id, sara);
+  await assert.rejects(rpc(d, 'agenda_checkout_by', [rid, { lines: [{ unit_cents: 1 }], cash_cents: 1 }, w.B.staff.sara.id]), /invalid_request/);
+  // the next ticket without a cashier does not inherit one
+  const s2 = await rpc(d, 'agenda_checkout', [rid, { name: 'X', lines: [{ unit_cents: 100 }], cash_cents: 100 }]);
+  assert.equal((await sql(`select cashier_id from public.agenda_sales where id = $1`, [s2.id]))[0].cashier_id, null);
+  await assert.rejects(rpc(d, 'agenda_sale_cancel', [rid, s.id, 'erreur', null, null]), /not_allowed/);
+  assert.equal((await rpc(d, 'agenda_sale_cancel', [rid, s.id, 'erreur', sara, '1111'])).error, 'not_manager');
+  assert.equal((await rpc(d, 'agenda_sale_cancel', [rid, s.id, 'erreur', karim, '0000'])).error, 'invalid');
+  assert.equal((await rpc(d, 'agenda_sale_cancel', [rid, s.id, 'Erreur', karim, '9999'])).ok, true);
+  const [c] = await sql(`select cancelled_by_staff from public.agenda_sales where id = $1`, [s.id]);
+  assert.equal(c.cancelled_by_staff, karim);
+  const r = await rpc(d, 'agenda_close_day', [rid, null, 0, JSON.stringify([{ kind: 'appointment', id: past, reason: 'x' }]), null, sara]);
+  assert.equal(r.ok, true);
+  const t = await rpc(d, 'agenda_day_till', [rid, null]);
+  assert.equal(t.closed.staff_id, sara);
+});

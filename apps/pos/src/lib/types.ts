@@ -29,6 +29,8 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
+  /** Amplify Agenda (salons): booking and the Nouba */
+  agenda?: { enabled?: boolean; queue?: boolean } | null;
   accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
   /** deposit_party / deposit_cents: from N guests, X per guest is asked as a deposit (acompte); deposit_note: how to pay it */
   booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number; deposit_party?: number; deposit_cents?: number; deposit_note?: string };

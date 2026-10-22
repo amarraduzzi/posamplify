@@ -1,8 +1,8 @@
 // Amplify Agenda: who takes appointments, when, for which prestations; days off and closed days.
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarOff, Copy, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { CalendarOff, Copy, KeyRound, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { check } from '../lib/api';
+import { check, rpc } from '../lib/api';
 import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Modal, Toggle, inputCls } from '../components/ui';
@@ -56,7 +56,7 @@ export function AgendaTeamPage({ r }: { r: Restaurant }) {
             <li key={m.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 ${m.agenda ? '' : 'opacity-60'}`}>
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-bold text-white" style={{ background: m.agenda_color || '#94A3B8' }}>{m.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-[200px] flex-1">
-                <p className="font-semibold">{m.name}</p>
+                <p className="flex items-center gap-2 font-semibold">{m.name}{m.role === 'manager' && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-bold text-brand">{t('Manager')}</span>}</p>
                 <p className="text-sm text-muted">{m.agenda ? (hoursText(m.agenda_hours) || t('Aucun horaire')) : t('Ne prend pas de rendez-vous')}</p>
                 {m.agenda && <p className="text-xs text-muted">{m.agenda_services.length ? m.agenda_services.map(id => services.find(s => s.id === id)).filter(Boolean).map(s => svcName(s!)).join(', ') : t('Toutes les prestations')}</p>}
               </div>
@@ -98,6 +98,8 @@ function MemberEditor({ r, m, services, n, onClose, onSaved }: { r: Restaurant; 
   const [week, setWeek] = useState<Week>(() => (m && Object.keys(m.agenda_hours).length ? m.agenda_hours : DEFAULT_WEEK));
   const [svc, setSvc] = useState<string[]>(m?.agenda_services ?? []);
   const [color, setColor] = useState(m?.agenda_color ?? COLORS[n % COLORS.length]);
+  const [role, setRole] = useState<Member['role']>(m?.role ?? 'staff');
+  const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (d: string, i: number, k: 0 | 1, v: string) => setWeek(w => ({ ...w, [d]: (w[d] ?? []).map((x, j) => (j === i ? (k ? [x[0], v] : [v, x[1]]) as [string, string] : x)) }));
   const copy = (d: string) => setWeek(w => Object.fromEntries(DAYS.map(x => [x, (w[x] ?? []).length || x === d ? (w[d] ?? []).map(y => [...y] as [string, string]) : []])));
@@ -106,20 +108,31 @@ function MemberEditor({ r, m, services, n, onClose, onSaved }: { r: Restaurant; 
     setBusy(true);
     try {
       const clean = Object.fromEntries(DAYS.map(d => [d, week[d] ?? []]).filter(([, v]) => (v as unknown[]).length));
-      const row = { name: name.trim(), agenda, agenda_hours: clean, agenda_services: svc, agenda_color: color };
+      const row = { name: name.trim(), agenda, agenda_hours: clean, agenda_services: svc, agenda_color: color, role };
+      let id = m?.id;
       if (m) check(await supabase.from('staff').update(row).eq('id', m.id).select('id'));
-      else check(await supabase.from('staff').insert({ ...row, restaurant_id: r.id, role: 'staff', agenda_sort: n }).select('id'));
+      else id = (check(await supabase.from('staff').insert({ ...row, restaurant_id: r.id, agenda_sort: n }).select('id').single()) as { id: string }).id;
+      if (pin && id) await rpc('set_staff_pin', { p_staff_id: id, p_pin: pin });
       a.toast(t('Enregistré')); onSaved();
     } catch (e) { a.fail(e); }
     setBusy(false);
   };
   return (
     <Modal wide title={m ? m.name : t('Nouvelle personne')} onClose={onClose}
-      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || !valid} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || !name.trim() || !valid || (!!pin && !/^\d{4,6}$/.test(pin))} onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <Field label={t('Prénom')}><input className={inputCls} maxLength={40} value={name} onChange={e => setName(e.target.value)} /></Field>
           <div className="flex gap-1.5 pb-1">{COLORS.map(c => <button key={c} type="button" aria-label={c} onClick={() => setColor(c)} className={`h-8 w-8 rounded-full ${color === c ? 'ring-2 ring-offset-2 ring-offset-surface ring-ink' : ''}`} style={{ background: c }} />)}</div>
+        </div>
+        <div className="grid gap-4 rounded-2xl bg-surface-2 p-4 sm:grid-cols-2">
+          <Field group label={t('Sur la caisse')}>
+            <div className="flex gap-2">{(['staff', 'manager'] as const).map(x => <button key={x} type="button" onClick={() => setRole(x)} className={`flex-1 rounded-xl py-2.5 text-sm font-semibold ${role === x ? 'bg-brand text-brand-ink' : 'bg-surface'}`}>{x === 'manager' ? t('Manager') : t('Employé')}</button>)}</div>
+          </Field>
+          <Field label={m ? t('Nouveau code caisse (facultatif)') : t('Code caisse (4 à 6 chiffres)')} hint={t('Pour ouvrir la caisse à son nom. Un manager peut aussi annuler un ticket.')}>
+            <div className="relative"><KeyRound className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input className={`${inputCls} ps-9`} inputMode="numeric" maxLength={6} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder={m ? '••••' : ''} /></div>
+          </Field>
         </div>
         <Toggle checked={agenda} onChange={setAgenda} label={t('Prend des rendez-vous')} />
         {agenda && <>
