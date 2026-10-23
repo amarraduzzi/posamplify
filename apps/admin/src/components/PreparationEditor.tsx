@@ -17,8 +17,10 @@ const num = (s: string) => Number(s.replace(',', '.')) || 0;
 const show = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
 let seq = 0;
 
-export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: {
+export function PreparationEditor({ r, prep, all, used = 0, role0 = null, onClose, onSaved }: {
   r: Restaurant; prep: Ingredient | null; all: Ingredient[]; used?: number;
+  /** a new one created from the list of finished products starts as one */
+  role0?: 'intermediate' | 'final' | null;
   onClose: () => void; onSaved: () => void;
 }) {
   const a = useAdminCtx();
@@ -29,6 +31,7 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
   const [yUnit, setYUnit] = useState(() => (prep ? bestUnit(prep.base_unit, Number(prep.purchase_qty)).u : 'pc'));
   const [yQty, setYQty] = useState(() => (prep ? show(Number(prep.purchase_qty) / bestUnit(prep.base_unit, Number(prep.purchase_qty)).f) : ''));
   const [ahead, setAhead] = useState(prep?.made_ahead ?? true);
+  const [role, setRole] = useState<'intermediate' | 'final' | null>(prep ? prep.prep_role ?? null : role0);
   const [track, setTrack] = useState(prep?.track_expiry ?? false);
   const [shelf, setShelf] = useState(prep?.shelf_life_days != null ? String(prep.shelf_life_days) : '');
   const [warnDays, setWarnDays] = useState(String(prep?.expiry_warn_days ?? 1));
@@ -85,7 +88,7 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
     if (useExpiry && !(warnN >= 0 && warnN <= 60)) { a.toast(t('Le délai d’alerte doit être entre 0 et 60 jours.'), 'error'); return; }
     setBusy(true);
     const row = { name: name.trim(), name_ar: nameAr.trim() || null, base_unit: base, purchase_unit: 'fournée', purchase_qty: yieldQty,
-      waste_bp: 0, is_preparation: true, made_ahead: ahead, category: 'preparation',
+      waste_bp: 0, is_preparation: true, made_ahead: ahead, prep_role: role, category: 'preparation',
       track_expiry: useExpiry, expiry_type: 'dlc' as const, shelf_life_days: useExpiry ? shelfN : null, expiry_warn_days: useExpiry ? warnN : 2 };
     try {
       const saved = (prep
@@ -107,7 +110,7 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
   };
 
   return (
-    <Modal wide title={prep ? t('Modifier la préparation') : t('Nouvelle préparation')} onClose={onClose}
+    <Modal wide title={prep ? (role === 'final' ? t('Modifier le produit fini') : t('Modifier la préparation')) : role === 'final' ? t('Nouveau produit fini') : t('Nouvelle préparation')} onClose={onClose}
       footer={<div className="flex justify-end gap-3"><Btn tone="ghost" onClick={onClose}>{t('Annuler')}</Btn><Btn tone="brand" disabled={busy || rows === null} onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <div className="space-y-4">
         <p className="text-sm text-muted">{t('Une recette faite chez vous : pâte, crème, garniture, ou une pièce préparée à l’avance. Son coût se calcule tout seul à partir des ingrédients.')}</p>
@@ -139,6 +142,14 @@ export function PreparationEditor({ r, prep, all, used = 0, onClose, onSaved }: 
             <p className="text-xs text-muted">{ahead ? t('Vous la produisez sur la page Production ; les ventes prennent dans son stock.') : t('Faite à la minute : chaque vente prend directement ses ingrédients.')}</p>
           </div>
         </div>
+        <Field label={t('Dans quelle liste ?')} group>
+          <div className="flex flex-wrap gap-2">
+            {([[null, t('Automatique')], ['intermediate', t('Préparation')], ['final', t('Produit fini')]] as const).map(([k, l]) => (
+              <Btn key={String(k)} tone={role === k ? 'brand' : 'ghost'} className="px-3 py-2 text-sm" onClick={() => setRole(k)}>{l}</Btn>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted">{role === null ? t('Automatique : vendue telle quelle sur le menu = produit fini, sinon préparation.') : role === 'final' ? t('Vendue telle quelle : croissant, cinnamon roll, tartelette.') : t('Utilisée dans autre chose : icing, pâte, crème.')}</p>
+        </Field>
         {ahead && (
           <div className="rounded-2xl bg-surface-2 p-4">
             <p className="mb-3 text-sm font-bold">{t('Durée de conservation')}</p>

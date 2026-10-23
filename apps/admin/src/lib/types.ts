@@ -55,6 +55,8 @@ export interface Ingredient {
   waste_bp: number; price_estimated: boolean; supplier: string | null; active: boolean; updated_at: string;
   stock_qty?: number | null; stock_min?: number | null; stock_since?: string | null; supplier_id?: string | null;
   is_preparation?: boolean; made_ahead?: boolean;
+  /** null: automatic (used directly in a dish = finished product); or chosen by the owner */
+  prep_role?: 'intermediate' | 'final' | null;
   track_expiry?: boolean; expiry_type?: 'dlc' | 'ddm'; shelf_life_days?: number | null; expiry_warn_days?: number;
 }
 /** A delivery with its expiry date (the dated part of an ingredient's stock). */
