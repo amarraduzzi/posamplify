@@ -3337,4 +3337,6 @@ export const EN: Record<string, string> = {
   "Utiliser {m}": "Use {m}",
   "cagnotte": "savings",
   "{p} % de l’addition va dans sa cagnotte.": "{p} % of the bill goes into his savings.",
+  "Ce qui est gagné aujourd’hui se dépense à la prochaine visite.": "What is earned today can be spent on the next visit.",
+  "{m} gagnés aujourd’hui : utilisables à la prochaine visite.": "{m} earned today: usable on the next visit.",
 };

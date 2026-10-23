@@ -1052,4 +1052,6 @@ export const AR: Record<string, string> = {
   "Cagnotte {m}": "الكانيوت {m}",
   "Gratuit pour lui ({n})": "فابور ليه ({n})",
   "Utiliser la cagnotte (−{m})": "استعمل الكانيوت (−{m})",
+  "Ce qui est gagné aujourd’hui se dépense à la prochaine visite.": "اللي تربح اليوم كيتصرف فالزيارة الجاية.",
+  "{m} gagnés aujourd’hui : à la prochaine visite": "{m} تربحو اليوم: الزيارة الجاية",
 };

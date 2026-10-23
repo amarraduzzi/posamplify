@@ -1002,6 +1002,8 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed, onAdd }: {
   const [freeOpen, setFreeOpen] = useState(false);
   // savings mode: 1 point = 1 DH, the customer pays with them; the menu up to his savings is free for him
   const value = loyalty.mode === 'value';
+  // what was earned today waits for the next visit: the till asks what can be spent now
+  const [spendable, setSpendable] = useState<{ id: string; points: number; spendable: number } | null>(null);
   const maitre = hasMaitre(pos.restaurant);
   const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
@@ -1010,10 +1012,19 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed, onAdd }: {
   const sofar = applied.reduce((n, x) => n + Number(x.cents), 0);
   // rewards can be added while the bill has no manager discount or promo code, and the maximum is not reached
   const open = !!loyalty.enabled && !!known && !(Number(order.discount_cents) > 0 && order.discount_kind !== 'loyalty') && (value ? !applied.some(x => x.reward_id === 'value') : applied.length < max);
+  useEffect(() => {
+    if (!value || !known || !pos.online) return;
+    let gone = false;
+    db.rpc<{ points: number; spendable: number }>('loyalty_spendable', { p_restaurant_id: pos.restaurant!.id, p_customer_id: known.id })
+      .then(x => { if (!gone) setSpendable({ id: known.id, ...x }); }, () => { /* the button stays off */ });
+    return () => { gone = true; };
+  }, [value, known?.id, known?.points, pos.online]); // eslint-disable-line react-hooks/exhaustive-deps
   const saved = known ? Number(known.points) * 100 : 0;
-  const usable = value && open && saved > 0 && Number(known!.points) >= (loyalty.min_points ?? 0);
-  const useNow = Math.min(saved, Number(order.subtotal_cents) - sofar);
-  const free = value && known ? pos.items.filter(i => i.available && !i.sold_by_weight && !i.variants.length && Number(i.price_cents) > 0 && Number(i.price_cents) <= saved)
+  const sp = known && spendable?.id === known.id ? Math.min(Number(spendable.spendable), Number(known.points)) : 0;
+  const later = known ? Number(known.points) - sp : 0;
+  const usable = value && open && sp > 0 && sp >= (loyalty.min_points ?? 0);
+  const useNow = Math.min(sp * 100, Number(order.subtotal_cents) - sofar);
+  const free = value && known ? pos.items.filter(i => i.available && !i.sold_by_weight && !i.variants.length && Number(i.price_cents) > 0 && Number(i.price_cents) <= sp * 100)
     .sort((x, y) => Number(y.price_cents) - Number(x.price_cents)) : [];
   const useSavings = async () => {
     if (!pos.requireOnline() || !known) return;
@@ -1076,7 +1087,8 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed, onAdd }: {
       <span className="ms-auto flex flex-wrap justify-end gap-2">
         {value && free.length > 0 && <button onClick={() => setFreeOpen(o => !o)} className="flex items-center gap-1 rounded-lg bg-ok/15 px-2.5 py-1 text-xs font-bold text-ok"><Gift className="h-3.5 w-3.5" /> {t('Gratuit pour lui ({n})', { n: free.length })}</button>}
         {usable && useNow > 0 && <button disabled={busy} onClick={useSavings} className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A] disabled:opacity-40"><Wallet className="h-3.5 w-3.5" /> {t('Utiliser la cagnotte (−{m})', { m: mad(useNow) })}</button>}
-        {value && open && saved > 0 && !usable && <span className="text-xs text-muted">{t('Cagnotte utilisable dès {m}', { m: mad((loyalty.min_points ?? 0) * 100) })}</span>}
+        {value && later > 0 && <span className="text-xs text-muted">{t('{m} gagnés aujourd’hui : à la prochaine visite', { m: mad(later * 100) })}</span>}
+        {value && open && sp > 0 && !usable && <span className="text-xs text-muted">{t('Cagnotte utilisable dès {m}', { m: mad((loyalty.min_points ?? 0) * 100) })}</span>}
         {!value && open && rewards.filter(rw => known!.points >= rw.points && fit(rw).ok).map(rw => {
           // a free dish needs a unit of that dish on the ticket that is not free yet
           const there = fit(rw).there;
@@ -1091,7 +1103,7 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed, onAdd }: {
       </span>
       {freeOpen && free.length > 0 && (
         <div className="flex w-full flex-wrap gap-1.5 pt-1">
-          <span className="w-full text-xs text-muted">{t('Avec sa cagnotte de {m}, ces produits sont gratuits. Touchez pour ajouter.', { m: mad(saved) })}</span>
+          <span className="w-full text-xs text-muted">{t('Avec sa cagnotte de {m}, ces produits sont gratuits. Touchez pour ajouter.', { m: mad(sp * 100) })}</span>
           {free.slice(0, 24).map(i => (
             <button key={i.id} onClick={() => onAdd(i)} className="rounded-lg bg-surface px-2.5 py-1 text-xs font-semibold hover:bg-ok/15">{tr(i.name, pos.lang)} · {mad(Number(i.price_cents))}</button>
           ))}

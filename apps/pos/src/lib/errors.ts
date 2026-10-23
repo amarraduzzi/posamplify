@@ -13,6 +13,7 @@ const M: Record<string, string> = {
   order_closed_use_credit_note: "Commande encaissée : faites un avoir depuis l'historique.",
   remove_payments_first: "Supprimez d'abord les paiements de cette commande.",
   not_enough_points: "Pas assez de points pour la récompense.",
+  earned_today: "Ce qui est gagné aujourd’hui se dépense à la prochaine visite.",
   order_too_small: "La valeur des récompenses dépasse le montant de l’addition.",
   max_rewards_reached: "Le maximum de récompenses par addition est atteint (réglage du gérant).",
   reward_item_all_free: "Tous les exemplaires de ce produit sont déjà offerts.",

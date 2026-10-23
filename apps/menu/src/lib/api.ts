@@ -112,7 +112,7 @@ export interface CustomerCard {
   loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number; rewards?: CardReward[];
     /** savings mode: 1 point = 1 DH; menu = what the savings buy now, next = just above */
     mode?: 'rewards' | 'value'; percent?: number | null; min_points?: number; menu?: CardDish[]; next?: CardDish[] };
-  customer: { name: string | null; points: number; visits: number; last_visit_at: string | null };
+  customer: { name: string | null; points: number; spendable?: number; visits: number; last_visit_at: string | null };
   recent: { points: number; reason: 'earn' | 'redeem'; at: string; name?: string | null }[];
 }
 export interface CardGift { id: string; label: string; expires_at: string | null }

@@ -70,3 +70,23 @@ test('only in savings mode; the card shows what the savings buy', async () => {
   assert.ok(card.loyalty.menu.every(m => Number(m.price_cents) <= 2500));
   assert.ok(card.loyalty.next.every(m => Number(m.price_cents) > 2500));
 });
+
+test('what is earned today can only be spent from the next visit', async () => {
+  await setLoyalty({ customers: true, enabled: true, mode: 'value', percent: 10 });
+  const o = await tillOrder(d(), rid, [{ item_id: A.items.tajine.id }]);   // 85 DH: 8 DH saved
+  await attach(o, 0);
+  const tot = Number((await sql(`select total_cents from public.orders where id = $1`, [o.id]))[0].total_cents);
+  await rpc(d(), 'pos_pay_order', [o.id, JSON.stringify([{ method: 'cash', amount_cents: tot }])]);
+  assert.equal(await pts(), 8);
+  const [c] = await sql(`select id from public.customers where restaurant_id = $1 and phone = $2`, [rid, PHONE]);
+  const s1 = await rpc(d(), 'loyalty_spendable', [rid, c.id]);
+  assert.equal(s1.spendable, 0); assert.equal(s1.today, 8);
+  const o2 = await tillOrder(d(), rid, [{ item_id: A.items.jus.id }]);
+  await rpc(d(), 'pos_attach_customer', [o2.id, PHONE, 'Salma', null]);
+  await assert.rejects(rpc(d(), 'pos_redeem_value', [o2.id, null]), /earned_today/);
+  // the next day
+  await sql(`update public.loyalty_ledger set created_at = created_at - interval '1 day' where customer_id = $1`, [c.id]);
+  const r2 = await rpc(d(), 'pos_redeem_value', [o2.id, null]);
+  assert.equal(Number(r2.cents), 800);
+  await cancel(o2);
+});

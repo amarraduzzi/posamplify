@@ -12,7 +12,7 @@ import { Btn, inputCls } from '../components/ui';
 
 interface Reward { id: string; kind: string; points: number; cents?: number | null; label: string | null; affordable: boolean }
 interface WalletItem { id: string; label: string; source: string; expires_at: string | null }
-interface Cust { id: string; name: string | null; phone: string; points: number; visits: number; rewards: Reward[]; wallet: WalletItem[] }
+interface Cust { id: string; name: string | null; phone: string; points: number; spendable?: number; visits: number; rewards: Reward[]; wallet: WalletItem[] }
 interface Entry { id: number; at: string; reason: string; points: number; amount_cents: number | null; reward: string | null; customer: string; staff: string | null; undone: boolean; can_undo: boolean }
 interface Result { ok: boolean; error?: string; customer?: Cust; points_added?: number; label?: string; duplicate?: boolean }
 
@@ -35,6 +35,7 @@ const CODES: Record<string, string> = {
   daily_limit: 'Limite du jour atteinte pour ce client (nombre d’additions par jour).',
   invalid_phone: 'Numéro de téléphone invalide.',
   not_enough_points: 'Pas assez de points.',
+  earned_today: 'Ce qui est gagné aujourd’hui se dépense à la prochaine visite.',
   reward_not_found: 'Récompense introuvable.',
   loyalty_off: 'La fidélité n’est pas activée (Clients > Réglages).',
   loyalty_not_available: 'La fidélité n’est pas disponible pour ce restaurant.',
@@ -112,7 +113,9 @@ export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
     x => x.duplicate ? t('Déjà enregistré.') : t('+{n} points', { n: x.points_added ?? 0 }));
   const redeem = (rw: Reward) => cust && act(`redeem|${rw.id}`, 'loyalty_counter_redeem',
     { p_customer_id: cust.id, p_reward_id: rw.id, p_client_id: reqId(`redeem|${rw.id}`) }, x => t('À donner : {x}', { x: x.label ?? '' }));
-  const spendCents = cust ? Math.min(cust.points * 100, cents > 0 ? cents : cust.points * 100) : 0;
+  // what was earned today waits for the next visit
+  const spendable = cust ? (cust.spendable ?? cust.points) : 0;
+  const spendCents = cust ? Math.min(spendable * 100, cents > 0 ? cents : spendable * 100) : 0;
   const spend = () => cust && act(`spend|${spendCents}`, 'loyalty_counter_spend',
     { p_customer_id: cust.id, p_cents: spendCents, p_client_id: reqId(`spend|${spendCents}`) }, () => t('Déduisez {m} de l’addition.', { m: mad(spendCents) }));
   const useGift = (w: WalletItem) => act(`gift|${w.id}`, 'loyalty_wallet_use', { p_wallet_id: w.id }, x => t('Utilisé : {x}', { x: x.label ?? '' }));
@@ -189,7 +192,8 @@ export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
           {value && cust && cust.points > 0 && (
             <div className={card}>
               <p className="flex items-center gap-2 text-sm font-bold"><Gift className="h-4 w-4" /> {t('Payer avec la cagnotte')}</p>
-              {cust.points < minPts
+              {cust.points > spendable && <p className="mt-2 text-sm text-muted">{t('{m} gagnés aujourd’hui : utilisables à la prochaine visite.', { m: mad((cust.points - spendable) * 100) })}</p>}
+              {spendable <= 0 ? null : spendable < minPts
                 ? <p className="mt-2 text-sm text-muted">{t('Cagnotte utilisable dès {m}', { m: mad(minPts * 100) })}</p>
                 : <>
                   <p className="mt-2 text-sm text-muted">{cents > 0 ? t('Sur une addition de {a}.', { a: mad(cents) }) : t('Tapez l’addition ci-dessus pour n’utiliser que ce qu’il faut.')}</p>
