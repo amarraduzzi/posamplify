@@ -11,6 +11,7 @@ import type { BaseUnit, Ingredient, Restaurant } from '../lib/types';
 import { CATEGORIES, SIZE_UNIT, fmtQty, pct } from '../lib/profit';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { SupplierAccounts } from './SupplierAccounts';
+import { SupplierReport } from '../components/SupplierReport';
 import { ImportData } from '../components/ImportData';
 import { InvoicePicker } from '../components/Invoices';
 import { ExpiryView } from '../components/ExpiryView';
@@ -51,7 +52,7 @@ interface FItem {
   status: 'urgent' | 'order' | 'ok' | 'no_use' | 'not_counted' | 'made'; live?: boolean; is_preparation?: boolean;
 }
 interface Forecast { today: string; uses_pos: boolean; order_days: number; sales_days: number | null; items: FItem[] }
-type Tab = 'live' | 'dates' | 'buy' | 'orders' | 'suppliers' | 'gaps' | 'history';
+type Tab = 'live' | 'dates' | 'buy' | 'orders' | 'suppliers' | 'report' | 'gaps' | 'history';
 /** Line prefilled into a delivery: quantity in purchase units, price paid */
 export interface Prefill { ingredient_id: string; qty: number; total_cents: number | null }
 
@@ -153,7 +154,7 @@ export function StockPage({ r }: { r: Restaurant }) {
     </div>
   );
 
-  const TABS: [Tab, string][] = [['live', t('En direct')], ['dates', t('Dates')], ['buy', t('Stock et achats à faire')], ['orders', t('Commandes fournisseurs')], ['suppliers', t('Fournisseurs')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
+  const TABS: [Tab, string][] = [['live', t('En direct')], ['dates', t('Dates')], ['buy', t('Stock et achats à faire')], ['orders', t('Commandes fournisseurs')], ['suppliers', t('Fournisseurs')], ['report', t('Situation fournisseurs')], ['gaps', t('Écarts')], ['history', t('Comptages et achats')]];
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -188,6 +189,7 @@ export function StockPage({ r }: { r: Restaurant }) {
 
         {tab === 'orders' && <OrdersView r={r} ings={buyable} onChanged={load} onBuy={() => setTab('buy')} />}
         {tab === 'suppliers' && <SupplierAccounts r={r} onOrders={() => setTab('orders')} />}
+        {tab === 'report' && <SupplierReport r={r} />}
 
         {tab === 'gaps' && (rep ? <ReportView rep={rep} closed={closed} cmp={cmp!} setPair={setPair} /> : steps)}
 
