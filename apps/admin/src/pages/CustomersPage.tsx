@@ -26,7 +26,8 @@ interface Customer {
   birthday_msg_at: string | null;
 }
 type Loyalty = NonNullable<Restaurant['loyalty']>;
-type Filter = 'all' | 'birthday' | 'whatsapp' | 'lost' | 'debt';
+type Filter = 'all' | 'birthday' | 'lost';
+type Tab = 'clients' | 'savings' | 'tabs';
 
 export function CustomersPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
@@ -35,7 +36,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [edit, setEdit] = useState<Customer | null>(null);
-  const [settings, setSettings] = useState(false);
+  const [settings, setSettings] = useState<'rewards' | 'messages' | null>(null);
+  const [tab, setTab] = useState<Tab>('clients');
   const [importing, setImporting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [qr, setQr] = useState(false);
@@ -58,8 +60,6 @@ export function CustomersPage({ r }: { r: Restaurant }) {
       (!event || event.ids.has(c.id)) && (!f || (c.name ?? '').toLowerCase().includes(f) || c.phone.includes(f.replace(/\D/g, '') || '§'))
       && (filter === 'all'
         || (filter === 'birthday' && c.birthday && Number(c.birthday.slice(5, 7)) === month)
-        || (filter === 'whatsapp' && c.marketing_ok)
-        || (filter === 'debt' && Number(c.balance_cents) !== 0)
         || (filter === 'lost' && c.last_visit_at && Date.now() - Date.parse(c.last_visit_at) > cb.days * 864e5 && c.visits >= 2)));
   }, [list, q, filter, month, event, cb.days]);
 
@@ -104,55 +104,66 @@ export function CustomersPage({ r }: { r: Restaurant }) {
   }
 
   const credit = !!loyalty.credit;
-  const owed = (list ?? []).reduce((s, c) => s + Math.max(0, Number(c.balance_cents)), 0);
-  const FILTERS: [Filter, string][] = [['all', t('Tous ({n})', { n: list?.length ?? 0 })], ...(credit ? [['debt', t('Ardoises ouvertes')] as [Filter, string]] : []), ['birthday', t('Anniversaire ce mois')], ['whatsapp', t('D’accord pour WhatsApp')], ['lost', t('Ne reviennent plus')]];
+  const value = loyalty.mode === 'value';
+  const FILTERS: [Filter, string][] = [['all', t('Tous ({n})', { n: list?.length ?? 0 })], ['birthday', t('Anniversaire ce mois')], ['lost', t('Ne reviennent plus')]];
+  const TABS: [Tab, string, typeof Users][] = [['clients', t('Clients'), Users], ['savings', t('Fidélité'), Gift], ['tabs', t('Ardoises'), NotebookPen]];
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="me-auto">
           <h1 className="font-display text-3xl font-semibold">{t('Clients')}</h1>
-          <p className="text-muted">{loyalty.enabled
-            ? t('Points de fidélité : 1 point par {d} DH, {p} points = {m} offerts.', { d: loyalty.per_dh ?? 10, p: loyalty.reward_points ?? 100, m: mad(loyalty.reward_cents ?? 5000) })
-            : t('Fichier clients actif. Points de fidélité désactivés.')}</p>
+          <p className="text-muted">{!loyalty.enabled ? t('Fichier clients actif.')
+            : value ? t('Cagnotte : {p} % de chaque addition revient au client.', { p: loyalty.percent ?? 5 })
+            : t('Points de fidélité : 1 point par {d} DH, {p} points = {m} offerts.', { d: loyalty.per_dh ?? 10, p: loyalty.reward_points ?? 100, m: mad(loyalty.reward_cents ?? 5000) })}</p>
         </div>
-        <div className="relative w-60">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input className={`${inputCls} ps-9`} placeholder={t('Nom ou téléphone')} value={q} onChange={e => setQ(e.target.value)} />
+        <div className="flex rounded-2xl bg-surface-2 p-1" role="tablist">
+          {TABS.map(([k, l, Icon]) => (
+            <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${tab === k ? 'bg-surface shadow-sm' : 'text-muted hover:text-ink'}`}>
+              <Icon className="h-4 w-4" /> {l}</button>
+          ))}
         </div>
-        {a.canEditProfile && <Btn onClick={() => setSettings(true)}><Gift className="h-4 w-4" /> {t('Fidélité et ardoise')}</Btn>}
-        {loyalty.customers && <Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn>}
-        <Btn onClick={() => setQr(true)}><QrCode className="h-4 w-4" /> {t('QR d’inscription')}</Btn>
-        <Btn tone="brand" onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> {t('Nouveau client')}</Btn>
       </div>
       {qr && <SignupQrModal r={r} onClose={() => { setQr(false); load(); }} onShowEvent={showEvent} />}
       {importing && <ImportData kind="customers" r={r} onClose={() => setImporting(false)} onDone={load} />}
       {adding && <NewCustomer r={r} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />}
 
+      {tab === 'savings' && <SavingsPanel r={r} loyalty={loyalty} canEdit={a.canEditProfile} onSave={saveLoyalty} onOpen={setSettings} />}
+      {tab === 'tabs' && <TabsPanel r={r} list={list ?? []} credit={credit} canEdit={a.canEditProfile} onToggle={v => saveLoyalty({ ...loyalty, credit: v })} onOpen={setEdit} onChanged={load} />}
+
+      {tab === 'clients' && <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input className={`${inputCls} ps-9`} placeholder={t('Nom ou téléphone')} value={q} onChange={e => setQ(e.target.value)} />
+        </div>
         {event && <span className="flex items-center gap-1.5 rounded-full bg-brand/15 px-3 py-1.5 text-sm font-bold text-brand">{event.ev.name} · {event.ids.size}<button aria-label={t('Fermer')} onClick={() => setEvent(null)}><X className="h-4 w-4" /></button></span>}
         {FILTERS.map(([k, l]) => <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${filter === k ? 'bg-night text-white' : 'bg-surface-2 text-muted hover:text-ink'}`}>{l}</button>)}
-        {credit && owed > 0 && <span className="ms-auto flex items-center gap-1.5 rounded-full bg-warn/15 px-3 py-1.5 text-sm font-bold text-warn"><NotebookPen className="h-4 w-4" /> {t('Total des ardoises : {m}', { m: mad(owed) })}</span>}
-        {(filter === 'whatsapp' || event) && shown.some(c => c.marketing_ok) && <Btn className="ms-auto px-3 py-1.5" onClick={copyNumbers}><Copy className="h-4 w-4" /> {t('Copier les numéros')}</Btn>}
+        <span className="ms-auto flex flex-wrap gap-2">
+          {event && shown.some(c => c.marketing_ok) && <Btn className="px-3 py-2" onClick={copyNumbers}><Copy className="h-4 w-4" /> {t('Copier les numéros')}</Btn>}
+          <Btn tone="ghost" className="px-3 py-2" title={t('QR d’inscription')} onClick={() => setQr(true)}><QrCode className="h-4 w-4" /> <span className="hidden lg:inline">{t('QR d’inscription')}</span></Btn>
+          <Btn tone="ghost" className="px-3 py-2" title={t('Importer')} onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> <span className="hidden lg:inline">{t('Importer')}</span></Btn>
+          <Btn tone="brand" className="px-3 py-2" onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> {t('Nouveau client')}</Btn>
+        </span>
       </div>
       {filter === 'lost' && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 p-3 text-sm">
           <MessageCircle className="h-4 w-4 shrink-0 text-brand" />
           <p className="me-auto min-w-0 flex-1">
-            {t('Clients qui ne sont pas venus depuis {d} jours ou plus. Message : {m}.', { d: cb.days, m: cb.mode === 'offer' ? t('invitation avec offre') : t('invitation seule') })}
+            {t('Pas venus depuis {d} jours. Le bouton ouvre WhatsApp avec un message prêt.', { d: cb.days })}
             {shown.some(c => !c.marketing_ok) && <span className="block text-muted">{t('{n} sans accord WhatsApp : pas de message possible.', { n: shown.filter(c => !c.marketing_ok).length })}</span>}
           </p>
-          {a.canEditProfile && <Btn className="px-3 py-1.5" onClick={() => setSettings(true)}>{t('Modifier le message')}</Btn>}
         </div>
       )}
 
       <div className="card overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted">
             <tr>
               <th className="px-4 py-3 text-start">{t('Client')}</th>
               <th className="px-3 py-3 text-end">{t('Visites')}</th>
               <th className="px-3 py-3 text-end">{t('Dépensé')}</th>
-              {loyalty.enabled && <th className="px-3 py-3 text-end">{t('Points')}</th>}
+              {loyalty.enabled && <th className="px-3 py-3 text-end">{value ? t('Cagnotte') : t('Points')}</th>}
               {credit && <th className="px-3 py-3 text-end">{t('Ardoise')}</th>}
               <th className="px-3 py-3 text-end">{t('Dernière visite')}</th>
               {(filter === 'lost' || filter === 'birthday') && <th className="px-3 py-3 text-end">{t('Message')}</th>}
@@ -166,7 +177,6 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                   <p className="flex items-center gap-1.5 font-semibold">{c.name || t('Sans nom')}
                     {c.birthday && Number(c.birthday.slice(5, 7)) === month && <Cake className="h-4 w-4 text-brand" />}
                     {c.marketing_ok && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-bold text-ok">WhatsApp</span>}
-                    {c.source && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-bold text-brand">QR</span>}
                     {(c.tags ?? []).map(x => <span key={x} className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{x}</span>)}
                     {c.allergies && <span title={c.allergies} className="inline-flex items-center gap-0.5 rounded-full bg-danger/15 px-2 py-0.5 text-[10px] font-bold text-danger"><AlertTriangle className="h-3 w-3" />{t('Allergie')}</span>}
                     {filter === 'birthday' && c.birthday_msg_at && !birthdayFresh(c) && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold text-muted">{t('Message envoyé le {d}', { d: new Date(c.birthday_msg_at).toLocaleDateString(dateLocale()) })}</span>}
@@ -175,8 +185,8 @@ export function CustomersPage({ r }: { r: Restaurant }) {
                 </td>
                 <td className="px-3 py-2.5 text-end tabular">{c.visits}</td>
                 <td className="px-3 py-2.5 text-end tabular">{mad(c.spent_cents)}</td>
-                {loyalty.enabled && <td className="px-3 py-2.5 text-end font-semibold tabular">{c.points}</td>}
-                {credit && <td className={`px-3 py-2.5 text-end tabular ${Number(c.balance_cents) > 0 ? 'font-bold text-warn' : 'text-muted'}`}>{Number(c.balance_cents) !== 0 ? mad(Number(c.balance_cents)) : c.credit_allowed ? '0' : '—'}</td>}
+                {loyalty.enabled && <td className="px-3 py-2.5 text-end font-semibold tabular">{value ? mad(c.points * 100) : c.points}</td>}
+                {credit && <td className={`px-3 py-2.5 text-end tabular ${Number(c.balance_cents) > 0 ? 'font-bold text-warn' : 'text-muted'}`}>{Number(c.balance_cents) !== 0 ? mad(Number(c.balance_cents)) : '—'}</td>}
                 <td className="px-3 py-2.5 text-end text-muted">{c.last_visit_at ? new Date(c.last_visit_at).toLocaleDateString(dateLocale()) : '—'}</td>
                 {(filter === 'lost' || filter === 'birthday') && <td className="px-3 py-2.5 text-end" onClick={e => e.stopPropagation()}>
                   {c.marketing_ok ? <ComebackButton kind={filter} c={c} r={r} cb={cb} bd={bd} pointsOn={!!loyalty.enabled} onSent={load} /> : <span className="text-xs text-muted">{t('Sans accord WhatsApp')}</span>}
@@ -188,9 +198,10 @@ export function CustomersPage({ r }: { r: Restaurant }) {
           </tbody>
         </table>
       </div>
+      </>}
 
-      {edit && <CustomerEditor c={edit} points={!!loyalty.enabled} credit={credit} r={r} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
-      {settings && <LoyaltySettings rid={r.id} restaurantName={r.name} loyalty={loyalty} onClose={() => setSettings(false)} onSave={l => { setSettings(false); saveLoyalty(l); }} />}
+      {edit && <CustomerEditor c={edit} points={!!loyalty.enabled} value={value} credit={credit} r={r} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
+      {settings && <LoyaltySettings part={settings} rid={r.id} restaurantName={r.name} loyalty={loyalty} onClose={() => setSettings(null)} onSave={l => { setSettings(null); saveLoyalty(l); }} />}
     </div>
   );
 }
@@ -218,7 +229,7 @@ function ComebackButton({ kind, c, r, cb, bd, pointsOn, onSent }: { kind: 'lost'
   );
 }
 
-function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Customer; points: boolean; credit: boolean; r: Restaurant; onClose: () => void; onSaved: () => void }) {
+function CustomerEditor({ c, points, value, credit, r, onClose, onSaved }: { c: Customer; points: boolean; value: boolean; credit: boolean; r: Restaurant; onClose: () => void; onSaved: () => void }) {
   const a = useAdminCtx();
   const [f, setF] = useState({ name: c.name ?? '', birthday: c.birthday ?? '', note: c.note ?? '', allergies: c.allergies ?? '', tags: (c.tags ?? []).join(', '), marketing_ok: c.marketing_ok, points: String(c.points),
     credit_allowed: c.credit_allowed, limit: fromCents(c.credit_limit_cents ?? 50000) });
@@ -247,7 +258,7 @@ function CustomerEditor({ c, points, credit, r, onClose, onSaved }: { c: Custome
           <Field label={t('Prénom')}><input className={inputCls} maxLength={60} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
           <Field label={t('Anniversaire')}><input type="date" className={inputCls} value={f.birthday} onChange={e => setF({ ...f, birthday: e.target.value })} /></Field>
         </div>
-        {points && <Field label={t('Points')} hint={t('Correction manuelle, enregistrée dans le journal.')}><input className={`${inputCls} w-32`} inputMode="numeric" value={f.points} onChange={e => setF({ ...f, points: e.target.value.replace(/\D/g, '') })} /></Field>}
+        {points && <Field label={value ? t('Cagnotte (DH)') : t('Points')} hint={t('Correction manuelle, enregistrée dans le journal.')}><input className={`${inputCls} w-32`} inputMode="numeric" value={f.points} onChange={e => setF({ ...f, points: e.target.value.replace(/\D/g, '') })} /></Field>}
         {points && c.card_key && (
           <div className="rounded-2xl bg-surface-2 p-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -326,9 +337,9 @@ const nameOf = (n: I18n | null | undefined) => (n?.fr || n?.en || Object.values(
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 const newId = () => `r${Math.random().toString(36).slice(2, 8)}`;
 
-function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { rid: string; restaurantName: string; loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
+function LoyaltySettings({ part, rid, restaurantName, loyalty, onClose, onSave }: { part: 'rewards' | 'messages'; rid: string; restaurantName: string; loyalty: Loyalty; onClose: () => void; onSave: (l: Loyalty) => void }) {
   const [on, setOn] = useState(!!loyalty.enabled);
-  const [credit, setCredit] = useState(!!loyalty.credit);
+  const credit = !!loyalty.credit;
   const [per, setPer] = useState(String(loyalty.per_dh ?? 10));
   const [maxPer, setMaxPer] = useState(String(loyalty.max_per_order ?? 1));
   const cb0 = comebackCfg(loyalty);
@@ -378,22 +389,17 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
     const money = list.find(x => x.kind === 'discount');
     const comeback = { days: cbNow.days, mode: cbMode, offer: cbOffer.trim(), bonus_points: Math.min(COMEBACK_BONUS_MAX, Math.max(0, Math.round(Number(cbBonus) || 0))), message: cbMsg.trim() };
     const birthday = { offer: bdOffer.trim(), bonus_points: Math.min(COMEBACK_BONUS_MAX, Math.max(0, Math.round(Number(bdBonus) || 0))), message: bdMsg.trim() };
-    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: p, rewards: list, max_per_order: Math.min(10, Math.max(1, Number(maxPer) || 1)), comeback, birthday,
+    onSave({ ...loyalty, customers: true, enabled: on, credit, per_dh: loyalty.mode === 'value' ? loyalty.per_dh : p, rewards: list, max_per_order: Math.min(10, Math.max(1, Number(maxPer) || 1)), comeback, birthday,
       reward_points: money?.points ?? loyalty.reward_points ?? 100, reward_cents: money?.cents ?? loyalty.reward_cents ?? 5000 });
   };
 
   return (
-    <Modal title={t('Fidélité et ardoise')} onClose={onClose}
-      footer={<div className="flex justify-between">
-        <Btn tone="ghost" className="text-danger" onClick={() => onSave({ ...loyalty, customers: false, enabled: false, credit: false })}>{t('Désactiver le fichier clients')}</Btn>
-        <Btn tone="brand" disabled={on && !valid} onClick={save}>{t('Enregistrer')}</Btn></div>}>
+    <Modal title={part === 'rewards' ? t('Récompenses') : t('Messages WhatsApp')} onClose={onClose}
+      footer={<div className="flex justify-end">
+        <Btn tone="brand" disabled={part === 'rewards' && on && !valid} onClick={save}>{t('Enregistrer')}</Btn></div>}>
       <div className="space-y-4">
-        <div className="rounded-2xl bg-surface-2 p-4">
-          <Toggle checked={credit} onChange={setCredit} label={t('Ardoise : certains clients paient plus tard')} />
-          <p className="mt-1.5 text-sm text-muted">{t('Vous choisissez qui y a droit et jusqu’à quel montant, client par client. Le ticket est émis à la vente, le client règle plus tard à la caisse.')}</p>
-        </div>
-        <Toggle checked={on} onChange={setOn} label={t('Points de fidélité')} />
-        {on && <>
+        {part === 'rewards' && <Toggle checked={on} onChange={setOn} label={t('Points de fidélité')} />}
+        {part === 'rewards' && on && <>
           <Field label={t('1 point tous les (DH)')}><input className={inputCls} inputMode="numeric" value={per} onChange={e => setPer(e.target.value.replace(/\D/g, ''))} /></Field>
           <div>
             <p className="text-sm font-semibold">{t('Récompenses')}</p>
@@ -415,6 +421,7 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
           )}
           {!valid && <p className="text-sm text-warn">{t('Chaque récompense a besoin d’un produit ou d’un montant.')}</p>}
         </>}
+        {part === 'messages' && <>
         <div className="space-y-3 rounded-2xl bg-surface-2 p-4">
           <p className="font-semibold">{t('Message pour faire revenir les clients')}</p>
           <p className="text-sm text-muted">{t('Dans Clients, filtre « Ne reviennent plus », un bouton ouvre WhatsApp avec ce message, prêt à envoyer. Seulement pour les clients qui ont donné leur accord.')}</p>
@@ -464,6 +471,7 @@ function LoyaltySettings({ rid, restaurantName, loyalty, onClose, onSave }: { ri
             <p className="whitespace-pre-wrap">{bdPreview}</p>
           </div>
         </div>
+        </>}
       </div>
     </Modal>
   );
@@ -626,6 +634,178 @@ function AdjustBalance({ c, onClose, onDone }: { c: Customer; onClose: () => voi
         <Field label={t('Montant (DH)')}><input autoFocus className={inputCls} inputMode="decimal" value={val} onChange={e => setVal(e.target.value)} /></Field>
         <Field label={t('Motif')}><input className={inputCls} maxLength={200} value={note} onChange={e => setNote(e.target.value)} placeholder={t('Réglé en dehors de la caisse, geste commercial…')} /></Field>
         <p className="rounded-xl bg-surface-2 p-3 text-sm">{t('Nouveau solde : {m}', { m: mad(Number(c.balance_cents) + cents) })}</p>
+      </div>
+    </Modal>
+  );
+}
+
+/** Fidélité: in savings mode, two choices with big buttons (how much comes back, from when it can be used);
+ *  the WhatsApp messages are ready and only opened to change the text. */
+function SavingsPanel({ r, loyalty, canEdit, onSave, onOpen }: { r: Restaurant; loyalty: Loyalty; canEdit: boolean; onSave: (l: Loyalty) => void; onOpen: (p: 'rewards' | 'messages') => void }) {
+  const value = loyalty.mode === 'value';
+  const on = !!loyalty.enabled;
+  const percent = loyalty.percent ?? 5;
+  const min = loyalty.min_points ?? 0;
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
+  const setValue = (x: Partial<Loyalty>) => onSave({ ...loyalty, customers: true, enabled: true, mode: 'value', percent, min_points: min, ...x });
+  const choice = (active: boolean) => `flex-1 rounded-2xl px-4 py-3 text-start transition ${active ? 'bg-night text-white' : 'bg-surface-2 hover:bg-surface-3'} disabled:opacity-50`;
+  return (
+    <div className="space-y-5">
+      <div className="card rounded-3xl p-5 md:p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <Gift className="h-7 w-7 shrink-0 text-brand" />
+          <div className="me-auto min-w-[14rem] flex-1">
+            <h2 className="font-display text-xl font-semibold">{t('La cagnotte')}</h2>
+            <p className="text-sm text-muted">{t('À chaque visite, le client met de côté une partie de son addition. Il la dépense sur tout le menu.')}</p>
+          </div>
+          {canEdit && <Toggle checked={on} onChange={v => v ? setValue({}) : onSave({ ...loyalty, enabled: false })} label={on ? t('Activée') : t('Désactivée')} />}
+        </div>
+
+        {on && !value && (
+          <div className="mt-5 rounded-2xl bg-brand/10 p-4">
+            <p className="font-semibold">{t('Vous utilisez encore les récompenses avec des points.')}</p>
+            <p className="mt-1 text-sm text-muted">{t('Plus simple : la cagnotte en dirhams. Pas de liste de récompenses à tenir, le client choisit sur le menu.')}</p>
+            {confirmSwitch ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-warn">{t('Les points déjà gagnés deviennent des dirhams : 1 point = 1 DH.')}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Btn tone="brand" onClick={() => setValue({})}>{t('Passer à la cagnotte')}</Btn>
+                  <Btn tone="ghost" onClick={() => setConfirmSwitch(false)}>{t('Annuler')}</Btn>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {canEdit && <Btn tone="brand" onClick={() => setConfirmSwitch(true)}>{t('Passer à la cagnotte')}</Btn>}
+                {canEdit && <Btn tone="ghost" onClick={() => onOpen('rewards')}>{t('Modifier mes récompenses')}</Btn>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {on && value && <>
+          <p className="mt-6 text-sm font-semibold">{t('Combien revient au client ?')}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[3, 5, 10].map(p => (
+              <button key={p} type="button" disabled={!canEdit} onClick={() => setValue({ percent: p })} className={choice(percent === p)} aria-pressed={percent === p}>
+                <span className="block font-display text-2xl font-semibold">{p} %</span>
+                <span className={`block text-xs ${percent === p ? 'text-white/70' : 'text-muted'}`}>{p === 3 ? t('Petit cadeau') : p === 5 ? t('Normal') : t('Généreux')}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-muted">{t('Exemple : un client dépense {s}, il met {m} dans sa cagnotte.', { s: mad(20000), m: mad(Math.floor(200 / Math.round(100 / percent)) * 100) })}</p>
+
+          <p className="mt-6 text-sm font-semibold">{t('Utilisable à partir de')}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[0, 20, 50].map(m => (
+              <button key={m} type="button" disabled={!canEdit} onClick={() => setValue({ min_points: m })} className={choice(min === m)} aria-pressed={min === m}>
+                <span className="block font-display text-2xl font-semibold">{m ? mad(m * 100) : t('Tout de suite')}</span>
+                <span className={`block text-xs ${min === m ? 'text-white/70' : 'text-muted'}`}>{m ? t('Évite le petit cadeau à chaque visite') : t('Dès le premier dirham')}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-4 rounded-2xl bg-surface-2 p-3 text-sm">{t('À la caisse, le client voit ce qu’il peut prendre gratuitement. Un plat plus cher ? Sa cagnotte paie une partie.')}</p>
+        </>}
+      </div>
+
+      <div className="card rounded-3xl p-5 md:p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <MessageCircle className="h-7 w-7 shrink-0 text-brand" />
+          <div className="me-auto min-w-[14rem] flex-1">
+            <h2 className="font-display text-xl font-semibold">{t('Messages WhatsApp')}</h2>
+            <p className="text-sm text-muted">{t('Anniversaire et « vous nous manquez » : déjà écrits. Envoyez-les depuis Clients, avec les filtres.')}</p>
+          </div>
+          {canEdit && <Btn tone="ghost" onClick={() => onOpen('messages')}><Pencil className="h-4 w-4" /> {t('Personnaliser')}</Btn>}
+        </div>
+      </div>
+
+      {canEdit && (
+        <div className="flex justify-end">
+          <Btn tone="ghost" className="text-sm text-danger" onClick={() => { if (window.confirm(t('Désactiver le fichier clients ? Les clients ne sont plus reconnus à la caisse.'))) onSave({ ...loyalty, customers: false, enabled: false, credit: false }); }}>{t('Désactiver le fichier clients')}</Btn>
+        </div>
+      )}
+      <p className="sr-only">{r.name}</p>
+    </div>
+  );
+}
+
+/** Ardoises: who owes what, the total, and "Payé" in one tap. */
+function TabsPanel({ r, list, credit, canEdit, onToggle, onOpen, onChanged }: {
+  r: Restaurant; list: Customer[]; credit: boolean; canEdit: boolean; onToggle: (v: boolean) => void; onOpen: (c: Customer) => void; onChanged: () => void;
+}) {
+  const [pay, setPay] = useState<Customer | null>(null);
+  const [statement, setStatement] = useState<Customer | null>(null);
+  const owing = list.filter(c => Number(c.balance_cents) > 0).sort((x, y) => Number(y.balance_cents) - Number(x.balance_cents));
+  const total = owing.reduce((n, c) => n + Number(c.balance_cents), 0);
+  const allowed = list.filter(c => c.credit_allowed).length;
+  if (!credit) return (
+    <div className="card flex flex-wrap items-center gap-4 rounded-3xl p-5 md:p-6">
+      <NotebookPen className="h-7 w-7 shrink-0 text-brand" />
+      <div className="me-auto min-w-[14rem] flex-1">
+        <h2 className="font-display text-xl font-semibold">{t('Ardoises')}</h2>
+        <p className="text-sm text-muted">{t('Certains clients prennent maintenant et paient plus tard. Vous choisissez qui, et jusqu’à combien.')}</p>
+      </div>
+      {canEdit && <Btn tone="brand" onClick={() => onToggle(true)}>{t('Activer les ardoises')}</Btn>}
+    </div>
+  );
+  return (
+    <div className="space-y-5">
+      <div className="night flex flex-wrap items-end gap-4 rounded-3xl p-5 md:p-6">
+        <div className="me-auto">
+          <p className="text-sm text-white/70">{t('À encaisser')}</p>
+          <p className="font-display text-4xl font-semibold tabular">{mad(total)}</p>
+        </div>
+        <p className="text-sm text-white/70">{t('{n} client(s) doivent de l’argent', { n: owing.length })} · {t('{n} autorisé(s)', { n: allowed })}</p>
+      </div>
+      <div className="card divide-y divide-line/10 rounded-3xl">
+        {owing.map(c => (
+          <div key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <button type="button" onClick={() => onOpen(c)} className="me-auto min-w-[10rem] flex-1 text-start">
+              <span className="block font-semibold">{c.name || t('Sans nom')}</span>
+              <span dir="ltr" className="block text-xs text-muted rtl:text-end">{c.phone}</span>
+            </button>
+            <span className="font-display text-xl font-semibold tabular text-warn">{mad(Number(c.balance_cents))}</span>
+            <Btn tone="ghost" className="px-3 py-2 text-sm" onClick={() => setStatement(c)}><Printer className="h-4 w-4" /> {t('Relevé')}</Btn>
+            <Btn tone="brand" className="px-3 py-2 text-sm" onClick={() => setPay(c)}><ShieldCheck className="h-4 w-4" /> {t('Payé')}</Btn>
+          </div>
+        ))}
+        {!owing.length && <p className="px-4 py-10 text-center text-muted">{t('Personne ne doit d’argent.')}</p>}
+      </div>
+      <p className="text-sm text-muted">{t('Pour autoriser un client : ouvrez sa fiche dans Clients et cochez « Peut payer plus tard ».')}</p>
+      {canEdit && <div className="flex justify-end"><Btn tone="ghost" className="text-sm" onClick={() => onToggle(false)}>{t('Désactiver les ardoises')}</Btn></div>}
+      {pay && <PayTab r={r} c={pay} onClose={() => setPay(null)} onDone={() => { setPay(null); onChanged(); }} />}
+      {statement && <Statement c={statement} r={r} onClose={() => setStatement(null)} />}
+    </div>
+  );
+}
+
+/** The customer pays (all or part of) what he owes: same record as a payment at the till. */
+function PayTab({ r, c, onClose, onDone }: { r: Restaurant; c: Customer; onClose: () => void; onDone: () => void }) {
+  const a = useAdminCtx();
+  const [val, setVal] = useState(fromCents(Number(c.balance_cents)));
+  const [method, setMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
+  const [busy, setBusy] = useState(false);
+  const cents = toCents(val);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await rpc('pos_account_payment', { p_restaurant_id: r.id, p_customer_id: c.id, p_amount_cents: cents, p_method: method, p_staff_id: null });
+      a.toast(t('{m} encaissé', { m: mad(cents) })); onDone();
+    } catch (e) { a.fail(e); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={c.name || c.phone} onClose={onClose}
+      footer={<div className="flex justify-end"><Btn tone="brand" disabled={busy || cents <= 0} onClick={save}><ShieldCheck className="h-4 w-4" /> {t('Payé')}</Btn></div>}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted">{t('Doit : {m}', { m: mad(Number(c.balance_cents)) })}</p>
+        <Field label={t('Montant payé (DH)')}><input autoFocus className={inputCls} inputMode="decimal" value={val} onChange={e => setVal(e.target.value)} /></Field>
+        <div className="flex gap-2">
+          {(['cash', 'card', 'transfer'] as const).map(m => (
+            <button key={m} type="button" onClick={() => setMethod(m)} className={`flex-1 rounded-xl py-2.5 text-sm font-bold ${method === m ? 'bg-night text-white' : 'bg-surface-2 text-muted'}`}>
+              {m === 'cash' ? t('Espèces') : m === 'card' ? t('Carte') : t('Virement')}</button>
+          ))}
+        </div>
+        {cents > 0 && cents < Number(c.balance_cents) && <p className="rounded-xl bg-surface-2 p-3 text-sm">{t('Reste à payer : {m}', { m: mad(Number(c.balance_cents) - cents) })}</p>}
       </div>
     </Modal>
   );
