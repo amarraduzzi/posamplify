@@ -15,6 +15,7 @@ import { ProductionTraceModal } from '../components/ProductionTrace';
 import { ProductionYield } from '../components/ProductionYield';
 import { Smooth } from '../components/Smooth';
 import { ProductionPlanner, num, show, unitOf } from '../components/ProductionPlanner';
+import { ProductionDayEnd } from '../components/ProductionDayEnd';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
@@ -233,6 +234,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
           </ul>
         </Card>
       </Smooth>}
+      {tab === 'plan' && day === 0 && today && !!items?.length && <ProductionDayEnd r={r} today={today} items={items} onChanged={load} />}
       {trace && <ProductionTraceModal id={trace} onClose={() => setTrace(null)} />}
     </div>
   );
