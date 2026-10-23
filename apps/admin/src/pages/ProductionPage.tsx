@@ -8,12 +8,13 @@ import { check, mad, rpc } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { BaseUnit, Restaurant } from '../lib/types';
-import { RECIPE_UNITS, fmtQty } from '../lib/profit';
+import { fmtQty } from '../lib/profit';
 import { Btn, Card, inputCls } from '../components/ui';
 import { DemandForecast } from '../components/DemandForecast';
 import { ProductionTraceModal } from '../components/ProductionTrace';
 import { ProductionYield } from '../components/ProductionYield';
 import { Smooth } from '../components/Smooth';
+import { ProductionPlanner, num, show, unitOf } from '../components/ProductionPlanner';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
@@ -22,10 +23,6 @@ interface PlanItem {
 interface Batch { id: string; ingredient_id: string; qty: number; planned_qty: number | null; produced_on: string; cost_cents: number | null; note: string | null; cancelled_at: string | null; created_at: string; status: 'running' | 'done' }
 
 const addDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const num = (s: string) => Number(s.replace(',', '.')) || 0;
-const show = (x: number) => String(Math.round(x * 100) / 100).replace('.', ',');
-// the quantity is typed in the unit of the batch: pieces, or kg / litres when a batch is 1 kg or more
-const unitOf = (i: Pick<PlanItem, 'base_unit' | 'batch_qty'>) => (i.base_unit === 'pc' ? RECIPE_UNITS.pc[0] : Number(i.batch_qty) >= 1000 ? RECIPE_UNITS[i.base_unit][RECIPE_UNITS[i.base_unit].length - 1] : RECIPE_UNITS[i.base_unit][0]);
 
 export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredients: () => void }) {
   const a = useAdminCtx();
@@ -42,6 +39,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   // the quantities the person typed stay when the page refreshes (only the suggestions are refreshed)
   const edited = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  // the planning reloads after every change of the page (a production cancelled below puts its line back)
+  const [ver, setVer] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,7 +58,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
       setBatches(check(await supabase.from('production_batches').select('id, ingredient_id, qty, planned_qty, produced_on, cost_cents, note, cancelled_at, created_at, status')
         .eq('restaurant_id', r.id).or(`produced_on.eq.${base.date},status.eq.running`).order('created_at', { ascending: false })) as Batch[]);
     } catch (e) { a.fail(e); setItems(x => x ?? []); }
-    setLoading(false);
+    setLoading(false); setVer(v => v + 1);
   }, [r.id, day, a]);
   // another day: the typed quantities were for the other day
   useEffect(() => { edited.current = new Set(); }, [day]);
@@ -104,7 +103,6 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
     try { await rpc('production_cancel', { p_id: b.id }); a.toast(t('Production annulée')); await load(); } catch (e) { a.fail(e); }
   };
 
-  const nice = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
   const byId = new Map((items ?? []).map(i => [i.ingredient_id, i]));
 
   return (
@@ -134,6 +132,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
 
       {tab === 'plan' && today && <DemandForecast r={r} date={day ? addDays(today, 1) : today} />}
 
+      {tab === 'plan' && today && <ProductionPlanner r={r} date={day ? addDays(today, 1) : today} refresh={ver} onChanged={load} />}
+
       {tab === 'plan' && <Smooth open={batches.some(b => b.status === 'running' && !b.cancelled_at)}>
         <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('En cours')}</h2>
@@ -160,7 +160,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         </Card>
       </Smooth>}
 
-      {tab === 'plan' && (items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
+      {tab === 'plan' && (day === 0 || !items?.length) && (items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
         <Card>
           <div className="flex flex-wrap items-center gap-4">
             <CookingPot className="h-8 w-8 shrink-0 text-brand" />
@@ -173,8 +173,8 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         </Card>
       ) : (
         <Card className={`transition-opacity duration-200 ${loading ? 'opacity-60' : ''}`}>
-          <h2 className="mb-1 font-display text-xl font-semibold capitalize">{today ? nice(day ? addDays(today, 1) : today) : ''}</h2>
-          <p className="mb-4 text-sm text-muted">{day ? t('Pour demain : le stock compté est celui de maintenant et une partie sera encore vendue aujourd’hui. Prévoyez un peu plus.') : t('La quantité proposée se modifie avant de produire.')}</p>
+          <h2 className="mb-1 font-display text-xl font-semibold">{t('Production libre')}</h2>
+          <p className="mb-4 text-sm text-muted">{t('Pour ce qui n’est pas au planning. La quantité proposée se modifie avant de produire.')}</p>
           <div className="divide-y divide-line/10">
             {items.map(i => {
               const stock = i.stock_qty == null ? null : Number(i.stock_qty);
