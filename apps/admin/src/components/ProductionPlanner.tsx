@@ -4,7 +4,8 @@
 // out at that moment; "Pas fait" keeps the reason; undo gives the stock back.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Ban, CalendarDays, Check, ClipboardList, MessageCircle, Plus, RotateCcw, Undo2, X } from 'lucide-react';
-import { rpc } from '../lib/api';
+import { check, rpc } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { dateLocale, t } from '../lib/i18n';
 import { useAdminCtx } from '../store';
 import type { BaseUnit, Restaurant } from '../lib/types';
@@ -23,7 +24,7 @@ interface Line {
   id: string; ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; planned_qty: number; note: string | null;
   status: 'pending' | 'done' | 'skipped'; done_qty: number | null; skip_reason: string | null; done_at: string | null;
 }
-interface Need { ingredient_id: string; name: string; base_unit: BaseUnit; need: number; stock_qty: number | null; short: number | null; is_preparation: boolean; supplier: string | null; supplier_phone: string | null }
+interface Need { ingredient_id: string; name: string; base_unit: BaseUnit; need: number; stock_qty: number | null; short: number | null; is_preparation: boolean; supplier: string | null; supplier_phone: string | null; supplier_id: string | null; purchase_qty: number; purchase_unit: string }
 interface Day {
   date: string; today: string; dow: number; proposals: Proposal[]; needs: Need[];
   plan: { id: string; note: string | null; lines: Line[] } | null;
@@ -50,6 +51,8 @@ export function ProductionPlanner({ r, date, refresh, onChanged }: { r: Restaura
   const [skipFor, setSkipFor] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const dirtyRef = useRef(false);
+  // purchase orders made from this plan (once per plan date, so a second tap does not double them)
+  const [ordered, setOrdered] = useState<string | null>(null);
   dirtyRef.current = dirty;
 
   const fromPlan = (d: Day): Draft[] => {
@@ -112,6 +115,27 @@ export function ProductionPlanner({ r, date, refresh, onChanged }: { r: Restaura
     }
     setBusy(null);
   };
+  // what is short becomes draft purchase orders, one per supplier, in whole purchase units at the last price
+  const makeOrders = async () => {
+    const short = day.needs.filter(n => Number(n.short) > 0 && !n.is_preparation);
+    if (!short.length) return;
+    setBusy('po');
+    try {
+      const ings = check(await supabase.from('ingredients').select('id, purchase_price_cents').in('id', short.map(n => n.ingredient_id))) as { id: string; purchase_price_cents: number | null }[];
+      const price = new Map(ings.map(g => [g.id, g.purchase_price_cents]));
+      const groups = new Map<string, Need[]>();
+      for (const n of short) { const k = n.supplier_id ?? ''; groups.set(k, [...(groups.get(k) ?? []), n]); }
+      for (const [sid, ns] of groups) {
+        const [po] = check(await supabase.from('purchase_orders').insert({ restaurant_id: r.id, supplier_id: sid || null, expected_on: day.date,
+          note: t('Pour le planning du {d}', { d: nice(day.date) }).slice(0, 200) }).select('id')) as { id: string }[];
+        check(await supabase.from('purchase_order_lines').insert(ns.map((n, i) => ({ restaurant_id: r.id, order_id: po.id, ingredient_id: n.ingredient_id,
+          units: Math.max(1, Math.ceil(Number(n.short) / Math.max(1, Number(n.purchase_qty)))), unit_price_cents: price.get(n.ingredient_id) ?? null, sort_order: (i + 1) * 10 }))).select('id'));
+      }
+      setOrdered(day.date);
+      a.toast(t('{n} bon(s) de commande créé(s) : Inventaire > Commandes fournisseurs', { n: groups.size }));
+    } catch (e) { a.fail(e); }
+    setBusy(null);
+  };
   const markDone = (l: Line) => {
     const q = (doneQty[l.id] ? num(doneQty[l.id]) * unitOf(l).f : Number(l.planned_qty));
     if (!(q > 0)) { a.toast(t('Indiquez la quantité produite.'), 'error'); return; }
@@ -150,6 +174,12 @@ export function ProductionPlanner({ r, date, refresh, onChanged }: { r: Restaura
           </div>
         ))}
       </div>
+      {day.needs.some(n => Number(n.short) > 0 && !n.is_preparation) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Btn tone="brand" className="text-sm" disabled={busy === 'po' || ordered === day.date} onClick={makeOrders}><ClipboardList className="h-4 w-4" /> {ordered === day.date ? t('Bons de commande créés') : t('Créer les bons de commande')}</Btn>
+          <span className="text-xs text-muted">{t('Un brouillon par fournisseur, à vérifier et envoyer dans Inventaire.')}</span>
+        </div>
+      )}
       {shortGroups.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {shortGroups.map(g => g.phone ? (

@@ -2,7 +2,7 @@
 // and see what was really used, and with Amplify POS: what disappeared without
 // being sold (waste, free food, theft), per ingredient and in dirhams.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Upload, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Printer, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Upload, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -1113,6 +1113,32 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
     } catch (e) { a.fail(e); }
     setBusy(false);
   };
+  // the order as a document: to print, or to save as PDF from the print window
+  const printIt = () => {
+    if (!po) return;
+    const esc = (x: string) => x.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
+    const rows = lines.map(l => {
+      const g = byId.get(l.ingredient_id);
+      const tot = l.price.trim() ? num(l.units) * toCents(l.price) : null;
+      return `<tr><td>${esc(g?.name ?? '')}</td><td class="n">${esc(l.units)} ${esc(g?.purchase_unit ?? '')}</td><td class="n">${l.price.trim() ? esc(mad(toCents(l.price))) : ''}</td><td class="n">${tot != null ? esc(mad(Math.round(tot))) : ''}</td></tr>`;
+    }).join('');
+    const w = window.open('', '_blank');
+    if (!w) { a.toast(t('Autorisez les fenêtres pour imprimer.'), 'error'); return; }
+    w.document.write(`<!doctype html><html dir="${document.documentElement.dir || 'ltr'}"><head><meta charset="utf-8"><title>${esc(po.doc_number)}</title><style>
+      body{font:14px system-ui,sans-serif;color:#001E3E;margin:32px}h1{font-size:22px;margin:0}h2{font-size:16px;margin:24px 0 4px}p{margin:3px 0;color:#4A5A6E}
+      .top{display:flex;justify-content:space-between;gap:24px}table{width:100%;border-collapse:collapse;margin-top:18px}
+      th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#4A5A6E;text-align:start;border-bottom:2px solid #001E3E;padding:6px 4px}
+      td{padding:7px 4px;border-bottom:1px solid #e3e8ee}.n{text-align:end;white-space:nowrap}.tot{margin-top:14px;font-size:18px;font-weight:700;text-align:end}
+      .sign{margin-top:48px;display:flex;justify-content:space-between;color:#4A5A6E}</style></head><body>
+      <div class="top"><div><h1>${esc(r.name)}</h1></div><div style="text-align:end"><h1>${esc(t('Bon de commande'))}</h1><p>${esc(po.doc_number)}</p><p>${esc(new Date(po.created_at).toLocaleDateString(dateLocale()))}</p></div></div>
+      <h2>${esc(t('Fournisseur'))}</h2><p>${esc(supplier?.name ?? t('Sans fournisseur'))}${supplier?.phone ? ` · ${esc(supplier.phone)}` : ''}</p>
+      ${expected ? `<p>${esc(t('Livraison souhaitée : {d}', { d: day(expected) }))}</p>` : ''}
+      <table><tr><th>${esc(t('Produit'))}</th><th class="n">${esc(t('Quantité'))}</th><th class="n">${esc(t('Prix unitaire'))}</th><th class="n">${esc(t('Total'))}</th></tr>${rows}</table>
+      ${total > 0 ? `<p class="tot">${esc(t('Total estimé'))} ${esc(mad(Math.round(total)))}</p>` : ''}
+      ${note.trim() ? `<p style="margin-top:16px">${esc(note.trim())}</p>` : ''}
+      <div class="sign"><span>${esc(t('Signature'))}</span><span>${esc(t('Reçu le'))} ____________</span></div></body></html>`);
+    w.document.close(); w.focus(); w.print();
+  };
   const cancel = async () => {
     if (!po) { onClose(); return; }
     try { check(await supabase.from('purchase_orders').update({ status: 'cancelled' }).eq('id', po.id).select('id')); a.toast(t('Commande annulée')); onSaved(); onClose(); } catch (e) { a.fail(e); }
@@ -1125,6 +1151,7 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
       footer={<div className="flex flex-wrap items-center gap-2">
         {editable && po && <Btn tone="ghost" className="text-danger" onClick={cancel}><X className="h-4 w-4" /> {t('Annuler la commande')}</Btn>}
         <span className="me-auto text-sm text-muted">{t('Total estimé')} <b className="text-ink tabular">{mad(Math.round(po?.status === 'received' ? poTotal(po) : total))}</b></span>
+        {po && <Btn tone="ghost" disabled={busy} onClick={printIt}><Printer className="h-4 w-4" /> {t('Imprimer')}</Btn>}
         {editable && <Btn disabled={busy} onClick={save}>{t('Enregistrer')}</Btn>}
         {editable && <Btn disabled={busy || !valid} onClick={send}><MessageCircle className="h-4 w-4" /> {po?.status === 'sent' ? t('Renvoyer sur WhatsApp') : t('Envoyer sur WhatsApp')}</Btn>}
         {po && editable && <Btn tone="brand" disabled={busy} onClick={() => setReceiving(true)}><PackageCheck className="h-4 w-4" /> {t('Réceptionner')}</Btn>}

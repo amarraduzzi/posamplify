@@ -3357,4 +3357,10 @@ export const EN: Record<string, string> = {
   "Utilisée dans autre chose : icing, pâte, crème.": "Used in something else: icing, dough, cream.",
   "Vendue telle quelle : croissant, cinnamon roll, tartelette.": "Sold as it is: croissant, cinnamon roll, tartlet.",
   "matière {p} %": "food cost {p} %",
+  "Bons de commande créés": "Purchase orders created",
+  "Créer les bons de commande": "Create the purchase orders",
+  "Pour le planning du {d}": "For the plan of {d}",
+  "Prix unitaire": "Unit price",
+  "Un brouillon par fournisseur, à vérifier et envoyer dans Inventaire.": "One draft per supplier, to check and send in Inventory.",
+  "{n} bon(s) de commande créé(s) : Inventaire > Commandes fournisseurs": "{n} purchase order(s) created: Inventory > Supplier orders",
 };

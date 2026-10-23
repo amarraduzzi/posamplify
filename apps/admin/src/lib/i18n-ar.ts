@@ -3360,4 +3360,10 @@ export const AR: Record<string, string> = {
   "Utilisée dans autre chose : icing, pâte, crème.": "كتستعمل فحاجة أخرى: إيسينغ، عجين، كريمة.",
   "Vendue telle quelle : croissant, cinnamon roll, tartelette.": "كتتباع كيف ما هي: كرواسون، سينامون رول، تارتليت.",
   "matière {p} %": "المواد {p} %",
+  "Bons de commande créés": "بونات الطلب تصاوبو",
+  "Créer les bons de commande": "صاوب بونات الطلب",
+  "Pour le planning du {d}": "لبلانينغ {d}",
+  "Prix unitaire": "الثمن ديال الوحدة",
+  "Un brouillon par fournisseur, à vérifier et envoyer dans Inventaire.": "مسودة لكل مورد، راجعها وصيفطها من الستوك.",
+  "{n} bon(s) de commande créé(s) : Inventaire > Commandes fournisseurs": "{n} بون طلب تصاوب: الستوك > طلبات الموردين",
 };
