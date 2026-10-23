@@ -10,6 +10,7 @@ import type { ChosenMod, DraftLine, Item, Line, ModGroup, Order, OrderReward } f
 import { Btn, Field, Modal, inputCls } from './ui';
 import { ManagerApproval } from './StaffGate';
 import { PaymentModal } from './PaymentModal';
+import { AccountDialog } from './Reports';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
 import { useIsPhone } from '../lib/phone';
@@ -272,7 +273,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       </div>
     )}
     {loyalty.customers && order && (
-      <CustomerBar order={order} cust={cust} loyalty={loyalty} onPick={() => setDialog('customer')} onRedeemed={c => setCust(c)} />
+      <CustomerBar order={order} cust={cust} loyalty={loyalty} onPick={() => setDialog('customer')} onRedeemed={c => setCust(c)} onAdd={addItem} />
     )}
         {pendingQr && (
           <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
@@ -991,12 +992,16 @@ function SplitDialog({ order, lineName, onClose, onPayAll, onPart }: {
 interface Customer extends Partial<Omit<Guest, 'id' | 'name' | 'phone' | 'visits'>> { id: string; name: string | null; phone: string; points: number; visits: number; credit_allowed?: boolean; credit_limit_cents?: number | null; balance_cents?: number }
 
 /** The customer chip on the ticket: who, points, and the reward when there are enough points. */
-function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
-  order: Order; cust: Customer | null; loyalty: NonNullable<import('../lib/types').Restaurant['loyalty']>; onPick: () => void; onRedeemed: (c: Customer) => void;
+function CustomerBar({ order, cust, loyalty, onPick, onRedeemed, onAdd }: {
+  order: Order; cust: Customer | null; loyalty: NonNullable<import('../lib/types').Restaurant['loyalty']>; onPick: () => void; onRedeemed: (c: Customer) => void; onAdd: (i: Item) => void;
 }) {
   const pos = usePos();
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [settle, setSettle] = useState(false);
+  const [freeOpen, setFreeOpen] = useState(false);
+  // savings mode: 1 point = 1 DH, the customer pays with them; the menu up to his savings is free for him
+  const value = loyalty.mode === 'value';
   const maitre = hasMaitre(pos.restaurant);
   const rewards = loyaltyRewards(loyalty);
   const known = cust && cust.id === order.customer_id ? cust : null;
@@ -1004,7 +1009,23 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
   const max = Math.max(1, loyalty.max_per_order ?? 1);
   const sofar = applied.reduce((n, x) => n + Number(x.cents), 0);
   // rewards can be added while the bill has no manager discount or promo code, and the maximum is not reached
-  const open = !!loyalty.enabled && !!known && !(Number(order.discount_cents) > 0 && order.discount_kind !== 'loyalty') && applied.length < max;
+  const open = !!loyalty.enabled && !!known && !(Number(order.discount_cents) > 0 && order.discount_kind !== 'loyalty') && (value ? !applied.some(x => x.reward_id === 'value') : applied.length < max);
+  const saved = known ? Number(known.points) * 100 : 0;
+  const usable = value && open && saved > 0 && Number(known!.points) >= (loyalty.min_points ?? 0);
+  const useNow = Math.min(saved, Number(order.subtotal_cents) - sofar);
+  const free = value && known ? pos.items.filter(i => i.available && !i.sold_by_weight && !i.variants.length && Number(i.price_cents) > 0 && Number(i.price_cents) <= saved)
+    .sort((x, y) => Number(y.price_cents) - Number(x.price_cents)) : [];
+  const useSavings = async () => {
+    if (!pos.requireOnline() || !known) return;
+    setBusy(true);
+    try {
+      const res = await db.rpc<{ points: number; cents: number }>('pos_redeem_value', { p_order_id: order.id, p_cents: null });
+      await pos.reloadOrders();
+      onRedeemed({ ...known, points: res.points });
+      pos.toast(t('Cagnotte utilisée : −{m}', { m: mad(Number(res.cents)) }), 'ok');
+    } catch (e) { pos.fail(e); }
+    setBusy(false);
+  };
   /** what a reward would take off, and whether the bill can carry it (the rewards together may cover the bill, never more) */
   const fit = (rw: LoyaltyReward) => {
     if (rw.kind !== 'item') return { there: true, ok: Number(order.subtotal_cents) >= sofar + (rw.cents ?? 0) };
@@ -1039,11 +1060,12 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
     <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface-2/60 px-4 py-2 text-sm">
       <UserRound className="h-4 w-4 text-brand" />
       {order.customer_id
-        ? <button disabled={!maitre} onClick={() => setSheet(true)} className={`font-semibold ${maitre ? 'underline decoration-line/30 underline-offset-4 hover:decoration-brand' : ''}`}>{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {t('{n} points', { n: known.points })}</span> : null}</button>
+        ? <button disabled={!maitre} onClick={() => setSheet(true)} className={`font-semibold ${maitre ? 'underline decoration-line/30 underline-offset-4 hover:decoration-brand' : ''}`}>{known?.name || order.customer_name || t('Client associé')}{known && loyalty.enabled ? <span className="ms-1 text-muted">· {value ? t('Cagnotte {m}', { m: mad(saved) }) : t('{n} points', { n: known.points })}</span> : null}</button>
         : <span className="text-muted">{t('Pas de client')}</span>}
       {maitre && known?.tags && <GuestChips g={known as Guest} />}
       {sheet && order.customer_id && <GuestSheet customerId={order.customer_id} onClose={() => setSheet(false)} onSaved={g => onRedeemed({ ...(known ?? { points: 0 }), ...g } as Customer)} />}
-      {known && Number(known.balance_cents ?? 0) !== 0 && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</span>}
+      {known && Number(known.balance_cents ?? 0) !== 0 && <button onClick={() => setSettle(true)} title={t('Régler une ardoise')} className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-bold text-warn underline decoration-warn/30 underline-offset-2">{t('Ardoise {m}', { m: mad(Number(known.balance_cents)) })}</button>}
+      {settle && known && <AccountDialog phone0={known.phone} onClose={() => setSettle(false)} onDone={b => onRedeemed({ ...known, balance_cents: b ?? known.balance_cents })} />}
       {applied.map(x => (
         <span key={x.id} className="inline-flex items-center gap-1 rounded-full bg-ok/15 py-0.5 ps-2 pe-1 text-xs font-bold text-ok">
           <Gift className="h-3 w-3" />{x.name || (x.kind === 'item' ? t('Produit') : t('Remise fidélité'))} · −{mad(Number(x.cents))}
@@ -1052,7 +1074,10 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
       ))}
       {order.discount_kind === 'loyalty' && applied.length === 0 && <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok">{t('Récompense appliquée')}</span>}
       <span className="ms-auto flex flex-wrap justify-end gap-2">
-        {open && rewards.filter(rw => known!.points >= rw.points && fit(rw).ok).map(rw => {
+        {value && free.length > 0 && <button onClick={() => setFreeOpen(o => !o)} className="flex items-center gap-1 rounded-lg bg-ok/15 px-2.5 py-1 text-xs font-bold text-ok"><Gift className="h-3.5 w-3.5" /> {t('Gratuit pour lui ({n})', { n: free.length })}</button>}
+        {usable && useNow > 0 && <button disabled={busy} onClick={useSavings} className="flex items-center gap-1 rounded-lg bg-ok px-2.5 py-1 text-xs font-bold text-[#032A2A] disabled:opacity-40"><Wallet className="h-3.5 w-3.5" /> {t('Utiliser la cagnotte (−{m})', { m: mad(useNow) })}</button>}
+        {value && open && saved > 0 && !usable && <span className="text-xs text-muted">{t('Cagnotte utilisable dès {m}', { m: mad((loyalty.min_points ?? 0) * 100) })}</span>}
+        {!value && open && rewards.filter(rw => known!.points >= rw.points && fit(rw).ok).map(rw => {
           // a free dish needs a unit of that dish on the ticket that is not free yet
           const there = fit(rw).there;
           return (
@@ -1064,6 +1089,14 @@ function CustomerBar({ order, cust, loyalty, onPick, onRedeemed }: {
         })}
         <button onClick={onPick} className="rounded-lg bg-surface px-2.5 py-1 text-xs font-bold text-brand">{order.customer_id ? t('Changer') : t('Client')}</button>
       </span>
+      {freeOpen && free.length > 0 && (
+        <div className="flex w-full flex-wrap gap-1.5 pt-1">
+          <span className="w-full text-xs text-muted">{t('Avec sa cagnotte de {m}, ces produits sont gratuits. Touchez pour ajouter.', { m: mad(saved) })}</span>
+          {free.slice(0, 24).map(i => (
+            <button key={i.id} onClick={() => onAdd(i)} className="rounded-lg bg-surface px-2.5 py-1 text-xs font-semibold hover:bg-ok/15">{tr(i.name, pos.lang)} · {mad(Number(i.price_cents))}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

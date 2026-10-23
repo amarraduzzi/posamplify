@@ -50,6 +50,9 @@ const newId = () => crypto.randomUUID();
 export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
   const a = useAdminCtx();
   const perDh = Math.max(1, Number((r.loyalty as { per_dh?: number } | undefined)?.per_dh) || 10);
+  // savings mode: 1 point = 1 DH, spent as money off the bill
+  const value = r.loyalty?.mode === 'value';
+  const minPts = r.loyalty?.min_points ?? 0;
   const [staff, setStaff] = useState<Staff[]>([]);
   const [staffId, setStaffId] = useState(() => { try { return localStorage.getItem(`counter-staff:${r.id}`) ?? ''; } catch { return ''; } });
   const [pin, setPin] = useState('');
@@ -109,6 +112,9 @@ export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
     x => x.duplicate ? t('Déjà enregistré.') : t('+{n} points', { n: x.points_added ?? 0 }));
   const redeem = (rw: Reward) => cust && act(`redeem|${rw.id}`, 'loyalty_counter_redeem',
     { p_customer_id: cust.id, p_reward_id: rw.id, p_client_id: reqId(`redeem|${rw.id}`) }, x => t('À donner : {x}', { x: x.label ?? '' }));
+  const spendCents = cust ? Math.min(cust.points * 100, cents > 0 ? cents : cust.points * 100) : 0;
+  const spend = () => cust && act(`spend|${spendCents}`, 'loyalty_counter_spend',
+    { p_customer_id: cust.id, p_cents: spendCents, p_client_id: reqId(`spend|${spendCents}`) }, () => t('Déduisez {m} de l’addition.', { m: mad(spendCents) }));
   const useGift = (w: WalletItem) => act(`gift|${w.id}`, 'loyalty_wallet_use', { p_wallet_id: w.id }, x => t('Utilisé : {x}', { x: x.label ?? '' }));
   const undo = (en: Entry) => act(`undo|${en.id}`, 'loyalty_counter_undo', { p_ledger_id: en.id }, () => t('Opération annulée.'));
 
@@ -163,7 +169,7 @@ export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
                   {cust.name && <p className="text-sm text-muted">{cust.phone}</p>}
                   <p className="mt-1 text-sm text-muted">{t('{n} visites', { n: cust.visits })}</p>
                 </div>
-                <div className="text-end"><p className="font-display text-4xl font-black text-brand">{cust.points}</p><p className="text-xs font-semibold text-muted">{t('points')}</p></div>
+                <div className="text-end"><p className="font-display text-4xl font-black text-brand">{value ? mad(cust.points * 100) : cust.points}</p><p className="text-xs font-semibold text-muted">{value ? t('cagnotte') : t('points')}</p></div>
               </div>
               <button type="button" onClick={reset} className="mt-2 text-xs text-muted underline">{t('Autre client')}</button>
             </div>
@@ -175,11 +181,24 @@ export function LoyaltyCounterPage({ r }: { r: Restaurant }) {
               <input className={`${inputCls} text-lg font-bold`} inputMode="decimal" placeholder="0" value={amount} onChange={e => { setAmount(e.target.value.replace(/[^\d.,]/g, '')); }} aria-label={t('Montant en DH')} />
               <span className="font-semibold text-muted">DH</span>
             </div>
-            <p className="mt-2 text-sm text-muted">{cents >= 100 ? (pts > 0 ? t('= {n} points (1 point par {d} DH)', { n: pts, d: perDh }) : t('Montant trop petit pour gagner un point.')) : t('1 point par {d} DH dépensés.', { d: perDh })}</p>
-            <Btn tone="brand" className="mt-3 min-h-12 w-full !text-base" disabled={busy || pts < 1} onClick={() => void earn()}><Check className="h-5 w-5" /> {pts > 0 ? t('Créditer {n} points', { n: pts }) : t('Créditer')}</Btn>
+            <p className="mt-2 text-sm text-muted">{value ? (pts > 0 ? t('= {m} dans sa cagnotte', { m: mad(pts * 100) }) : t('{p} % de l’addition va dans sa cagnotte.', { p: r.loyalty?.percent ?? 5 }))
+              : cents >= 100 ? (pts > 0 ? t('= {n} points (1 point par {d} DH)', { n: pts, d: perDh }) : t('Montant trop petit pour gagner un point.')) : t('1 point par {d} DH dépensés.', { d: perDh })}</p>
+            <Btn tone="brand" className="mt-3 min-h-12 w-full !text-base" disabled={busy || pts < 1} onClick={() => void earn()}><Check className="h-5 w-5" /> {pts > 0 ? (value ? t('Ajouter {m}', { m: mad(pts * 100) }) : t('Créditer {n} points', { n: pts })) : t('Créditer')}</Btn>
           </div>
 
-          {cust && cust.rewards.length > 0 && (
+          {value && cust && cust.points > 0 && (
+            <div className={card}>
+              <p className="flex items-center gap-2 text-sm font-bold"><Gift className="h-4 w-4" /> {t('Payer avec la cagnotte')}</p>
+              {cust.points < minPts
+                ? <p className="mt-2 text-sm text-muted">{t('Cagnotte utilisable dès {m}', { m: mad(minPts * 100) })}</p>
+                : <>
+                  <p className="mt-2 text-sm text-muted">{cents > 0 ? t('Sur une addition de {a}.', { a: mad(cents) }) : t('Tapez l’addition ci-dessus pour n’utiliser que ce qu’il faut.')}</p>
+                  <Btn tone="brand" className="mt-3 min-h-12 w-full !text-base" disabled={busy || spendCents <= 0} onClick={() => void spend()}><Wallet className="h-5 w-5" /> {t('Utiliser {m}', { m: mad(spendCents) })}</Btn>
+                </>}
+          </div>
+          )}
+
+          {!value && cust && cust.rewards.length > 0 && (
             <div className={card}>
               <p className="flex items-center gap-2 text-sm font-bold"><Gift className="h-4 w-4" /> {t('Récompenses')}</p>
               <ul className="mt-2 space-y-2">

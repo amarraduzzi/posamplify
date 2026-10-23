@@ -1046,4 +1046,10 @@ export const AR: Record<string, string> = {
   "Virement, CashPlus, lien : {m}": "تحويل، كاش بلوس، رابط: {m}",
   "Votre avis en 10 secondes :": "رأيك ف10 ثواني:",
   "Aucune cabine ou équipement libre à cette heure.": "ما كاين حتى كابين ولا جهاز خاوي فهاد الساعة.",
+  "Avec sa cagnotte de {m}, ces produits sont gratuits. Touchez pour ajouter.": "بالكانيوت ديالو ({m})، هاد المنتوجات فابور. ضغط باش تزيد.",
+  "Cagnotte utilisable dès {m}": "الكانيوت كتستعمل من {m}",
+  "Cagnotte utilisée : −{m}": "الكانيوت تستعملات: −{m}",
+  "Cagnotte {m}": "الكانيوت {m}",
+  "Gratuit pour lui ({n})": "فابور ليه ({n})",
+  "Utiliser la cagnotte (−{m})": "استعمل الكانيوت (−{m})",
 };

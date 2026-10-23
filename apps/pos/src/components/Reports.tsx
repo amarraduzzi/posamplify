@@ -243,10 +243,11 @@ interface AcctCustomer { id: string; name: string | null; phone: string; credit_
 type SettleMethod = 'cash' | 'card' | 'transfer';
 
 /** A customer pays back (part of) the ardoise: find by phone, amount, method, receipt. */
-function AccountDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+/** Settle (part of) a customer's tab. From Reports (type the phone) or from the ticket (phone0: found at once). */
+export function AccountDialog({ onClose, onDone, phone0 }: { onClose: () => void; onDone: (balanceCents?: number) => void; phone0?: string }) {
   const pos = usePos();
   const r = pos.restaurant!;
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(phone0 ?? '');
   const [c, setC] = useState<AcctCustomer | null | undefined>(undefined);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<SettleMethod>('cash');
@@ -264,6 +265,7 @@ function AccountDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
     } catch (e) { setError(errorMessage(e)); }
     setBusy(false);
   };
+  useEffect(() => { if (phone0) search(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const settle = async () => {
     if (!c || !pos.requireOnline()) return;
     setBusy(true); setError(null);
@@ -278,7 +280,7 @@ function AccountDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
             { drawer: method === 'cash' });
         } catch (e) { pos.fail(e); }
       }
-      onDone();
+      onDone(Number(res.balance_cents));
     } catch (e) { setError(errorMessage(e)); }
     setBusy(false);
   };

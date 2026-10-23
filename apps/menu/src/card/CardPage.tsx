@@ -7,7 +7,14 @@ import { inkFor, type Branding } from '@resto/shared';
 import { applyBranding, applyLang } from '../theme';
 import InstallApp from './InstallApp';
 import { save, drop } from '../lib/storage';
-import { customerCard, customerWallet, type CardGift, type CardReward, type CustomerCard } from '../lib/api';
+import { customerCard, customerWallet, type CardDish, type CardGift, type CardReward, type CustomerCard } from '../lib/api';
+
+// savings mode (1 point = 1 DH): the savings and what they buy on the menu
+const V = {
+  fr: { saved: 'Votre cagnotte', free: 'Offert avec votre cagnotte', freeTxt: 'Dites votre numéro à la caisse et choisissez.', soon: 'Bientôt pour vous', more: (m: string) => `encore ${m}`, from: (m: string) => `Utilisable dès ${m}.`, how: (p: number) => `${p} % de chaque addition va dans votre cagnotte. Dépensez-la sur tout le menu : un plat plus cher, elle en paie une partie.`, empty: 'Votre cagnotte grandit à chaque visite.' },
+  en: { saved: 'Your savings', free: 'Free with your savings', freeTxt: 'Give your number at the till and choose.', soon: 'Coming soon for you', more: (m: string) => `${m} to go`, from: (m: string) => `Usable from ${m}.`, how: (p: number) => `${p} % of every bill goes into your savings. Spend them on the whole menu: on a dearer dish, they pay part of it.`, empty: 'Your savings grow with every visit.' },
+  ar: { saved: 'الكانيوت ديالكم', free: 'فابور بالكانيوت ديالكم', freeTxt: 'عطيو الرقم ديالكم فالكاسة واختارو.', soon: 'قريب ليكم', more: (m: string) => `باقي ${m}`, from: (m: string) => `كتستعمل من ${m}.`, how: (p: number) => `${p} % من كل حساب كيمشي للكانيوت ديالكم. صرفوها على المنيو كامل: طبق غالي، كتخلص جزء منو.`, empty: 'الكانيوت ديالكم كتكبر مع كل زيارة.' },
+};
 
 const S = {
   fr: {
@@ -93,6 +100,11 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
   const pct = Math.min(100, Math.round((points / need) * 100));
   const when = (iso: string) => new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA-u-nu-latn' : lang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short' });
   const logo = branding.logo_url;
+  const value = L.mode === 'value';
+  const v = V[lang];
+  const dh = (cents: number) => `${(cents / 100).toLocaleString(lang === 'ar' ? 'ar-MA-u-nu-latn' : lang === 'en' ? 'en-GB' : 'fr-FR', { maximumFractionDigits: 2 })} DH`;
+  const dname = (d: CardDish) => (d.name?.[lang] || d.name?.fr || Object.values(d.name ?? {}).find(Boolean) || '') as string;
+  const minOk = points >= (Number(L.min_points) || 0);
 
   return (
     <main className="min-h-dvh bg-bg" style={{ '--anti': anti } as React.CSSProperties}>
@@ -119,7 +131,45 @@ export default function CardPage({ slug, cardKey }: { slug: string; cardKey: str
             <p className="mt-1 text-sm text-muted">{t.visits(Number(c.visits) || 0)}</p>
             <p className="mt-3 text-sm text-muted">{t.off}</p>
           </div>
-        ) : (<>
+        ) : value ? (<>
+          <div className="rounded-[1.8rem] bg-surface p-6 text-center shadow-[0_18px_40px_-20px_rgba(0,0,0,.45)]">
+            <p className="text-sm font-semibold text-muted">{v.saved}</p>
+            <p className="mt-1 font-display text-[3.6rem] font-semibold leading-none tabular">{dh(points * 100)}</p>
+            <p className="mt-2 text-sm font-semibold text-muted">{t.visits(Number(c.visits) || 0)}</p>
+            {!minOk && <p className="mt-3 text-sm">{v.from(dh((Number(L.min_points) || 0) * 100))}</p>}
+          </div>
+          {minOk && (L.menu?.length ?? 0) > 0 && (
+            <div className="mt-4 rounded-[1.4rem] p-5" style={{ background: 'color-mix(in srgb, var(--brand) 14%, var(--surface-2))' }}>
+              <p className="flex items-center gap-2 text-sm font-semibold"><Gift className="h-4 w-4 text-brand" />{v.free}</p>
+              <ul className="mt-3 grid grid-cols-2 gap-2">
+                {L.menu!.map((d, i) => (
+                  <li key={i} className="flex items-center gap-2 rounded-2xl bg-surface p-2">
+                    {d.image_url ? <img src={d.image_url} alt="" loading="lazy" className="h-11 w-11 shrink-0 rounded-xl object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface-2 text-brand"><Gift className="h-4 w-4" /></span>}
+                    <span className="min-w-0"><span className="block truncate text-sm font-medium">{dname(d)}</span><span className="block text-xs text-muted tabular">{dh(Number(d.price_cents))}</span></span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-sm">{v.freeTxt}</p>
+            </div>
+          )}
+          {(L.next?.length ?? 0) > 0 && (
+            <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
+              <p className="text-sm font-semibold">{v.soon}</p>
+              <ul className="mt-2 divide-y divide-black/5">
+                {L.next!.map((d, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="font-medium">{dname(d)} <span className="text-muted">· {dh(Number(d.price_cents))}</span></span>
+                    <span className="shrink-0 text-xs font-bold text-muted">{v.more(dh(Number(d.price_cents) - points * 100))}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="mt-4 rounded-[1.4rem] bg-surface-2 p-5">
+            <p className="text-sm font-semibold">{t.how}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{v.how(Number(L.percent) || 5)}</p>
+          </div>
+        </>) : (<>
           <div className="rounded-[1.8rem] bg-surface p-6 text-center shadow-[0_18px_40px_-20px_rgba(0,0,0,.45)]">
             <p className="font-display text-[4.2rem] font-semibold leading-none tabular" aria-label={`${points} ${t.pts}`}>{points}</p>
             <p className="mt-1 text-sm font-semibold text-muted">{t.unit(points)} · {t.visits(Number(c.visits) || 0)}</p>

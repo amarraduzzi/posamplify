@@ -25,7 +25,7 @@ const nameSize = (n: string) => {
 const S = {
   fr: {
     join: (r: string) => `Rejoignez le club ${r}`, event: 'Inscrivez-vous pour la dégustation',
-    lead: 'Offres, nouveautés et cadeaux, directement sur WhatsApp.', points: (p: number, v: string) => `Et ${p} points = ${v} offerts.`,
+    lead: 'Offres, nouveautés et cadeaux, directement sur WhatsApp.', points: (p: number, v: string) => `Et ${p} points = ${v} offerts.`, back: (p: number) => `Et ${p} % de chaque addition dans votre cagnotte.`,
     name: 'Prénom', phone: 'Numéro WhatsApp', go: 'Je m’inscris', joinGo: 'Rejoindre le club', busy: 'Inscription…',
     perks: ['Offres exclusives', 'Nouveautés en avant-première', 'Cadeaux'] as string[],
     consent: (r: string) => `En vous inscrivant, vous acceptez de recevoir les offres de ${r} sur WhatsApp. Vous pouvez arrêter à tout moment.`,
@@ -39,7 +39,7 @@ const S = {
   },
   en: {
     join: (r: string) => `Join the ${r} club`, event: 'Sign up for the tasting',
-    lead: 'Offers, news and gifts, straight to WhatsApp.', points: (p: number, v: string) => `And ${p} points = ${v} off.`,
+    lead: 'Offers, news and gifts, straight to WhatsApp.', points: (p: number, v: string) => `And ${p} points = ${v} off.`, back: (p: number) => `And ${p} % of every bill into your savings.`,
     name: 'First name', phone: 'WhatsApp number', go: 'Sign me up', joinGo: 'Join the club', busy: 'Signing up…',
     perks: ['Exclusive offers', 'First to know', 'Gifts'] as string[],
     consent: (r: string) => `By signing up, you agree to receive offers from ${r} on WhatsApp. You can stop at any time.`,
@@ -53,7 +53,7 @@ const S = {
   },
   ar: {
     join: (r: string) => `انضموا إلى نادي ${r}`, event: 'سجلوا للتذوق',
-    lead: 'عروض ومستجدات وهدايا، مباشرة على واتساب.', points: (p: number, v: string) => `و${p} نقطة = ${v} هدية.`,
+    lead: 'عروض ومستجدات وهدايا، مباشرة على واتساب.', points: (p: number, v: string) => `و${p} نقطة = ${v} هدية.`, back: (p: number) => `و${p} % من كل حساب فالكانيوت ديالكم.`,
     name: 'الاسم', phone: 'رقم واتساب', go: 'سجلني', joinGo: 'انضم إلى النادي', busy: 'جار التسجيل…',
     perks: ['عروض حصرية', 'أول من يعلم بالجديد', 'هدايا'] as string[],
     consent: (r: string) => `بالتسجيل، توافقون على تلقي عروض ${r} على واتساب. يمكنكم التوقف في أي وقت.`,
@@ -268,7 +268,7 @@ export default function ClubSignup({ slug, eventKey }: { slug: string; eventKey:
           <h1 className="club-rise mt-5 font-display text-[2.2rem] font-semibold leading-[1.04] md:mt-6 md:text-[3.2rem]" style={rise(120)}>{isEvent ? info.event!.name : t.join(r)}</h1>
           <p className="club-rise mx-auto mt-2.5 max-w-sm text-base leading-snug opacity-90 md:mt-3 md:text-[1.05rem]" style={rise(240)}>
             {isEvent ? (info.event!.offer ?? t.event) : t.lead}
-            {!info.event && info.loyalty && info.loyalty.reward_points ? ` ${t.points(Number(info.loyalty.reward_points), `${Math.round(Number(info.loyalty.reward_cents) / 100)} DH`)}` : ''}
+            {!info.event && info.loyalty?.mode === 'value' ? ` ${t.back(Number(info.loyalty.percent) || 5)}` : !info.event && info.loyalty && info.loyalty.reward_points ? ` ${t.points(Number(info.loyalty.reward_points), `${Math.round(Number(info.loyalty.reward_cents) / 100)} DH`)}` : ''}
           </p>
         </div>
       </section>

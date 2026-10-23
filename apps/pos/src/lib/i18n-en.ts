@@ -1045,4 +1045,10 @@ export const EN: Record<string, string> = {
   "Virement, CashPlus, lien : {m}": "Transfer, CashPlus, link: {m}",
   "Votre avis en 10 secondes :": "Your review in 10 seconds:",
   "Aucune cabine ou équipement libre à cette heure.": "No cabin or equipment free at this time.",
+  "Avec sa cagnotte de {m}, ces produits sont gratuits. Touchez pour ajouter.": "With his {m} savings, these products are free. Tap to add.",
+  "Cagnotte utilisable dès {m}": "Savings usable from {m}",
+  "Cagnotte utilisée : −{m}": "Savings used: −{m}",
+  "Cagnotte {m}": "Savings {m}",
+  "Gratuit pour lui ({n})": "Free for him ({n})",
+  "Utiliser la cagnotte (−{m})": "Use savings (−{m})",
 };

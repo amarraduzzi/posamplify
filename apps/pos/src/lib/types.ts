@@ -36,7 +36,7 @@ export interface Restaurant {
   booking?: { enabled?: boolean; waitlist?: boolean; duration_min?: number; deposit_party?: number; deposit_cents?: number; deposit_note?: string };
   /** customer file and loyalty points: off unless the owner switched them on */
   online?: { prep_minutes?: number; delivery_fee_cents?: number; delivery_min_cents?: number; delivery_free_from_cents?: number | null; delivery_area?: string; schedule?: boolean; paused_until?: string | null };
-  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number };
+  loyalty?: { customers?: boolean; enabled?: boolean; per_dh?: number; reward_points?: number; reward_cents?: number; credit?: boolean; rewards?: import('@resto/shared').LoyaltyReward[]; max_per_order?: number; mode?: 'rewards' | 'value'; percent?: number; min_points?: number };
   owner_whatsapp?: string | null;
 }
 

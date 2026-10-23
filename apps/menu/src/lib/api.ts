@@ -95,7 +95,7 @@ export const courierUpdate = (token: string, orderId: string, action: 'picked_up
 // ---- the sign-up QR (club, tastings)
 export interface SignupInfo {
   name: string; branding: Record<string, unknown> | null; languages: string[]; enabled: boolean;
-  loyalty: { reward_points: number; reward_cents: number; per_dh: number } | null;
+  loyalty: { reward_points: number; reward_cents: number; per_dh: number; mode?: 'rewards' | 'value'; percent?: number | null } | null;
   event: { name: string; offer: string | null; active: boolean } | null;
 }
 export interface SignupResult { name: string; existed: boolean; again: boolean; event: string | null; offer: string | null; card_key?: string | null }
@@ -106,9 +106,12 @@ export const customerSignup = (slug: string, name: string, phone: string, consen
 // ---- the customer's points card (?carte=<key>)
 /** A reward on the card: a free dish (named in every language, maybe with a photo) or money off. */
 export interface CardReward { id: string; kind: 'item' | 'discount'; points: number; cents: number | null; name: Record<string, string | null> | null; image_url: string | null }
+export interface CardDish { name: Record<string, string | undefined> | null; price_cents: number; image_url: string | null }
 export interface CustomerCard {
   restaurant: { name: string; branding: Record<string, unknown> | null; languages: string[] };
-  loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number; rewards?: CardReward[] };
+  loyalty: { enabled: boolean; per_dh: number; reward_points: number; reward_cents: number; rewards?: CardReward[];
+    /** savings mode: 1 point = 1 DH; menu = what the savings buy now, next = just above */
+    mode?: 'rewards' | 'value'; percent?: number | null; min_points?: number; menu?: CardDish[]; next?: CardDish[] };
   customer: { name: string | null; points: number; visits: number; last_visit_at: string | null };
   recent: { points: number; reason: 'earn' | 'redeem'; at: string; name?: string | null }[];
 }
