@@ -32,15 +32,17 @@ export function DemandForecast({ r, date }: { r: Restaurant; date: string }) {
   const [f, setF] = useState<Forecast | null>(null);
   const [all, setAll] = useState(false);
   const [allIng, setAllIng] = useState(false);
+  // a new date: the old forecast stays (dimmed) until the new one is there, so the page does not jump
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let on = true;
-    setF(null);
-    rpc<Forecast>('demand_forecast', { p_restaurant_id: r.id, p_date: date }).then(x => on && setF(x)).catch(e => on && a.fail(e));
+    setLoading(true);
+    rpc<Forecast>('demand_forecast', { p_restaurant_id: r.id, p_date: date }).then(x => { if (on) { setF(x); setLoading(false); } }).catch(e => { if (on) { setLoading(false); a.fail(e); } });
     return () => { on = false; };
   }, [r.id, date, a]);
 
-  if (!f) return null;
+  if (!f) return <Card className="min-h-[14rem] animate-pulse motion-reduce:animate-none"><div className="h-6 w-48 rounded-lg bg-surface-2" /><div className="mt-6 space-y-3">{[0, 1, 2, 3].map(i => <div key={i} className="h-4 rounded bg-surface-2" />)}</div></Card>;
   const name = (n: I18n) => tr(n, getLang() as Lang, r.languages as Lang[]);
   const short = f.ingredients.filter(i => i.short != null && Number(i.short) > 0);
   const ok = f.ingredients.filter(i => !(i.short != null && Number(i.short) > 0));
@@ -48,7 +50,7 @@ export function DemandForecast({ r, date }: { r: Restaurant; date: string }) {
   const tomorrow = f.date > f.today;
 
   return (
-    <Card>
+    <Card className={`transition-opacity duration-200 ${loading ? 'opacity-60' : ''}`}>
       <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-2">
         <div className="me-auto">
           <h2 className="font-display text-xl font-semibold">{t('Ce qui va se vendre')}</h2>

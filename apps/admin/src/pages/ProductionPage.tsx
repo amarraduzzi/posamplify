@@ -1,7 +1,7 @@
 // Production (pâtisserie, bakery, central kitchen): what to make today, from the sales of the same
 // weekday and the confirmed catering orders, minus what is already in stock. "Lancer la fournée" takes the
 // ingredients out when the batch goes in the oven; "Terminer" notes what came out (the yield is then known).
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CookingPot, ScanSearch, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
@@ -13,6 +13,7 @@ import { Btn, Card, inputCls } from '../components/ui';
 import { DemandForecast } from '../components/DemandForecast';
 import { ProductionTraceModal } from '../components/ProductionTrace';
 import { ProductionYield } from '../components/ProductionYield';
+import { Smooth } from '../components/Smooth';
 
 interface PlanItem {
   ingredient_id: string; name: string; base_unit: BaseUnit; batch_qty: number; stock_qty: number | null; daily: number;
@@ -38,22 +39,31 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   const [busy, setBusy] = useState<string | null>(null);
   const [trace, setTrace] = useState<string | null>(null);
   const [tab, setTab] = useState<'plan' | 'yield'>('plan');
+  // the quantities the person typed stay when the page refreshes (only the suggestions are refreshed)
+  const edited = useRef<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const base = await rpc<{ date: string; items: PlanItem[] }>('production_plan', { p_restaurant_id: r.id, p_date: null });
       const dt = day ? addDays(base.date, 1) : base.date;
       const plan = day ? await rpc<{ date: string; items: PlanItem[] }>('production_plan', { p_restaurant_id: r.id, p_date: dt }) : base;
       setToday(base.date);
       setItems(plan.items);
-      setQty(Object.fromEntries(plan.items.map(i => {
+      setQty(prev => Object.fromEntries(plan.items.map(i => {
+        if (edited.current.has(i.ingredient_id) && prev[i.ingredient_id] != null) return [i.ingredient_id, prev[i.ingredient_id]];
         const s = i.base_unit === 'pc' ? Math.ceil(Number(i.suggested)) : Number(i.suggested);
         return [i.ingredient_id, s > 0 ? show(s / unitOf(i).f) : ''];
       })));
       setBatches(check(await supabase.from('production_batches').select('id, ingredient_id, qty, planned_qty, produced_on, cost_cents, note, cancelled_at, created_at, status')
         .eq('restaurant_id', r.id).or(`produced_on.eq.${base.date},status.eq.running`).order('created_at', { ascending: false })) as Batch[]);
-    } catch (e) { a.fail(e); setItems([]); }
+    } catch (e) { a.fail(e); setItems(x => x ?? []); }
+    setLoading(false);
   }, [r.id, day, a]);
+  // another day: the typed quantities were for the other day
+  useEffect(() => { edited.current = new Set(); }, [day]);
+  const typeQty = (id: string, v: string) => { edited.current.add(id); setQty(q => ({ ...q, [id]: v })); };
   useEffect(() => { load(); }, [load]);
 
   // step 1: the batch goes in the oven: the ingredients of the planned quantity leave the stock now
@@ -64,6 +74,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
     try {
       const res = await rpc<{ cost_cents: number | null }>('production_start', { p_ingredient_id: i.ingredient_id, p_planned_qty: q, p_note: null, p_catering_id: null });
       a.toast(t('Production de {n} démarrée : les ingrédients de {q} sont sortis du stock', { q: fmtQty(q, i.base_unit), n: i.name }) + (res.cost_cents != null ? ` · ${mad(res.cost_cents)}` : ''));
+      edited.current.delete(i.ingredient_id);
       await load();
     } catch (e) {
       const m = String((e as Error)?.message ?? e);
@@ -123,7 +134,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
 
       {tab === 'plan' && today && <DemandForecast r={r} date={day ? addDays(today, 1) : today} />}
 
-      {tab === 'plan' && batches.some(b => b.status === 'running' && !b.cancelled_at) && (
+      {tab === 'plan' && <Smooth open={batches.some(b => b.status === 'running' && !b.cancelled_at)}>
         <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('En cours')}</h2>
           <p className="mb-3 text-sm text-muted">{t('Dans le four : à la sortie, comptez ce qui est sorti, notez-le et touchez Terminer. Le stock et le rendement se mettent à jour à ce moment.')}</p>
@@ -132,7 +143,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
               const i = byId.get(b.ingredient_id);
               const u = i ? unitOf(i) : null;
               return (
-                <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2.5">
+                <li key={b.id} className="animate-[rise_.3s_ease-out] flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 px-3 py-2.5 motion-reduce:animate-none">
                   <span className="w-14 tabular text-muted" dir="ltr">{new Date(b.created_at).toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit', timeZone: r.timezone })}</span>
                   <span className="min-w-[10rem] flex-1 font-semibold">{i ? i.name : ''}
                     <span className="ms-2 text-xs font-normal text-muted">{t('prévu')} {i ? fmtQty(Number(b.planned_qty), i.base_unit) : show(Number(b.planned_qty))}</span>
@@ -147,7 +158,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
             })}
           </ul>
         </Card>
-      )}
+      </Smooth>}
 
       {tab === 'plan' && (items === null ? <p className="text-muted">{t('Chargement…')}</p> : !items.length ? (
         <Card>
@@ -161,7 +172,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
           </div>
         </Card>
       ) : (
-        <Card>
+        <Card className={`transition-opacity duration-200 ${loading ? 'opacity-60' : ''}`}>
           <h2 className="mb-1 font-display text-xl font-semibold capitalize">{today ? nice(day ? addDays(today, 1) : today) : ''}</h2>
           <p className="mb-4 text-sm text-muted">{day ? t('Pour demain : le stock compté est celui de maintenant et une partie sera encore vendue aujourd’hui. Prévoyez un peu plus.') : t('La quantité proposée se modifie avant de produire.')}</p>
           <div className="divide-y divide-line/10">
@@ -184,12 +195,12 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                   </div>
                   <div className="flex items-center gap-2">
                     <input className={`${inputCls} !w-24 text-end`} inputMode="decimal" aria-label={t('Quantité à produire')} value={qty[i.ingredient_id] ?? ''}
-                      onChange={e => setQty({ ...qty, [i.ingredient_id]: e.target.value })} placeholder="0" />
+                      onChange={e => typeQty(i.ingredient_id, e.target.value)} placeholder="0" />
                     <span className="w-6 text-sm text-muted">{u.u}</span>
-                    <Btn tone="ghost" className="px-2.5 py-2 text-sm" title={t('Une fournée')} onClick={() => setQty({ ...qty, [i.ingredient_id]: show(Number(i.batch_qty) / u.f) })}>{t('1 fournée')}</Btn>
+                    <Btn tone="ghost" className="px-2.5 py-2 text-sm" title={t('Une fournée')} onClick={() => typeQty(i.ingredient_id, show(Number(i.batch_qty) / u.f))}>{t('1 fournée')}</Btn>
                     <Btn tone="brand" className="px-3 py-2 text-sm" title={t('Les ingrédients sortent du stock maintenant ; la quantité obtenue se note à la sortie du four.')} disabled={busy === i.ingredient_id || day === 1} onClick={() => start(i)}><CookingPot className="h-4 w-4" /> {t('Lancer la fournée')}</Btn>
                   </div>
-                  {perUnit != null && typed > 0 && <p className="w-full text-xs text-muted sm:w-auto">{t('Coût')}: {mad(Math.round(perUnit * typed))}</p>}
+                  {perUnit != null && <p className={`w-full text-xs text-muted transition-opacity duration-200 sm:w-24 ${typed > 0 ? '' : 'invisible opacity-0'}`} aria-hidden={!(typed > 0)}>{t('Coût')}: {mad(Math.round(perUnit * typed))}</p>}
                 </div>
               );
             })}
@@ -199,7 +210,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
         </Card>
       ))}
 
-      {tab === 'plan' && batches.some(b => b.status !== 'running') && (
+      {tab === 'plan' && <Smooth open={batches.some(b => b.status !== 'running')}>
         <Card>
           <h2 className="mb-3 font-display text-xl font-semibold">{t('Produit aujourd’hui')}</h2>
           <ul className="space-y-2">
@@ -221,7 +232,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
             })}
           </ul>
         </Card>
-      )}
+      </Smooth>}
       {trace && <ProductionTraceModal id={trace} onClose={() => setTrace(null)} />}
     </div>
   );
