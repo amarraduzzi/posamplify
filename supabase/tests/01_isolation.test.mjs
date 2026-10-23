@@ -68,6 +68,8 @@ before(async () => {
   await as(w.users.ownerB, `insert into public.staff_schedule (restaurant_id, staff_id, day, start_time, end_time) values ($1, $2, current_date, '09:00', '17:00')`, [w.B.r.id, w.B.staff.sara.id]);
   { const [sb] = await sql(`insert into public.suppliers (restaurant_id, name) values ($1, 'Fournisseur B') returning id`, [w.B.r.id]);
     await sql(`insert into public.supplier_entries (restaurant_id, supplier_id, kind, amount_cents) values ($1, $2, 'payment', 1000)`, [w.B.r.id, sb.id]);
+    { const [gb] = await sql(`insert into public.ingredients (restaurant_id, name, base_unit, purchase_unit, purchase_qty) values ($1, 'Sel iso B', 'g', 'kg', 1000) returning id`, [w.B.r.id]);
+      await sql(`insert into public.supplier_products (restaurant_id, supplier_id, ingredient_id) values ($1, $2, $3)`, [w.B.r.id, sb.id, gb.id]); }
     { const [pa] = await sql(`insert into public.ingredients (restaurant_id, name, base_unit, purchase_unit, purchase_qty, is_preparation) values ($1, 'Pâte iso B', 'g', 'kg', 1000, true) returning id`, [w.B.r.id]);
       const [ra] = await sql(`insert into public.ingredients (restaurant_id, name, base_unit, purchase_unit, purchase_qty) values ($1, 'Beurre iso B', 'g', 'kg', 1000) returning id`, [w.B.r.id]);
       await sql(`insert into public.preparation_lines (restaurant_id, preparation_id, ingredient_id, qty) values ($1, $2, $3, 500)`, [w.B.r.id, pa.id, ra.id]);
