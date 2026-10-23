@@ -29,6 +29,13 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
   const [sups, setSups] = useState<{ id: string; name: string }[]>([]);
   const [supplierId, setSupplierId] = useState(ing?.supplier_id ?? '');
   const [newSupplier, setNewSupplier] = useState('');
+  // every supplier of this product with the agreed price (the usual one is the field above)
+  const [links, setLinks] = useState<{ supplier_id: string; is_main: boolean; price_cents: number | null; ref: string | null }[]>([]);
+  useEffect(() => {
+    if (!ing) return;
+    supabase.from('supplier_products').select('supplier_id, is_main, price_cents, ref').eq('ingredient_id', ing.id)
+      .then(({ data }) => setLinks((data ?? []) as typeof links));
+  }, [ing]);
   useEffect(() => {
     let live = true;
     (async () => {
@@ -150,6 +157,15 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
                 <option value="__new__">{t('+ Nouveau fournisseur')}</option>
               </select>
               {supplierId === '__new__' && <input autoFocus className={`${inputCls} mt-2`} maxLength={80} value={newSupplier} onChange={e => setNewSupplier(e.target.value)} placeholder={t('Nom du fournisseur')} />}
+              {links.length > 1 && (
+                <span className="mt-2 block space-y-0.5 text-xs text-muted">
+                  {links.map(l => (
+                    <span key={l.supplier_id} className={`block ${l.is_main ? 'font-semibold text-ink' : ''}`}>
+                      {sups.find(x => x.id === l.supplier_id)?.name ?? '?'}{l.ref ? ` (${l.ref})` : ''}{l.price_cents != null ? ` · ${mad(Number(l.price_cents))}` : ''}{l.is_main ? ` · ${t('habituel')}` : ''}
+                    </span>
+                  ))}
+                </span>
+              )}
             </Field>
           </div>
           {perUse != null && (

@@ -2,7 +2,7 @@
 // and see what was really used, and with Amplify POS: what disappeared without
 // being sold (waste, free food, theft), per ingredient and in dirhams.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CalendarDays, Pencil, MessageCircle, PackageCheck, Phone, Printer, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Upload, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, Pencil, MessageCircle, PackageCheck, Phone, Printer, Truck, X, ArrowLeft, Check, ClipboardList, Copy, History, Lock, Plus, Search, Send, ShoppingBasket, SlidersHorizontal, Trash2, Unlock, Upload, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -12,6 +12,7 @@ import { CATEGORIES, SIZE_UNIT, fmtQty, pct } from '../lib/profit';
 import { Btn, Field, Modal, Toggle, inputCls } from '../components/ui';
 import { SupplierAccounts } from './SupplierAccounts';
 import { SupplierReport } from '../components/SupplierReport';
+import { SupplierSheet } from '../components/SupplierSheet';
 import { ImportData } from '../components/ImportData';
 import { InvoicePicker } from '../components/Invoices';
 import { ExpiryView } from '../components/ExpiryView';
@@ -1116,13 +1117,22 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
     setBusy(false);
   };
   // the order as a document: to print, or to save as PDF from the print window
-  const printIt = () => {
+  const printIt = async () => {
     if (!po) return;
+    type Sheet = { address: string | null; city: string | null; ice: string | null };
+    let sheet = null as Sheet | null;
+    const refs = new Map<string, string>();
+    if (sup) {
+      try {
+        sheet = check(await supabase.from('suppliers').select('address, city, ice').eq('id', sup).single()) as unknown as Sheet;
+        for (const x of check(await supabase.from('supplier_products').select('ingredient_id, ref').eq('supplier_id', sup)) as { ingredient_id: string; ref: string | null }[]) if (x.ref) refs.set(x.ingredient_id, x.ref);
+      } catch { /* printed without */ }
+    }
     const esc = (x: string) => x.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
     const rows = lines.map(l => {
       const g = byId.get(l.ingredient_id);
       const tot = l.price.trim() ? num(l.units) * toCents(l.price) : null;
-      return `<tr><td>${esc(g?.name ?? '')}</td><td class="n">${esc(l.units)} ${esc(g?.purchase_unit ?? '')}</td><td class="n">${l.price.trim() ? esc(mad(toCents(l.price))) : ''}</td><td class="n">${tot != null ? esc(mad(Math.round(tot))) : ''}</td></tr>`;
+      return `<tr><td>${esc(g?.name ?? '')}${refs.get(l.ingredient_id) ? ` <span style="color:#4A5A6E">(${esc(refs.get(l.ingredient_id)!)})</span>` : ''}</td><td class="n">${esc(l.units)} ${esc(g?.purchase_unit ?? '')}</td><td class="n">${l.price.trim() ? esc(mad(toCents(l.price))) : ''}</td><td class="n">${tot != null ? esc(mad(Math.round(tot))) : ''}</td></tr>`;
     }).join('');
     const w = window.open('', '_blank');
     if (!w) { a.toast(t('Autorisez les fenêtres pour imprimer.'), 'error'); return; }
@@ -1133,7 +1143,7 @@ function OrderModal({ r, ings, sups, po, onClose, onSaved }: { r: Restaurant; in
       td{padding:7px 4px;border-bottom:1px solid #e3e8ee}.n{text-align:end;white-space:nowrap}.tot{margin-top:14px;font-size:18px;font-weight:700;text-align:end}
       .sign{margin-top:48px;display:flex;justify-content:space-between;color:#4A5A6E}</style></head><body>
       <div class="top"><div><h1>${esc(r.name)}</h1></div><div style="text-align:end"><h1>${esc(t('Bon de commande'))}</h1><p>${esc(po.doc_number)}</p><p>${esc(new Date(po.created_at).toLocaleDateString(dateLocale()))}</p></div></div>
-      <h2>${esc(t('Fournisseur'))}</h2><p>${esc(supplier?.name ?? t('Sans fournisseur'))}${supplier?.phone ? ` · ${esc(supplier.phone)}` : ''}</p>
+      <h2>${esc(t('Fournisseur'))}</h2><p>${esc(supplier?.name ?? t('Sans fournisseur'))}${supplier?.phone ? ` · ${esc(supplier.phone)}` : ''}</p>${sheet?.address || sheet?.city ? `<p>${esc([sheet.address, sheet.city].filter(Boolean).join(', '))}</p>` : ''}${sheet?.ice ? `<p>ICE ${esc(sheet.ice)}</p>` : ''}
       ${expected ? `<p>${esc(t('Livraison souhaitée : {d}', { d: day(expected) }))}</p>` : ''}
       <table><tr><th>${esc(t('Produit'))}</th><th class="n">${esc(t('Quantité'))}</th><th class="n">${esc(t('Prix unitaire'))}</th><th class="n">${esc(t('Total'))}</th></tr>${rows}</table>
       ${total > 0 ? `<p class="tot">${esc(t('Total estimé'))} ${esc(mad(Math.round(total)))}</p>` : ''}
@@ -1271,7 +1281,7 @@ function SuppliersModal({ r, ings, sups, onClose, onSaved }: { r: Restaurant; in
   const [edit, setEdit] = useState<Supplier | 'new' | null>(sups.length ? null : 'new');
   const [importing, setImporting] = useState(false);
   if (importing) return <ImportData kind="suppliers" r={r} existing={sups.map(s => s.name)} onClose={() => setImporting(false)} onDone={onSaved} />;
-  if (edit) return <SupplierEditor r={r} ings={ings} s={edit === 'new' ? null : edit} onClose={() => (sups.length ? setEdit(null) : onClose())} onSaved={() => { onSaved(); setEdit(null); }} />;
+  if (edit) return <SupplierSheet r={r} supplierId={edit === 'new' ? null : edit.id} onClose={() => (sups.length ? setEdit(null) : onClose())} onSaved={() => { onSaved(); setEdit(null); }} />;
   return (
     <Modal title={t('Fournisseurs')} onClose={onClose} footer={<div className="flex justify-end gap-2"><Btn onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> {t('Importer')}</Btn><Btn tone="brand" onClick={() => setEdit('new')}><Plus className="h-4 w-4" /> {t('Ajouter un fournisseur')}</Btn></div>}>
       <ul className="divide-y divide-line/10">
@@ -1293,61 +1303,3 @@ function SuppliersModal({ r, ings, sups, onClose, onSaved }: { r: Restaurant; in
   );
 }
 
-function SupplierEditor({ r, ings, s, onClose, onSaved }: { r: Restaurant; ings: Ingredient[]; s: Supplier | null; onClose: () => void; onSaved: () => void }) {
-  const a = useAdminCtx();
-  const [f, setF] = useState({ name: s?.name ?? '', phone: s?.phone ? `+${s.phone}` : '', contact: s?.contact ?? '', email: s?.email ?? '', note: s?.note ?? '', lead: String(s?.lead_days ?? 1), days: s?.delivery_days ?? [], active: s?.active ?? true });
-  const [mine, setMine] = useState<Set<string>>(() => new Set(s ? ings.filter(g => g.supplier_id === s.id).map(g => g.id) : []));
-  const [busy, setBusy] = useState(false);
-  const save = async () => {
-    setBusy(true);
-    try {
-      const row = { name: f.name.trim(), phone: intlPhone(f.phone) || null, contact: f.contact.trim() || null, email: f.email.trim() || null, note: f.note.trim() || null,
-        lead_days: Math.max(0, Math.min(30, Math.round(Number(f.lead) || 0))), delivery_days: [...f.days].sort(), active: f.active };
-      let id = s?.id;
-      if (id) check(await supabase.from('suppliers').update(row).eq('id', id).select('id'));
-      else id = (check(await supabase.from('suppliers').insert({ ...row, restaurant_id: r.id }).select('id')) as { id: string }[])[0].id;
-      const before = new Set(ings.filter(g => g.supplier_id === id).map(g => g.id));
-      const add = [...mine].filter(x => !before.has(x)), drop = [...before].filter(x => !mine.has(x));
-      if (add.length) check(await supabase.from('ingredients').update({ supplier_id: id }).in('id', add).select('id'));
-      if (drop.length) check(await supabase.from('ingredients').update({ supplier_id: null }).in('id', drop).select('id'));
-      a.toast(t('Enregistré')); onSaved();
-    } catch (e) { a.fail(e); }
-    setBusy(false);
-  };
-  const remove = async () => {
-    if (!s) return;
-    try { check(await supabase.from('suppliers').delete().eq('id', s.id).select('id')); a.toast(t('Fournisseur supprimé')); onSaved(); } catch (e) { a.fail(e); }
-  };
-  return (
-    <Modal wide title={s ? s.name : t('Nouveau fournisseur')} onClose={onClose}
-      footer={<div className="flex justify-between">{s ? <Btn tone="danger" onClick={remove}><Trash2 className="h-4 w-4" /> {t('Supprimer')}</Btn> : <span />}<Btn tone="brand" disabled={busy || !f.name.trim()} onClick={save}>{t('Enregistrer')}</Btn></div>}>
-      <div className="grid gap-5 md:grid-cols-2">
-        <div className="space-y-3">
-          <Field label={t('Nom')}><input autoFocus className={inputCls} maxLength={80} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={t('Metro, grossiste Hay Riad…')} /></Field>
-          <Field label={t('WhatsApp')} hint={t('Pour envoyer les commandes en un clic.')}><input className={inputCls} dir="ltr" inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="06 61 00 00 00" /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t('Contact')}><input className={inputCls} maxLength={80} value={f.contact} onChange={e => setF({ ...f, contact: e.target.value })} placeholder={t('Prénom')} /></Field>
-            <Field label={t('Délai (jours)')}><input className={inputCls} inputMode="numeric" value={f.lead} onChange={e => setF({ ...f, lead: e.target.value.replace(/\D/g, '') })} /></Field>
-          </div>
-          <Field group label={t('Jours de livraison')}>
-            <div className="flex flex-wrap gap-1.5">
-              {WEEKDAYS.map((d, i) => { const on = f.days.includes(i + 1); return <button key={d} type="button" onClick={() => setF({ ...f, days: on ? f.days.filter(x => x !== i + 1) : [...f.days, i + 1] })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${on ? 'bg-night text-white' : 'bg-surface-2 text-muted'}`}><CalendarDays className="me-1 inline h-3.5 w-3.5" />{t(d)}</button>; })}
-            </div>
-          </Field>
-          <Field label={t('Note')}><input className={inputCls} maxLength={300} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={t('Paiement à 30 jours, minimum de commande…')} /></Field>
-          {s && <Toggle checked={f.active} onChange={v => setF({ ...f, active: v })} label={t('Actif')} />}
-        </div>
-        <Field group label={t('Ses produits ({n})', { n: mine.size })}>
-          <div className="max-h-96 space-y-1 overflow-y-auto rounded-2xl bg-surface-2 p-3">
-            {ings.map(g => (
-              <label key={g.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={mine.has(g.id)} onChange={() => setMine(x => { const n = new Set(x); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })} />
-                <span className="flex-1">{g.name}</span>
-              </label>
-            ))}
-          </div>
-        </Field>
-      </div>
-    </Modal>
-  );
-}

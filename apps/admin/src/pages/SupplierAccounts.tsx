@@ -1,6 +1,6 @@
 // Supplier accounts (what is owed, overdue, next due, payments, statement) and price comparison.
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownUp, FileText, Phone, Plus, Receipt, Scale, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowDownUp, FileText, Pencil, Phone, Plus, Receipt, Scale, Star, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc, toCents } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -8,6 +8,7 @@ import { useAdminCtx } from '../store';
 import type { Restaurant } from '../lib/types';
 import { Btn, Card, Field, Modal, inputCls } from '../components/ui';
 import { InvoiceGallery } from '../components/Invoices';
+import { SupplierSheet } from '../components/SupplierSheet';
 
 interface Bal { id: string; name: string; phone: string | null; terms: number; purchased_cents: number; paid_cents: number; credit_cents: number; opening_cents: number;
   balance_cents: number; overdue_cents: number; oldest_overdue: string | null; next_due: string | null; next_due_cents: number | null; last_purchase: string | null; last_30d_cents: number }
@@ -27,6 +28,8 @@ export function SupplierAccounts({ r, onOrders }: { r: Restaurant; onOrders?: ()
   const [pay, setPay] = useState<Bal | null>(null);
   const [stmt, setStmt] = useState<Bal | null>(null);
   const [det, setDet] = useState<Bal | null>(null);
+  // the supplier sheet: an id, 'new', or closed
+  const [sheet, setSheet] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
       const [b, c] = await Promise.all([rpc<Bal[]>('supplier_balances', { p_restaurant_id: r.id }), rpc<Cmp[]>('supplier_compare', { p_restaurant_id: r.id })]);
@@ -48,7 +51,10 @@ export function SupplierAccounts({ r, onOrders }: { r: Restaurant; onOrders?: ()
       </div>
 
       <Card>
-        <h2 className="mb-1 font-display text-xl font-semibold">{t('Comptes fournisseurs')}</h2>
+        <div className="flex flex-wrap items-start gap-3">
+          <h2 className="me-auto mb-1 font-display text-xl font-semibold">{t('Comptes fournisseurs')}</h2>
+          <Btn tone="brand" className="px-3 py-2 text-sm" onClick={() => setSheet('new')}><Plus className="h-4 w-4" /> {t('Nouveau fournisseur')}</Btn>
+        </div>
         <p className="mb-4 text-sm text-muted">{t('Les achats notés dans Amplify, moins vos paiements et avoirs. Les paiements règlent d’abord les achats les plus anciens.')}</p>
         {bal === null ? <p className="text-muted">{t('Chargement…')}</p> : !bal.length ? <p className="text-sm text-muted">{t('Aucun fournisseur. Ajoutez-les dans Commandes fournisseurs.')}</p> : (
           <div className="overflow-x-auto">
@@ -104,7 +110,8 @@ export function SupplierAccounts({ r, onOrders }: { r: Restaurant; onOrders?: ()
         <InvoiceGallery r={r} />
       </Card>
 
-      {det && <SupplierDetail r={r} b={det} cmp={cmp} onClose={() => setDet(null)} onStatement={() => { setStmt(det); setDet(null); }}
+      {sheet && <SupplierSheet r={r} supplierId={sheet === 'new' ? null : sheet} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); setDet(null); load(); }} />}
+      {det && !sheet && <SupplierDetail r={r} b={det} cmp={cmp} onEdit={() => setSheet(det.id)} onClose={() => setDet(null)} onStatement={() => { setStmt(det); setDet(null); }}
         onPay={() => { setPay(det); setDet(null); }} onOrders={onOrders ? () => { setDet(null); onOrders(); } : undefined} />}
       {pay && <PayModal r={r} b={pay} onClose={() => setPay(null)} onSaved={() => { setPay(null); load(); }} />}
       {stmt && <Statement b={stmt} onClose={() => setStmt(null)} onChanged={load} />}
@@ -175,15 +182,16 @@ function Statement({ b, onClose, onChanged }: { b: Bal; onClose: () => void; onC
 }
 
 // ------------------------------------------------------------ one supplier on one screen
-interface SupRow { id: string; name: string; phone: string | null; email: string | null; contact: string | null; delivery_days: number[]; lead_days: number; note: string | null }
-interface SupIng { id: string; name: string; purchase_unit: string; purchase_price_cents: number | null; price_estimated: boolean }
+interface SupRow { id: string; name: string; phone: string | null; email: string | null; contact: string | null; delivery_days: number[]; lead_days: number; note: string | null;
+  address: string | null; city: string | null; ice: string | null; if_number: string | null; rc: string | null; rib: string | null; min_order_cents: number | null }
+interface SupIng { id: string; name: string; purchase_unit: string; purchase_price_cents: number | null; price_estimated: boolean; ref: string | null; pack: string | null; agreed: number | null; main: boolean }
 interface SupPo { id: string; doc_number: string; status: 'draft' | 'sent' | 'received' | 'cancelled'; expected_on: string | null; received_on: string | null; created_at: string }
 // i18n:values
 const WD = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const PO_ST: Record<SupPo['status'], string> = { draft: 'Brouillon', sent: 'Envoyée', received: 'Reçue', cancelled: 'Annulée' };
 // i18n:end
 
-function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { r: Restaurant; b: Bal; cmp: Cmp[]; onClose: () => void; onStatement: () => void; onPay: () => void; onOrders?: () => void }) {
+function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders, onEdit }: { r: Restaurant; b: Bal; cmp: Cmp[]; onClose: () => void; onStatement: () => void; onPay: () => void; onOrders?: () => void; onEdit: () => void }) {
   const a = useAdminCtx();
   const [s, setS] = useState<SupRow | null>(null);
   const [ings, setIngs] = useState<SupIng[] | null>(null);
@@ -192,11 +200,15 @@ function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { 
     (async () => {
       try {
         const [x, g, o] = await Promise.all([
-          supabase.from('suppliers').select('id, name, phone, email, contact, delivery_days, lead_days, note').eq('id', b.id).single(),
-          supabase.from('ingredients').select('id, name, purchase_unit, purchase_price_cents, price_estimated').eq('restaurant_id', r.id).eq('supplier_id', b.id).order('name'),
+          supabase.from('suppliers').select('id, name, phone, email, contact, delivery_days, lead_days, note, address, city, ice, if_number, rc, rib, min_order_cents').eq('id', b.id).single(),
+          supabase.from('supplier_products').select('is_main, ref, pack_label, price_cents, ingredients(id, name, purchase_unit, purchase_price_cents, price_estimated)').eq('restaurant_id', r.id).eq('supplier_id', b.id),
           supabase.from('purchase_orders').select('id, doc_number, status, expected_on, received_on, created_at').eq('restaurant_id', r.id).eq('supplier_id', b.id).order('created_at', { ascending: false }).limit(5),
         ]);
-        setS(check(x) as unknown as SupRow); setIngs(check(g) as SupIng[]); setPos(check(o) as SupPo[]);
+        type L = { is_main: boolean; ref: string | null; pack_label: string | null; price_cents: number | null; ingredients: Omit<SupIng, 'ref' | 'pack' | 'agreed' | 'main'> | null };
+        setS(check(x) as unknown as SupRow);
+        setIngs((check(g) as unknown as L[]).filter(l => l.ingredients).map(l => ({ ...l.ingredients!, ref: l.ref, pack: l.pack_label, agreed: l.price_cents, main: l.is_main }))
+          .sort((p, q) => Number(q.main) - Number(p.main) || p.name.localeCompare(q.name)));
+        setPos(check(o) as SupPo[]);
       } catch (e) { a.fail(e); setIngs([]); }
     })();
   }, [b.id, r.id, a]);
@@ -211,6 +223,7 @@ function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { 
   return (
     <Modal wide title={b.name} onClose={onClose}
       footer={<div className="flex flex-wrap justify-end gap-2">
+        <Btn tone="ghost" className="me-auto" onClick={onEdit}><Pencil className="h-4 w-4" /> {t('Modifier la fiche')}</Btn>
         <Btn onClick={onStatement}><FileText className="h-4 w-4" /> {t('Relevé')}</Btn>
         <Btn onClick={onPay}><Plus className="h-4 w-4" /> {t('Paiement')}</Btn>
         {onOrders && <Btn tone="brand" onClick={onOrders}>{t('Commandes fournisseurs')}</Btn>}
@@ -229,13 +242,17 @@ function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { 
             {s.email && <span dir="ltr">{s.email}</span>}
             <span>{s.delivery_days.length ? t('Livre : {d}', { d: s.delivery_days.map(d => t(WD[d - 1])).join(', ') }) : t('Jours de livraison non indiqués')}{' · '}{t('{n} j après la commande', { n: s.lead_days })}</span>
             {s.note && <span>{s.note}</span>}
+            {(s.address || s.city) && <span>{[s.address, s.city].filter(Boolean).join(', ')}</span>}
+            {s.min_order_cents != null && <span>{t('Minimum {m}', { m: mad(Number(s.min_order_cents)) })}</span>}
+            {(s.ice || s.if_number || s.rc || s.rib) && <span dir="ltr" className="tabular">{[s.ice && `ICE ${s.ice}`, s.if_number && `IF ${s.if_number}`, s.rc && `RC ${s.rc}`, s.rib && `RIB ${s.rib}`].filter(Boolean).join(' · ')}</span>}
+            {!s.ice && <button type="button" onClick={onEdit} className="font-semibold text-warn underline">{t('ICE manquant : compléter la fiche')}</button>}
           </div>
         )}
 
         <div>
           <p className="mb-2 font-semibold">{t('Ses produits')}{ings ? ` (${ings.length})` : ''}</p>
           {ings === null ? <p className="text-muted">{t('Chargement…')}</p> : !ings.length ? (
-            <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Aucun ingrédient relié. Choisissez ce fournisseur dans la fiche de l’ingrédient, ou importez vos ingrédients avec une colonne Fournisseur.')}</p>
+            <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">{t('Aucun produit relié. Ajoutez-les dans « Modifier la fiche ».')}</p>
           ) : (<>
             {missing > 0 && <p className="mb-2 text-sm font-semibold text-warn">{t('{n} prix manquant(s)', { n: missing })}</p>}
             <ul className="divide-y divide-line/10 rounded-2xl ring-1 ring-line/10">
@@ -243,10 +260,11 @@ function SupplierDetail({ r, b, cmp, onClose, onStatement, onPay, onOrders }: { 
                 const c = price(g);
                 return (
                   <li key={g.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate font-semibold">{g.name}</span>
+                    {g.main ? <Star className="h-4 w-4 shrink-0 fill-current text-brand" aria-label={t('Fournisseur habituel')} /> : <span className="w-4" />}
+                    <span className="min-w-0 flex-1 truncate font-semibold">{g.name}{(g.ref || g.pack) && <span className="ms-2 text-xs font-normal text-muted">{[g.ref, g.pack].filter(Boolean).join(' · ')}</span>}</span>
                     {c && (c.best ? <span className="rounded-full bg-ok/15 px-2 py-0.5 text-xs font-semibold text-ok">{t('prix le plus bas')}</span>
                       : <span className="rounded-full bg-warn/15 px-2 py-0.5 text-xs font-semibold text-warn">{t('+{p} % vs le moins cher', { p: c.pct })}</span>)}
-                    <span className="tabular">{g.purchase_price_cents == null ? <span className="text-danger">{t('Prix manquant')}</span> : <>{mad(g.purchase_price_cents)} <span className="text-muted">/ {g.purchase_unit}</span></>}</span>
+                    <span className="tabular">{g.agreed != null ? <>{mad(Number(g.agreed))} <span className="text-muted">/ {g.purchase_unit} · {t('convenu')}</span></> : g.purchase_price_cents == null ? <span className="text-danger">{t('Prix manquant')}</span> : <>{mad(g.purchase_price_cents)} <span className="text-muted">/ {g.purchase_unit}</span></>}</span>
                   </li>
                 );
               })}
