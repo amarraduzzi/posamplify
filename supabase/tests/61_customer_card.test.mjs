@@ -29,7 +29,7 @@ test('the card shows the first name, points and visits, and nothing else', async
   const card = await rpc(null, 'customer_card', [slug, c.card_key]);
   assert.equal(card.customer.name, 'Salma'); assert.equal(card.customer.points, 42); assert.equal(card.customer.visits, 5);
   assert.equal(card.restaurant.name, w.A.r.name);
-  assert.deepEqual(card.loyalty, { enabled: true, per_dh: 10, reward_points: 100, reward_cents: 5000,
+  assert.deepEqual(card.loyalty, { enabled: true, mode: 'rewards', percent: null, min_points: 0, menu: [], next: [], per_dh: 10, reward_points: 100, reward_cents: 5000,
     rewards: [{ id: 'legacy', kind: 'discount', points: 100, cents: 5000, name: null, image_url: null }] });
   // earn and redeem only, never the manual corrections
   assert.deepEqual(card.recent.map(m => m.reason).sort(), ['earn', 'redeem']);
