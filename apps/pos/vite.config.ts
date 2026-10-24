@@ -12,8 +12,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt', // never reload in the middle of an order; updates apply at the staff lock screen
       injectRegister: false,
+      // Own file name: the root /functions/manifest.webmanifest.js (loyalty card, name "Carte fidélité") answers
+      // /manifest.webmanifest on the deployed site and would hide this manifest. A different name avoids that clash.
+      manifestFilename: 'caisse.webmanifest',
       manifest: {
-        name: 'Amplify Caisse', short_name: 'Amplify Caisse', description: 'La caisse Amplify POS', id: '/', start_url: '/', scope: '/', display: 'standalone',
+        name: 'Amplify POS', short_name: 'Amplify POS', description: 'La caisse Amplify POS', id: '/', start_url: '/', scope: '/', display: 'standalone',
         background_color: '#020F20', theme_color: '#020F20', lang: 'fr',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
