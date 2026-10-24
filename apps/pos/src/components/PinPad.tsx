@@ -37,7 +37,7 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
   return (
     <div className="mx-auto w-full max-w-xs">
       {masked ? (
-        <div key={error ?? 'ok'} className={`mb-4 flex h-12 items-center justify-center gap-3 ${error ? 'shake' : ''}`} aria-label={t('{n} chiffres', { n: v.length })}>
+        <div key={error ?? 'ok'} className={`mb-4 flex h-12 items-center justify-center gap-3 [@media(max-height:720px)]:mb-1 [@media(max-height:720px)]:h-8 ${error ? 'shake' : ''}`} aria-label={t('{n} chiffres', { n: v.length })}>
           {Array.from({ length: Math.max(4, v.length) }).map((_, i) => (
             <span key={i} className={`h-3.5 w-3.5 rounded-full transition-all duration-150 ${i < v.length ? 'scale-110 bg-brand shadow-[0_0_12px_rgb(var(--brand)/.7)]' : 'bg-surface-3'}`} />
           ))}
@@ -47,11 +47,11 @@ export function PinPad({ onSubmit, busy, error, masked = true, maxLen = 6, submi
           {v || <span className="text-muted/40">0</span>}
         </div>
       )}
-      {error && <p className="mb-3 text-center text-sm font-semibold text-danger">{error}</p>}
-      <div className={`grid grid-cols-3 ${round ? 'justify-items-center gap-x-4 gap-y-3' : 'gap-2.5'}`} dir="ltr">
+      {error && <p className="mb-3 text-center text-sm font-semibold text-danger [@media(max-height:720px)]:mb-1">{error}</p>}
+      <div className={`grid grid-cols-3 ${round ? 'justify-items-center gap-x-4 gap-y-3 [@media(max-height:720px)]:gap-y-2' : 'gap-2.5'}`} dir="ltr">
         {keys.map(k => (
           <button key={k} type="button" onClick={() => press(k)} disabled={busy}
-            className={`${round ? 'h-[4.25rem] w-[4.25rem] rounded-full' : 'h-16 rounded-2xl'} text-2xl font-semibold transition active:scale-95 ${
+            className={`${round ? 'h-[4.25rem] w-[4.25rem] rounded-full [@media(max-height:720px)]:h-14 [@media(max-height:720px)]:w-14' : 'h-16 rounded-2xl [@media(max-height:720px)]:h-12'} text-2xl font-semibold transition active:scale-95 ${
               k === 'ok' ? 'gold-fill text-brand-ink' : k === 'back' ? 'text-muted hover:bg-surface-2 hover:text-ink' : 'border border-line/[0.07] bg-surface-2 hover:bg-surface-3'}`}>
             {k === 'back' ? <Delete className="mx-auto h-6 w-6" /> : k === 'ok' ? '✓' : k}
           </button>

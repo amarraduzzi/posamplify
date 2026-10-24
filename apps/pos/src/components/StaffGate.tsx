@@ -103,7 +103,8 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
         <LangMenu dark />
       </header>
 
-      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-5 pb-4 pt-2 sm:justify-center sm:px-8">
+      {/* on a low screen (a 10" tablet in landscape) the PIN step goes side by side: restaurant left, keypad right */}
+      <main className={`relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-5 pb-4 pt-2 sm:justify-center sm:px-8 ${who ? '[@media(max-height:720px)]:flex-row [@media(max-height:720px)]:justify-center [@media(max-height:720px)]:gap-12' : ''}`}>
         {/* the restaurant */}
         <div className="rise flex flex-col items-center text-center">
           {logo
@@ -131,8 +132,8 @@ export function StaffGate({ onKitchen }: { onKitchen?: () => void }) {
             {!pos.staffList.length && <p className="text-center text-muted">{t("Aucun employé. Ajoutez le personnel dans l'espace gérant.")}</p>}
           </div>
         ) : (
-          <div className="rise panel relative mt-6 w-full max-w-sm rounded-3xl p-5 sm:p-6">
-            <div className="mb-4 flex items-center justify-center gap-3">
+          <div className="rise panel relative mt-6 w-full max-w-sm rounded-3xl p-5 sm:p-6 [@media(max-height:720px)]:mt-0 [@media(max-height:720px)]:w-[22rem] [@media(max-height:720px)]:shrink-0 [@media(max-height:720px)]:p-4">
+            <div className="mb-4 flex items-center justify-center gap-3 [@media(max-height:720px)]:mb-2">
               <span aria-hidden className={`grid h-12 w-12 place-items-center rounded-full font-bold ${who.role === 'manager' ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-brand ring-1 ring-brand/40'}`}>{initials(who.name)}</span>
               <span className="text-xl font-bold">{who.name}</span>
             </div>
