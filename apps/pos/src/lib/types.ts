@@ -13,7 +13,9 @@ export interface PosSettings {
   idle_lock_minutes?: number;
   receipt_footer?: string;
   /** 'caisse' = customer receipt laid out like caisse.ma's (see print.ts caisseTicket) */
-  receipt_layout?: 'classic' | 'caisse';
+  receipt_layout?: 'classic' | 'caisse' | 'relais';
+  /** 'relais' layout (Relais Marin) only: the centred lines under the logo, instead of the built-in ones */
+  receipt_header?: string[];
   /** characters per line of the 'caisse' layout: 48 (80 mm paper, default), 42 or 32 */
   receipt_cols?: 32 | 42 | 48;
   /** 'caisse' layout only: text printed instead of the restaurant's name / address, "Boutique : <n>", and the VAT rate (basis points) of the provisional receipt */

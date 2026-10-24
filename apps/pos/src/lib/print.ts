@@ -7,10 +7,11 @@
 import type { DayReport, FiscalDoc, Order, Restaurant, PosSettings } from './types';
 import { amount, dateTime, METHOD, TYPE } from './format';
 import { courseTicket } from './stations';
+import { RELAIS_MARIN_LOGO, type Raster } from './logos';
 
 const HOST = 'http://127.0.0.1:8934';
 
-export interface TicketLine { text: string; bold?: boolean; large?: boolean; center?: boolean; qr?: string }
+export interface TicketLine { text: string; bold?: boolean; large?: boolean; center?: boolean; qr?: string; raster?: Raster }
 const W = 32; // characters per line on 58mm paper (80mm printers print it fine too)
 
 async function call<T>(path: string, init?: RequestInit, ms = 4000): Promise<T | null> {
@@ -78,6 +79,13 @@ function qrBytes(data: string): number[] {
   ];
 }
 
+/** A logo as a 1-bit image (GS v 0), centred: supported by Epson-compatible ticket printers. */
+function rasterBytes(r: Raster): number[] {
+  const wb = r.w / 8;
+  const data = [...atob(r.b64)].map(c => c.charCodeAt(0));
+  return [0x1b, 0x61, 1, 0x1d, 0x76, 0x30, 0x00, wb & 0xff, wb >> 8, r.h & 0xff, r.h >> 8, ...data, 0x0a, 0x1b, 0x61, 0];
+}
+
 /** "Leave us a review" block under a receipt, when the owner set the Google link. */
 function reviewBlock(r: Restaurant): TicketLine[] {
   const u = r.branding?.review_url;
@@ -89,6 +97,7 @@ function escpos(lines: TicketLine[], opts: { cut?: boolean; drawer?: boolean } =
   const b: number[] = [0x1b, 0x40];
   for (const l of lines) {
     if (l.qr) { b.push(...qrBytes(l.qr)); continue; }
+    if (l.raster) { b.push(...rasterBytes(l.raster)); continue; }
     b.push(0x1b, 0x61, l.center ? 1 : 0, 0x1b, 0x45, l.bold ? 1 : 0, 0x1d, 0x21, l.large ? 0x11 : 0);
     for (const ch of ascii(l.text)) b.push(ch.charCodeAt(0) & 0xff);
     b.push(0x0a);
@@ -118,6 +127,7 @@ const xmlEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
 function eposXml(lines: TicketLine[], opts: { cut?: boolean; drawer?: boolean } = {}) {
   let x = '';
   for (const l of lines) {
+    if (l.raster) continue; // the logo is only printed on ESC/POS printers, not through the Epson app
     if (l.qr) { x += `<text align="center"/><symbol type="qrcode_model_2" level="level_m" width="6">${xmlEsc(ascii(l.qr).slice(0, 300))}</symbol><feed/><text align="left"/>`; continue; }
     x += `<text align="${l.center ? 'center' : 'left'}" em="${l.bold ? 'true' : 'false'}" dw="${l.large ? 'true' : 'false'}" dh="${l.large ? 'true' : 'false'}">${xmlEsc(ascii(l.text)).replace(/\n/g, '&#10;')}&#10;</text>`;
   }
@@ -261,6 +271,11 @@ export const ticketRef = (o: Pick<Order, 'ticket_number' | 'local_ref'>) =>
 
 /** Receipt printed when paying without internet. The fiscal ticket follows automatically on reconnection. */
 export function provisionalTicket(r: Restaurant, o: Order, extra: { label: string; staff?: string; payments: { method: string; amount_cents: number; tip_cents: number }[]; change_cents: number; tz: string }): TicketLine[] {
+  if (r.pos_settings?.receipt_layout === 'relais') {
+    return relaisLayout(r, { issuedAt: new Date().toISOString(), label: extra.label, staff: extra.staff,
+      lines: o.order_lines.map(l => ({ qty: l.quantity, name: l.name, total: l.line_total_cents })), discount: o.discount_cents, total: o.total_cents,
+      payments: extra.payments.map(p => ({ method: p.method, amount: p.amount_cents })) });
+  }
   if (r.pos_settings?.receipt_layout === 'caisse') {
     // the VAT rates are only known to the server: the table uses the one rate set in receipt_vat_bp (if any);
     // the numbered ticket that follows has the real figures
@@ -344,8 +359,53 @@ function caisseLayout(r: Restaurant, x: CaisseData): TicketLine[] {
   return out;
 }
 
+/** The "relais" layout: the customer receipt of Relais Marin (café-restaurant, Plage de Rabat), the way their
+ *  old till printed it: logo, three centred header lines, "- TABLE 21", "SAMIR : 24/10/2026 15:18:18", one row
+ *  per item (qty, name, unit price, total), the payment, a big "TOTAL : 240.00" and "MERCI DE VOTRE VISITE".
+ *  Switched on for that restaurant only, with pos_settings.receipt_layout = 'relais' (receipt_cols 42 by default,
+ *  32 for 58 mm paper). The header lines can be changed with pos_settings.receipt_header (a list of lines). */
+interface RelaisData {
+  issuedAt: string; label?: string; staff?: string; copy?: boolean;
+  lines: { qty: number; name: string; total: number }[]; discount: number; total: number;
+  payments: { method: string; amount: number }[];
+}
+const RELAIS_HEADER = ['CAFE - RESTAURANT', 'PLAGE DE RABAT', '05.37.70.40.45 - 06.10.20.02.68'];
+function relaisLayout(r: Restaurant, x: RelaisData): TicketLine[] {
+  const ps = r.pos_settings ?? {};
+  const C = ps.receipt_cols === 32 || ps.receipt_cols === 48 ? ps.receipt_cols : 42;
+  const up = (s: string) => ascii(s).toUpperCase();
+  const dashes = (): TicketLine => ({ text: '-'.repeat(C) });
+  const blank = (): TicketLine => ({ text: '' });
+  // "24/10/2026 15:18:18": date and time with the seconds, as on their old receipts
+  const stamp = new Date(x.issuedAt).toLocaleString('fr-FR', { timeZone: r.timezone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .replace(/[\s  ,]+/g, ' ');
+  const out: TicketLine[] = [{ text: '', raster: RELAIS_MARIN_LOGO }, blank()];
+  for (const h of ps.receipt_header?.length ? ps.receipt_header : RELAIS_HEADER) out.push({ text: up(h), center: true });
+  out.push(blank());
+  if (x.label) out.push({ text: `- ${up(x.label)}`, center: true });
+  out.push({ text: `${x.staff ? up(x.staff) + ' : ' : ''}${stamp}`, center: true });
+  if (x.copy) out.push({ text: 'DUPLICATA', bold: true, center: true });
+  out.push(dashes());
+  const unitW = 7, totW = 8, left = C - unitW - totW;
+  for (const l of x.lines) {
+    const unit = amount(Math.round(l.total / (l.qty || 1)));
+    out.push({ text: `${l.qty} ${up(l.name)}`.slice(0, left - 1).padEnd(left) + unit.padStart(unitW) + amount(l.total).padStart(totW) });
+  }
+  if (x.discount) out.push({ text: 'REMISE'.padEnd(C - totW) + amount(-Math.abs(x.discount)).padStart(totW) });
+  out.push(dashes());
+  for (const p of x.payments) out.push({ text: `${up(METHOD[p.method] ?? p.method)} :`.padEnd(C - totW) + amount(p.amount).padStart(totW) });
+  out.push({ text: `TOTAL : ${amount(x.total)}`, bold: true, large: true, center: true });
+  out.push(dashes(), blank(), { text: up(ps.receipt_footer || 'Merci de votre visite'), center: true });
+  return out;
+}
+
 /** The official receipt, printed from the immutable fiscal document. */
 export function fiscalTicket(r: Restaurant, d: FiscalDoc, extra: { label?: string; staff?: string; change_cents?: number; copy?: boolean }): TicketLine[] {
+  if (r.pos_settings?.receipt_layout === 'relais' && d.doc_type === 'ticket') {
+    return relaisLayout(r, { issuedAt: d.issued_at, label: extra.label, staff: extra.staff, copy: extra.copy,
+      lines: d.lines.map(l => ({ qty: l.qty, name: l.name, total: l.total_ttc })), discount: d.discount_cents, total: d.total_ttc_cents,
+      payments: d.payments.map(p => ({ method: p.method, amount: p.amount })) });
+  }
   if (r.pos_settings?.receipt_layout === 'caisse' && d.doc_type === 'ticket') {
     const sel = d.seller ?? { name: r.name };
     return caisseLayout(r, { name: sel.name ?? r.name, address: sel.address, phone: r.phone, ice: sel.ice, issuedAt: d.issued_at, ticketNo: String(Number(d.doc_number.split('-').pop()) || d.doc_number),
