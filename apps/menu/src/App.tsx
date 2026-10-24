@@ -442,6 +442,8 @@ export default function App() {
                 className="shrink-0 ms-4 grid place-items-center size-10 rounded-full bg-surface border border-line text-ink press">
                 <Search className="size-4.5" />
               </button>
+              {/* a thin divider: the search button must never be mistaken for a category */}
+              <span aria-hidden className="ms-3 h-6 w-px shrink-0 bg-line" />
               <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar px-3 py-3">
                 {menu.categories.map(c => (
                   <button
@@ -451,7 +453,8 @@ export default function App() {
                     className={`shrink-0 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${
                       activeCat === c.id ? 'bg-brand text-brand-ink glow-brand' : 'bg-surface border border-line text-ink/80'}`}
                   >
-                    {c.icon && <span className="me-1.5" aria-hidden>{c.icon}</span>}
+                    {/* one size and one width for every icon; a magnifier emoji is skipped (it looks like the search button) */}
+                    {c.icon && !/[\u{1F50D}\u{1F50E}]/u.test(c.icon) && <span className="me-1.5 inline-block w-[1.25em] text-center text-[1.1rem] leading-none align-[-0.1em]" aria-hidden>{c.icon}</span>}
                     {tr(c.name, lang, fallbacks)}
                   </button>
                 ))}
@@ -597,7 +600,7 @@ function Logo({ url, name }: { url?: string; name: string }) {
       <Star8 filled={false} stroke={0.22} className="absolute inset-0 size-full text-brand opacity-15 rotate-[22.5deg]" />
       {url && !failed ? (
         <img src={url} alt="" onError={() => setFailed(true)}
-          className="relative max-h-32 max-w-36 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,.45)]" />
+          className="relative max-h-32 max-w-36 rounded-[1.75rem] object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,.45)]" />
       ) : (
         <div className="relative size-24 rounded-full bg-surface ring-brand-soft grid place-items-center">
           <span className="font-display text-3xl font-semibold text-brand">{initials || '•'}</span>
