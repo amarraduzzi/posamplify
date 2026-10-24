@@ -13,7 +13,7 @@ export default defineConfig({
       // Own file name, so the root /functions/manifest.webmanifest.js (loyalty card) cannot answer in its place.
       manifestFilename: 'app.webmanifest',
       manifest: {
-        name: 'Amplify App', short_name: 'Amplify App', description: 'La gestion de votre restaurant', id: '/', start_url: '/', scope: '/', display: 'standalone', display_override: ['window-controls-overlay', 'standalone'],
+        name: 'Amplify App', short_name: 'Amplify App', description: 'La gestion de votre restaurant', id: '/', start_url: '/', scope: '/', display: 'fullscreen', display_override: ['fullscreen', 'standalone'],
         background_color: '#001E3E', theme_color: '#001E3E', lang: 'fr',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
