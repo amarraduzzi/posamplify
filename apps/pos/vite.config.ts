@@ -16,7 +16,7 @@ export default defineConfig({
       // /manifest.webmanifest on the deployed site and would hide this manifest. A different name avoids that clash.
       manifestFilename: 'caisse.webmanifest',
       manifest: {
-        name: 'Amplify Caisse', short_name: 'Amplify Caisse', description: 'La caisse Amplify POS', id: '/', start_url: '/', scope: '/', display: 'standalone',
+        name: 'Amplify Caisse', short_name: 'Amplify Caisse', description: 'La caisse Amplify POS', id: '/', start_url: '/', scope: '/', display: 'fullscreen', display_override: ['fullscreen', 'standalone'],
         background_color: '#020F20', theme_color: '#020F20', lang: 'fr',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
