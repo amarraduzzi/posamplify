@@ -65,7 +65,7 @@ export interface Item {
   /** price_cents is the price of 1 kg: the till asks the weight */
   sold_by_weight?: boolean;
 }
-export interface ChosenMod { id: string; name: string; price_cents: number }
+export interface ChosenMod { id: string; name: string; price_cents: number; group_id?: string; group_name?: string; all?: boolean }
 
 export interface Line {
   id: string; order_id: string; menu_item_id: string | null; variant_id: string | null;

@@ -1057,4 +1057,8 @@ export const EN: Record<string, string> = {
   "Utiliser la cagnotte (−{m})": "Use savings (−{m})",
   "Ce qui est gagné aujourd’hui se dépense à la prochaine visite.": "What is earned today can be spent on the next visit.",
   "{m} gagnés aujourd’hui : à la prochaine visite": "{m} earned today: next visit",
+  "Nouvelle commande": "New order",
+  "Prêtes": "Ready",
+  "Nom du client": "Customer name",
+  "Indiquez le nom du client.": "Enter the customer name.",
 };

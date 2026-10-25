@@ -82,7 +82,8 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
     <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-4">
       {pos.orders.map(o => {
         const m = minutesSince(o.created_at);
-        const pending = o.source === 'qr' && o.status === 'new';
+        // boccadillos: an order typed at the till waits for its cash, like a guest (QR) order
+        const pending = (o.source === 'qr' && o.status === 'new') || (!!r.boccadillos && o.source === 'pos' && o.status === 'new' && !o.prepaid_at);
         const online = o.source === 'qr' && !o.table_id && o.order_type !== 'dine_in' && o.external_ref !== 'borne';
         const next = o.status === 'new' && !pending ? { to: 'preparing' as OrderStatus, label: 'En préparation', Icon: ChefHat } : NEXT[o.status];
         return (
@@ -164,7 +165,7 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
 }
 
 /** Boccadillos mode: take the money (amount received, change to give back), then the order goes to the kitchen. */
-function CashDialog({ o, onClose, onConfirm }: { o: Order; onClose: () => void; onConfirm: () => Promise<void> }) {
+export function CashDialog({ o, onClose, onConfirm }: { o: Order; onClose: () => void; onConfirm: () => Promise<void> }) {
   const total = o.total_cents;
   const [given, setGiven] = useState('');
   const [busy, setBusy] = useState(false);

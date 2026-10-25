@@ -5,6 +5,7 @@ import { Login } from './components/Login';
 import { StaffGate } from './components/StaffGate';
 import { TablesView } from './components/TablesView';
 import { LiveOrders } from './components/LiveOrders';
+import { CounterHome } from './components/CounterHome';
 import { OrderScreen } from './components/OrderScreen';
 import { HistoryView } from './components/History';
 import { ReportsView } from './components/Reports';
@@ -78,8 +79,11 @@ export default function App() {
   const r = pos.restaurant;
   const occupied = new Set(pos.orders.filter(o => o.table_id).map(o => o.table_id)).size;
   const stale = now - pos.lastSync > 30000;
+  // boccadillos (counter service): no tables, the orders screen is the start screen. Other restaurants: unchanged.
+  const counter = !!r.boccadillos;
+  const curTab: Tab = counter && tab === 'tables' ? 'live' : tab;
   const tabs: { id: Tab; label: string; Icon: typeof Armchair; badge?: number }[] = [
-    { id: 'tables', label: t('Tables {a}/{b}', { a: occupied, b: pos.tables.length }), Icon: Armchair },
+    ...(counter ? [] : [{ id: 'tables' as Tab, label: t('Tables {a}/{b}', { a: occupied, b: pos.tables.length }), Icon: Armchair }]),
     { id: 'live', label: t('Commandes ({n})', { n: pos.orders.length }), Icon: Receipt, badge: pos.pendingQr.length },
     ...(resa.on ? [{ id: 'resa' as Tab, label: t('Réservations'), Icon: CalendarDays, badge: (resa.list ?? []).filter(x => x.status === 'requested').length }] : []),
     { id: 'history', label: t('Historique'), Icon: HistoryIcon },
@@ -88,7 +92,7 @@ export default function App() {
 
   // ---- phone in the waiter's hand: tables, orders, take-away; payment at the till
   if (phone) {
-    const mainTab = tab === 'live' ? 'live' : 'tables';
+    const mainTab = counter || tab === 'live' ? 'live' : 'tables';
     return (
       <div className="ambient flex h-full flex-col">
         {pos.pendingQr.length > 0 && (
@@ -109,16 +113,16 @@ export default function App() {
         </header>
         {!pos.online && <p className="bg-warn/15 py-1.5 text-center text-xs font-semibold text-warn">{t('Hors ligne : les commandes partent au retour d’internet.')}</p>}
         <main className="scroll-thin flex-1 overflow-y-auto p-3">
-          {mainTab === 'tables' ? <TablesView onOpen={setTarget} /> : <LiveOrders onOpen={setTarget} />}
+          {mainTab === 'tables' ? <TablesView onOpen={setTarget} /> : counter ? <CounterHome onOpen={setTarget} /> : <LiveOrders onOpen={setTarget} />}
         </main>
-        <nav className="grid grid-cols-3 gap-1 border-t border-line/[0.07] bg-surface p-1.5">
-          {([['tables', t('Tables'), Armchair, 0], ['live', t('Commandes'), Receipt, pos.pendingQr.length]] as const).map(([id, l, Icon, badge]) => (
+        <nav className={`grid ${counter ? 'grid-cols-1' : 'grid-cols-3'} gap-1 border-t border-line/[0.07] bg-surface p-1.5`}>
+          {(counter ? [['live', t('Commandes'), Receipt, pos.pendingQr.length]] as const : [['tables', t('Tables'), Armchair, 0], ['live', t('Commandes'), Receipt, pos.pendingQr.length]] as const).map(([id, l, Icon, badge]) => (
             <button key={id} onClick={() => setTab(id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-bold ${mainTab === id ? 'gold-fill text-brand-ink' : 'text-muted'}`}>
               <Icon className="h-5 w-5" />{l}
               {!!badge && <span className="absolute end-3 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-qr px-1 text-[11px] text-white">{badge}</span>}
             </button>
           ))}
-          <button onClick={() => setTarget({ kind: 'new', orderType: 'takeaway', source: 'pos' })} className="flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-bold text-brand"><ShoppingBag className="h-5 w-5" />{t('Emporter')}</button>
+          {!counter && <button onClick={() => setTarget({ kind: 'new', orderType: 'takeaway', source: 'pos' })} className="flex flex-col items-center gap-0.5 rounded-xl py-2 text-xs font-bold text-brand"><ShoppingBag className="h-5 w-5" />{t('Emporter')}</button>}
         </nav>
         {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
         {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
@@ -149,7 +153,7 @@ export default function App() {
         <nav className="flex flex-wrap gap-1 rounded-2xl border border-line/[0.06] bg-bg/70 p-1">
           {tabs.map(x => (
             <button key={x.id} onClick={() => setTab(x.id)}
-              className={`relative flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${tab === x.id ? 'gold-fill text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}>
+              className={`relative flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-bold transition ${curTab === x.id ? 'gold-fill text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}>
               <x.Icon className="h-4 w-4" />{x.label}
               {!!x.badge && <span className="absolute -end-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-qr px-1 text-xs text-white ring-2 ring-surface">{x.badge}</span>}
             </button>
@@ -188,11 +192,11 @@ export default function App() {
       {r.status === 'paused' && <p className="bg-danger/15 py-1.5 text-center text-sm font-semibold text-danger">{t('Abonnement suspendu : la caisse est en lecture seule.')}</p>}
 
       <main className="scroll-thin flex-1 overflow-y-auto p-5">
-        {tab === 'tables' && <TablesView onOpen={setTarget} />}
-        {tab === 'live' && <LiveOrders onOpen={setTarget} />}
-        {tab === 'resa' && (pos.online ? <ReservationsView /> : <OfflineNotice what={t('Les réservations')} />)}
-        {tab === 'history' && (pos.online ? <HistoryView /> : <OfflineNotice what={t("L'historique des tickets")} />)}
-        {tab === 'reports' && (pos.online ? <ReportsView /> : <OfflineNotice what={t('Les rapports et la caisse')} />)}
+        {curTab === 'tables' && <TablesView onOpen={setTarget} />}
+        {curTab === 'live' && (counter ? <CounterHome onOpen={setTarget} /> : <LiveOrders onOpen={setTarget} />)}
+        {curTab === 'resa' && (pos.online ? <ReservationsView /> : <OfflineNotice what={t('Les réservations')} />)}
+        {curTab === 'history' && (pos.online ? <HistoryView /> : <OfflineNotice what={t("L'historique des tickets")} />)}
+        {curTab === 'reports' && (pos.online ? <ReportsView /> : <OfflineNotice what={t('Les rapports et la caisse')} />)}
       </main>
 
       {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}

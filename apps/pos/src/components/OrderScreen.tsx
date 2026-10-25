@@ -21,6 +21,8 @@ import { GuestChips, GuestSheet, useGuests, type Guest } from './Guest';
 import { hasMaitre, occasionOf } from '../lib/occasion';
 import { CALLS, serviceDone, useServiceCalls } from '../lib/service';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
+import { modsLabel } from '../lib/mods';
+import { CashDialog } from './LiveOrders';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
 
@@ -139,7 +141,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     if (i.sold_by_weight && !weight) { setDialog({ weigh: i }); return; }
     const v = i.variants.find(x => x.id === variantId);
     const chosen = mods ?? [];
-    const name = tr(i.name, lang) + (v ? ` (${tr(v.name, lang)})` : '') + (chosen.length ? ` + ${chosen.map(m => m.name).join(', ')}` : '');
+    const name = tr(i.name, lang) + (v ? ` (${tr(v.name, lang)})` : '') + (chosen.length ? ` + ${modsLabel(chosen)}` : '');
     const price = Number(v ? v.price_cents : i.price_cents) + chosen.reduce((s, m) => s + Number(m.price_cents), 0);
     const sig = chosen.map(m => m.id).sort().join(',');
     if (weight) {
@@ -155,6 +157,31 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
     });
   };
   const bump = (key: string, delta: number) => setDraft(d => d.flatMap(x => x.key !== key ? [x] : x.quantity + delta <= 0 ? [] : [{ ...x, quantity: x.quantity + delta }]));
+
+  // ---- boccadillos counter: a new order is paid first (cash, always), under a name, then goes to the kitchen.
+  // Everything here is behind r.boccadillos: other restaurants never see it.
+  const counterNew = !!r.boccadillos && target.kind === 'new' && !order;
+  const [cashFor, setCashFor] = useState<Order | null>(null);
+  const counterPay = () => run(async () => {
+    if (!draft.length) return;
+    if (!customer.name.trim()) { pos.toast(t('Indiquez le nom du client.'), 'error'); return; }
+    if (!pos.requireOnline()) return;
+    const o = await pos.commitDraft({ order: null, tableId: null, orderType: 'takeaway', source: 'pos', customer: { name: customer.name.trim() }, note: null },
+      draft.map(d => ({ ...d, unit_price_cents: dUnit(d) })), { send: false });
+    setDraft([]);
+    setCashFor(o);
+  });
+  const counterBar = (
+    <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface px-4 py-2.5">
+      <input autoFocus className={`${inputCls} min-w-[220px] flex-1 py-2 text-lg font-semibold`} placeholder={t('Nom du client')} value={customer.name} onChange={e => setCustomer({ ...customer, name: e.target.value.slice(0, 40) })} />
+    </div>
+  );
+  const counterActions = (
+    <div className="grid grid-cols-2 gap-2 border-t border-line/[0.07] p-3">
+      <Btn tone="ok" disabled={busy || !draft.length} onClick={counterPay} className="col-span-2 py-5 text-xl"><Wallet className="h-6 w-6" /> {t('Encaisser')} · {mad(total)}</Btn>
+      <Btn disabled={busy} onClick={() => (draft.length ? setDialog('leave') : onClose())} className="col-span-2"><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('Retour')}</Btn>
+    </div>
+  );
 
   // ---- actions --------------------------------------------------------------
   const run = async (fn: () => Promise<unknown>) => {
@@ -364,6 +391,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           if (!rest) onClose();
           else onRetarget(rest.table_id ? { kind: 'table', tableId: rest.table_id } : { kind: 'order', orderId: rest.id });
         }} />}
+      {cashFor && <CashDialog o={cashFor} onClose={() => { setCashFor(null); onClose(); }} onConfirm={() => pos.acceptQr(cashFor)} />}
       {dialog === 'customer' && order && <CustomerDialog order={order} onClose={() => setDialog(null)} onDone={c => { setCust(c); setDialog(null); }} />}
       {dialog === 'split' && order && <SplitDialog order={order} lineName={lineName} onClose={() => setDialog(null)}
         onPayAll={() => { setDialog(null); payNow(); }}
@@ -377,7 +405,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         <Modal title={t('Articles non envoyés')} onClose={() => setDialog(null)}
           footer={<div className="flex justify-end gap-2">
             <Btn tone="danger" onClick={onClose}>{t('Abandonner')}</Btn>
-            <Btn tone="brand" onClick={() => run(async () => { await commit(true); onClose(); })}>{t('Envoyer et quitter')}</Btn>
+            {counterNew
+              ? <Btn tone="brand" onClick={() => setDialog(null)}>{t('Continuer')}</Btn>
+              : <Btn tone="brand" onClick={() => run(async () => { await commit(true); onClose(); })}>{t('Envoyer et quitter')}</Btn>}
           </div>}>
           <p>{t("{n} article(s) n'ont pas encore été envoyés.", { n: draft.length })}</p>
         </Modal>
@@ -412,7 +442,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             {order && <p className="text-xs text-muted">{ticketRef(order)} · {time(order.created_at, r.timezone)}</p>}
           </div>
         </div>
-        {target.kind === 'new' && !order && (
+        {counterNew && counterBar}
+        {target.kind === 'new' && !order && !counterNew && (
           <div className="space-y-2 border-b border-line/[0.07] bg-surface px-3 py-2">
             <div className="flex gap-2 overflow-x-auto">
               {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
@@ -495,7 +526,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           </button>
           {freeOrder
             ? <Btn tone="danger" disabled={busy} onClick={freeTable} className="px-4 text-base"><Ban className="h-5 w-5" /> {t('Libérer')}</Btn>
-            : <Btn tone="brand" disabled={busy || !draft.length} onClick={sendPhone} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>}
+            : counterNew
+              ? <Btn tone="ok" disabled={busy || !draft.length} onClick={counterPay} className="px-5 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')}</Btn>
+              : <Btn tone="brand" disabled={busy || !draft.length} onClick={sendPhone} className="px-5 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer')}</Btn>}
         </div>
         {sheet && (
           <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -510,7 +543,9 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
               {fireBtn}
               {freeOrder
                 ? <Btn tone="danger" disabled={busy} onClick={() => { setSheet(false); freeTable(); }} className="col-span-2 py-4 text-base"><Ban className="h-5 w-5" /> {order?.table_id ? t('Libérer la table') : t('Supprimer')}</Btn>
-                : <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { setSheet(false); sendPhone(); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>}
+                : counterNew
+                  ? <Btn tone="ok" disabled={busy || !draft.length} onClick={() => { setSheet(false); counterPay(); }} className="col-span-2 py-4 text-base"><Wallet className="h-5 w-5" /> {t('Encaisser')} · {mad(total)}</Btn>
+                  : <Btn tone="brand" disabled={busy || !draft.length} onClick={() => { setSheet(false); sendPhone(); }} className="col-span-2 py-4 text-base"><Send className="h-5 w-5 rtl:-scale-x-100" /> {t('Envoyer en cuisine')}</Btn>}
               <Btn disabled={busy || !order} onClick={() => setDialog('note')}><StickyNote className="h-4 w-4" /> {t('Note')}</Btn>
               {order?.table_id ? <Btn disabled={busy} onClick={() => setDialog('move')}><ArrowLeftRight className="h-4 w-4" /> {t('Changer table')}</Btn>
                 : <Btn disabled={busy} onClick={() => setSheet(false)}>{t('Ajouter')}</Btn>}
@@ -540,7 +575,8 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
           </div>
         </div>
 
-        {target.kind === 'new' && !order && (
+        {counterNew && counterBar}
+        {target.kind === 'new' && !order && !counterNew && (
           <div className="flex flex-wrap items-center gap-2 border-b border-line/[0.07] bg-surface px-4 py-2.5">
             {(['takeaway', 'delivery', 'glovo'] as const).map(k => (
               <button key={k} onClick={() => setKind(k)} className={`rounded-full px-3.5 py-1.5 text-sm font-bold transition ${kind === k ? 'gold-fill text-brand-ink' : 'bg-surface-2 text-muted hover:text-ink'}`}>
@@ -612,7 +648,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
 
         {totalsBox}
 
-        {actionsGrid}
+        {counterNew ? counterActions : actionsGrid}
       </aside>
 
       {dialogs}
@@ -857,7 +893,12 @@ function PickDialog({ item, lang, nameOf, onClose, onPick }: {
   const missing = groups.find(g => countIn(g) < g.min_select);
   const v = item.variants.find(x => x.id === variant);
   // in the restaurant's main language: that is what the kitchen bon and the ticket print
-  const mods: ChosenMod[] = groups.flatMap(g => g.options.filter(o => picked.includes(o.id)).map(o => ({ id: o.id, name: tr(o.name, lang), price_cents: Number(o.price_cents) })));
+  // a group with everything ticked (3 or more options) is written "Légumes : tout" on the till and the bon
+  const mods: ChosenMod[] = groups.flatMap(g => {
+    const on = g.options.filter(o => picked.includes(o.id));
+    const all = on.length >= 3 && on.length >= g.options.length;
+    return on.map(o => ({ id: o.id, name: tr(o.name, lang), price_cents: Number(o.price_cents), group_id: g.id, group_name: tr(g.name, lang), all }));
+  });
   const total = Number(v ? v.price_cents : item.price_cents) + mods.reduce((s, m) => s + m.price_cents, 0);
   // only sizes, nothing else to choose: one tap adds it
   if (!groups.length) {

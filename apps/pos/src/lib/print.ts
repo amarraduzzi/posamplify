@@ -7,6 +7,7 @@
 import type { DayReport, FiscalDoc, Order, Restaurant, PosSettings } from './types';
 import { amount, dateTime, METHOD, TYPE } from './format';
 import { courseTicket } from './stations';
+import { modParts } from './mods';
 import { RELAIS_MARIN_LOGO, type Raster } from './logos';
 
 const HOST = 'http://127.0.0.1:8934';
@@ -214,7 +215,7 @@ function header(r: Restaurant, seller?: FiscalDoc['seller']): TicketLine[] {
   return out;
 }
 
-export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null; course?: number | null; modifiers?: { name: string }[] }[], label: string, tz: string, staff?: string,
+export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null; course?: number | null; modifiers?: { name: string; group_id?: string; group_name?: string; all?: boolean }[] }[], label: string, tz: string, staff?: string,
   later: { quantity: number; name: string; course: number | null }[] = [], compact = false): TicketLine[] {
   const out: TicketLine[] = [
     { text: station.toUpperCase(), bold: true, large: true, center: true },
@@ -231,11 +232,11 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
     if (l.course && l.course !== course) out.push({ text: `-- ${courseTicket(l.course)} --`, bold: true, center: true });
     course = l.course;
     // boccadillos: the line name ends with " + option, option..." (cut at 120 characters): print the dish alone, then every option
-    const first = l.modifiers?.[0]?.name;
-    const cut = compact && first ? l.name.indexOf(` + ${first}`) : -1;
+    const parts = modParts(l.modifiers);
+    const cut = compact && parts[0] ? l.name.indexOf(` + ${parts[0]}`) : -1;
     out.push({ text: `${l.quantity}x ${cut > 0 ? l.name.slice(0, cut) : l.name}`, bold: true, large: true });
     // chosen options (bread, filling, vegetables, sauce...): one per line, never cut off
-    if (compact) for (const m of l.modifiers ?? []) out.push({ text: `   + ${m.name}`, bold: true });
+    if (compact) for (const t of parts) out.push({ text: `   + ${t}`, bold: true });
     if (l.note) out.push({ text: `   > ${l.note}`, bold: true });
   }
   if (later.length) {
