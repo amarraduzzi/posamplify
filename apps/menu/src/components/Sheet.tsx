@@ -12,16 +12,20 @@ export function Sheet({ open, onClose, title, children, footer, closeLabel, medi
   media?: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // the latest onClose, without re-running the effect below: a new function on every render used to
+  // focus the sheet again after each typed letter, so a text field lost its cursor after one character
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     panel.current?.focus();
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
