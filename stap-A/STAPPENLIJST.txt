@@ -1,0 +1,21 @@
+BOCCADILLOS-MODUS - STAP A (database)
+
+1. SUPABASE EERST (uploaden naar GitHub verandert de database niet):
+   Open supabase/migrations/20261204000100_boccadillos_mode.sql, kopieer alles,
+   plak in Supabase > SQL Editor > Run. (Of: npx supabase db push)
+   Controle: Table Editor > restaurants heeft nu een kolom "boccadillos" (false).
+
+2. GITHUB: pak de zip uit, sleep de map "supabase" naar Add file > Upload files > Commit.
+   Er zijn alleen twee NIEUWE bestanden, er wordt niets overschreven.
+
+3. Zet de modus voor een zaak aan (tijdelijk, tot het knopje in platformbeheer komt, stap C):
+   select public.admin_set_boccadillos(
+     (select id from public.restaurants where slug = 'JOUW-SLUG'), true);
+   Dit werkt alleen als je als platformbeheerder bent ingelogd; in de SQL Editor kan het
+   niet (geen inlog). Gebruik dan:
+   update public.restaurants set boccadillos = true where slug = 'JOUW-SLUG';
+
+4. Er verandert nog niets zichtbaars in de kassa. Dat komt in stap B.
+
+NIET GETEST: mijn omgeving heeft geen Postgres, dus de nieuwe test (97) en de bestaande
+tests zijn niet gedraaid. Draai lokaal: npm run test:db
