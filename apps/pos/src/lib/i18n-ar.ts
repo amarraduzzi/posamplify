@@ -1058,4 +1058,8 @@ export const AR: Record<string, string> = {
   'Prêtes': 'جاهزة',
   'Nom du client': 'اسم الزبون',
   'Indiquez le nom du client.': 'دخل اسم الزبون.',
+  'Écran de retrait': 'شاشة الاستلام',
+  'Afficher les commandes prêtes en salle': 'عرض الطلبات الجاهزة فالقاعة',
+  'Sur une télé ou une tablette que les clients voient : noms et numéros, avec un son quand une commande est prête.': 'على تلفاز أو تابلت كيشوفوه الزبناء: الأسماء والأرقام، مع صوت منين الطلب يوجد.',
+  'Télé ou tablette : scannez ce QR (ou ouvrez ce lien), puis laissez la page ouverte.': 'تلفاز أو تابلت: سكاني هاد QR (أو حل الرابط)، وخلي الصفحة مفتوحة.',
 };

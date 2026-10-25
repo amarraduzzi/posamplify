@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Printer, LogOut, Monitor, Download, RefreshCw } from 'lucide-react';
 import { displayCode, setDisplay } from '../lib/display';
+import { pickupCode, setPickup } from '../lib/pickup';
 import { usePos } from '../store';
 import * as P from '../lib/print';
 import { Btn, Modal } from './ui';
@@ -32,6 +33,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           onChange={e => { const on = e.target.checked; setFull(on); setAutoFullscreen(on); }} />
       </label>
       <DisplaySetup />
+      <PickupSetup />
       <h3 className="mb-2 mt-6 font-bold">{t('Poste')}</h3>
       <Btn tone="danger" onClick={pos.logout}><LogOut className="h-4 w-4" /> {t('Déconnecter ce poste')}</Btn>
     </Modal>
@@ -69,6 +71,32 @@ function TpeSetup() {
           </>}
       <p className="text-xs text-muted">{t('Liaison avec un vrai terminal : demandez à votre banque ou au CMI d’activer la « liaison caisse » (protocole Concert) sur le terminal.')}</p>
     </div>
+  </>;
+}
+
+/** Pickup board (boccadillos only, off by default): a TV or tablet in the room showing the orders in preparation and ready. */
+function PickupSetup() {
+  const pos = usePos();
+  const [code, setCode] = useState(pickupCode());
+  const [qr, setQr] = useState('');
+  const link = code ? `${location.origin}/?retrait=${code}` : '';
+  useEffect(() => { if (link) QRCode.toDataURL(link, { margin: 1, width: 360 }).then(setQr).catch(() => {}); else setQr(''); }, [link]);
+  if (!pos.restaurant?.boccadillos) return null;
+  return <>
+    <h3 className="mb-2 mt-6 font-bold">{t('Écran de retrait')}</h3>
+    <label className="flex cursor-pointer items-center justify-between rounded-xl bg-surface-2 px-3 py-3">
+      <span>{t('Afficher les commandes prêtes en salle')}<span className="block text-xs text-muted">{t('Sur une télé ou une tablette que les clients voient : noms et numéros, avec un son quand une commande est prête.')}</span></span>
+      <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand))]" checked={!!code} onChange={e => setCode(setPickup(e.target.checked))} />
+    </label>
+    {code && (
+      <div className="mt-2 flex items-center gap-4 rounded-xl bg-surface-2 p-3">
+        {qr && <img src={qr} alt="" className="h-28 w-28 rounded-lg bg-white p-1" />}
+        <div className="space-y-2 text-sm">
+          <p>{t('Télé ou tablette : scannez ce QR (ou ouvrez ce lien), puis laissez la page ouverte.')}</p>
+          <Btn className="py-1.5" onClick={() => window.open(link, 'ecran-retrait', 'popup')}><Monitor className="h-4 w-4" /> {t('Ouvrir sur ce PC (2e écran)')}</Btn>
+        </div>
+      </div>
+    )}
   </>;
 }
 

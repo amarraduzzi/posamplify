@@ -6,6 +6,7 @@ import { StaffGate } from './components/StaffGate';
 import { TablesView } from './components/TablesView';
 import { LiveOrders } from './components/LiveOrders';
 import { CounterHome } from './components/CounterHome';
+import { PickupSender } from './components/PickupSender';
 import { OrderScreen } from './components/OrderScreen';
 import { HistoryView } from './components/History';
 import { ReportsView } from './components/Reports';
@@ -127,6 +128,7 @@ export default function App() {
         {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
         {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {counter && <PickupSender />}
         <Toasts />
       </div>
     );
@@ -202,6 +204,7 @@ export default function App() {
       {target && <OrderScreen target={target} onClose={() => setTarget(null)} onRetarget={setTarget} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showSync && <SyncPanel onClose={() => setShowSync(false)} />}
+      {counter && <PickupSender />}
       <Toasts />
     </div>
   );

@@ -22,6 +22,11 @@ if (!url || !key) {
   const code = new URLSearchParams(location.search).get('ecran')!;
   const Display = lazy(async () => ({ default: (await import('./components/CustomerDisplay')).CustomerDisplay }));
   root.render(<StrictMode><Suspense fallback={null}><Display code={code} /></Suspense></StrictMode>);
+} else if (/^[a-z0-9]{8,40}$/.test(new URLSearchParams(location.search).get('retrait') ?? '')) {
+  // the pickup board (boccadillos): no login, no till
+  const code = new URLSearchParams(location.search).get('retrait')!;
+  const Board = lazy(async () => ({ default: (await import('./components/PickupBoard')).PickupBoard }));
+  root.render(<StrictMode><Suspense fallback={null}><Board code={code} /></Suspense></StrictMode>);
 } else {
   document.addEventListener('pointerdown', unlockAudio, { passive: true });
   import('./lib/fullscreen').then(m => m.startAutoFullscreen()).catch(() => {});

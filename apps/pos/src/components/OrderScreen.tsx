@@ -263,10 +263,11 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
   ) : null;
   // the screen turned to the guest follows this ticket
   useEffect(() => {
+    if (cashFor) return; // the cash dialog drives the guest screen while it is open (boccadillos)
     show(r, nothing ? { mode: 'idle' } : { mode: 'order', label, subtotal, discount, promo: order?.discount_kind === 'promo', total,
       lines: [...(order?.order_lines ?? []).map(l => ({ q: l.quantity, name: lineName(l), total: Number(l.line_total_cents), list: l.list_price_cents ? Number(l.list_price_cents) * l.quantity : undefined })),
               ...draft.map(d => ({ q: d.quantity, name: lineName(d), total: dUnit(d) * d.quantity, list: dUnit(d) < dUnit(d, false) ? dUnit(d, false) * d.quantity : undefined }))] });
-  }, [order, draft, label]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [order, draft, label, cashFor]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => show(r, { mode: 'idle' }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the order's guest (allergies, VIP, points), loaded when a bill with a customer is opened

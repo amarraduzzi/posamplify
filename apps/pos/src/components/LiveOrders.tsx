@@ -9,6 +9,7 @@ import { Btn, Modal, inputCls } from './ui';
 import { ticketRef } from '../lib/print';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
+import { show, showThanks } from '../lib/display';
 
 /** the guest menu (tracking links in WhatsApp messages) */
 const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
@@ -166,6 +167,7 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
 
 /** Boccadillos mode: take the money (amount received, change to give back), then the order goes to the kitchen. */
 export function CashDialog({ o, onClose, onConfirm }: { o: Order; onClose: () => void; onConfirm: () => Promise<void> }) {
+  const pos = usePos();
   const total = o.total_cents;
   const [given, setGiven] = useState('');
   const [busy, setBusy] = useState(false);
@@ -173,7 +175,13 @@ export function CashDialog({ o, onClose, onConfirm }: { o: Order; onClose: () =>
   const paid = given.trim() ? (Number.isFinite(typed) ? typed : 0) : total;
   const ok = paid >= total && !busy;
   const quick = [...new Set([total, ...[50, 100, 200, 500].map(x => x * 100).filter(x => x > total)])].slice(0, 4);
-  const go = async () => { if (!ok) return; setBusy(true); try { await onConfirm(); } finally { onClose(); } };
+  // the guest screen (when one is switched on): the order, then the cash received and the change, then "Merci"
+  useEffect(() => {
+    if (given.trim() && paid >= total) show(pos.restaurant, { mode: 'pay', total, given: paid, change: paid - total });
+    else show(pos.restaurant, { mode: 'order', label: o.customer_name ?? '', subtotal: total, discount: 0, promo: false, total,
+      lines: o.order_lines.map(l => ({ q: l.quantity, name: l.name, total: Number(l.line_total_cents) })) });
+  }, [given, total]); // eslint-disable-line react-hooks/exhaustive-deps
+  const go = async () => { if (!ok) return; setBusy(true); try { await onConfirm(); showThanks(pos.restaurant, Math.max(0, paid - total)); } finally { onClose(); } };
   return (
     <Modal title={t('Encaisser le total {m}', { m: mad(total) })} onClose={onClose}
       footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Annuler')}</Btn><Btn tone="ok" disabled={!ok} onClick={go} className="px-6 py-3"><Check className="h-4 w-4" /> {t('Encaisser et envoyer en cuisine')}</Btn></div>}>

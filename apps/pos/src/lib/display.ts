@@ -39,8 +39,16 @@ function send(m: DisplayMsg) {
 }
 const MENU_URL = ((import.meta.env.VITE_MENU_URL as string) || 'https://menu.amplifygrowthstudio.com').replace(/\/$/, '');
 /** Sends what the guest sees (does nothing when no display is set up on this till). */
+let hold = 0;
+/** Keeps "Merci" on the guest screen for a few seconds: an idle message sent meanwhile waits (boccadillos cash dialog only). */
+export function showThanks(r: { name: string; slug: string; branding?: { logo_url?: string } } | null | undefined, change: number, ms = 5000) {
+  show(r, { mode: 'thanks', change });
+  hold = Date.now() + ms;
+  window.setTimeout(() => show(r, { mode: 'idle' }), ms + 50);
+}
 export function show(r: { name: string; slug: string; branding?: { logo_url?: string } } | null | undefined, s: Shown) {
   if (!r || !displayCode()) return;
+  if (s.mode === 'idle' && Date.now() < hold) return;
   last = { r: { name: r.name, slug: r.slug, logo: r.branding?.logo_url }, menuUrl: MENU_URL, s };
   send(last);
 }
