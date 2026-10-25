@@ -33,6 +33,10 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 export const getMenu = (slug: string, tableToken: string | null) =>
   call<PublicMenu | null>('get_menu', { p_slug: slug, p_table_token: tableToken });
 
+/** boccadillos mode: the guest must give a name (the order is paid at the counter first) */
+export const getBoccadillos = (slug: string) =>
+  call<boolean>('get_boccadillos', { p_slug: slug });
+
 export const placeOrder = (slug: string, order: PlaceOrderInput) =>
   call<PlaceOrderResult>('place_order', { p_slug: slug, p_order: order });
 
@@ -198,4 +202,3 @@ export const salonFeedback = (token: string, rating: number, comment: string) =>
 export const salonFeedbackGoogle = (token: string) => call<{ ok: boolean }>('salon_feedback_google', { p_token: token });
 export const salonMirror = (token: string) => call<SalonMirror | null>('salon_mirror', { p_token: token });
 export const salonVoucher = (token: string, action: string) => call<{ status: 'ok' | 'none' | 'full'; code?: string }>('salon_voucher', { p_token: token, p_action_id: action });
-
