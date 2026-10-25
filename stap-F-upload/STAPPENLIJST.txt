@@ -1,0 +1,12 @@
+STAP F - Kassa zonder tafels voor boccadillos-zaken (bevat ook stap E)
+
+1. GitHub: Add file > Upload files. Sleep alleen de mappen "apps" en "supabase" (niet de map eromheen).
+2. SQL: alleen als stap E nog niet is gedraaid: plak supabase/migrations/20261207000100_options_tout.sql in de Supabase SQL editor > Run.
+   Voor stap F zelf is geen SQL nodig.
+3. Wacht tot Cloudflare klaar is.
+
+Wat verandert (alleen bij zaken met boccadillos-modus aan):
+- Geen "Tables 0/9" meer; het beginscherm is "Commandes" met een grote knop "Nouvelle commande".
+- Drie tellers: te betalen / in bereiding / klaar, en daaronder de lopende bestellingen.
+- Op telefoon: geen tabellenknop meer.
+Zaken met boccadillos-modus uit: exact hetzelfde als voorheen.
