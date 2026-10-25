@@ -214,12 +214,14 @@ function header(r: Restaurant, seller?: FiscalDoc['seller']): TicketLine[] {
   return out;
 }
 
-export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null; course?: number | null }[], label: string, tz: string, staff?: string,
-  later: { quantity: number; name: string; course: number | null }[] = []): TicketLine[] {
+export function kitchenTicket(o: Order, station: string, lines: { quantity: number; name: string; note: string | null; course?: number | null; modifiers?: { name: string }[] }[], label: string, tz: string, staff?: string,
+  later: { quantity: number; name: string; course: number | null }[] = [], compact = false): TicketLine[] {
   const out: TicketLine[] = [
     { text: station.toUpperCase(), bold: true, large: true, center: true },
     rule('='),
-    { text: `${label}  ${ticketRef(o)}`, bold: true, large: true },
+    // boccadillos mode: the name to call and the number, big; otherwise the table/label as before
+    ...(compact && o.customer_name ? [{ text: o.customer_name.toUpperCase(), bold: true, large: true, center: true }, { text: ticketRef(o), bold: true, large: true, center: true }]
+      : [{ text: `${label}  ${ticketRef(o)}`, bold: true, large: true }]),
     { text: `${dateTime(new Date().toISOString(), tz)}${staff ? '  ' + staff : ''}` },
     rule(),
   ];
@@ -228,7 +230,12 @@ export function kitchenTicket(o: Order, station: string, lines: { quantity: numb
   for (const l of [...lines].sort((a, b) => (a.course ?? 0) - (b.course ?? 0))) {
     if (l.course && l.course !== course) out.push({ text: `-- ${courseTicket(l.course)} --`, bold: true, center: true });
     course = l.course;
-    out.push({ text: `${l.quantity}x ${l.name}`, bold: true, large: true });
+    // boccadillos: the line name ends with " + option, option..." (cut at 120 characters): print the dish alone, then every option
+    const first = l.modifiers?.[0]?.name;
+    const cut = compact && first ? l.name.indexOf(` + ${first}`) : -1;
+    out.push({ text: `${l.quantity}x ${cut > 0 ? l.name.slice(0, cut) : l.name}`, bold: true, large: true });
+    // chosen options (bread, filling, vegetables, sauce...): one per line, never cut off
+    if (compact) for (const m of l.modifiers ?? []) out.push({ text: `   + ${m.name}`, bold: true });
     if (l.note) out.push({ text: `   > ${l.note}`, bold: true });
   }
   if (later.length) {

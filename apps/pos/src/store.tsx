@@ -335,7 +335,7 @@ function usePosState() {
     if (printerOk) {
       for (const [station, ls] of byStation) {
         try {
-          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, stationTicket(settings, station), ls, printLabel(o), restaurant.timezone, staff?.name, heldFor(o, station)));
+          await P.print(P.printerFor(settings, station), `Bon ${station}`, P.kitchenTicket(o, stationTicket(settings, station), ls, printLabel(o), restaurant.timezone, staff?.name, heldFor(o, station), !!restaurant.boccadillos));
         } catch (e) { printed = false; fail(e); }
       }
     }
@@ -361,7 +361,7 @@ function usePosState() {
           const o = all.find(x => x.id === ls[0].order_id);
           if (!o) continue;
           const who = staffList.find(s => s.id === ls[0].staff_id)?.name;
-          try { await P.print(P.printerFor(settings, ls[0].station), `Bon ${ls[0].station}`, P.kitchenTicket(o, stationTicket(settings, ls[0].station), ls, printLabel(o), restaurant.timezone, who, heldFor(o, ls[0].station))); }
+          try { await P.print(P.printerFor(settings, ls[0].station), `Bon ${ls[0].station}`, P.kitchenTicket(o, stationTicket(settings, ls[0].station), ls, printLabel(o), restaurant.timezone, who, heldFor(o, ls[0].station), !!restaurant.boccadillos)); }
           catch (e) { fail(e); }
         }
       } catch (e) { if (!isNetworkError(e)) fail(e); }
@@ -413,6 +413,20 @@ function usePosState() {
   /** Accept a guest (QR) order: join the table's running bill if there is one, print the bons. Needs the internet (QR orders come from it). */
   const acceptQr = useCallback(async (o: Order, etaMinutes?: number) => {
     try {
+      // boccadillos mode: take the cash first, then the kitchen (no merging: the money matches this order)
+      if (restaurant?.boccadillos) {
+        if (!onlineRef.current) { toast(t('Connexion internet requise pour cette action.'), 'error'); return; }
+        await db.rpc('pos_collect_prepaid', { p_order_id: o.id, p_staff_id: staff?.id ?? null });
+        if (printerOk) { try { await P.print(P.receiptPrinter(settings), 'Tiroir', [], { drawer: true, cut: false }); } catch (e) { fail(e); } }
+        if (etaMinutes) {
+          const eta = new Date(Math.max(Date.now() + etaMinutes * 60000, o.wanted_at ? Date.parse(o.wanted_at) : 0)).toISOString();
+          enqueue([{ kind: 'updateOrder', id: o.id, patch: { eta_at: eta } }]);
+        }
+        await sendToKitchen(o, o.order_lines);
+        await reloadOrders();
+        toast(t('Commande {ref} encaissée et envoyée en cuisine', { ref: P.ticketRef(o) }), 'ok');
+        return;
+      }
       let target = o;
       const others = o.table_id ? current().filter(x => x.table_id === o.table_id && x.id !== o.id && x.source !== 'qr') : [];
       if (others.length) {
@@ -426,7 +440,36 @@ function usePosState() {
       toast(t('Commande {ref} acceptée', { ref: P.ticketRef(o) }), 'ok');
     } catch (e) { fail(e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enqueue, sendToKitchen, reloadOrders, toast, fail]);
+  }, [restaurant, staff, printerOk, settings, enqueue, sendToKitchen, reloadOrders, toast, fail]);
+
+  /** Boccadillos mode: the guest collects the (already paid) order; this closes it with the official ticket. */
+  const handoverPrepaid = useCallback(async (o: Order) => {
+    if (!restaurant) return;
+    if (!onlineRef.current) { toast(t('Connexion internet requise pour cette action.'), 'error'); return; }
+    try {
+      const doc = await db.rpc<FiscalDoc>('close_order', { p_order_id: o.id, p_staff_id: staff?.id ?? null, p_buyer: null });
+      if (o.status !== 'served') enqueue([{ kind: 'updateOrder', id: o.id, patch: { status: 'served' } }]);
+      if (printerOk) {
+        try { await P.print(P.receiptPrinter(settings), `Ticket ${doc.doc_number}`, P.fiscalTicket(restaurant, doc, { label: printLabel(o), staff: staff?.name })); }
+        catch (e) { fail(e); }
+      }
+      void refreshStock();
+      await reloadOrders();
+      toast(t('Commande {ref} remise', { ref: P.ticketRef(o) }), 'ok');
+    } catch (e) { fail(e); }
+  }, [restaurant, staff, printerOk, settings, printLabel, enqueue, refreshStock, reloadOrders, toast, fail]);
+
+  /** Boccadillos mode: unpaid QR orders expire by themselves (default after 20 minutes). */
+  useEffect(() => {
+    if (!restaurant?.boccadillos || !rid) return;
+    const run = () => {
+      if (!onlineRef.current) return;
+      db.rpc<number>('expire_unpaid_qr', { p_restaurant_id: rid }).then(n => { if (Number(n) > 0) void reloadOrders(); }).catch(() => { /* try again next minute */ });
+    };
+    run();
+    const id = setInterval(run, 60000);
+    return () => clearInterval(id);
+  }, [restaurant?.boccadillos, rid, reloadOrders]);
 
   const updateOrder = useCallback((id: string, patch: Partial<Pick<Order, 'status' | 'note' | 'table_id' | 'eta_at' | 'courier_id' | 'delivery_status'>>) =>
     enqueue([{ kind: 'updateOrder', id, patch }]), [enqueue]);
@@ -524,7 +567,7 @@ function usePosState() {
     live, online, lastSync, printerOk, recheckPrinter, businessDate, dayClosed, setDayClosed, toasts, toast, fail,
     tableById, staffById, itemById, pendingQr, labelOf, settings,
     queue, pendingCount, failedOps, retryFailed, dismissFailed, requireOnline,
-    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, updateOrder, deleteLine, markReady, fireNext, markServed, pay, printBill, reprintDoc, openDrawer,
+    reloadOrders, reloadStatic, sendToKitchen, commitDraft, acceptQr, handoverPrepaid, updateOrder, deleteLine, markReady, fireNext, markServed, pay, printBill, reprintDoc, openDrawer,
   };
 }
 

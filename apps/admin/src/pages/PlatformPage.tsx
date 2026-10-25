@@ -43,6 +43,11 @@ export function PlatformPage() {
       void a.reload();
     } catch (e) { a.fail(e); await load(); }
   };
+  const setBoccadillos = async (r: Restaurant, on: boolean) => {
+    patch(r.id, { boccadillos: on });
+    try { await rpc('admin_set_boccadillos', { p_restaurant_id: r.id, p_on: on }); a.toast(t('{name} : modus boccadillos {s}', { name: r.name, s: on ? t('activé') : t('désactivé') })); }
+    catch (e) { a.fail(e); await load(); }
+  };
   const setSitePlan = async (r: Restaurant, plan: 'basic' | 'premium') => {
     patch(r.id, { site_plan: plan });
     try { await rpc('admin_set_site_plan', { p_restaurant_id: r.id, p_plan: plan }); void a.reload(); } catch (e) { a.fail(e); await load(); }
@@ -65,8 +70,8 @@ export function PlatformPage() {
       <div className="mb-6 flex items-center justify-between"><h1 className="font-display text-3xl font-semibold">{t('Plateforme')}</h1><Btn tone="brand" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('Nouveau restaurant')}</Btn></div>
       <ToCollect list={list} onOpen={setBillingOf} />
       <div className="card overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[1220px] table-fixed text-sm">
-          <colgroup><col /><col className="w-[128px]" /><col className="w-[490px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
+        <table className="w-full min-w-[1330px] table-fixed text-sm">
+          <colgroup><col /><col className="w-[128px]" /><col className="w-[600px]" /><col className="w-[124px]" /><col className="w-[110px]" /><col className="w-[200px]" /></colgroup>
           <thead className="bg-surface-2 text-xs font-semibold text-muted">
             <tr><th className="px-4 py-2.5 text-start">{t('Restaurant')}</th><th className="px-2 text-start">{t('Statut')}</th><th className="px-2 text-start">{t('Services')}</th><th className="pe-2 ps-3 text-start">{t('Caisse')}</th><th className="px-2 text-start">{t('Site web')}</th><th className="pe-3 text-end">{t('Actions')}</th></tr>
           </thead>
@@ -100,6 +105,12 @@ export function PlatformPage() {
                           </button>
                         );
                       })}
+                      <button type="button" role="checkbox" aria-checked={!!r.boccadillos} onClick={() => setBoccadillos(r, !r.boccadillos)}
+                        title={t('Modus boccadillos : le client est encaissé avant la cuisine, nom obligatoire, commandes non payées expirées')}
+                        className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 text-xs font-bold transition ${r.boccadillos ? 'border-night bg-night text-white' : 'border-line/20 text-muted hover:border-line/40 hover:text-ink'}`}>
+                        <span className={`grid h-4 w-4 place-items-center rounded ${r.boccadillos ? 'bg-white/20' : 'border border-line/30'}`}>{r.boccadillos && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+                        {t('Boccadillos')}
+                      </button>
                     </div>
                   </td>
                   <td className="pe-2 ps-3">

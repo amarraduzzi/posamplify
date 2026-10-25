@@ -12,6 +12,8 @@ export interface Restaurant {
   accept_dine_in: boolean; accept_takeaway: boolean; accept_delivery: boolean;
   /** one shared QR for the whole restaurant: the guest types the table number */
   qr_shared?: boolean;
+  /** boccadillos mode (pay first, then kitchen): only the platform admin switches it */
+  boccadillos?: boolean;
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
   products?: ('pos' | 'profit' | 'site' | 'orders' | 'loyalty' | 'maitre' | 'agenda')[];
