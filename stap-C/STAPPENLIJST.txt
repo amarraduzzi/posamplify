@@ -1,0 +1,15 @@
+BOCCADILLOS-MODUS - STAP C (geen SQL nodig)
+
+LET OP: dit bevat apps/pos/src/store.tsx en apps/pos/src/lib/i18n-en.ts opnieuw, ook uit stap B.
+Upload dus eerst stap B (als dat nog niet gedaan is), en daarna deze zip eroverheen.
+
+1. GitHub: pak de zip uit, sleep de map "apps" naar Add file > Upload files > Commit.
+   6 bestanden worden vervangen.
+2. Wacht tot Cloudflare kassa EN beheer opnieuw heeft gepubliceerd.
+3. Platformbeheer > Plateforme: bij elke zaak staat nu een knop "Boccadillos" naast de services.
+   Aanklikken = modus aan of uit (alleen jij als platformbeheerder).
+4. Keukenbon (alleen bij modus aan): naam van de klant en nummer groot bovenaan,
+   het broodje op een eigen regel, daaronder elke keuze op een eigen regel met "+".
+
+NIET GETEST: geen node_modules in mijn omgeving, dus de build is niet gedraaid.
+Controleer de Cloudflare-build.
