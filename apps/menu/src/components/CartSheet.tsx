@@ -64,7 +64,7 @@ export function availableOrderTypes(menu: PublicMenu): OrderType[] {
   return out;
 }
 
-export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false }: {
+export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false, needName = false }: {
   open: boolean;
   onClose: () => void;
   menu: PublicMenu;
@@ -78,6 +78,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   busy: boolean;
   error: string | null;
   kiosk?: boolean;
+  /** boccadillos mode: a name is required (to call the guest when the order is ready) */
+  needName?: boolean;
 }) {
   const currency = menu.restaurant.currency;
   const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : availableOrderTypes(menu);
@@ -129,8 +131,9 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   const needsCustomer = checkout.orderType !== 'dine_in' && !kiosk;
   const customerOk = !needsCustomer || (checkout.name.trim() && checkout.phone.trim()
     && (checkout.orderType !== 'delivery' || checkout.address.trim()));
+  const nameOk = !needName || !!checkout.name.trim();
   const timeOk = !online || !closed || later;
-  const canSubmit = cart.count > 0 && !needsTable && tableOk && !!customerOk && !busy && !paused && timeOk && !belowMin;
+  const canSubmit = cart.count > 0 && !needsTable && tableOk && !!customerOk && !busy && !paused && timeOk && !belowMin && nameOk;
   const set = (patch: Partial<Checkout>) => setCheckout({ ...checkout, ...patch });
 
   return (
@@ -322,7 +325,7 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
             </div>
           )}
 
-          {kiosk && (
+          {(kiosk || (needName && checkout.orderType === 'dine_in')) && (
             <input value={checkout.name} onChange={e => set({ name: e.target.value.slice(0, 40) })} placeholder={t.kioskName}
               className="mt-4 w-full h-14 rounded-2xl border border-line bg-surface px-4 text-lg outline-none focus:border-brand placeholder:text-muted" />
           )}
