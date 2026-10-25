@@ -5,7 +5,7 @@ import * as db from '../lib/data';
 import { usePos, type OrderTarget } from '../store';
 import { mad, minutesSince, statusLabel, time } from '../lib/format';
 import type { Order, OrderStatus } from '../lib/types';
-import { Btn } from './ui';
+import { Btn, Modal, inputCls } from './ui';
 import { ticketRef } from '../lib/print';
 import { Star8 } from './Brand';
 import { t } from '../lib/i18n';
@@ -38,6 +38,8 @@ function useCouriers(rid: string) {
 export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
   const pos = usePos();
   const tz = pos.restaurant!.timezone;
+  /** boccadillos mode: the till's pay screen (cash received, change) comes first, then the kitchen */
+  const [cash, setCash] = useState<{ o: Order; eta?: number } | null>(null);
   const setStatus = (o: Order, s: OrderStatus) => { pos.updateOrder(o.id, { status: s }); };
   const r = pos.restaurant!;
   const prep = r.online?.prep_minutes ?? 20;
@@ -90,6 +92,7 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               <div>
                 <p className="flex items-center gap-1.5 text-lg font-bold">{o.source === 'qr' && <QrCode className="h-4 w-4 text-qr" />}{pos.labelOf(o)}</p>
                 <p className="text-xs text-muted">{ticketRef(o)} · {time(o.created_at, tz)} · {statusLabel(o.status)}</p>
+                {r.boccadillos && o.customer_name && !o.customer_phone && <p className="mt-1 text-base font-bold">{o.customer_name}</p>}
                 {pending && o.table_by_guest && (
                   <p className="mt-1 text-xs font-semibold"><span className="rounded-full bg-qr/15 px-2 py-0.5 text-qr">{t('Table saisie par le client')}</span></p>
                 )}
@@ -138,9 +141,9 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               <span className="font-display text-xl font-semibold tabular">{mad(o.total_cents)}{o.prepaid_at && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 align-middle text-xs font-bold text-ok">{t('Payé')}</span>}</span>
               {pending && online ? (
                 <span className="flex flex-wrap justify-end gap-1">
-                  {etas.map(m => <Btn key={m} tone={m === prep ? 'brand' : 'plain'} className="px-2.5 py-1.5 text-sm" onClick={() => pos.acceptQr(o, m)}><Check className="h-3.5 w-3.5" /> {t('{n} min', { n: m })}</Btn>)}
+                  {etas.map(m => <Btn key={m} tone={m === prep ? 'brand' : 'plain'} className="px-2.5 py-1.5 text-sm" onClick={() => (r.boccadillos ? setCash({ o, eta: m }) : pos.acceptQr(o, m))}><Check className="h-3.5 w-3.5" /> {t('{n} min', { n: m })}</Btn>)}
                 </span>
-              ) : pending ? <Btn tone="brand" onClick={() => pos.acceptQr(o)}><Check className="h-4 w-4" /> {r.boccadillos ? t('Encaisser et envoyer en cuisine') : t('Accepter')}</Btn>
+              ) : pending ? <Btn tone="brand" onClick={() => (r.boccadillos ? setCash({ o }) : pos.acceptQr(o))}><Check className="h-4 w-4" /> {r.boccadillos ? t('Encaisser et envoyer en cuisine') : t('Accepter')}</Btn>
                 : o.prepaid_at && (o.status === 'ready' || o.status === 'served') ? <Btn tone="brand" onClick={() => pos.handoverPrepaid(o)}><Check className="h-4 w-4" /> {t('Remettre au client')}</Btn>
                 : next ? <Btn onClick={() => setStatus(o, next.to)}><next.Icon className="h-4 w-4" /> {t(next.label)}</Btn>
                 : <span className="text-xs text-muted">{t('À encaisser')}</span>}
@@ -155,7 +158,39 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
         );
       })}
     </div>
+    {cash && <CashDialog o={cash.o} onClose={() => setCash(null)} onConfirm={() => pos.acceptQr(cash.o, cash.eta)} />}
     </>
+  );
+}
+
+/** Boccadillos mode: take the money (amount received, change to give back), then the order goes to the kitchen. */
+function CashDialog({ o, onClose, onConfirm }: { o: Order; onClose: () => void; onConfirm: () => Promise<void> }) {
+  const total = o.total_cents;
+  const [given, setGiven] = useState('');
+  const [busy, setBusy] = useState(false);
+  const typed = Math.round(parseFloat(given.replace(',', '.')) * 100);
+  const paid = given.trim() ? (Number.isFinite(typed) ? typed : 0) : total;
+  const ok = paid >= total && !busy;
+  const quick = [...new Set([total, ...[50, 100, 200, 500].map(x => x * 100).filter(x => x > total)])].slice(0, 4);
+  const go = async () => { if (!ok) return; setBusy(true); try { await onConfirm(); } finally { onClose(); } };
+  return (
+    <Modal title={t('Encaisser le total {m}', { m: mad(total) })} onClose={onClose}
+      footer={<div className="flex justify-end gap-2"><Btn onClick={onClose}>{t('Annuler')}</Btn><Btn tone="ok" disabled={!ok} onClick={go} className="px-6 py-3"><Check className="h-4 w-4" /> {t('Encaisser et envoyer en cuisine')}</Btn></div>}>
+      <div className="space-y-4">
+        {o.customer_name && <p className="text-lg font-bold">{o.customer_name}</p>}
+        <ul className="space-y-0.5 text-sm text-muted">{o.order_lines.map(l => <li key={l.id}><b className="tabular text-ink">{l.quantity}×</b> {l.name}</li>)}</ul>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-muted">{t('Montant reçu')}</span>
+          <input autoFocus inputMode="decimal" className={`${inputCls} text-center text-2xl font-bold`} value={given} placeholder={String(total / 100)}
+            onChange={e => setGiven(e.target.value.replace(/[^\d.,]/g, '').slice(0, 8))} onKeyDown={e => { if (e.key === 'Enter') void go(); }} />
+        </label>
+        <div className="flex flex-wrap gap-2">{quick.map(v => <Btn key={v} className="px-3 py-2 text-sm" onClick={() => setGiven(String(v / 100))}>{mad(v)}</Btn>)}</div>
+        <p className={`flex items-baseline justify-between rounded-2xl px-4 py-3 ${paid >= total ? 'bg-ok/10' : 'bg-danger/10'}`}>
+          <span className="font-semibold">{t('À rendre')}</span>
+          <span className="font-display text-2xl font-semibold tabular">{paid >= total ? mad(paid - total) : '—'}</span>
+        </p>
+      </div>
+    </Modal>
   );
 }
 
