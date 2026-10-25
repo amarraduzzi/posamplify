@@ -1,0 +1,16 @@
+STAP G - Kassa voor boccadillos: altijd op naam, altijd cash, eerst betalen dan keuken
+(bevat ook stap E en F: je hoeft die niet apart te uploaden)
+
+1. GitHub: Add file > Upload files. Sleep alleen de mappen "apps" en "supabase" (niet de map eromheen).
+2. Supabase SQL editor, in deze volgorde (sla over wat je al gedraaid hebt):
+   a. supabase/migrations/20261207000100_options_tout.sql   (stap E, "Légumes : tout")
+   b. supabase/migrations/20261208000100_boccadillos_counter.sql   (stap G, VERPLICHT)
+3. Wacht tot Cloudflare klaar is.
+
+Hoe het werkt (alleen zaken met boccadillos-modus aan):
+- Nouvelle commande: menu links, bonnetje rechts. Bovenaan "Nom du client" (verplicht).
+- Groot knop "Encaisser · bedrag": vraagt het ontvangen bedrag, toont wisselgeld, opent de lade,
+  stuurt dan pas naar de keuken. Bon met naam en nummer groot.
+- Sluit je het betaalscherm zonder te betalen: de bestelling blijft in Commandes met knop "Encaisser et envoyer en cuisine"
+  en gaat NIET naar de keuken.
+Andere zaken: niets verandert.
