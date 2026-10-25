@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getBoccadillos, getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { getBoccadillos, getBoccadillosTable, getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
 import { ServiceBar } from './components/ServiceBar';
 import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
@@ -30,6 +30,8 @@ export default function App() {
   const kiosk = useMemo(() => { const k = new URLSearchParams(window.location.search).get('borne'); return k && /^[A-Za-z0-9]{16,40}$/.test(k) ? k : null; }, []);
 
   const [bocc, setBocc] = useState(false);
+  // boccadillos mode: the fixed "Sur place" table, so the guest is never asked for a table number
+  const [boccTable, setBoccTable] = useState<string | null>(null);
 
   const loadMenu = useCallback(async () => {
     if (!tenant.slug) return;
@@ -44,7 +46,12 @@ export default function App() {
       }
       setMenu(m);
       setState('ready');
-      getBoccadillos(tenant.slug).then(setBocc).catch(() => { /* keep the last known */ });
+      const slugNow = tenant.slug;
+      getBoccadillos(slugNow).then(on => {
+        setBocc(on);
+        if (on) getBoccadillosTable(slugNow).then(setBoccTable).catch(() => { /* keep the last known */ });
+        else setBoccTable(null);
+      }).catch(() => { /* keep the last known */ });
     } catch {
       setState(s => (s === 'ready' ? s : 'error'));
     }
@@ -92,7 +99,9 @@ export default function App() {
   const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : menu ? availableOrderTypes(menu) : [];
   // ?surplace is on the shared table QR: the guest is at a table, so start with dine-in
   const atTable = new URLSearchParams(window.location.search).has('surplace');
-  const defaultType: OrderType = (menu?.table || (atTable && menu?.table_entry)) && types.includes('dine_in')
+  // boccadillos mode with its fixed table: dine-in needs no table question (other restaurants: unchanged)
+  const boccFixed = bocc && !!boccTable;
+  const defaultType: OrderType = (menu?.table || boccFixed || (atTable && menu?.table_entry)) && types.includes('dine_in')
     ? 'dine_in' : (types.find(x => x !== 'dine_in') ?? 'dine_in');
   const [checkout, setCheckout] = useState<Checkout>(() => ({
     orderType: 'dine_in', note: '', tableNumber: load<string>(`table:${slug}`, 4 * 3600_000) ?? '',
@@ -103,7 +112,7 @@ export default function App() {
 
   // Guests can order when the restaurant accepts orders and there is a way to
   // order from here: a table QR code, or takeaway/delivery.
-  const canOrder = !!menu?.ordering_enabled && (!!kiosk || !!menu.table || (!!menu.table_entry && types.includes('dine_in')) || types.some(x => x !== 'dine_in'));
+  const canOrder = !!menu?.ordering_enabled && (!!kiosk || !!menu.table || ((!!menu.table_entry || boccFixed) && types.includes('dine_in')) || types.some(x => x !== 'dine_in'));
 
   const [openItem, setOpenItem] = useState<PublicItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -170,8 +179,8 @@ export default function App() {
       const res = await placeOrder(slug, {
         client_id: clientId,
         order_type: checkout.orderType,
-        table_token: isDineIn && !kiosk ? menu.table?.token ?? null : null,
-        table_number: isDineIn && !kiosk && !menu.table && menu.table_entry ? (checkout.tableNumber ?? '').trim() : undefined,
+        table_token: isDineIn && !kiosk ? menu.table?.token ?? (boccFixed ? boccTable : null) : null,
+        table_number: isDineIn && !kiosk && !menu.table && !boccFixed && menu.table_entry ? (checkout.tableNumber ?? '').trim() : undefined,
         customer: kiosk ? (checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : isDineIn ? (bocc && checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : { name: checkout.name, phone: checkout.phone, address: checkout.address },
         kiosk: kiosk ?? undefined,
         note: checkout.note.trim() || undefined,
@@ -185,7 +194,7 @@ export default function App() {
                                     total_cents: Number(res.total_cents), placed_at: Date.now(), item_ids: [...new Set(cart.lines.map(l => l.item_id))] };
       save(`order:${slug}`, order);
       if (!isDineIn) save('customer', { name: checkout.name, phone: checkout.phone, address: checkout.address });
-      else if (!menu.table && menu.table_entry && checkout.tableNumber?.trim()) save(`table:${slug}`, checkout.tableNumber.trim());
+      else if (!menu.table && !boccFixed && menu.table_entry && checkout.tableNumber?.trim()) save(`table:${slug}`, checkout.tableNumber.trim());
       setTracked(order);
       drop(`pending:${slug}`);
       setCheckout(c => ({ ...c, note: '', wantedAt: '', location: null, promo: null }));
@@ -202,7 +211,7 @@ export default function App() {
       const details = e instanceof ApiError ? e.details : undefined;
       let message = t.errors[code];
       // a typed number that matches no table (the table QR message would be wrong here)
-      if (code === 'invalid_table' && !menu.table && menu.table_entry) message = t.tableNotFound;
+      if (code === 'invalid_table' && !menu.table && !boccFixed && menu.table_entry) message = t.tableNotFound;
       if (code.startsWith('promo_') && code !== 'promo_phone_required') setCheckout(c => ({ ...c, promo: null }));
       if (['item_sold_out', 'item_unavailable', 'variant_required'].includes(code) && details) {
         const it = cart.itemsById.get(details);
@@ -530,6 +539,7 @@ export default function App() {
         t={t}
         canOrder={canOrder && !openItem?.sold_by_weight}
         restaurantName={kiosk ? undefined : r.name}
+        selectAll={bocc}
         onClose={() => setOpenItem(null)}
         onAdd={(variantId, qty, note, mods) => { if (openItem) { setError(null); cart.add(openItem, variantId, qty, note, mods); setBump(b => b + 1); } setOpenItem(null); }}
       />
@@ -548,6 +558,7 @@ export default function App() {
         error={error}
         kiosk={!!kiosk}
         needName={bocc}
+        boccTable={boccFixed}
       />
       {kioskDone != null && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-bg/95 p-8 text-center backdrop-blur-md animate-rise">

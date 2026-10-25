@@ -37,6 +37,10 @@ export const getMenu = (slug: string, tableToken: string | null) =>
 export const getBoccadillos = (slug: string) =>
   call<boolean>('get_boccadillos', { p_slug: slug });
 
+/** boccadillos mode: the code of the fixed "Sur place" table (null when the mode is off or no table exists): the guest is never asked for a table number */
+export const getBoccadillosTable = (slug: string) =>
+  call<string | null>('get_boccadillos_table', { p_slug: slug });
+
 export const placeOrder = (slug: string, order: PlaceOrderInput) =>
   call<PlaceOrderResult>('place_order', { p_slug: slug, p_order: order });
 

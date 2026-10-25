@@ -64,7 +64,7 @@ export function availableOrderTypes(menu: PublicMenu): OrderType[] {
   return out;
 }
 
-export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false, needName = false }: {
+export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false, needName = false, boccTable = false }: {
   open: boolean;
   onClose: () => void;
   menu: PublicMenu;
@@ -80,6 +80,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   kiosk?: boolean;
   /** boccadillos mode: a name is required (to call the guest when the order is ready) */
   needName?: boolean;
+  /** boccadillos mode with its fixed table: no table question at all */
+  boccTable?: boolean;
 }) {
   const currency = menu.restaurant.currency;
   const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : availableOrderTypes(menu);
@@ -125,8 +127,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   };
   const dineIn = checkout.orderType === 'dine_in' && !kiosk;
   // one shared QR: the guest types the table number; with a table QR the table is already known
-  const askTable = dineIn && !menu.table && !!menu.table_entry;
-  const needsTable = dineIn && !menu.table && !menu.table_entry;
+  const askTable = dineIn && !menu.table && !!menu.table_entry && !boccTable;
+  const needsTable = dineIn && !menu.table && !menu.table_entry && !boccTable;
   const tableOk = !askTable || !!checkout.tableNumber?.trim();
   const needsCustomer = checkout.orderType !== 'dine_in' && !kiosk;
   const customerOk = !needsCustomer || (checkout.name.trim() && checkout.phone.trim()

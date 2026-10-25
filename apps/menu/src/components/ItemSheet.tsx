@@ -14,7 +14,7 @@ function friendLink(): string {
   return u.toString();
 }
 
-export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restaurantName, onClose, onAdd }: {
+export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restaurantName, selectAll = false, onClose, onAdd }: {
   item: PublicItem | null;
   lang: string;
   fallbacks: string[];
@@ -23,6 +23,8 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restau
   canOrder: boolean;
   /** set = show the "send to a friend" button (not on the restaurant's own kiosk) */
   restaurantName?: string;
+  /** boccadillos mode: a button "select all" on every group that has no limit (other restaurants: unchanged) */
+  selectAll?: boolean;
   onClose: () => void;
   onAdd: (variantId: string | null, qty: number, note: string, modifiers: string[]) => void;
 }) {
@@ -53,6 +55,11 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restau
     if (g.max === 1) return [...p.filter(x => !g.options.some(o => o.id === x)), id];
     if (g.max != null && countIn(g) >= g.max) return p;
     return [...p, id];
+  });
+  // all options of a group at once, or none again
+  const toggleAll = (g: typeof groups[number]) => setPicked(p => {
+    const ids = g.options.map(o => o.id);
+    return ids.every(id => p.includes(id)) ? p.filter(x => !ids.includes(x)) : [...new Set([...p, ...ids])];
   });
   const desc = tr(item.description, lang, fallbacks);
   const hasPhoto = !!item.image_url && !imgFailed;
@@ -148,6 +155,12 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restau
         <fieldset key={g.id} className="mt-6">
           <legend className="mb-3 flex w-full items-baseline justify-between gap-3">
             <span className="text-xs font-bold uppercase tracking-[0.15em] text-muted">{tr(g.name, lang, fallbacks)}</span>
+            {selectAll && g.max !== 1 && g.options.length > 1 && (g.max == null || g.max >= g.options.length) && (
+              <button type="button" onClick={() => toggleAll(g)}
+                className="ms-auto rounded-full border border-brand/40 px-3 py-1 text-xs font-bold text-brand transition hover:bg-brand/10 active:scale-95">
+                {g.options.every(o => picked.includes(o.id)) ? t.clearAll : t.selectAll}
+              </button>
+            )}
             <span className={`text-xs font-semibold ${countIn(g) < g.min ? 'text-brand' : 'text-muted'}`}>
               {g.min > 0 ? (g.max === g.min ? t.pickExactly(g.min) : t.pickAtLeast(g.min)) : g.max ? t.pickUpTo(g.max) : t.optional}
             </span>
