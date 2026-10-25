@@ -278,7 +278,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
         {pendingQr && (
           <div className="flex items-center gap-2 bg-qr px-4 py-2.5 text-sm font-bold text-white">
             <QrCode className="h-4 w-4" /> {t('Commande client à accepter')}{order!.table_by_guest ? <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{t('Table saisie par le client')}</span> : null}
-            <button disabled={busy} onClick={() => run(() => pos.acceptQr(order!))} className="ms-auto rounded-lg bg-white px-3 py-1 text-qr">{t('Accepter')}</button>
+            <button disabled={busy} onClick={() => run(() => pos.acceptQr(order!))} className="ms-auto rounded-lg bg-white px-3 py-1 text-qr">{pos.restaurant?.boccadillos ? t('Encaisser et envoyer en cuisine') : t('Accepter')}</button>
           </div>
         )}
         {extraOrders.length > 0 && (

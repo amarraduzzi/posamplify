@@ -135,12 +135,13 @@ export function LiveOrders({ onOpen }: { onOpen: (t: OrderTarget) => void }) {
               );
             })()}
             <div className="flex items-center justify-between gap-2 border-t border-line/[0.07] bg-bg/30 px-4 py-3">
-              <span className="font-display text-xl font-semibold tabular">{mad(o.total_cents)}</span>
+              <span className="font-display text-xl font-semibold tabular">{mad(o.total_cents)}{o.prepaid_at && <span className="ms-2 rounded-full bg-ok/15 px-2 py-0.5 align-middle text-xs font-bold text-ok">{t('Payé')}</span>}</span>
               {pending && online ? (
                 <span className="flex flex-wrap justify-end gap-1">
                   {etas.map(m => <Btn key={m} tone={m === prep ? 'brand' : 'plain'} className="px-2.5 py-1.5 text-sm" onClick={() => pos.acceptQr(o, m)}><Check className="h-3.5 w-3.5" /> {t('{n} min', { n: m })}</Btn>)}
                 </span>
-              ) : pending ? <Btn tone="brand" onClick={() => pos.acceptQr(o)}><Check className="h-4 w-4" /> {t('Accepter')}</Btn>
+              ) : pending ? <Btn tone="brand" onClick={() => pos.acceptQr(o)}><Check className="h-4 w-4" /> {r.boccadillos ? t('Encaisser et envoyer en cuisine') : t('Accepter')}</Btn>
+                : o.prepaid_at && (o.status === 'ready' || o.status === 'served') ? <Btn tone="brand" onClick={() => pos.handoverPrepaid(o)}><Check className="h-4 w-4" /> {t('Remettre au client')}</Btn>
                 : next ? <Btn onClick={() => setStatus(o, next.to)}><next.Icon className="h-4 w-4" /> {t(next.label)}</Btn>
                 : <span className="text-xs text-muted">{t('À encaisser')}</span>}
             </div>

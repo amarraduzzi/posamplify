@@ -31,6 +31,8 @@ export interface Restaurant {
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null;
   address: string | null; city: string | null; phone: string | null;
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
+  /** boccadillos mode: pay (cash) first, then the kitchen; switched on by the platform admin */
+  boccadillos?: boolean;
   /** Amplify Agenda (salons): booking and the Nouba */
   agenda?: { enabled?: boolean; queue?: boolean } | null;
   accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
@@ -92,6 +94,8 @@ export interface Order {
   external_ref: string | null; note: string | null; staff_id: string | null;
   /** the guest typed the table number (one shared QR) instead of scanning a table QR */
   table_by_guest?: boolean;
+  /** boccadillos mode: the cash was taken before the kitchen (set by pos_collect_prepaid) */
+  prepaid_at?: string | null;
   subtotal_cents: number; discount_cents: number; total_cents: number;
   closed_at: string | null; created_at: string; order_lines: Line[];
   /** the allergies of the order's guest, copied by the server: printed on the kitchen bons */
