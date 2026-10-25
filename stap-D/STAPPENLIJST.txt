@@ -1,0 +1,39 @@
+BOCCADILLOS-MODUS - STAP D (geen tafelvraag meer + knop "Tout sélectionner")
+
+WAT DIT DOET
+- Zaken met de bocadillo-modus aan: de klant krijgt GEEN tafelvraag meer. De bestelling gaat automatisch
+  op een vaste tafel "Sur place" (één per zaak).
+- Alle andere zaken: niets verandert (de bestelfunctie place_order is niet aangeraakt; de nieuwe functie
+  geeft voor hen niets terug, dus de app vraagt het tafelnummer zoals altijd).
+- Bij keuzegroepen zonder limiet (de groenten) staat een knop "Tout sélectionner" / "Select all" / Arabisch,
+  die daarna "Tout désélectionner" wordt. Alleen in de bocadillo-modus. Bij de sauzen (max. 2) komt de knop niet.
+
+STAPPEN
+1. SUPABASE EERST: open supabase/migrations/20261206000100_boccadillos_step_d.sql, kopieer alles,
+   plak in de SQL Editor, Run. Moet "Success" geven. Dit maakt de tafel "Sur place" aan voor elke zaak
+   waar de modus al aan staat, en voor elke zaak die je later aanzet.
+2. GITHUB: pak de zip uit, sleep de mappen "apps" en "supabase" naar Add file > Upload files > Commit.
+   5 bestanden in apps/menu worden VERVANGEN (App.tsx, api.ts, strings.ts, CartSheet.tsx, ItemSheet.tsx).
+   Pas die bestanden niet zelf aan in de tussentijd.
+3. Wacht tot Cloudflare de klant-app opnieuw heeft gepubliceerd.
+4. Test op de zaak met de modus aan: open de gewone QR-pagina, kies een broodje, tik "Tout sélectionner",
+   open het mandje: er is geen tafelvraag meer, alleen je naam. Bestel, en kijk in de kassa onder
+   Live-bestellingen: de bestelling staat er, bij tafel "Sur place". Test ook één normaal restaurant
+   met gedeelde QR: die moet nog steeds om het tafelnummer vragen.
+
+LET OP
+- De tafel "Sur place" staat ook in Beheer > Tafels en QR-codes en op de plattegrond van de kassa. Niet verwijderen
+  of uitzetten: dan valt de app terug op de gewone tafelvraag (er gaat niets stuk).
+- Alle bestellingen horen bij dezelfde tafel. In de bocadillo-modus worden bestellingen niet samengevoegd
+  (staat zo in de code), maar controleer in de kassa dat de plattegrond en "Remettre au client" goed blijven
+  werken met meerdere open bestellingen op die ene tafel.
+- "Sur place" zonder tafelnummer: de keukenbon toont naam en nummer, geen tafel. Dat is de bedoeling.
+
+GETEST: de klant-app is gecontroleerd met tsc (typecheck zonder fouten). NIET GETEST: de SQL en test 99
+(geen Postgres in mijn omgeving), en niets in een echte browser. Controleer de Cloudflare-build en draai
+npm run test:db.
+
+NIET IN DEZE STAP
+- Een samenvatting "TOUS LÉGUMES" op de keukenbon: de bestelregel bewaart de groep van elke keuze niet,
+  dus dit vraagt een grotere aanpassing. Voorstel voor later.
+- Groenten vooraf aangevinkt: apart besluit.
