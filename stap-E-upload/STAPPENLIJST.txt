@@ -1,0 +1,7 @@
+STAP E - "Légumes : tout" in plaats van alle opties
+
+1. GitHub: Add file > Upload files. Sleep alleen de mappen "apps" en "supabase" (niet de map eromheen).
+2. Supabase SQL editor: plak de inhoud van STAP-E-SQL.sql en klik Run.
+3. Wacht tot Cloudflare klaar is. Test: kies een bocadillo, vink alle groenten aan.
+   Kassa, bon en keukenbon tonen nu "Légumes : tout".
+Oude bestellingen blijven zoals ze waren.
