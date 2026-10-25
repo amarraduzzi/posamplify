@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
 import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { getBoccadillos, getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
 import { ServiceBar } from './components/ServiceBar';
 import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
@@ -29,6 +29,8 @@ export default function App() {
   // the restaurant's own ordering kiosk: ?borne=<token> (from the manager space > Caisses)
   const kiosk = useMemo(() => { const k = new URLSearchParams(window.location.search).get('borne'); return k && /^[A-Za-z0-9]{16,40}$/.test(k) ? k : null; }, []);
 
+  const [bocc, setBocc] = useState(false);
+
   const loadMenu = useCallback(async () => {
     if (!tenant.slug) return;
     try {
@@ -42,6 +44,7 @@ export default function App() {
       }
       setMenu(m);
       setState('ready');
+      getBoccadillos(tenant.slug).then(setBocc).catch(() => { /* keep the last known */ });
     } catch {
       setState(s => (s === 'ready' ? s : 'error'));
     }
@@ -169,7 +172,7 @@ export default function App() {
         order_type: checkout.orderType,
         table_token: isDineIn && !kiosk ? menu.table?.token ?? null : null,
         table_number: isDineIn && !kiosk && !menu.table && menu.table_entry ? (checkout.tableNumber ?? '').trim() : undefined,
-        customer: kiosk ? (checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : isDineIn ? undefined : { name: checkout.name, phone: checkout.phone, address: checkout.address },
+        customer: kiosk ? (checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : isDineIn ? (bocc && checkout.name.trim() ? { name: checkout.name.trim() } : undefined) : { name: checkout.name, phone: checkout.phone, address: checkout.address },
         kiosk: kiosk ?? undefined,
         note: checkout.note.trim() || undefined,
         wanted_at: !isDineIn && !kiosk && checkout.wantedAt ? checkout.wantedAt : undefined,
@@ -544,6 +547,7 @@ export default function App() {
         busy={busy}
         error={error}
         kiosk={!!kiosk}
+        needName={bocc}
       />
       {kioskDone != null && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-bg/95 p-8 text-center backdrop-blur-md animate-rise">
