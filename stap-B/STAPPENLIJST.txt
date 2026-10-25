@@ -1,0 +1,23 @@
+BOCCADILLOS-MODUS - STAP B
+
+1. SUPABASE EERST: open supabase/migrations/20261205000100_boccadillos_step_b.sql,
+   kopieer alles, plak in SQL Editor, Run. Moet "Success" geven.
+
+2. GITHUB: pak de zip uit, sleep de mappen "apps" en "supabase" naar
+   Add file > Upload files > Commit. Let op: 8 bestanden worden VERVANGEN
+   (store.tsx, types.ts, i18n-en.ts, LiveOrders.tsx, OrderScreen.tsx,
+   App.tsx, api.ts, CartSheet.tsx). Pas die bestanden niet zelf aan in de tussentijd.
+   Test 97 is vervangen, test 98 is nieuw.
+
+3. Wacht tot Cloudflare kassa en klant-app opnieuw heeft gepubliceerd.
+
+4. Zet de modus aan voor een testzaak:
+   update public.restaurants set boccadillos = true where slug = 'JOUW-SLUG';
+
+5. Test: bestel via de QR-pagina (naam is verplicht), in de kassa staat nu
+   "Encaisser et envoyer en cuisine". Daarna Prête, dan "Remettre au client".
+   Onbetaalde bestellingen verlopen na 20 minuten (instelbaar met
+   pos_settings.unpaid_minutes). Terugbetalen: bestaande annuleerknop (reden + manager-PIN).
+
+NIET GETEST: geen Postgres en geen node_modules in mijn omgeving, dus tests en build
+zijn niet gedraaid. Controleer de Cloudflare-build en draai: npm run test:db
