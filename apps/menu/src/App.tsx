@@ -559,6 +559,7 @@ export default function App() {
         kiosk={!!kiosk}
         needName={bocc}
         boccTable={boccFixed}
+        onSuggest={item => addToCart(item, null, 1)}
       />
       {kioskDone != null && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-bg/95 p-8 text-center backdrop-blur-md animate-rise">

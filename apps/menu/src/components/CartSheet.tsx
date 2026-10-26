@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Bike, Clock, LocateFixed, PauseCircle, QrCode, ShoppingBag, Ticket, X } from 'lucide-react';
-import { errorCode, formatMoney, tr, type OrderType, type PublicMenu } from '@resto/shared';
+import { errorCode, formatMoney, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
 import { checkPromo, type PromoInfo } from '../lib/api';
 import { savedVouchers } from '../lib/vouchers';
 import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
+import { Upsell } from './Upsell';
 import type { Cart } from '../lib/cart';
 import type { Strings } from '../lib/strings';
 
@@ -64,7 +65,7 @@ export function availableOrderTypes(menu: PublicMenu): OrderType[] {
   return out;
 }
 
-export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false, needName = false, boccTable = false }: {
+export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, checkout, setCheckout, onSubmit, busy, error, kiosk = false, needName = false, boccTable = false, onSuggest }: {
   open: boolean;
   onClose: () => void;
   menu: PublicMenu;
@@ -82,6 +83,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
   needName?: boolean;
   /** boccadillos mode with its fixed table: no table question at all */
   boccTable?: boolean;
+  /** one-tap add of a suggested extra (a drink, a dessert...) */
+  onSuggest?: (item: PublicItem) => void;
 }) {
   const currency = menu.restaurant.currency;
   const types: OrderType[] = kiosk ? ['dine_in', 'takeaway'] : availableOrderTypes(menu);
@@ -202,6 +205,8 @@ export function CartSheet({ open, onClose, menu, cart, lang, fallbacks, t, check
               );
             })}
           </ul>
+
+          {onSuggest && <Upsell menu={menu} cart={cart} lang={lang} fallbacks={fallbacks} currency={currency} t={t} onAdd={onSuggest} />}
 
           {types.length > 1 && (
             <div className="mt-5 grid gap-1 rounded-full bg-surface-2 p-1" style={{ gridTemplateColumns: `repeat(${types.length}, 1fr)` }}>
