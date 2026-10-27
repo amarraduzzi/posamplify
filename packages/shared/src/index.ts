@@ -251,3 +251,5 @@ export * from './brand';
 
 /** Price of a dish during a happy hour, rounded like the database. */
 export const promoPrice = (cents: number, bp: number | null | undefined) => (bp ? cents - Math.round(cents * bp / 10000) : cents);
+
+export * from './allergens';

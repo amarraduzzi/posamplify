@@ -9,6 +9,7 @@ import { useAdminCtx } from '../store';
 import type { BaseUnit, Ingredient, Restaurant } from '../lib/types';
 import { BASE_LABEL, CATEGORIES, PURCHASE_UNITS, SIZE_UNIT, unitCost } from '../lib/profit';
 import { Btn, Field, Modal, Toggle, inputCls } from './ui';
+import { AllergenSection } from './AllergenSection';
 
 export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, onSaved }: {
   r: Restaurant; ing: Ingredient | null; used?: number; initialName?: string;
@@ -57,6 +58,9 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
   const [etype, setEtype] = useState<'dlc' | 'ddm'>(ing?.expiry_type ?? 'dlc');
   const [shelf, setShelf] = useState(ing?.shelf_life_days != null ? String(ing.shelf_life_days) : '');
   const [warnDays, setWarnDays] = useState(String(ing?.expiry_warn_days ?? 2));
+  // allergens: null = not filled in yet, [] = checked, none
+  const [alg, setAlg] = useState<string[] | null>(ing ? ing.allergens ?? null : null);
+  const [traces, setTraces] = useState<string[]>(ing?.may_contain ?? []);
   const [busy, setBusy] = useState(false);
 
   const qty = fixed ?? (Number(size.replace(',', '.')) || 0) * SIZE_UNIT[base].f;
@@ -78,7 +82,7 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
     const row = {
       name: name.trim(), name_ar: nameAr.trim() || null, category, base_unit: base, purchase_unit: unit,
       purchase_qty: qty, purchase_price_cents: priceCents, waste_bp: wasteBp,
-      ...(ing?.is_preparation ? {} : { track_expiry: track, expiry_type: etype, shelf_life_days: track ? shelfN : null, expiry_warn_days: track ? warnN : 2 }),
+      ...(ing?.is_preparation ? {} : { allergens: alg, may_contain: traces, track_expiry: track, expiry_type: etype, shelf_life_days: track ? shelfN : null, expiry_warn_days: track ? warnN : 2 }),
     } as Record<string, unknown>;
     try {
       let sid: string | null = supplierId && supplierId !== '__new__' ? supplierId : null;
@@ -175,6 +179,7 @@ export function IngredientEditor({ r, ing, used = 0, initialName = '', onClose, 
           )}
           {ing?.price_estimated && <p className="mt-2 text-xs font-semibold text-warn">{t('Prix estimé par l’IA : en enregistrant votre vrai prix, il devient confirmé.')}</p>}
         </div>
+        {!ing?.is_preparation && <AllergenSection value={alg} onChange={setAlg} traces={traces} onTraces={setTraces} />}
         {!ing?.is_preparation && (
           <div className="rounded-2xl bg-surface-2 p-4">
             <p className="mb-3 text-sm font-bold">{t('Durée de conservation')}</p>

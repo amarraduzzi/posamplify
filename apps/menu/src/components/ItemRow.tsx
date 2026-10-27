@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Flame, Sparkles, Star, Leaf } from 'lucide-react';
 import { formatMoney, promoPrice, tr, type PublicItem } from '@resto/shared';
 import type { Strings } from '../lib/strings';
+import { AllergenLine, type AllergenInfo } from './Allergens';
 
 const TAG_ICON: Record<string, typeof Flame> = { spicy: Flame, new: Sparkles, popular: Star, vegetarian: Leaf };
 const TAG_TONE: Record<string, string> = {
@@ -49,8 +50,9 @@ export function Photo({ src, className }: { src: string; className: string }) {
   );
 }
 
-export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrder, onOpen, onQuickAdd }: {
+export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrder, onOpen, onQuickAdd, allergens }: {
   item: PublicItem;
+  allergens?: AllergenInfo | null;
   index: number;
   lang: string;
   fallbacks: string[];
@@ -85,6 +87,7 @@ export function ItemRow({ item, index, lang, fallbacks, currency, t, qty, canOrd
             <h3 className="font-semibold text-[15.5px] leading-snug">{name}</h3>
           </div>
           {desc && <p className="mt-1 text-[13.5px] text-muted leading-relaxed line-clamp-2">{desc}</p>}
+          <AllergenLine info={allergens} lang={lang} t={t} />
           <div className="mt-auto pt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="font-bold text-brand tabular-nums">
               {item.variants.length > 1 && <span className="text-muted font-medium text-xs me-1">{t.from}</span>}

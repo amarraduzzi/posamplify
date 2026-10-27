@@ -1,0 +1,61 @@
+ALLERGENEN - STAP 1 (van ingrediënt tot eindproduct)
+
+WAT DIT DOET
+- Per ingrediënt leg je de allergenen vast (15 codes: de 14 van de EU-lijst + amandelen apart) en eventueel "kan sporen bevatten".
+- Alles daarna wordt AUTOMATISCH berekend: tussenbereidingen (ook een bereiding in een bereiding) erven van hun ingrediënten,
+  producten erven van hun recept. Je past een ingrediënt aan en alle producten die het gebruiken veranderen mee. Er is geen kopie die kan verouderen.
+- Nieuw scherm: Beheer > Allergènes (zichtbaar waar Amplify Profit aanstaat).
+- In het ingrediëntenformulier staat een nieuw blok "Allergènes".
+- Klantmenu (QR): allergenen onder elk gerecht + een filter "Une allergie ?" dat gerechten verbergt.
+- Knop "Imprimer la fiche": een afdrukbaar overzicht van alle producten met allergenen, om in de winkel te bewaren.
+
+VEILIGHEID (bewust zo gebouwd)
+- Een product is pas "complet" als ALLE ingrediënten van zijn recept zijn ingevuld (of jij het product zelf als "Vérifié" hebt gemarkeerd).
+- Een niet-complet product toont de klant NOOIT "geen allergenen": het toont niets en zegt "vraag het personeel".
+- Het filter "Une allergie ?" verbergt ook alles wat niet is gecontroleerd, en gerechten die "sporen" van het gekozen allergeen kunnen bevatten.
+- Ingrediënten die uit AI-recepten komen ("Remplir avec l'IA") starten zonder allergenen: jij moet ze eerst controleren.
+- De weergave voor klanten staat standaard UIT. Alleen de eigenaar kan hem aanzetten.
+- Varianten (maten): de allergenen gelden voor het hele gerecht, alle varianten samen (veilige kant).
+
+STAPPEN
+1. SUPABASE EERST: open SUPABASE-SQL-allergenen.txt (Kladblok), kopieer alles, plak in de SQL Editor, Run.
+   Moet "Success" geven. Het bestand mag veilig twee keer gedraaid worden (er gaat niets stuk).
+2. GITHUB: pak de zip uit. Daarin staan "apps", "packages", "supabase" en dit bestand.
+   Sleep ALLEEN de mappen "apps", "packages" en "supabase" naar Add file > Upload files (niet de map eromheen) > Commit.
+   Controle: op de commitpagina beginnen alle paden met "apps/admin/src/...", "apps/menu/src/...", "packages/shared/src/..." of "supabase/...".
+   Deze bestanden worden VERVANGEN (pas ze niet zelf aan in de tussentijd):
+     apps/admin/src/App.tsx, components/IngredientEditor.tsx, lib/i18n-ar.ts, lib/i18n-en.ts, lib/types.ts
+     apps/menu/src/App.tsx, components/ItemRow.tsx, components/ItemSheet.tsx, lib/api.ts, lib/strings.ts
+     packages/shared/src/index.ts
+     supabase/tests/01_isolation.test.mjs
+   Nieuw: apps/admin/src/components/AllergenSection.tsx, apps/admin/src/pages/AllergensPage.tsx, apps/menu/src/components/Allergens.tsx,
+          packages/shared/src/allergens.ts, supabase/migrations/20261209000100_allergens.sql, supabase/tests/97_allergens.test.mjs
+3. Wacht tot Cloudflare het beheer EN de klant-app opnieuw heeft gepubliceerd. De kassa (pos) is niet aangepast.
+4. GEBRUIK: Beheer > Allergènes.
+   a. Eerst "Ingrédients à compléter": per ingrediënt de allergenen aanvinken, of "Aucun allergène (vérifié)" kiezen, dan Enregistrer.
+   b. Producten zonder recept (een gebotteld drankje, een gekocht koekje): Modifier > allergenen toevoegen > "Vérifié" aanzetten.
+   c. Klopt de berekening niet (leverancier gewisseld)? Modifier > "Ajouter à la main" of "Retirer".
+   d. Alles klaar? Zet "Afficher les allergènes sur le menu client" aan (alleen de eigenaar).
+5. TEST: open de gewone QR-pagina: onder een compleet gerecht staan de allergenen; tik "Une allergie ?", kies bv. Sésame:
+   gerechten met sesam en niet-gecontroleerde gerechten verdwijnen. Open ook "Imprimer la fiche".
+
+GETEST
+- 10 nieuwe databasetests (97_allergens) op een echte Postgres: doorgeven door meerdere niveaus, wijziging van een ingrediënt werkt door,
+  gat = "incomplet", handmatig toevoegen/verwijderen, klant ziet niets zolang het uit staat, een andere zaak kan niets lezen.
+- De hele testset (380 tests) slaagt, ook na mijn wijziging. De migratie is twee keer na elkaar gedraaid zonder fout.
+- Typecheck en productiebuild van beheer en klant-app zijn in orde.
+
+NIET GETEST
+- Niets is in een echte browser aangeklikt (ook niet de Arabische weergave van rechts naar links en de printpagina).
+  Controleer na het publiceren de stappen 4 en 5 hierboven.
+
+OPGEMERKT (niet door deze stap veroorzaakt)
+- supabase/migrations mist 20261204000100 en 20261205000100: die staan alleen in de mappen stap-A en stap-B. Daardoor faalt "npm run test:db"
+  op een lege database bij de boccadillos-stap. Ik heb ze alleen voor mijn test meegenomen en niets aan de mappen veranderd.
+- De test 01_isolation kende get_boccadillos en get_boccadillos_table niet als functies voor gasten. Ik heb ze samen met de nieuwe
+  functie get_menu_allergens aan de lijst toegevoegd.
+- In het Arabisch ontbreken nog 5 teksten van de boccadillos-modus (ze blijven Frans). Daar heb ik niets aan veranderd.
+
+NIET IN DEZE STAP
+- Etiketten printen (stap 2), allergenen in de kassa of op bonnen, barcode en weegschaal (stap 3).
+- Juridisch blijft de eigenaar verantwoordelijk voor de juistheid van de ingevulde allergenen.

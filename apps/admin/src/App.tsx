@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Coins, Star, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Coins, Star, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera, ShieldAlert } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -38,6 +38,7 @@ import { useCaptcha } from './lib/captcha';
 import { ProfitPage } from './pages/ProfitPage';
 import { IngredientsPage } from './pages/IngredientsPage';
 import { ProductionPage } from './pages/ProductionPage';
+import { AllergensPage } from './pages/AllergensPage';
 import { CateringPage } from './pages/CateringPage';
 import { AccountingPage, AccountantPage } from './pages/AccountingPage';
 import { SiteRequestBanner, useSiteRequests } from './components/SiteRequests';
@@ -58,7 +59,7 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits' | 'agreviews';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'allergens' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits' | 'agreviews';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -148,6 +149,7 @@ function Screens() {
     { id: 'profit', label: t('Marges'), Icon: TrendingUp, show: hasProfit },
     { id: 'ingredients', label: t('Ingrédients'), Icon: Carrot, show: hasProfit },
     { id: 'production', label: t('Production'), Icon: CookingPot, show: hasProfit },
+    { id: 'allergens', label: t('Allergènes'), Icon: ShieldAlert, show: hasProfit },
     { id: 'catering', label: t('Traiteur'), Icon: ChefHat, show: hasPos || hasProfit || r?.site_plan === 'premium' || siteReqs.length > 0 },
     { id: 'stock', label: t('Inventaire'), Icon: ClipboardList, show: hasProfit },
     { id: 'team', label: t('Équipe'), Icon: UserCheck, show: hasProfit },
@@ -248,6 +250,7 @@ function Screens() {
           {r && current === 'accounting' && <AccountingPage key={r.id} r={r} />}
           {r && current === 'catering' && <CateringPage key={r.id} r={r} openId={catOpen} onOpened={() => setCatOpen(null)} />}
           {r && current === 'production' && <ProductionPage key={r.id} r={r} onIngredients={() => setPage('ingredients')} />}
+          {r && current === 'allergens' && <AllergensPage key={r.id} r={r} />}
           {r && current === 'stock' && <StockPage key={r.id} r={r} />}
           {r && current === 'team' && <TeamPage key={r.id} r={r} />}
           {r && current === 'counter' && <LoyaltyCounterPage key={r.id} r={r} />}

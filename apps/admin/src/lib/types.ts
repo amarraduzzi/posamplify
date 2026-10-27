@@ -60,6 +60,8 @@ export interface Ingredient {
   /** null: automatic (used directly in a dish = finished product); or chosen by the owner */
   prep_role?: 'intermediate' | 'final' | null;
   track_expiry?: boolean; expiry_type?: 'dlc' | 'ddm'; shelf_life_days?: number | null; expiry_warn_days?: number;
+  /** null: not filled in yet; []: checked, none */
+  allergens?: string[] | null; may_contain?: string[];
 }
 /** A delivery with its expiry date (the dated part of an ingredient's stock). */
 export interface StockLot {

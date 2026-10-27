@@ -1,5 +1,5 @@
 import { PostgrestClient } from '@supabase/postgrest-js';
-import type { OrderStatusResult, PlaceOrderInput, PlaceOrderResult, PublicMenu } from '@resto/shared';
+import type { GuestAllergens, OrderStatusResult, PlaceOrderInput, PlaceOrderResult, PublicMenu } from '@resto/shared';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -29,6 +29,10 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
     throw new ApiError('network');
   }
 }
+
+/** Allergens of the products, only when the owner switched them on (null otherwise). Never blocks the menu. */
+export const getMenuAllergens = (slug: string) =>
+  call<GuestAllergens | null>('get_menu_allergens', { p_slug: slug });
 
 export const getMenu = (slug: string, tableToken: string | null) =>
   call<PublicMenu | null>('get_menu', { p_slug: slug, p_table_token: tableToken });

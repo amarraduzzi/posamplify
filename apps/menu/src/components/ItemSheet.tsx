@@ -5,6 +5,7 @@ import { Sheet } from './Sheet';
 import { Stepper } from './Stepper';
 import { TagPills } from './ItemRow';
 import type { Strings } from '../lib/strings';
+import { AllergenBlock, type AllergenInfo } from './Allergens';
 
 /** the menu link without the table code: a friend must never end up ordering on the sender's table */
 function friendLink(): string {
@@ -14,8 +15,9 @@ function friendLink(): string {
   return u.toString();
 }
 
-export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restaurantName, selectAll = false, onClose, onAdd }: {
+export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restaurantName, selectAll = false, allergens, onClose, onAdd }: {
   item: PublicItem | null;
+  allergens?: AllergenInfo | null;
   lang: string;
   fallbacks: string[];
   currency: string;
@@ -124,6 +126,7 @@ export function ItemSheet({ item, lang, fallbacks, currency, t, canOrder, restau
     >
       {desc && <p className="text-muted leading-relaxed">{desc}</p>}
       <div className="mt-3"><TagPills tags={item.tags} t={t} /></div>
+      <AllergenBlock info={allergens} lang={lang} t={t} />
 
       {item.variants.length > 0 && (
         <fieldset className="mt-6">

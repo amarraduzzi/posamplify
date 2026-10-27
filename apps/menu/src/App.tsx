@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ShoppingBag, MapPin, Utensils, Eye, ChevronRight, CalendarDays, Hourglass, Sparkles } from 'lucide-react';
-import { errorCode, formatMoney, guestActionsOf, newId, tr, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
-import { getBoccadillos, getBoccadillosTable, getBookingInfo, getMenu, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
+import { errorCode, formatMoney, guestActionsOf, newId, tr, type GuestAllergens, type OrderType, type PublicItem, type PublicMenu } from '@resto/shared';
+import { getBoccadillos, getBoccadillosTable, getBookingInfo, getMenu, getMenuAllergens, noubaInfo, getOrderStatus, placeOrder, ApiError, type BookingInfo, type OfferPublic } from './lib/api';
 import { ServiceBar } from './components/ServiceBar';
 import { BookingSheet, OfferSheet, ReservationSheet, WaitlistSheet, bookingStrings, savedReservations } from './components/Booking';
 import { resolveTenant } from './lib/tenant';
@@ -12,6 +12,7 @@ import { applyBranding, applyLang } from './theme';
 import { ItemRow, FeaturedCard } from './components/ItemRow';
 import { Divider, PoweredBy, Star8 } from './components/Ornament';
 import { ItemSheet } from './components/ItemSheet';
+import { AllergenFilter } from './components/Allergens';
 import { CartSheet, availableOrderTypes, type Checkout } from './components/CartSheet';
 import { OrderTracker, type TrackedOrder } from './components/OrderTracker';
 import { ReviewButton } from './components/ReviewButton';
@@ -58,6 +59,23 @@ export default function App() {
   }, [tenant]);
 
   useEffect(() => { loadMenu(); }, [loadMenu]);
+
+  // allergens (only when the owner switched them on). A failure here never blocks the menu.
+  const [allergens, setAllergens] = useState<GuestAllergens | null>(null);
+  const [avoid, setAvoid] = useState<string[]>([]);
+  useEffect(() => {
+    if (state !== 'ready' || !tenant.slug) return;
+    let live = true;
+    getMenuAllergens(tenant.slug).then(a => { if (live) setAllergens(a?.items ? a : null); }).catch(() => { if (live) setAllergens(null); });
+    return () => { live = false; };
+  }, [state, tenant.slug]);
+  // with allergies chosen: hide what contains or may contain them, and everything that is not verified
+  const visible = useCallback((i: PublicItem) => {
+    if (!avoid.length || !allergens) return true;
+    const info = allergens.items[i.id];
+    if (!info || !info.ok) return false;
+    return !avoid.some(c => info.a.includes(c) || info.m.includes(c));
+  }, [avoid, allergens]);
 
   // reservations and waitlist: ?reserver opens the booking, ?file the queue (QR at the door), ?resa=<token> the guest's page
   const [booking, setBooking] = useState<BookingInfo | null>(null);
@@ -232,15 +250,15 @@ export default function App() {
   const q = fold(query.trim());
   const results = useMemo(() => {
     if (!menu || !q) return [];
-    return menu.items.filter(i =>
+    return menu.items.filter(i => visible(i) &&
       [...Object.values(i.name), ...Object.values(i.description)].some(s => fold(s).includes(q)));
-  }, [menu, q]);
+  }, [menu, q, visible]);
 
   const byCategory = useMemo(() => {
     const m = new Map<string, PublicItem[]>();
-    for (const i of menu?.items ?? []) m.set(i.category_id, [...(m.get(i.category_id) ?? []), i]);
+    for (const i of menu?.items ?? []) if (visible(i)) m.set(i.category_id, [...(m.get(i.category_id) ?? []), i]);
     return m;
-  }, [menu]);
+  }, [menu, visible]);
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const chipRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -271,11 +289,11 @@ export default function App() {
 
   // Signature dishes: tagged "popular" with a photo, else the first dishes with a photo.
   const featured = useMemo(() => {
-    const withPhoto = (menu?.items ?? []).filter(i => i.image_url && i.available);
+    const withPhoto = (menu?.items ?? []).filter(i => i.image_url && i.available && visible(i));
     const pop = withPhoto.filter(i => i.tags.includes('popular'));
     const list = pop.length >= 3 ? pop : withPhoto;
     return list.length >= 3 ? list.slice(0, 8) : [];
-  }, [menu]);
+  }, [menu, visible]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -318,8 +336,11 @@ export default function App() {
       canOrder={canOrder && !item.sold_by_weight}
       onOpen={() => setOpenItem(item)}
       onQuickAdd={() => addToCart(item, null, 1)}
+      allergens={allergens?.items[item.id] ?? null}
     />
   );
+  const anyAllergens = !!allergens && Object.values(allergens.items).some(x => x.ok);
+  const hiddenByAllergy = avoid.length ? menu.items.filter(i => !visible(i)).length : 0;
 
   return (
     <div className="min-h-dvh pb-32">
@@ -477,6 +498,7 @@ export default function App() {
 
         {/* Menu */}
         <main className="px-4">
+          {anyAllergens && <AllergenFilter avoid={avoid} onChange={setAvoid} hidden={hiddenByAllergy} lang={lang} t={t} />}
           {q ? (
             results.length === 0
               ? <p className="py-16 text-center text-muted">{t.noResults}</p>
@@ -540,6 +562,7 @@ export default function App() {
         canOrder={canOrder && !openItem?.sold_by_weight}
         restaurantName={kiosk ? undefined : r.name}
         selectAll={bocc}
+        allergens={openItem ? allergens?.items[openItem.id] ?? null : null}
         onClose={() => setOpenItem(null)}
         onAdd={(variantId, qty, note, mods) => { if (openItem) { setError(null); cart.add(openItem, variantId, qty, note, mods); setBump(b => b + 1); } setOpenItem(null); }}
       />
