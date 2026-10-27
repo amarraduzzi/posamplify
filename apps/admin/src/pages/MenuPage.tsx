@@ -244,13 +244,15 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
   const [active, setActive] = useState(item?.active ?? true);
   const [available, setAvailable] = useState(item?.available ?? true);
   const [weighed, setWeighed] = useState(!!item?.sold_by_weight);
+  const [barcode, setBarcode] = useState(item?.barcode ?? '');
   const [off, setOff] = useState(item?.takeaway_discount_cents == null ? '' : fromCents(item.takeaway_discount_cents));
   const catOff = cats.find(c => c.id === category)?.takeaway_discount_cents ?? 0;
   const [glovo, setGlovo] = useState(item?.glovo_price_cents == null ? '' : fromCents(item.glovo_price_cents));
   const [variants, setVariants] = useState<(Variant & { priceText: string; glovoText: string })[]>(
     (item?.item_variants ?? []).map(v => ({ ...v, priceText: fromCents(v.price_cents), glovoText: v.glovo_price_cents == null ? '' : fromCents(v.glovo_price_cents) })));
   const [busy, setBusy] = useState(false);
-  const ok = !!name[r.languages[0]]?.trim() && !!category && (variants.length ? variants.every(v => v.name[r.languages[0]]?.trim() && v.priceText) : price !== '');
+  const barcodeOk = !barcode.trim() || /^[0-9A-Za-z-]{3,32}$/.test(barcode.trim());
+  const ok = barcodeOk && !!name[r.languages[0]]?.trim() && !!category && (variants.length ? variants.every(v => v.name[r.languages[0]]?.trim() && v.priceText) : price !== '');
 
   const save = async () => {
     setBusy(true);
@@ -259,6 +261,8 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
         name, description: desc, category_id: category, image_url: image, tags, active, available,
         price_cents: variants.length ? Math.min(...variants.map(v => toCents(v.priceText))) : toCents(price),
         vat_bp: vat === '' ? null : Number(vat), station: station || null, sold_by_weight: weighed && !variants.length,
+        // only when the shop uses the scanner (or the item already has a code)
+        ...(r.barcode_scan || item?.barcode ? { barcode: barcode.trim() || null } : {}),
         // empty = the reduction of the category (only sent when set or changed)
         ...(off.trim() !== '' || item?.takeaway_discount_cents != null ? { takeaway_discount_cents: off.trim() === '' ? null : toCents(off) } : {}),
         // Glovo: empty = automatic (restaurant price + the Glovo markup)
@@ -305,6 +309,12 @@ function ItemEditor({ r, cats, item, catId, count, onClose, onSaved }: {
               <Toggle checked={weighed} onChange={setWeighed} label={t('Vendu au poids (gâteaux secs, chocolats…)')} />
               {weighed && <p className="mt-1.5 text-xs text-muted">{t('La caisse demande le poids lu sur la balance et calcule le prix. Le ticket affiche le poids. La fiche technique se fait pour 1 kg. Pas de commande en ligne pour cet article.')}</p>}
             </div>
+          )}
+          {(r.barcode_scan || !!item?.barcode) && !variants.length && (
+            <Field label={t('Code-barres')} hint={weighed ? t('Le numéro d’article que la balance imprime dans ses étiquettes (comme sur la balance).') : t('Le code imprimé sur le produit. Le scanner de la caisse ajoute l’article.')}>
+              <input dir="ltr" className={inputCls} value={barcode} maxLength={32} inputMode={weighed ? 'numeric' : 'text'} onChange={e => setBarcode(e.target.value.replace(/\s/g, ''))} />
+              {!barcodeOk && <span className="mt-1 block text-xs font-semibold text-danger">{t('3 à 32 caractères : chiffres, lettres ou tiret.')}</span>}
+            </Field>
           )}
 
           <div>

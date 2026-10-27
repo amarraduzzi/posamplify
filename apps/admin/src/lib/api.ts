@@ -37,6 +37,7 @@ export function errorMessage(e: unknown): string {
   if (/Password should be/i.test(msg)) return t('Mot de passe trop court (8 caractères minimum).');
   if (/Email not confirmed/i.test(msg)) return t("Confirmez d'abord votre e-mail (lien reçu par e-mail).");
   if (/fetch|network/i.test(msg)) return t(M.network);
+  if (/duplicate key.*menu_items_barcode_uq/i.test(msg)) return t('Ce code-barres est déjà utilisé par un autre article.');
   if (/duplicate key.*restaurants_slug/i.test(msg)) return t('Cette adresse (slug) est déjà prise.');
   if (/duplicate key.*(label|name)/i.test(msg)) return t('Ce nom existe déjà.');
   if (/violates foreign key.*menu_items/i.test(msg) || /menu_items_restaurant_id_category_id_fkey/i.test(msg)) return t("Cette catégorie contient encore des articles : déplacez-les ou supprimez-les d'abord.");

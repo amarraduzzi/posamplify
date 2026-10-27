@@ -1,0 +1,69 @@
+SCANNER EN WEEGSCHAAL-ETIKETTEN - STAP 3 (een OPTIE, standaard UIT)
+
+WAT DIT DOET
+- Een patisserie die een barcodescanner of een weegschaal met etiketten gebruikt, zet het zelf aan. Wie het niet aanzet, merkt NIETS:
+  geen scanveld in de kassa, geen codeveld bij een product.
+- Aanzetten: Beheer > Réglages > "Scanner et balance" > "Activer le scanner dans la caisse". Alleen de eigenaar kan dat.
+  (Het blok staat alleen bij zaken met de kassa.)
+- Daar stel je ook in hoe de weegschaal haar etiketten schrijft (zie hieronder).
+- Aan: elk product krijgt het veld "Code-barres". Voor een normaal product: de code die op het product staat.
+  Voor een product dat per gewicht wordt verkocht: het artikelnummer (PLU) dat de weegschaal in haar etiketten drukt.
+- In de kassa (bij een bestelling) verschijnt een veld "Scanner un code-barres" en, als de tablet het kan, een camera-knop.
+  Een USB- of bluetooth-scanner werkt ook zonder op een veld te tikken (zolang je niet in een invoerveld staat).
+- Scan een normaal product: het staat op de bestelling. Scan een weegschaal-etiket: het product staat op de bestelling MET het gewicht
+  van het etiket, en de prijs wordt berekend zoals bij een met de hand getypt gewicht (niets aan de prijsberekening is veranderd).
+  Scan je een gewichtsproduct met zijn gewone code (zonder gewicht), dan vraagt de kassa het gewicht.
+
+HOE WEEGSCHAAL-ETIKETTEN WERKEN
+- De meeste weegschalen drukken een EAN-13 code: voorvoegsel + artikelnummer + gewicht (of prijs) + controlecijfer, bv.
+      2 123456 00450 7   = artikel 123456, 450 g
+  De standaard is: voorvoegsel "2", artikelnummer 6 cijfers, gewicht 5 cijfers in gram. Voorvoegsel + artikelnummer + waarde moeten samen 12 cijfers zijn.
+- Past jullie weegschaal er niet bij? Pas de instellingen aan: voorvoegsel, aantal cijfers van het artikelnummer en van de waarde,
+  en of er gram, tientallen grammen of de prijs in centimes in staat. Dit moet je met de ECHTE weegschaal testen.
+- Staat de prijs in de code: het gewicht wordt teruggerekend uit de kiloprijs, dus de prijs aan de kassa kan 1 centime afwijken van het etiket.
+
+VEILIGHEID (bewust zo gebouwd)
+- Een etiket met een fout controlecijfer (verkeerd gelezen) of een onmogelijk gewicht wordt geweigerd: "Code illisible : scannez à nouveau".
+- Een onbekende code voegt niets toe: "Code inconnu".
+- Een uitverkocht product wordt niet toegevoegd.
+- Staat er een venster open (betalen, gewicht invullen), dan doet een scan niets.
+- Een code is uniek per zaak. Dezelfde code twee keer geeft een foutmelding bij het bewaren van het product.
+
+STAPPEN
+1. SUPABASE EERST: open SUPABASE-SQL-scanner.txt (Kladblok), kopieer alles, plak in de SQL Editor, Run. Moet "Success" geven.
+   Het bestand mag veilig twee keer gedraaid worden. Dit voegt alleen kolommen toe; alles blijft uit.
+2. GITHUB: pak de zip uit. Daarin staan "apps", "packages", "supabase" en dit bestand.
+   Sleep ALLEEN de mappen "apps", "packages" en "supabase" naar Add file > Upload files (niet de map eromheen) > Commit.
+   Controle: op de commitpagina beginnen alle paden met "apps/admin/src/...", "apps/pos/src/...", "packages/shared/..." of "supabase/...".
+   Deze bestanden worden VERVANGEN (pas ze niet zelf aan in de tussentijd):
+     apps/admin/src/lib/api.ts, lib/i18n-ar.ts, lib/i18n-en.ts, lib/types.ts, pages/MenuPage.tsx, pages/SettingsPage.tsx
+     apps/pos/src/components/OrderScreen.tsx, lib/i18n-ar.ts, lib/i18n-en.ts, lib/types.ts
+     packages/shared/src/index.ts
+   Nieuw: apps/admin/src/components/ScannerSettings.tsx, apps/pos/src/components/ScanBox.tsx, apps/pos/src/lib/scan.ts,
+          packages/shared/src/barcode.ts, packages/shared/test/barcode.test.mjs,
+          supabase/migrations/20261211000100_barcodes.sql, supabase/tests/98_barcodes.test.mjs
+   LET OP: i18n-ar/en en types.ts in "admin" bevatten ook de teksten van stap 2 (etiketten). Heb je stap 2 nog niet geüpload, doe die dan eerst
+   (anders staan er ongebruikte teksten in; dat is niet erg).
+3. Wacht tot Cloudflare het beheer EN de kassa opnieuw heeft gepubliceerd (de kassa is dit keer wel aangepast; herlaad de kassa op elk apparaat).
+4. TEST met een echte scanner of weegschaal:
+   a. Zet de optie aan. Geef een gewoon product een code; scan hem in de kassa: hij staat op de bestelling.
+   b. Geef een gewichtsproduct het artikelnummer van de weegschaal, weeg iets, scan het etiket: product + gewicht + prijs kloppen met het etiket.
+   c. Klopt het gewicht niet? Pas voorvoegsel/aantal cijfers/soort waarde aan bij "Scanner et balance".
+   d. Probeer een bijna-juiste code (één cijfer fout): de kassa weigert hem. Probeer een onbekende code.
+   e. Zet de optie weer uit: het scanveld en het codeveld verdwijnen.
+
+GETEST
+- De leeslogica (9 tests, packages/shared/test): gewone code, etiket met gewicht, voorloopnullen, andere formaten (prefix 28), tientallen
+  grammen, prijs in de code, fout controlecijfer, onmogelijk gewicht, onbekende code, product dat niet per gewicht wordt verkocht.
+  Uitvoeren: node --import tsx --test packages/shared/test/barcode.test.mjs
+- 4 nieuwe databasetests (98_barcodes): standaard uit, alleen de eigenaar zet het aan, de formaatregel (12 cijfers), unieke code per zaak.
+- De hele databasetestset (391 tests) slaagt. Typecheck van alle apps en productiebuild van beheer en kassa zijn in orde.
+
+NIET GETEST
+- Niets is met een echte scanner, een echte weegschaal, de camera of in een echte browser geprobeerd. Vooral het weegschaal-formaat van JULLIE
+  weegschaal moet echt getest worden (stap 4b/4c). De camera werkt alleen in browsers met BarcodeDetector (Chrome op Android/PC, niet op iPhone).
+- De scanner-detectie gaat uit van een scanner die als toetsenbord werkt (snel typen, afsluiten met Enter). Zet de scanner zo in als dat niet zo is.
+
+NIET IN DEZE STAP
+- Directe seriële koppeling met de weegschaal (de weegschaal praat met de kassa); weegschalen met een eigen controlecijfer binnen het
+  gewichtsveld; barcode op het productie-etiket zelf; kassa-offline-gedrag is niet veranderd.

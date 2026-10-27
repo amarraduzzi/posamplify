@@ -11,6 +11,7 @@ import { Btn, Card, Field, I18nInput, ImageField, Toggle, inputCls } from '../co
 import { t } from '../lib/i18n';
 import { BillingCard } from '../components/OwnerBilling';
 import { GuestActions } from '../components/GuestActions';
+import { ScannerSettings } from '../components/ScannerSettings';
 import { guestActionsOf, type GuestAction } from '@resto/shared';
 
 const LANGS: [string, string][] = [['fr', 'Français'], ['ar', 'العربية'], ['en', 'English'], ['es', 'Español']];
@@ -201,6 +202,7 @@ export function SettingsPage({ r }: { r: Restaurant }) {
             <div className="md:col-span-2"><Field label={t('Message en bas du ticket')} hint={t('Imprimé tel quel sur le ticket (caractères latins uniquement).')}><input className={inputCls} maxLength={80} value={pos.footer} onChange={e => setPos({ ...pos, footer: e.target.value })} placeholder="Merci de votre visite, à bientôt !" /></Field></div>
           </div>
         </Card>}
+        {!siteOnly && r.products?.includes('pos') && <ScannerSettings r={r} />}
         {!siteOnly && <Card>
           <h2 className="mb-1 font-display text-xl font-semibold">{t('Postes de préparation')}</h2>
           <p className="mb-4 text-sm text-muted">{t('Chaque poste reçoit ses bons, sur son imprimante et sur son écran cuisine. Ajoutez par exemple Grill, Pizza ou Dessert, puis choisissez le poste de chaque catégorie dans le Menu.')}</p>

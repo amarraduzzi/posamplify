@@ -33,6 +33,8 @@ export interface Restaurant {
   pos_settings: PosSettings; trial_ends_at: string | null; products?: string[];
   /** boccadillos mode: pay (cash) first, then the kitchen; switched on by the platform admin */
   boccadillos?: boolean;
+  /** option, off by default: barcode scanner at the till, and how the shop's scale writes its labels (packages/shared/src/barcode.ts) */
+  barcode_scan?: boolean; scale_prefix?: string; scale_code_len?: number; scale_value_len?: number; scale_value?: 'weight_g' | 'weight_10g' | 'price_cents';
   /** Amplify Agenda (salons): booking and the Nouba */
   agenda?: { enabled?: boolean; queue?: boolean } | null;
   accept_takeaway?: boolean; accept_delivery?: boolean; pos_plan?: 'essentiel' | 'restaurant';
@@ -64,6 +66,8 @@ export interface Item {
   groups?: ModGroup[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
   /** price_cents is the price of 1 kg: the till asks the weight */
   sold_by_weight?: boolean;
+  /** product code, or the number the scale prints in its labels (weighed items) */
+  barcode?: string | null;
 }
 export interface ChosenMod { id: string; name: string; price_cents: number; group_id?: string; group_name?: string; all?: boolean }
 

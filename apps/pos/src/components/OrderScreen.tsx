@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ArrowLeft, Minus, Plus, Send, ChevronUp, Users, UserRound, Gift, Wallet, Printer, Percent, Ban, ArrowLeftRight, QrCode, Trash2, Search, X, StickyNote, RotateCcw, Merge, Ticket, FastForward } from 'lucide-react';
-import { loyaltyRewards, promoPrice, tr, type LoyaltyReward } from '@resto/shared';
+import { loyaltyRewards, promoPrice, resolveScan, scaleFormatOf, tr, type LoyaltyReward } from '@resto/shared';
 import { usePos, type OrderTarget } from '../store';
 import * as db from '../lib/data';
 import { kg, mad, time, uid } from '../lib/format';
@@ -23,6 +23,8 @@ import { CALLS, serviceDone, useServiceCalls } from '../lib/service';
 import { dayPart, useQuickPicks } from '../lib/quickPicks';
 import { modsLabel } from '../lib/mods';
 import { CashDialog } from './LiveOrders';
+import { ScanBox } from './ScanBox';
+import { useKeyboardScanner } from '../lib/scan';
 
 type Dialog = null | 'promo' | 'pay' | 'split' | 'customer' | 'discount' | 'cancel' | 'move' | 'note' | 'leave' | { void: Line } | { pick: Item } | { lineNote: string; itemId?: string | null } | { weigh: Item };
 
@@ -156,6 +158,18 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
       return [...d, { key: uid(), item_id: i.id, variant_id: variantId, name: name.slice(0, 120), unit_price_cents: price, quantity: 1, note: '', station: stationOf(i), modifiers: chosen, course: courseOf(i) }];
     });
   };
+  // barcodes (an option of the shop, off by default): a product code or a scale label puts the item on the order
+  const scanOn = !!r.barcode_scan;
+  const onScan = (raw: string) => {
+    if (dialog !== null) return;            // a window is open (payment, weight...): a scan must not change the order behind it
+    const res = resolveScan(raw, pos.items, scaleFormatOf(r));
+    if (res.kind === 'bad') { pos.toast(t('Code illisible : scannez à nouveau.'), 'error'); return; }
+    if (res.kind === 'unknown') { pos.toast(t('Code inconnu : {c}', { c: res.code }), 'error'); return; }
+    if (!res.item.available) { pos.toast(t('{n} : épuisé', { n: nameOf(res.item.name) }), 'error'); return; }
+    addItem(res.item, null, null, res.weight_g);
+    pos.toast(`${nameOf(res.item.name)}${res.weight_g ? ` · ${kg(res.weight_g)}` : ''}`, 'ok');
+  };
+  useKeyboardScanner(scanOn, onScan);
   const bump = (key: string, delta: number) => setDraft(d => d.flatMap(x => x.key !== key ? [x] : x.quantity + delta <= 0 ? [] : [{ ...x, quantity: x.quantity + delta }]));
 
   // ---- boccadillos counter: a new order is paid first (cash, always), under a name, then goes to the kitchen.
@@ -469,6 +483,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('Rechercher un article')} className={`${inputCls} py-2 ps-9`} />
             {query && <button onClick={() => setQuery('')} aria-label={t('Effacer')} className="absolute end-2 top-1/2 -translate-y-1/2 text-muted"><X className="h-4 w-4" /></button>}
           </div>
+          {scanOn && <ScanBox onCode={onScan} className="mt-2" />}
           {!query && (
             <div className="scroll-thin -mx-3 mt-2 flex gap-2 overflow-x-auto px-3 pb-1">
               {hasPopular && (
@@ -574,6 +589,7 @@ export function OrderScreen({ target, onClose, onRetarget }: { target: OrderTarg
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('Rechercher un article')} className={`${inputCls} py-2 ps-9`} />
             {query && <button onClick={() => setQuery('')} aria-label={t('Effacer')} className="absolute end-2 top-1/2 -translate-y-1/2 text-muted"><X className="h-4 w-4" /></button>}
           </div>
+          {scanOn && <ScanBox onCode={onScan} className="w-64" />}
         </div>
 
         {counterNew && counterBar}

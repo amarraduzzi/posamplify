@@ -14,6 +14,8 @@ export interface Restaurant {
   qr_shared?: boolean;
   /** boccadillos mode (pay first, then kitchen): only the platform admin switches it */
   boccadillos?: boolean;
+  /** option, off by default: barcode scanner at the till, and how the shop's scale writes its labels (see packages/shared/src/barcode.ts) */
+  barcode_scan?: boolean; scale_prefix?: string; scale_code_len?: number; scale_value_len?: number; scale_value?: 'weight_g' | 'weight_10g' | 'price_cents';
   legal_name: string | null; ice: string | null; tax_id: string | null; rc: string | null; address: string | null; city: string | null; phone: string | null;
   default_vat_bp: number;
   products?: ('pos' | 'profit' | 'site' | 'orders' | 'loyalty' | 'maitre' | 'agenda')[];
@@ -46,6 +48,8 @@ export interface Item {
   item_variants: Variant[]; takeaway_discount_cents?: number | null; glovo_price_cents?: number | null;
   /** price_cents is the price of 1 kg; the till asks the weight */
   sold_by_weight?: boolean;
+  /** product code, or for a weighed product the number the scale prints in its labels (only used when the shop switched the scanner on) */
+  barcode?: string | null;
 }
 export interface Staff { id: string; name: string; role: 'staff' | 'manager'; active: boolean }
 export interface Table { id: string; label: string; zone: string | null; qr_token: string; sort_order: number; active: boolean }

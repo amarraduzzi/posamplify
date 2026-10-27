@@ -1062,4 +1062,11 @@ export const AR: Record<string, string> = {
   'Afficher les commandes prêtes en salle': 'عرض الطلبات الجاهزة فالقاعة',
   'Sur une télé ou une tablette que les clients voient : noms et numéros, avec un son quand une commande est prête.': 'على تلفاز أو تابلت كيشوفوه الزبناء: الأسماء والأرقام، مع صوت منين الطلب يوجد.',
   'Télé ou tablette : scannez ce QR (ou ouvrez ce lien), puis laissez la page ouverte.': 'تلفاز أو تابلت: سكاني هاد QR (أو حل الرابط)، وخلي الصفحة مفتوحة.',
+  "Scanner un code-barres": "مسح الباركود",
+  "Scanner avec la caméra": "المسح بالكاميرا",
+  "Placez le code-barres devant la caméra.": "ضع الباركود أمام الكاميرا.",
+  "La caméra n’est pas accessible. Autorisez-la dans le navigateur, ou utilisez un scanner.": "الكاميرا غير متاحة. اسمح بها في المتصفح أو استعمل ماسحاً ضوئياً.",
+  "Code illisible : scannez à nouveau.": "الرمز غير مقروء: امسحه من جديد.",
+  "Code inconnu : {c}": "رمز غير معروف: {c}",
+  "{n} : épuisé": "{n}: نفد",
 };

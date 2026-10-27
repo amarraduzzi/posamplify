@@ -1065,4 +1065,11 @@ export const EN: Record<string, string> = {
   "Afficher les commandes prêtes en salle": "Show ready orders in the room",
   "Sur une télé ou une tablette que les clients voient : noms et numéros, avec un son quand une commande est prête.": "On a TV or tablet the customers can see: names and numbers, with a sound when an order is ready.",
   "Télé ou tablette : scannez ce QR (ou ouvrez ce lien), puis laissez la page ouverte.": "TV or tablet: scan this QR (or open this link), then leave the page open.",
+  "Scanner un code-barres": "Scan a barcode",
+  "Scanner avec la caméra": "Scan with the camera",
+  "Placez le code-barres devant la caméra.": "Hold the barcode in front of the camera.",
+  "La caméra n’est pas accessible. Autorisez-la dans le navigateur, ou utilisez un scanner.": "The camera is not available. Allow it in the browser, or use a scanner.",
+  "Code illisible : scannez à nouveau.": "Unreadable code: scan again.",
+  "Code inconnu : {c}": "Unknown code: {c}",
+  "{n} : épuisé": "{n}: sold out",
 };
