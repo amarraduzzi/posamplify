@@ -2,7 +2,7 @@
 // weekday and the confirmed catering orders, minus what is already in stock. "Lancer la fournée" takes the
 // ingredients out when the batch goes in the oven; "Terminer" notes what came out (the yield is then known).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CookingPot, ScanSearch, Undo2 } from 'lucide-react';
+import { CookingPot, Printer, ScanSearch, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { check, mad, rpc } from '../lib/api';
 import { dateLocale, t } from '../lib/i18n';
@@ -11,6 +11,7 @@ import type { BaseUnit, Restaurant } from '../lib/types';
 import { fmtQty } from '../lib/profit';
 import { Btn, Card, inputCls } from '../components/ui';
 import { DemandForecast } from '../components/DemandForecast';
+import { LabelModal } from '../components/LabelModal';
 import { ProductionTraceModal } from '../components/ProductionTrace';
 import { ProductionYield } from '../components/ProductionYield';
 import { Smooth } from '../components/Smooth';
@@ -36,6 +37,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
   const [fin, setFin] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [trace, setTrace] = useState<string | null>(null);
+  const [label, setLabel] = useState<string | null>(null);
   const [tab, setTab] = useState<'plan' | 'yield'>('plan');
   // the quantities the person typed stay when the page refreshes (only the suggestions are refreshed)
   const edited = useRef<Set<string>>(new Set());
@@ -226,6 +228,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
                   )}
                   {b.cost_cents != null && <span className="tabular text-sm text-muted">{mad(b.cost_cents)}</span>}
                   <Btn tone="ghost" className="px-2.5 py-1 text-sm" aria-label={t('Traçabilité')} onClick={() => setTrace(b.id)}><ScanSearch className="h-4 w-4" /> {t('Traçabilité')}</Btn>
+                  {!b.cancelled_at && <Btn tone="ghost" className="px-2.5 py-1 text-sm" aria-label={t('Étiquette')} onClick={() => setLabel(b.id)}><Printer className="h-4 w-4" /> {t('Étiquette')}</Btn>}
                   {b.cancelled_at ? <span className="text-xs font-semibold text-muted">{t('Annulée')}</span>
                     : <Btn tone="ghost" className="px-2.5 py-1 text-sm" onClick={() => cancel(b)}><Undo2 className="h-4 w-4" /> {t('Annuler')}</Btn>}
                 </li>
@@ -236,6 +239,7 @@ export function ProductionPage({ r, onIngredients }: { r: Restaurant; onIngredie
       </Smooth>}
       {tab === 'plan' && day === 0 && today && !!items?.length && <ProductionDayEnd r={r} today={today} items={items} onChanged={load} />}
       {trace && <ProductionTraceModal id={trace} onClose={() => setTrace(null)} />}
+      {label && <LabelModal rid={r.id} id={label} onClose={() => setLabel(null)} />}
     </div>
   );
 }

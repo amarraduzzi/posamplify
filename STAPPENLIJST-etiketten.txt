@@ -1,0 +1,56 @@
+ETIKETTEN - STAP 2 (productie-etiket per fournée)
+
+WAT DIT DOET
+- Elke fournée (productie) krijgt automatisch een eigen lotnummer, bv. P261027-03 (P + dag JJMMDD + nummer van die dag).
+  Bestaande fournées en hun partijen in de voorraad krijgen ook een nummer. Het nummer staat ook in "Traçabilité".
+- Nieuwe knop "Étiquette" bij elke afgeronde, niet-geannuleerde fournée (Beheer > Production > "Produit aujourd'hui").
+- Het etiket toont: zaaknaam, productnaam, "Fabriqué le", DLC/DDM-datum, lotnummer, optioneel de inhoud (bv. 500 g)
+  en de ALLERGENEN uit stap 1 (automatisch berekend door alle niveaus van het recept, nooit een oude kopie).
+- Formaten: 50x30, 58x40, 80x50, 100x60 mm. Aantal etiketten kiezen. Allergenen eventueel in Frans + Arabisch.
+- Afdrukken: via het printvenster van de browser (elke printer die Windows of de tablet kent, ook een etikettenprinter met driver),
+  of via de ticketprinter van de bestellingen (printhost), alleen als die op deze PC is ingesteld (alleen Frans).
+- De voorkeuren (formaat, Arabisch) worden per PC onthouden.
+
+VEILIGHEID (bewust zo gebouwd)
+- Is een ingrediënt in het recept niet ingevuld: het etiket zegt "Allergènes : demandez au personnel". Nooit "geen allergenen".
+- Past de tekst niet op het etiket (te veel allergenen voor een klein formaat): afdrukken wordt geblokkeerd, zodat er niets wordt afgeknipt.
+- Geen bekende houdbaarheid: afdrukken wordt geblokkeerd tot je een datum invult (of de houdbaarheid bij de bereiding instelt).
+- Een geannuleerde fournée krijgt geen etiket.
+
+STAPPEN
+1. SUPABASE EERST: open SUPABASE-SQL-etiketten.txt (Kladblok), kopieer alles, plak in de SQL Editor, Run. Moet "Success" geven.
+   Het bestand mag veilig twee keer gedraaid worden. Stap 1 (allergenen) moet al gedraaid zijn.
+2. GITHUB: pak de zip uit. Daarin staan "apps", "supabase" en dit bestand.
+   Sleep ALLEEN de mappen "apps" en "supabase" naar Add file > Upload files (niet de map eromheen) > Commit.
+   Controle: op de commitpagina beginnen alle paden met "apps/admin/src/..." of "supabase/...".
+   Deze bestanden worden VERVANGEN (pas ze niet zelf aan in de tussentijd):
+     apps/admin/src/pages/ProductionPage.tsx, apps/admin/src/lib/types.ts, apps/admin/src/lib/i18n-ar.ts, apps/admin/src/lib/i18n-en.ts
+   Nieuw: apps/admin/src/components/LabelModal.tsx, apps/admin/src/lib/labelPrint.ts,
+          supabase/migrations/20261210000100_labels.sql, supabase/tests/98_labels.test.mjs
+3. Wacht tot Cloudflare het beheer opnieuw heeft gepubliceerd. De kassa (pos) en de klant-app zijn niet aangepast.
+4. TEST (in een echte browser, dit is niet door mij gedaan):
+   a. Zorg dat een bereiding een houdbaarheid heeft (Ingrédients > de bereiding > conservation) en dat de ingrediënten allergenen hebben (Allergènes).
+   b. Maak een fournée en rond hem af. Tik "Étiquette". Controleer de voorbeeldweergave: datum, lotnummer, allergenen.
+   c. Tik "Imprimer l'étiquette", kies je printer, papierformaat gelijk aan het etiket, marges: geen.
+   d. Probeer een klein formaat (50x30) met veel allergenen en Arabisch aan: je moet de waarschuwing "Le texte ne tient pas" zien.
+   e. Controleer het Arabisch (van rechts naar links) en een fournée zonder houdbaarheid.
+
+GETEST
+- 7 nieuwe databasetests (98_labels) op een echte Postgres: lotnummer per fournée, nummer op de partij, allergenen door twee niveaus,
+  "onvolledig" bij een gat, wijziging van een ingrediënt werkt door, geen datum zonder houdbaarheid, andere zaak komt er niet bij.
+- De hele testset (387 tests) slaagt. Typecheck van alle apps en productiebuild van het beheer zijn in orde.
+- De tekst van het etiket en het ticket is gecontroleerd met een testscript (aantal etiketten, datum, lot, "demandez au personnel").
+
+NIET GETEST
+- Niets is in een echte browser of op een echte printer geprobeerd (er was geen browser beschikbaar): de weergave, het afdrukken op
+  papier, de overloop-controle van de tekst en het Arabisch van rechts naar links moeten jullie nakijken (stap 4).
+- Etikettenprinters die alleen hun eigen taal (ZPL/TSPL) spreken, werken niet via "Imprimante de tickets"; gebruik dan de browser met het
+  Windows-stuurprogramma van de printer.
+
+OPGEMERKT
+- supabase/migrations mist nog steeds 20261204000100 en 20261205000100 (staan alleen in de mappen stap-A en stap-B). Zonder die twee faalt
+  "npm run test:db" op een lege database. Voor mijn test heb ik ze in een tijdelijke kopie meegenomen. Zet ze op GitHub in supabase/migrations/.
+- Het etiket werkt voor bereidingen die in de productiepagina gemaakt worden. Gekochte producten (een gebotteld drankje) hebben geen fournée en dus geen etiket.
+
+NIET IN DEZE STAP
+- Barcode inlezen in de kassa en weegschaal-etiketten (stap 3), een barcode op het etiket zelf, prijs op het etiket.

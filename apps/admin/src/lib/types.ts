@@ -81,6 +81,12 @@ export interface ProductionTrace {
   ingredients: { ingredient_id: string; name: string; base_unit: BaseUnit; used: number; traced: number; untraced: number;
     lots: { lot_code: string | null; supplier: string | null; received_on: string | null; expires_on: string | null; qty: number }[] }[];
 }
+/** The facts of one product label (production_label): allergens come from the recipe, complete = every ingredient was checked. */
+export interface ProductionLabel {
+  production_id: string; restaurant: string; name: string; base_unit: BaseUnit; qty: number; produced_on: string;
+  expires_on: string | null; expiry_type: 'dlc' | 'ddm'; lot_code: string | null;
+  allergens: string[]; may_contain: string[]; allergens_complete: boolean; cancelled: boolean;
+}
 /** Catering: for the confirmed orders of a day, what is still good on that day. */
 export interface CateringExpiryCheck {
   date: string; short_count: number;
