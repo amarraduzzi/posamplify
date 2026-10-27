@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 const v = name => `rgb(var(--${name}) / <alpha-value>)`;
 export default {
+  // hover styles only on devices that can really hover: on iPad/phone the first tap no longer counts as a "hover"
+  future: { hoverOnlyWhenSupported: true },
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
