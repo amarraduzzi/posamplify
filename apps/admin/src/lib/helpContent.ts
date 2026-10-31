@@ -7,7 +7,20 @@ export type Block =
   | { t: 'steps'; items: string[] }
   | { t: 'ul'; items: string[] }
   | { t: 'tip'; text: string }
-  | { t: 'warn'; text: string };
+  | { t: 'warn'; text: string }
+  /** capture d'écran : fichier dans apps/admin/public/help/ (ex. src: '/help/caisses.png') */
+  | { t: 'img'; src: string; alt: string; caption?: string };
+
+/** Une étape de la visite guidée : la page où se placer, et le texte du bouton/élément à entourer. */
+export interface TourStep {
+  /** page de l'espace de gestion à ouvrir avant l'étape (ex. 'devices', 'menu', 'tables', 'staff') */
+  page?: string;
+  /** texte visible de l'élément à entourer (en français : il est traduit automatiquement) */
+  target?: string;
+  /** true = l'élément est dans le menu de gauche */
+  nav?: boolean;
+  text: string;
+}
 
 export interface Article {
   id: string;
@@ -18,6 +31,8 @@ export interface Article {
   summary: string;
   blocks: Block[];
   products?: string[];
+  /** visite guidée dans la vraie application (bouton « Me le montrer ») */
+  tour?: TourStep[];
 }
 
 export interface Chapter { id: string; title: string; blurb: string }
@@ -62,6 +77,9 @@ const START: Article[] = [
     id: 'start-pair', chapter: 'start', title: 'Relier votre caisse', products: ['pos'],
     keywords: ['caisse', 'connecter', 'code', 'qr', 'tablette', 'ordinateur', 'chrome', 'écran d’accueil', 'installer', 'android', 'appareil', 'relier'],
     summary: 'Un code à usage unique suffit : pas de mot de passe à retenir.',
+    tour: [{ target: 'Caisses', nav: true, text: 'Ouvrez « Caisses » dans le menu de gauche.' },
+      { page: 'devices', target: 'Relier une caisse', text: 'Touchez « Relier une caisse » : un code à usage unique s’affiche. Tapez-le sur la caisse.' },
+      { page: 'devices', target: 'Télécharger l’application Android', text: 'Sur tablette Android, vous pouvez installer l’application Amplify Caisse ici (facultatif).' }],
     blocks: [
       { t: 'p', text: 'La caisse fonctionne dans le navigateur (Chrome) de n’importe quel ordinateur ou tablette.' },
       { t: 'steps', items: [
@@ -79,6 +97,8 @@ const START: Article[] = [
     id: 'start-lost', chapter: 'start', title: 'Appareil perdu ou volé', products: ['pos'],
     keywords: ['perdu', 'volé', 'retirer', 'sécurité', 'accès', 'révoquer', 'remplacer'],
     summary: 'Retirez l’appareil : il perd immédiatement l’accès.',
+    tour: [{ target: 'Caisses', nav: true, text: 'Ouvrez « Caisses » dans le menu de gauche.' },
+      { page: 'devices', target: 'Retirer', text: 'Touchez « Retirer » à côté de l’appareil perdu : il perd l’accès immédiatement.' }],
     blocks: [
       { t: 'steps', items: [
         'Ouvrez « Caisses ».',
@@ -91,6 +111,8 @@ const START: Article[] = [
     id: 'start-staff', chapter: 'start', title: 'Ajouter vos employés', products: ['pos', 'loyalty'],
     keywords: ['personnel', 'serveur', 'code', 'pin', 'prénom', 'manager', 'employé', 'équipe'],
     summary: 'Chacun choisit son prénom sur la caisse et tape son code.',
+    tour: [{ target: 'Personnel', nav: true, text: 'Ouvrez « Personnel » dans le menu de gauche.' },
+      { page: 'staff', target: 'Ajouter', text: 'Touchez « Ajouter » pour créer un employé avec son prénom et son code.' }],
     blocks: [
       { t: 'p', text: 'Sur la caisse, chaque employé choisit son prénom puis tape son code personnel.' },
       { t: 'steps', items: ['Ouvrez la page « Personnel ».', 'Ajoutez chaque employé avec son prénom et son code.'] },
@@ -296,6 +318,8 @@ const MENU: Article[] = [
     id: 'menu-categories', chapter: 'menu', title: 'Les catégories',
     keywords: ['catégorie', 'boissons', 'plats', 'ordre', 'monter', 'descendre', 'masquer', 'imprimante', 'préparé à', 'service', 'suite', 'entrée', 'emporter', 'icône'],
     summary: 'Organiser votre carte, choisir l’imprimante et les services.',
+    tour: [{ target: 'Menu', nav: true, text: 'Ouvrez « Menu » dans le menu de gauche.' },
+      { page: 'menu', target: 'Ajouter', text: 'Touchez « Ajouter » pour créer une catégorie (Boissons, Plats…).' }],
     blocks: [
       { t: 'p', text: 'Ouvrez la page « Menu ». Commencez par créer une catégorie (Boissons, Plats…) avec « Ajouter ». Chaque catégorie peut être modifiée, masquée, ou déplacée avec « Monter » et « Descendre ».' },
       { t: 'p', text: 'Dans la fenêtre d’une catégorie, vous réglez :' },
@@ -312,6 +336,9 @@ const MENU: Article[] = [
     id: 'menu-items', chapter: 'menu', title: 'Ajouter et modifier un article',
     keywords: ['article', 'plat', 'prix', 'photo', 'description', 'taille', 'options', 'glovo', 'poids', 'balance', 'code-barres', 'scanner', 'visible', 'supprimer'],
     summary: 'Nom, prix, photo, tailles, vente au poids, code-barres, prix Glovo.',
+    tour: [{ target: 'Menu', nav: true, text: 'Ouvrez « Menu » dans le menu de gauche.' },
+      { page: 'menu', target: 'Chercher un article', text: 'Retrouvez un article rapidement avec la recherche.' },
+      { page: 'menu', target: 'Ajouter un article', text: 'Après avoir choisi une catégorie, touchez « Ajouter un article ».' }],
     blocks: [
       { t: 'steps', items: [
         'Choisissez une catégorie puis touchez « Ajouter un article ».',
@@ -331,6 +358,8 @@ const MENU: Article[] = [
     id: 'menu-availability', chapter: 'menu', title: 'Épuisé ou masqué : quelle différence ?',
     keywords: ['épuisé', 'rupture', 'masquer', 'oeil', 'œil', 'disponible', 'afficher', 'stock', 'plus de'],
     summary: 'Deux façons de retirer un article, pour deux situations.',
+    tour: [{ target: 'Menu', nav: true, text: 'Ouvrez « Menu » dans le menu de gauche.' },
+      { page: 'menu', target: 'Épuisé', text: '« Épuisé » garde l’article visible mais non commandable aujourd’hui. L’œil, à côté, le masque complètement.' }],
     blocks: [
       { t: 'ul', items: [
         'Épuisé : l’article reste visible mais n’est plus commandable aujourd’hui. Idéal pour une rupture de stock. Remettez « Disponible » demain.',
@@ -342,6 +371,8 @@ const MENU: Article[] = [
     id: 'menu-modifiers', chapter: 'menu', title: 'Suppléments et formules',
     keywords: ['supplément', 'formule', 'option', 'cuisson', 'boisson', 'groupe', 'choix', 'obligatoire', 'fiche technique', 'sauce', 'extra', 'menu enfant'],
     summary: 'Des groupes de choix (cuisson, suppléments, boisson de la formule) réutilisables sur plusieurs plats.',
+    tour: [{ target: 'Menu', nav: true, text: 'Ouvrez « Menu » dans le menu de gauche.' },
+      { page: 'menu', target: 'Suppléments et formules', text: 'Touchez « Suppléments et formules » pour créer vos groupes d’options.' }],
     blocks: [
       { t: 'p', text: 'Sur la page Menu, « Suppléments et formules » vous permet de créer des groupes d’options que le client choisit en commandant.' },
       { t: 'steps', items: [
@@ -358,6 +389,8 @@ const MENU: Article[] = [
     id: 'menu-import', chapter: 'menu', title: 'Importer votre carte (photo, PDF, Excel)',
     keywords: ['importer', 'import', 'photo', 'pdf', 'excel', 'csv', 'xls', 'ancienne caisse', 'modèle', 'ia', 'annuler', 'traduction', 'arabe', 'changer de caisse'],
     summary: 'Votre menu prêt en 2 minutes, sans rien retaper, et annulable.',
+    tour: [{ target: 'Menu', nav: true, text: 'Ouvrez « Menu » dans le menu de gauche.' },
+      { page: 'menu', target: 'Importer', text: 'Touchez « Importer » : photo, PDF ou Excel, votre carte est prête en 2 minutes.' }],
     blocks: [
       { t: 'p', text: 'Vous changez de caisse ? Ne retapez pas votre carte. Sur la page Menu, touchez « Importer mon menu » et choisissez la méthode la plus simple :' },
       { t: 'ul', items: [
@@ -378,6 +411,10 @@ const MENU: Article[] = [
     id: 'menu-tables', chapter: 'menu', title: 'Tables et QR codes', products: ['pos', 'orders'],
     keywords: ['table', 'qr', 'code', 'imprimer', 'zone', 'terrasse', 'salle', 'zip', 'png', 'svg', 'nouveau qr', 'abîmé', 'chevalet', 'plastifier', 'qr unique', 'sur place'],
     summary: 'Créer vos tables, imprimer les QR codes, ou utiliser un QR unique.',
+    tour: [{ target: 'Tables & QR codes', nav: true, text: 'Ouvrez « Tables & QR codes » dans le menu de gauche.' },
+      { page: 'tables', target: 'Ajouter des tables', text: 'Touchez « Ajouter des tables » : indiquez de quel numéro à quel numéro.' },
+      { page: 'tables', target: 'Imprimer tous les QR codes', text: 'Imprimez tous les QR codes d’un coup (6 par page A4).' },
+      { page: 'tables', target: 'Un seul QR code pour tout le restaurant', text: 'Option : un seul QR code pour toutes les tables.' }],
     blocks: [
       { t: 'p', text: 'Chaque table a son propre QR code : le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).' },
       { t: 'steps', items: [

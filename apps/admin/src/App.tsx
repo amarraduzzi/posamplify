@@ -59,6 +59,8 @@ import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
 import { HelpPage } from './pages/HelpPage';
+import { TourOverlay } from './components/TourOverlay';
+import type { TourStep } from './lib/helpContent';
 
 type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'allergens' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits' | 'agreviews' | 'help';
 // i18n:values
@@ -84,6 +86,14 @@ function Screens() {
   const inst = useInstall();
   const [page, setPage] = useState<Page>('briefing');
   const [navOpen, setNavOpen] = useState(false);
+  // guided tour from the Aide page: ring the real buttons, step by step
+  const [tour, setTour] = useState<{ steps: TourStep[]; i: number } | null>(null);
+  useEffect(() => {
+    if (!tour) return;
+    const st = tour.steps[tour.i];
+    if (st.page) setPage(st.page as Page);
+    setNavOpen(!!st.nav);
+  }, [tour]);
   // wizard progress lives in localStorage (survives a refresh); bump re-renders after it changes
   const [, bump] = useState(0);
   // requests from the premium website: badge, banner and chime on every page
@@ -191,6 +201,7 @@ function Screens() {
   }
 
   return (
+    <>
     <div className="flex h-full">
       <aside className={`night no-print fixed inset-y-0 start-0 z-40 w-68 shrink-0 flex-col overflow-hidden p-4 md:static md:flex ${navOpen ? 'flex' : 'hidden'}`} style={{ width: 272 }}>
         <PatternBackdrop className="opacity-70" />
@@ -278,13 +289,15 @@ function Screens() {
           {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
-          {r && current === 'help' && <HelpPage key={r.id} r={r} />}
+          {r && current === 'help' && <HelpPage key={r.id} r={r} onTour={steps => setTour({ steps, i: 0 })} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}
           {r && current === 'reports' && <ReportsPage key={r.id} r={r} />}
           {current === 'platform' && a.isAdmin && <PlatformPage />}
         </div>
       </main>
     </div>
+    {tour && <TourOverlay steps={tour.steps} index={tour.i} onIndex={i => setTour({ steps: tour.steps, i })} onClose={() => { setTour(null); setNavOpen(false); }} />}
+    </>
   );
 }
 

@@ -1,13 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Search, ChevronLeft, Lightbulb, TriangleAlert, X } from 'lucide-react';
+import { Search, ChevronLeft, Lightbulb, TriangleAlert, X, MousePointerClick } from 'lucide-react';
 import type { Restaurant } from '../lib/types';
 import { t } from '../lib/i18n';
-import { ARTICLES, CHAPTERS, type Article, type Block } from '../lib/helpContent';
+import { ARTICLES, CHAPTERS, type Article, type Block, type TourStep } from '../lib/helpContent';
 
 /** lowercase, no accents, so « caisse », « Caisse » and « cáisse » all match */
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 function blockText(b: Block): string {
+  if (b.t === 'img') return b.alt + ' ' + (b.caption ?? '');
   return b.t === 'steps' || b.t === 'ul' ? b.items.join(' ') : b.text;
 }
 
@@ -62,6 +63,12 @@ function Blocks({ blocks, words }: { blocks: Block[]; words: string[] }) {
             ))}
           </ol>
         );
+        if (b.t === 'img') return (
+          <figure key={i}>
+            <img src={b.src} alt={b.alt} loading="lazy" className="w-full rounded-2xl border border-line/10" />
+            {b.caption && <figcaption className="mt-2 text-center text-sm text-muted">{b.caption}</figcaption>}
+          </figure>
+        );
         const warn = b.t === 'warn';
         return (
           <div key={i} className={`flex gap-3 rounded-2xl px-4 py-3 text-sm font-semibold leading-relaxed ${warn ? 'bg-warn/10 text-warn' : 'bg-brand/10 text-ink'}`}>
@@ -75,7 +82,7 @@ function Blocks({ blocks, words }: { blocks: Block[]; words: string[] }) {
 }
 
 /** Guide intégré : recherche instantanée, chapitres, articles. Le contenu vit dans lib/helpContent.ts. */
-export function HelpPage({ r }: { r: Restaurant }) {
+export function HelpPage({ r, onTour }: { r: Restaurant; onTour: (steps: TourStep[]) => void }) {
   const [q, setQ] = useState('');
   const [chapter, setChapter] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -101,6 +108,11 @@ export function HelpPage({ r }: { r: Restaurant }) {
         <button onClick={() => setOpen(null)} className="mb-4 flex items-center gap-1 text-sm font-semibold text-muted hover:text-ink"><ChevronLeft className="h-4 w-4 rtl:rotate-180" /> {t('Retour au guide')}</button>
         {ch && <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-brand">{ch.title}</p>}
         <h1 className="mb-6 font-display text-3xl font-semibold">{article.title}</h1>
+        {article.tour && (
+          <button onClick={() => onTour(article.tour!)} className="gold-fill mb-5 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 font-bold text-brand-ink shadow-sm transition hover:brightness-105 sm:w-auto">
+            <MousePointerClick className="h-5 w-5" /> {t('Me le montrer dans l’application')}
+          </button>
+        )}
         <div className="card rounded-3xl p-5 md:p-7"><Blocks blocks={article.blocks} words={words} /></div>
         {siblings.length > 0 && (
           <div className="mt-8">
