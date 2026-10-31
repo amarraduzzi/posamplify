@@ -41,6 +41,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'start', title: 'Premiers pas', blurb: 'Créer votre restaurant, relier la caisse, ajouter vos employés.' },
   { id: 'till', title: 'La caisse', blurb: 'Tables, commandes, encaissement, remises, rapports et clôture de journée.' },
   { id: 'menu', title: 'Le menu et les tables', blurb: 'Catégories, articles, options, import de votre carte, tables et QR codes.' },
+  { id: 'guest', title: 'L’application de vos clients', blurb: 'Ce que vos clients voient : menu QR, commande, suivi, réservation, club et fidélité.' },
 ];
 
 const START: Article[] = [
@@ -432,4 +433,138 @@ const MENU: Article[] = [
   },
 ];
 
-export const ARTICLES: Article[] = [...START, ...TILL, ...MENU];
+const GUEST: Article[] = [
+  {
+    id: 'guest-scan', chapter: 'guest', title: 'Ce que voit votre client en scannant le QR code', products: ['pos', 'orders'],
+    keywords: ['client', 'scanner', 'qr', 'menu', 'téléphone', 'langue', 'arabe', 'anglais', 'recherche', 'populaire', 'incontournables', 'application', 'lien'],
+    tour: [{ nav: true, target: 'Tables & QR codes', text: 'Les QR codes de vos tables sont dans « Tables & QR codes ». Scannez-en un avec votre téléphone pour voir ce que voit votre client.' }],
+    summary: 'Le menu s’ouvre dans le navigateur du téléphone : rien à installer.',
+    blocks: [
+      { t: 'p', text: 'Votre client scanne le QR code de sa table avec l’appareil photo de son téléphone. Le menu de votre restaurant s’ouvre directement : aucune application à installer, aucun compte à créer.' },
+      { t: 'ul', items: [
+        'Langues : le menu existe en français, en anglais et en arabe (de droite à gauche). Les couleurs et le logo sont ceux de votre restaurant.',
+        'Recherche : « Rechercher un plat » trouve un article en quelques lettres.',
+        'Vos plats vedettes : « Nos incontournables » met en avant ce que vous voulez vendre. Les étiquettes Populaire, Épicé, Nouveau ou Végétarien aident à choisir.',
+        'Un article épuisé reste visible mais « Épuisé » : il ne peut pas être commandé.',
+      ] },
+      { t: 'tip', text: 'Tout ce que voit le client vient de la page « Menu » de votre espace : noms, descriptions, photos, prix et disponibilité. Une modification est visible tout de suite.' },
+      { t: 'p', text: 'Si le restaurant n’accepte pas les commandes par QR code, le menu reste consultable : le client commande auprès du serveur (« Menu en consultation »).' },
+    ],
+  },
+  {
+    id: 'guest-order', chapter: 'guest', title: 'Commander depuis son téléphone', products: ['pos', 'orders'],
+    keywords: ['commander', 'panier', 'sur place', 'emporter', 'livraison', 'prénom', 'téléphone', 'note', 'cuisine', 'options', 'quand', 'plus tard', 'dès que possible', 'frais de livraison', 'minimum', 'zone', 'position', 'numéro de table', 'serveur', 'appeler'],
+    tour: [{ nav: true, target: 'Commande en ligne', text: 'Les réglages des commandes en ligne (livraison, horaires, pause) sont dans « Commande en ligne ».' }],
+    summary: 'Panier, options, note pour la cuisine, et trois modes : sur place, à emporter, livraison.',
+    blocks: [
+      { t: 'steps', items: [
+        'Le client touche un article, choisit ses options et ajoute une précision si besoin (« sans oignons, bien cuit… »).',
+        'Il ouvre « Voir le panier » : il peut modifier les quantités, ajouter une « Note pour la cuisine » (allergies, demandes particulières) et accepter un petit plus proposé (« Un petit plus ? »).',
+        'Il choisit : Sur place, À emporter ou Livraison.',
+        'Il indique son prénom (et son téléphone si nécessaire), puis touche « Commander ».',
+      ] },
+      { t: 'ul', items: [
+        'Sur place : la commande est liée à la table du QR code. Avec le QR code unique du restaurant, le client tape lui-même « Numéro de votre table ». Le paiement se fait auprès du personnel.',
+        'À emporter : « Quand ? » : dès que possible (« Prête en … min environ ») ou plus tard, à l’heure choisie. Paiement au retrait.',
+        'Livraison : adresse de livraison, et possibilité de partager sa position pour le livreur. Le client voit les frais de livraison, le minimum de commande et la zone de livraison. Paiement à la livraison.',
+      ] },
+      { t: 'p', text: 'À la caisse, vous recevez la commande à accepter (voir « Commandes des clients (QR) et en ligne » dans le chapitre La caisse).' },
+      { t: 'tip', text: '« Besoin de quelque chose ? » : sur le menu, le client peut appeler un serveur d’une touche, sans lever la main. Un message confirme que le serveur arrive.' },
+      { t: 'warn', text: 'Si le restaurant est fermé, ou si les commandes en ligne sont en pause, le client est prévenu et peut commander pour plus tard. En cas de coupure internet, son panier est conservé et il peut réessayer.' },
+    ],
+  },
+  {
+    id: 'guest-track', chapter: 'guest', title: 'Suivre sa commande', products: ['pos', 'orders'],
+    keywords: ['suivi', 'statut', 'reçue', 'en préparation', 'prête', 'servie', 'annulée', 'livreur', 'code de livraison', 'whatsapp', 'attente'],
+    summary: 'Le client voit où en est sa commande, en direct.',
+    blocks: [
+      { t: 'p', text: 'Après avoir commandé, le client voit une page de suivi qui se met à jour toute seule :' },
+      { t: 'ul', items: [
+        'Reçue : le restaurant a bien reçu la commande.',
+        'En préparation : la cuisine s’en occupe.',
+        'Prête : la commande est prête.',
+        'Servie : « Bon appétit ! »',
+        'Annulée : il est invité à s’adresser au personnel.',
+      ] },
+      { t: 'p', text: 'Pour une commande à emporter ou en livraison, il voit « En attente de confirmation du restaurant » jusqu’à ce que vous l’acceptiez, puis l’heure estimée (« Prête vers … » ou « Livraison vers … »). Un bouton lui permet d’écrire au restaurant sur WhatsApp.' },
+      { t: 'p', text: 'En livraison, quand le livreur est en route, le client reçoit un code de livraison à lui donner à la remise de la commande.' },
+    ],
+  },
+  {
+    id: 'guest-promo', chapter: 'guest', title: 'Codes promo et happy hour', products: ['pos'],
+    keywords: ['promo', 'code', 'réduction', 'remise', 'happy hour', 'promotion', 'coupon', 'minimum'],
+    tour: [{ nav: true, target: 'Promotions', text: 'Créez vos codes promo et vos happy hours dans « Promotions ».' }],
+    summary: 'Le client saisit un code dans le panier ; une happy hour s’affiche toute seule.',
+    blocks: [
+      { t: 'p', text: 'Vos promotions se créent dans la page « Promotions ». Côté client :' },
+      { t: 'ul', items: [
+        'Code promo : dans le panier, le client saisit son code et touche « Appliquer ». La réduction s’affiche, ou un message explique pourquoi le code ne marche pas (code inconnu, minimum non atteint, déjà utilisé, nombre maximum d’utilisations atteint).',
+        'Happy hour : le bandeau « Happy hour : -x % jusqu’à … » s’affiche pendant la période, sans code à saisir.',
+      ] },
+      { t: 'tip', text: 'Certains codes demandent le téléphone du client, pour vérifier qu’il ne les utilise qu’une fois.' },
+    ],
+  },
+  {
+    id: 'guest-allergens', chapter: 'guest', title: 'Allergènes sur le menu', products: ['pos', 'profit'],
+    keywords: ['allergène', 'allergie', 'gluten', 'arachide', 'lait', 'oeuf', 'traces', 'masquer', 'sécurité', 'intolérance'],
+    tour: [{ nav: true, target: 'Allergènes', text: 'Renseignez les allergènes de chaque plat dans « Allergènes ».' }],
+    summary: 'Le client masque les plats qui contiennent son allergène.',
+    blocks: [
+      { t: 'p', text: 'Quand les allergènes d’un plat sont renseignés, ils s’affichent sur sa fiche (« Peut contenir des traces de… »). Si ce n’est pas renseigné, le menu invite à demander au personnel.' },
+      { t: 'p', text: 'Le client peut toucher « Une allergie ? » et choisir « Masquer les plats avec : » : les plats qui contiennent l’allergène, ou dont les allergènes ne sont pas vérifiés, disparaissent. « Tout afficher » les remet.' },
+      { t: 'warn', text: 'Ces informations sont indicatives : le menu rappelle au client qu’en cas d’allergie, il doit le dire au personnel avant de commander.' },
+    ],
+  },
+  {
+    id: 'guest-booking', chapter: 'guest', title: 'Réserver une table et liste d’attente', products: ['pos', 'orders'],
+    keywords: ['réservation', 'réserver', 'table', 'liste d’attente', 'file', 'acompte', 'annuler', 'anniversaire', 'groupe', 'confirmer', 'créneau'],
+    tour: [{ nav: true, target: 'Réservations', text: 'Réglez vos créneaux, votre capacité et vos acomptes dans « Réservations ».' }],
+    summary: 'Le client réserve en ligne ; le restaurant confirme.',
+    blocks: [
+      { t: 'p', text: 'Sur le menu, « Réserver une table » permet de choisir le jour, l’heure et le nombre de personnes, avec son prénom et son numéro WhatsApp. Une demande particulière (anniversaire, chaise bébé…) est possible.' },
+      { t: 'ul', items: [
+        'Le client voit « Demande envoyée » : le restaurant confirme ensuite, puis « Réservation confirmée ».',
+        'S’il n’y a plus de place ce jour-là, il peut « Rejoindre la file » (liste d’attente) et voit « Vous êtes le prochain » puis « Votre table est prête ! » ; la page se met à jour toute seule.',
+        'Il peut annuler sa réservation, tant qu’il n’est pas trop tard : ensuite, il doit appeler le restaurant.',
+        'Pour un grand groupe, il est invité à appeler le restaurant.',
+        'Si vous demandez un acompte, il est déduit de l’addition.',
+      ] },
+      { t: 'p', text: 'Vous gérez les réservations à la caisse (onglet « Réservations ») et leurs réglages dans l’espace de gestion, page « Réservations ».' },
+    ],
+  },
+  {
+    id: 'guest-club', chapter: 'guest', title: 'Le club et la carte fidélité', products: ['pos', 'loyalty'],
+    keywords: ['club', 'fidélité', 'carte', 'points', 'cagnotte', 'récompense', 'whatsapp', 'inscription', 'confetti', 'dégustation', 'offres', 'numéro'],
+    tour: [{ nav: true, target: 'Clients', text: 'Retrouvez vos clients inscrits et leurs points dans « Clients ».' }],
+    summary: 'Inscription par QR code, points à chaque visite, récompenses.',
+    blocks: [
+      { t: 'p', text: 'Club : un QR code spécial (lien avec « ?club ») ouvre une page d’inscription : « Rejoindre le club ». Le client laisse son prénom et son numéro WhatsApp pour recevoir offres, nouveautés en avant-première et cadeaux. Une animation de confettis, avec un applaudissement, l’accueille. Il montre ensuite l’écran au personnel.' },
+      { t: 'p', text: 'Si le numéro est déjà inscrit, la page le dit gentiment : rien n’est enregistré en double.' },
+      { t: 'p', text: 'Carte fidélité : le client a une carte personnelle (un lien privé qu’il ne doit pas partager) où il voit :' },
+      { t: 'ul', items: [
+        'Ses points et sa cagnotte, qui grandissent à chaque visite.',
+        'Ses récompenses : il montre l’écran au personnel pour en profiter ; la remise est déduite de l’addition.',
+        'Les derniers mouvements : points gagnés, récompense utilisée.',
+      ] },
+      { t: 'tip', text: 'Conseil donné au client : « Ajouter à l’écran d’accueil » pour voir ses points en un tap. Si un client perd son lien, redonnez-le-lui à la caisse.' },
+    ],
+  },
+  {
+    id: 'guest-story', chapter: 'guest', title: 'Story Instagram, cadeau et avis Google', products: ['pos'],
+    keywords: ['story', 'instagram', 'partager', 'cadeau', 'code cadeau', 'avis', 'google', 'récompense', 'photo', 'polaroid', 'blague', 'bon'],
+    summary: 'Le client poste une story de son plat et reçoit un cadeau.',
+    blocks: [
+      { t: 'p', text: 'Après sa commande, le client peut « Partager votre plat sur Instagram ». L’application prépare une image de sa story (avec une blague, son plat et le nom de votre restaurant). Il touche « Poster ma story » ou « Enregistrer l’image ». Une autre blague, ou envoyer le plat à un ami, sont possibles.' },
+      { t: 'ul', items: [
+        'Le client est invité à mentionner votre compte Instagram pour que vous voyiez sa story.',
+        'Cadeau : « Montrez votre story au serveur pour recevoir : … ». Le cadeau peut être une réduction en pourcentage ou en montant sur la prochaine commande, ou un produit. Si vous proposez plusieurs cadeaux, il choisit après la story.',
+        'Code cadeau : il reçoit un code, valable pendant une période, à donner au serveur à sa prochaine visite ou à saisir dans le panier. Il peut copier le code.',
+        'Si l’offre est épuisée pour le moment, il est remercié pour sa story.',
+      ] },
+      { t: 'p', text: 'Avis Google : le menu invite aussi à « Laisser un avis Google » (« Vous avez aimé ? Votre avis nous aide énormément. »).' },
+      { t: 'tip', text: 'Chaque story publiée est de la publicité gratuite pour vous : c’est le principe de cette fonction.' },
+    ],
+  },
+];
+
+export const ARTICLES: Article[] = [...START, ...TILL, ...MENU, ...GUEST];
