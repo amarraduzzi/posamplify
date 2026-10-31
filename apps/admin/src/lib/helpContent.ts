@@ -44,6 +44,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'till', icon: '🧾', title: l3('La caisse', 'The till', 'الصندوق'), blurb: l3('Tables, commandes, encaissement, remises, rapports et clôture.', 'Tables, orders, payments, discounts, reports and closing.', 'الطاولات والطلبات والتحصيل والخصومات والتقارير والإغلاق.') },
   { id: 'menu', icon: '🍽️', title: l3('Le menu et les tables', 'Menu and tables', 'القائمة والطاولات'), blurb: l3('Catégories, articles, options, import, tables et QR codes.', 'Categories, items, options, import, tables and QR codes.', 'الفئات والأصناف والخيارات والاستيراد والطاولات ورموز QR.') },
   { id: 'guest', icon: '📱', title: l3('L’application de vos clients', 'Your customers’ app', 'تطبيق زبنائك'), blurb: l3('Ce que voient vos clients : menu QR, commande, suivi, réservation, club.', 'What your customers see: QR menu, ordering, tracking, booking, club.', 'ما يراه زبناؤك: قائمة QR والطلب والتتبع والحجز والنادي.') },
+  { id: 'reports', icon: '📈', title: l3('Suivre votre activité', 'Follow your business', 'متابعة نشاطك'), blurb: l3('Ventes, en direct, briefing du jour et comptabilité.', 'Sales, live view, daily briefing and accounting.', 'المبيعات والمتابعة المباشرة وملخص اليوم والمحاسبة.') },
 ];
 
 const a = (x: Article): Article => x;
@@ -433,13 +434,68 @@ export const ARTICLES: Article[] = [
     ],
     tip: l3('Chaque story publiée est de la publicité gratuite pour vous.', 'Every story posted is free advertising for you.', 'كل قصة منشورة هي إعلان مجاني لك.'),
   }),
+  // ───────────── Suivre votre activité
+  a({
+    id: 'rep-sales', chapter: 'reports', icon: '📊', products: ['pos'],
+    title: l3('Suivre vos ventes', 'Follow your sales', 'متابعة مبيعاتك'),
+    summary: l3('La page Ventes : chiffres du jour, employés, produits, export.', 'The Sales page: daily figures, staff, products, export.', 'صفحة المبيعات: أرقام اليوم والموظفون والمنتجات والتصدير.'),
+    kw: 'ventes chiffre d’affaires tickets ticket moyen tva pourboires remises employé produits export csv rapport sales revenue report average ticket vat tips مبيعات رقم المعاملات تقرير ضريبة',
+    steps: [
+      st('reports', 'nav-reports', 'Ouvrez « Ventes » dans le menu de gauche.', 'Open “Sales” in the left-hand menu.', 'افتح صفحة «المبيعات» من القائمة الجانبية.'),
+      st('reports', 'tabs', 'Deux onglets : « Journée » (le détail d’un jour) et « Produits » (ce qui se vend le mieux).', 'Two tabs: “Day” (one day in detail) and “Products” (your best sellers).', 'لسانان: «اليوم» (تفاصيل يوم واحد) و«المنتجات» (الأكثر مبيعًا).'),
+      st('reports', 'date', 'Choisissez la date. Par défaut, c’est la journée de travail en cours.', 'Pick the date. By default it is the current business day.', 'اختر التاريخ. افتراضيًا هو يوم العمل الحالي.'),
+      st('reports', 'kpis', 'D’un coup d’œil : chiffre d’affaires, tickets, ticket moyen, TVA, paiements, pourboires, remises, sorties de caisse et commandes annulées.', 'At a glance: sales, receipts, average receipt, VAT, payments, tips, discounts, cash-outs and cancelled orders.', 'بنظرة واحدة: رقم المعاملات والتذاكر ومتوسط التذكرة والضريبة والمدفوعات والإكراميات والخصومات وإخراج النقد والطلبات الملغاة.'),
+      st('reports', 'staff', '« Par employé » : ce que chaque serveur a encaissé.', '“By employee”: what each waiter took in.', '«حسب الموظف»: ما حصّله كل نادل.'),
+      st('reports', 'export', '« Export comptable (CSV) » télécharge les tickets du jour (numéro, HT, TVA, TTC, paiement) pour votre comptable.', '“Accounting export (CSV)” downloads the day’s receipts (number, excl. VAT, VAT, total, payment) for your accountant.', '«تصدير محاسبي (CSV)» يحمّل تذاكر اليوم (الرقم، بدون ضريبة، الضريبة، المجموع، الدفع) لمحاسبك.'),
+    ],
+  }),
+  a({
+    id: 'rep-live', chapter: 'reports', icon: '📡', products: ['pos'],
+    title: l3('La journée en direct', 'The day, live', 'اليوم مباشرة'),
+    summary: l3('Voir la journée en cours sans attendre la clôture.', 'See the current day without waiting for closing.', 'شاهد اليوم الجاري دون انتظار الإغلاق.'),
+    kw: 'en direct live temps réel aujourd’hui à regarder alerte anomalie équipe whatsapp rapport z écart de caisse stock bas real time today alert watch مباشر اليوم تنبيه واتساب',
+    steps: [
+      st('live', 'nav-live', 'Ouvrez « En direct » : la journée en cours, sans attendre la clôture.', 'Open “Live”: the current day, without waiting for closing.', 'افتح «مباشر»: اليوم الجاري دون انتظار الإغلاق.'),
+      st('live', 'sales', 'Le chiffre d’affaires du jour se met à jour en direct, avec la comparaison à la semaine dernière à la même heure.', 'Today’s sales update live, compared with the same hour last week.', 'يتحدّث رقم معاملات اليوم مباشرة، مع المقارنة بالأسبوع الماضي في الساعة نفسها.'),
+      st('live', 'watch', '« À regarder aujourd’hui » signale ce qui sort de l’ordinaire : grosse remise, annulation après l’envoi en cuisine, écart de caisse, stock bas.', '“To watch today” flags anything unusual: a big discount, a cancellation after the kitchen, a cash difference, low stock.', '«للمراقبة اليوم» ينبّه إلى كل ما هو غير عادي: خصم كبير، إلغاء بعد الإرسال إلى المطبخ، فرق في الصندوق، مخزون منخفض.'),
+      st('live', 'wa', 'Saisissez votre numéro WhatsApp : après la clôture, la caisse propose d’envoyer le rapport Z (chiffre, paiements, remises, écart de caisse) en un geste.', 'Enter your WhatsApp number: after closing, the till offers to send you the Z report (sales, payments, discounts, cash difference) in one tap.', 'أدخل رقم واتساب: بعد الإغلاق يقترح الصندوق إرسال تقرير Z (المبيعات والمدفوعات والخصومات وفرق الصندوق) بلمسة واحدة.'),
+    ],
+  }),
+  a({
+    id: 'rep-briefing', chapter: 'reports', icon: '✨', products: ['pos'],
+    title: l3('Le briefing du jour', 'The daily briefing', 'ملخص اليوم'),
+    summary: l3('Le résumé de la journée et 3 actions pour demain.', 'The day’s summary and 3 actions for tomorrow.', 'ملخص اليوم و3 إجراءات لغد.'),
+    kw: 'briefing résumé conseiller ia actions demain ventes par heure heure forte à vérifier idée summary advisor ai hour peak ملخص مستشار ذكاء اصطناعي ساعة الذروة',
+    steps: [
+      st('briefing', 'nav-briefing', 'Ouvrez « Briefing » : le résumé de la journée et 3 actions pour demain, écrits à partir de vos vrais chiffres.', 'Open “Briefing”: the day’s summary and 3 actions for tomorrow, written from your real figures.', 'افتح «الملخص»: ملخص اليوم و3 إجراءات لغد، مكتوبة من أرقامك الحقيقية.'),
+      st('briefing', 'ask', 'Touchez « Demander le résumé » : le conseiller rédige le texte en quelques secondes.', 'Tap “Ask for the summary”: the advisor writes the text in a few seconds.', 'اضغط «اطلب الملخص»: يكتب المستشار النص في ثوانٍ.'),
+      st('briefing', 'summary', 'Le texte est rédigé par une IA à partir des chiffres ci-dessous. Les chiffres, eux, sont exacts.', 'The text is written by an AI from the figures below. The figures themselves are exact.', 'النص مكتوب بالذكاء الاصطناعي انطلاقًا من الأرقام أسفله. أما الأرقام فدقيقة.'),
+      st('briefing', 'points', '« Ce qu’il faut retenir » : bonnes nouvelles, points « À vérifier » (pas forcément un problème : jetez un œil) et idées.', '“Key points”: good news, “To check” items (not necessarily a problem: just take a look) and ideas.', '«أهم النقاط»: أخبار جيدة وبنود «للمراجعة» (ليست بالضرورة مشكلة: ألقِ نظرة) وأفكار.'),
+      st('briefing', 'hours', '« Ventes par heure » : repérez votre heure la plus forte pour prévoir assez de personnel.', '“Sales by hour”: spot your busiest hour to plan enough staff.', '«المبيعات حسب الساعة»: حدّد ساعة الذروة لتوفّر العدد الكافي من العاملين.'),
+      st('briefing', 'day', '« Jour précédent » et « Jour suivant » pour revoir un autre jour.', '“Previous day” and “Next day” to look at another day.', '«اليوم السابق» و«اليوم التالي» لمراجعة يوم آخر.'),
+    ],
+  }),
+  a({
+    id: 'rep-accountant', chapter: 'reports', icon: '🧮', products: ['pos', 'profit'],
+    title: l3('Donner l’accès à votre comptable', 'Giving your accountant access', 'منح محاسبك إمكانية الوصول'),
+    summary: l3('Un lien, des fichiers du mois prêts à importer (Sage, Excel).', 'One link, monthly files ready to import (Sage, Excel).', 'رابط وملفات الشهر جاهزة للاستيراد (Sage وExcel).'),
+    kw: 'comptabilité comptable lien sage excel écritures tva mois achats factures pcge journal accounting accountant link entries vat month محاسبة محاسب رابط ضريبة شهر',
+    steps: [
+      st('accounting', 'nav-accounting', 'Ouvrez « Comptabilité » (cette page n’apparaît pas pour un manager : elle est réservée au propriétaire).', 'Open “Accounting” (this page does not appear for a manager: it is reserved for the owner).', 'افتح «المحاسبة» (لا تظهر هذه الصفحة للمدير: هي مخصصة للمالك).'),
+      st('accounting', 'link', 'Créez et copiez le lien pour votre comptable : il voit ventes et achats sans avoir de compte. « Couper le lien » le désactive aussitôt.', 'Create and copy the link for your accountant: they see sales and purchases without an account. “Switch off the link” disables it at once.', 'أنشئ وانسخ الرابط لمحاسبك: يرى المبيعات والمشتريات دون حساب. «قطع الرابط» يعطّله فورًا.'),
+      st('accounting', 'month', 'Choisissez le mois à exporter.', 'Pick the month to export.', 'اختر الشهر المراد تصديره.'),
+      st('accounting', 'excel', '« Dossier Excel du mois » : les chiffres du mois dans un fichier Excel.', '“Month’s Excel file”: the month’s figures in an Excel file.', '«ملف Excel للشهر»: أرقام الشهر في ملف Excel.'),
+      st('accounting', 'sage', '« Écritures pour Sage » : à importer dans Sage (format paramétrable à créer la première fois). Journaux : VE ventes, HA achats, CA caisse, BQ banque.', '“Entries for Sage”: to import into Sage (set up an import format the first time). Journals: VE sales, HA purchases, CA till, BQ bank.', '«قيود Sage»: للاستيراد في Sage (أنشئ صيغة استيراد في المرة الأولى). اليوميات: VE المبيعات، HA المشتريات، CA الصندوق، BQ البنك.'),
+      st('accounting', 'vat', 'La TVA estimée est une estimation : à faire vérifier par votre comptable.', 'The estimated VAT is an estimate: have your accountant check it.', 'الضريبة المقدّرة مجرد تقدير: يجب أن يراجعها محاسبك.'),
+    ],
+  }),
 ];
 
 // ───────────── visite guidée dans la vraie application (facultative, écrans de l'espace de gestion uniquement)
 const REAL: Record<string, string> = {
   'devices:link': 'Relier une caisse', 'devices:remove': 'Retirer', 'staff:add': 'Ajouter', 'menu:add-cat': 'Ajouter', 'menu:add-item': 'Ajouter un article',
   'menu:mods': 'Suppléments et formules', 'menu:import': 'Importer', 'menu:soldout': 'Épuisé', 'tables:add': 'Ajouter des tables', 'tables:print': 'Imprimer tous les QR codes',
-  'tables:single': 'Un seul QR code pour tout le restaurant', 'promos:new': 'Nouvelle promotion',
+  'tables:single': 'Un seul QR code pour tout le restaurant', 'promos:new': 'Nouvelle promotion', 'reports:export': 'Export comptable (CSV)', 'briefing:ask': 'Demander le résumé',
 };
 const pageOf = (s: string) => s.replace(/-(code|form|cat|item|mods|import)$/, '');
 

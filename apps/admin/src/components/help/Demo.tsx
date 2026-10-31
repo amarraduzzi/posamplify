@@ -6,8 +6,9 @@ import { tr } from './kit';
 import { ADMIN_SCREENS } from './screensAdmin';
 import { TILL_SCREENS } from './screensTill';
 import { GUEST_SCREENS } from './screensGuest';
+import { REPORT_SCREENS } from './screensReports';
 
-const SCREENS = { ...ADMIN_SCREENS, ...TILL_SCREENS, ...GUEST_SCREENS };
+const SCREENS = { ...ADMIN_SCREENS, ...TILL_SCREENS, ...GUEST_SCREENS, ...REPORT_SCREENS };
 const PULSE = '@keyframes helpPulse{0%{box-shadow:0 0 0 9999px rgba(8,18,32,.58),0 0 0 3px #26D07D,0 0 0 3px rgba(38,208,125,.9)}70%{box-shadow:0 0 0 9999px rgba(8,18,32,.58),0 0 0 3px #26D07D,0 0 0 16px rgba(38,208,125,0)}100%{box-shadow:0 0 0 9999px rgba(8,18,32,.58),0 0 0 3px #26D07D,0 0 0 3px rgba(38,208,125,0)}}';
 
 /** An interactive replica of the screen: the part to use is ringed; clicking the ring (or « Next ») moves on. */

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { UtensilsCrossed, Globe, CalendarDays, BadgePercent, Heart, ShieldAlert, QrCode, Users, Monitor, BarChart3, Settings, LifeBuoy } from 'lucide-react';
+import { UtensilsCrossed, Globe, CalendarDays, BadgePercent, Heart, ShieldAlert, QrCode, Users, Monitor, BarChart3, Activity, Sparkles, Calculator } from 'lucide-react';
 import { getLang, t } from '../../lib/i18n';
 
 /** pick the text in the language of the back office: fr, en, ar */
@@ -49,7 +49,7 @@ export function Browser({ children }: { children: ReactNode }) {
 const NAV: [string, string, ComponentType<{ className?: string }>][] = [
   ['menu', 'Menu', UtensilsCrossed], ['online', 'Commande en ligne', Globe], ['booking', 'Réservations', CalendarDays], ['promos', 'Promotions', BadgePercent],
   ['customers', 'Clients', Heart], ['allergens', 'Allergènes', ShieldAlert], ['tables', 'Tables & QR codes', QrCode], ['staff', 'Personnel', Users],
-  ['devices', 'Caisses', Monitor], ['reports', 'Ventes', BarChart3], ['settings', 'Restaurant', Settings], ['help', 'Aide', LifeBuoy],
+  ['devices', 'Caisses', Monitor], ['reports', 'Ventes', BarChart3], ['live', 'En direct', Activity], ['briefing', 'Briefing', Sparkles], ['accounting', 'Comptabilité', Calculator],
 ];
 /** French label of each menu entry (used by the real-application tour) */
 export const NAV_FR: Record<string, string> = Object.fromEntries(NAV.map(([id, fr]) => [id, fr]));
@@ -62,7 +62,7 @@ export function Admin({ active, title, right, children }: { active: string; titl
         <aside className="night flex w-[160px] shrink-0 flex-col gap-0.5 p-2.5">
           <p className="mb-2 px-1.5 font-logo text-[13px] font-extrabold tracking-wide">Amplify</p>
           {NAV.map(([id, fr, Icon]) => (
-            <div key={id} data-h={'nav-' + id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold ${id === active ? 'bg-white/15 text-white' : 'text-white/60'}`}>
+            <div key={id} data-h={'nav-' + id} className={`flex items-center gap-2 rounded-lg px-2 py-[3px] text-[12.5px] font-semibold ${id === active ? 'bg-white/15 text-white' : 'text-white/60'}`}>
               <Icon className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{t(fr)}</span>
             </div>
           ))}
