@@ -25,6 +25,7 @@ export interface Chapter { id: string; title: string; blurb: string }
 export const CHAPTERS: Chapter[] = [
   { id: 'start', title: 'Premiers pas', blurb: 'Créer votre restaurant, relier la caisse, ajouter vos employés.' },
   { id: 'till', title: 'La caisse', blurb: 'Tables, commandes, encaissement, remises, rapports et clôture de journée.' },
+  { id: 'menu', title: 'Le menu et les tables', blurb: 'Catégories, articles, options, import de votre carte, tables et QR codes.' },
 ];
 
 const START: Article[] = [
@@ -290,4 +291,108 @@ const TILL: Article[] = [
   },
 ];
 
-export const ARTICLES: Article[] = [...START, ...TILL];
+const MENU: Article[] = [
+  {
+    id: 'menu-categories', chapter: 'menu', title: 'Les catégories',
+    keywords: ['catégorie', 'boissons', 'plats', 'ordre', 'monter', 'descendre', 'masquer', 'imprimante', 'préparé à', 'service', 'suite', 'entrée', 'emporter', 'icône'],
+    summary: 'Organiser votre carte, choisir l’imprimante et les services.',
+    blocks: [
+      { t: 'p', text: 'Ouvrez la page « Menu ». Commencez par créer une catégorie (Boissons, Plats…) avec « Ajouter ». Chaque catégorie peut être modifiée, masquée, ou déplacée avec « Monter » et « Descendre ».' },
+      { t: 'p', text: 'Dans la fenêtre d’une catégorie, vous réglez :' },
+      { t: 'ul', items: [
+        'Icône : l’image qui accompagne la catégorie.',
+        'Préparé à : détermine sur quelle imprimante le bon est envoyé (cuisine, bar…).',
+        'Service : les plats d’un service suivant attendent à la caisse, on les envoie avec « Envoyer la suite ». Choisissez « Envoyé tout de suite » pour les autres.',
+        'À emporter : moins cher de (DH) : réduit le prix de chaque article de la catégorie quand la commande est à emporter. Exemple : 1 pour des boissons à 1 DH de moins. 0 = même prix.',
+        'Visible sur le menu et la caisse : décochez pour la masquer.',
+      ] },
+    ],
+  },
+  {
+    id: 'menu-items', chapter: 'menu', title: 'Ajouter et modifier un article',
+    keywords: ['article', 'plat', 'prix', 'photo', 'description', 'taille', 'options', 'glovo', 'poids', 'balance', 'code-barres', 'scanner', 'visible', 'supprimer'],
+    summary: 'Nom, prix, photo, tailles, vente au poids, code-barres, prix Glovo.',
+    blocks: [
+      { t: 'steps', items: [
+        'Choisissez une catégorie puis touchez « Ajouter un article ».',
+        'Renseignez le nom, la description, la catégorie et le prix (MAD). Ajoutez une photo : elle fait toute la différence sur le menu QR.',
+        'Enregistrez. L’article est tout de suite visible sur la caisse et sur le menu des clients.',
+      ] },
+      { t: 'ul', items: [
+        'Tailles / options (facultatif) : par exemple S, M, L, chacune avec son prix. Avec des options, le client doit en choisir une.',
+        'Prix Glovo : un prix différent pour Glovo, par article ou par option. Laissé vide, il est calculé automatiquement (prix du restaurant + réglage Glovo du menu).',
+        'Vendu au poids (gâteaux secs, chocolats…) : la caisse demande le poids lu sur la balance et calcule le prix. Pas de commande en ligne pour cet article.',
+        'Code-barres : le scanner de la caisse ajoute l’article. Pour une balance, saisissez le numéro d’article qu’elle imprime dans ses étiquettes (3 à 32 caractères : chiffres, lettres ou tiret).',
+      ] },
+      { t: 'tip', text: 'Pour retrouver un article rapidement, utilisez « Chercher un article » en haut de la page Menu.' },
+    ],
+  },
+  {
+    id: 'menu-availability', chapter: 'menu', title: 'Épuisé ou masqué : quelle différence ?',
+    keywords: ['épuisé', 'rupture', 'masquer', 'oeil', 'œil', 'disponible', 'afficher', 'stock', 'plus de'],
+    summary: 'Deux façons de retirer un article, pour deux situations.',
+    blocks: [
+      { t: 'ul', items: [
+        'Épuisé : l’article reste visible mais n’est plus commandable aujourd’hui. Idéal pour une rupture de stock. Remettez « Disponible » demain.',
+        'L’œil (Masquer du menu) : l’article disparaît du menu des clients et de la caisse. Utile pour un plat de saison. Touchez « Afficher » pour le remettre.',
+      ] },
+    ],
+  },
+  {
+    id: 'menu-modifiers', chapter: 'menu', title: 'Suppléments et formules',
+    keywords: ['supplément', 'formule', 'option', 'cuisson', 'boisson', 'groupe', 'choix', 'obligatoire', 'fiche technique', 'sauce', 'extra', 'menu enfant'],
+    summary: 'Des groupes de choix (cuisson, suppléments, boisson de la formule) réutilisables sur plusieurs plats.',
+    blocks: [
+      { t: 'p', text: 'Sur la page Menu, « Suppléments et formules » vous permet de créer des groupes d’options que le client choisit en commandant.' },
+      { t: 'steps', items: [
+        'Touchez « Nouveau groupe » et donnez-lui un nom.',
+        'Choisissez ce que le client fait : des suppléments (facultatif, plusieurs), un choix obligatoire (cuisson, boisson de la formule) ou sur mesure (minimum et maximum).',
+        'Ajoutez les options avec « Ajouter une option ». Indiquez le prix en plus (DH), ou laissez vide pour une option gratuite.',
+        'Sous « Sur quels plats ? », cochez les plats concernés. Le groupe est réutilisé partout où vous le cochez.',
+        'Enregistrez.',
+      ] },
+      { t: 'tip', text: 'Si vous utilisez Amplify Profit, la « Fiche technique » d’une option indique ce qu’elle ajoute dans l’assiette ; le stock en direct le retire à chaque vente.' },
+    ],
+  },
+  {
+    id: 'menu-import', chapter: 'menu', title: 'Importer votre carte (photo, PDF, Excel)',
+    keywords: ['importer', 'import', 'photo', 'pdf', 'excel', 'csv', 'xls', 'ancienne caisse', 'modèle', 'ia', 'annuler', 'traduction', 'arabe', 'changer de caisse'],
+    summary: 'Votre menu prêt en 2 minutes, sans rien retaper, et annulable.',
+    blocks: [
+      { t: 'p', text: 'Vous changez de caisse ? Ne retapez pas votre carte. Sur la page Menu, touchez « Importer mon menu » et choisissez la méthode la plus simple :' },
+      { t: 'ul', items: [
+        'Photo ou PDF de la carte : jusqu’à 6 pages (11 Mo en tout). L’IA lit les articles et les prix, et traduit en arabe. Comptez 20 à 60 secondes ; ne fermez pas la fenêtre.',
+        'Fichier Excel ou CSV : l’export de votre ancienne caisse. Les colonnes sont reconnues automatiquement. Pas d’export ? Téléchargez le modèle Excel à remplir.',
+      ] },
+      { t: 'steps', items: [
+        'Choisissez le fichier ou les photos.',
+        'Si les colonnes sont mal reconnues, indiquez ce que contient chaque colonne (il faut au moins un nom et un prix).',
+        'Vérifiez l’écran de contrôle : prix, catégories, traductions. Corrigez ou décochez les lignes douteuses.',
+        'Touchez « Importer … articles ». Tout est importé d’un coup.',
+      ] },
+      { t: 'tip', text: 'Un plat qui existe déjà dans la même catégorie est ignoré. Vous vous êtes trompé ? « Annuler cet import » (ou dans « Imports précédents ») : les plats déjà vendus sont masqués plutôt que supprimés.' },
+      { t: 'warn', text: 'Ancien format Excel (.xls) : ouvrez-le dans Excel et enregistrez-le en .xlsx ou CSV. Pour la photo : une image nette, bien éclairée, prise de face, donne de bien meilleurs résultats. Vérifiez toujours les prix lus par l’IA.' },
+    ],
+  },
+  {
+    id: 'menu-tables', chapter: 'menu', title: 'Tables et QR codes', products: ['pos', 'orders'],
+    keywords: ['table', 'qr', 'code', 'imprimer', 'zone', 'terrasse', 'salle', 'zip', 'png', 'svg', 'nouveau qr', 'abîmé', 'chevalet', 'plastifier', 'qr unique', 'sur place'],
+    summary: 'Créer vos tables, imprimer les QR codes, ou utiliser un QR unique.',
+    blocks: [
+      { t: 'p', text: 'Chaque table a son propre QR code : le client qui le scanne commande directement pour cette table. Collez les QR codes sur les tables (idéalement plastifiés).' },
+      { t: 'steps', items: [
+        'Ouvrez « Tables & QR codes » puis « Ajouter des tables ».',
+        'Indiquez « De la table n° » et « À la table n° », et une zone si vous voulez (Terrasse, Salle, Étage). Les numéros déjà existants sont ignorés.',
+        'Pour une table avec un nom (ex. « Bar 1 »), créez-la puis renommez-la.',
+        '« Imprimer tous les QR codes » (6 par page A4) ou « Tout télécharger (zip) ». Chaque QR code se télécharge aussi en PNG ou SVG pour vos propres supports (cartes, chevalets, autocollants).',
+      ] },
+      { t: 'ul', items: [
+        'Active (commandes possibles) : décochez pour empêcher les commandes sur une table.',
+        'Générer un nouveau QR code : à utiliser si un QR code a été copié ou abîmé. L’ancien code collé sur la table ne fonctionnera plus.',
+        'QR code unique du restaurant : un seul modèle pour toutes les tables. Le client scanne, choisit « Sur place » et tape son numéro de table, qui doit correspondre à une table de la liste. Les QR codes par table continuent de fonctionner.',
+      ] },
+    ],
+  },
+];
+
+export const ARTICLES: Article[] = [...START, ...TILL, ...MENU];
