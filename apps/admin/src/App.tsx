@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Coins, Star, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera, ShieldAlert } from 'lucide-react';
+import { BellRing, UtensilsCrossed, Users, QrCode, Settings, BarChart3, Shield, LogOut, ExternalLink, Menu as MenuIcon, Monitor, Sparkles, TrendingUp, Carrot, Wallet, ClipboardList, UserCheck, Heart, Coins, Star, Globe, CalendarDays, BadgePercent, Building2, CalendarClock, Activity, LayoutTemplate, Rocket, CookingPot, ChefHat, Calculator, MonitorDown, Scissors, Clock4, CalendarCheck2, Footprints, Banknote, Package, Camera, ShieldAlert, LifeBuoy } from 'lucide-react';
 import { useAdminCtx } from './store';
 import { supabase, MENU_URL, SITE_URL } from './lib/supabase';
 import { isSiteOnly } from './lib/types';
@@ -58,8 +58,9 @@ import { OrdersPage, screenAccent } from './pages/OrdersPage';
 import { LivePage } from './pages/LivePage';
 import { SitePage } from './pages/SitePage';
 import { UpgradePage } from './pages/UpgradePage';
+import { HelpPage } from './pages/HelpPage';
 
-type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'allergens' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits' | 'agreviews';
+type Page = 'counter' | 'inbox' | 'upgrade' | 'site' | 'live' | 'planning' | 'group' | 'online' | 'booking' | 'promos' | 'briefing' | 'menu' | 'staff' | 'tables' | 'devices' | 'settings' | 'reports' | 'platform' | 'profit' | 'ingredients' | 'production' | 'allergens' | 'catering' | 'stock' | 'team' | 'charges' | 'customers' | 'accounting' | 'agservices' | 'agteam' | 'agbooking' | 'nouba' | 'agday' | 'agclients' | 'agsite' | 'agtill' | 'agproducts' | 'agpay' | 'aginsta' | 'agloyalty' | 'agdeposits' | 'agreviews' | 'help';
 // i18n:values
 const STATUS: Record<string, string> = { trial: 'Essai', active: 'Actif', paused: 'Suspendu', cancelled: 'Résilié' };
 // i18n:end
@@ -166,6 +167,7 @@ function Screens() {
     { id: 'devices', label: t('Caisses'), Icon: Monitor, show: hasPos || hasAgenda },
     { id: 'reports', label: t('Ventes'), Icon: BarChart3, show: hasPos },
     { id: 'settings', label: agendaOnly ? t('Salon') : t('Restaurant'), Icon: Settings, show: !!r },
+    { id: 'help', label: t('Aide'), Icon: LifeBuoy, show: !!r },
     { id: 'upgrade', label: t('Abonnement'), Icon: Rocket, show: siteOnly && a.role !== 'manager' },
     { id: 'platform', label: t('Plateforme'), Icon: Shield, show: a.isAdmin },
   ];
@@ -276,6 +278,7 @@ function Screens() {
           {r && current === 'agsite' && <SalonSitePage key={r.id} r={r} />}
           {r && current === 'tables' && <TablesPage key={r.id} r={r} />}
           {r && current === 'devices' && <DevicesPage key={r.id} r={r} />}
+          {r && current === 'help' && <HelpPage key={r.id} r={r} />}
           {r && current === 'settings' && <SettingsPage key={r.id} r={r} />}
           {r && current === 'reports' && <ReportsPage key={r.id} r={r} />}
           {current === 'platform' && a.isAdmin && <PlatformPage />}
